@@ -13,7 +13,7 @@
  * @module dsh-sandbox/roots
  */
 
-import { realpathSync } from 'node:fs'
+import { lstatSync, realpathSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { SandboxExecutionPolicy } from './index.ts'
@@ -57,6 +57,23 @@ export function rootsOverlap(left: string, right: string): boolean {
     return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
   }
   return contains(left, right) || contains(right, left)
+}
+
+const homeDiagnosticFiles = new Set(['run/kernel-boot.json', 'run/kernel-status.json', 'logs/host-errors.log'])
+
+/**
+ * Identify diagnostic-only regular files omitted from a product-home input snapshot.
+ * Sandbox write exclusions still protect their entire registered home branch.
+ * @param home - Canonical product-home directory whose inputs are being captured.
+ * @param path - Physical entry being visited; links and directories remain protected.
+ * @returns Whether the entry is an exact diagnostic file without a redirected path.
+ */
+export function isHomeDiagnosticFile(home: string, path: string): boolean {
+  if (!homeDiagnosticFiles.has(relative(home, path).split(sep).join('/'))) return false
+  try { return lstatSync(path).isFile() && realpathSync(path) === path } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
 }
 
 /**

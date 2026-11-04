@@ -182,6 +182,45 @@ it('matches full reads across seeded randomized content, metadata, type and link
   }
 })
 
+it.each(['addition', 'content', 'approved addition'] as const)('retains mature unchanged content when rebuilding a tree after %s', async (change) => {
+  const f = fixture()
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10_000)
+  await f.integrity.grantWrite()
+  const full = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner'))
+  const changed = change === 'content' ? f.last : join(f.workspace, 'added.js')
+  writeFileSync(changed, 'export const changed = 9')
+  const read = vi.spyOn(fs, 'openSync')
+  const blocked = vi.fn()
+  const confirm = async () => change === 'approved addition'
+  const result = await f.integrity.verify({ blocked, confirm })
+  expect(result).toBe(change === 'approved addition')
+  expect(read.mock.calls.filter(([path, flags]) => path === f.first && flags === 'r')).toHaveLength(0)
+  expect(read.mock.calls.filter(([path, flags]) => path === changed && flags === 'r').length).toBeGreaterThan(0)
+  if (change !== 'approved addition') {
+    const fullBlocked = vi.fn()
+    expect(await full.verify({ blocked: fullBlocked, confirm })).toBe(result)
+    expect(blocked.mock.calls).toEqual(fullBlocked.mock.calls)
+  } else {
+    expect(new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner')).readTrusted(changed)?.toString()).toBe('export const changed = 9')
+  }
+})
+
+it('retains unchanged directory listings when another directory gains an input', async () => {
+  const f = fixture()
+  const stable = join(f.workspace, 'stable')
+  const changing = join(f.workspace, 'changing')
+  mkdirSync(stable)
+  mkdirSync(changing)
+  writeFileSync(join(stable, 'entry.js'), 'export const stable = true')
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10_000)
+  await f.integrity.grantWrite()
+  writeFileSync(join(changing, 'added.js'), 'export const added = true')
+  const enumerate = vi.spyOn(fs, 'readdirSync')
+  await expect(f.integrity.verify(f.owner)).resolves.toBe(false)
+  expect(enumerate.mock.calls.filter(([path]) => path === stable)).toHaveLength(0)
+  expect(enumerate.mock.calls.filter(([path]) => path === changing).length).toBeGreaterThan(0)
+})
+
 it('queries additional workspace records without creating trust', async () => {
   const f = fixture()
   await f.integrity.grantWrite()

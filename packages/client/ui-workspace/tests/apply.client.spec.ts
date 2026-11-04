@@ -4,7 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type {
   ISessions, SessionListState, SessionReference, SessionSnapshot, SessionSummary,
 } from '@panedesk/dsh-api-session-controller/client'
-import { SessionForkError } from '@panedesk/dsh-api-session-controller/client'
+import { SessionCreateError, SessionForkError } from '@panedesk/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from '@panedesk/dsh-api-workspace-controller/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import { SlotRegistry } from '@panedesk/dsh-client-ui-renderer/client'
@@ -137,9 +137,10 @@ async function bench() {
     unpinSession,
     insertSessionBefore: vi.fn(async () => ({})),
   } as never)
+  const createSession = vi.fn<ISessions['create']>(async () => sid('created'))
   ctx.provide('sessions', {
     list: { getSnapshot: () => sessionSnapshot, subscribe },
-    create: vi.fn(async () => 'created' as never),
+    create: createSession,
     retain,
     using,
     search,
@@ -162,7 +163,7 @@ async function bench() {
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
-    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename, commands, accessSource,
+    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, createSession, rename, commands, accessSource,
     retain, using, selectPanel, search, renameSession, binding, fork, pickDirectory, pinSession, unpinSession,
     workspacesSubscribe, initializeDefault, history, scope, sessionOf,
     setWorkspaces: (snapshot: WorkspaceSnapshot): void => { workspaceSnapshot = snapshot },
@@ -682,6 +683,27 @@ describe('ui-workspace apply', () => {
       expect(b.selectPanel).not.toHaveBeenCalled()
     },
   )
+
+  it('displays bilingual protected-input recovery instructions in the creation failure toast', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    b.setWorkspaces(workspaceState([workspace('a', [])]))
+    declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.uiWorkspace.connectWorkspace('a' as WorkspaceId)
+    const message = 'Protected host input requires owner confirmation before creating an agent. Explicitly authorize workspace write access again to capture a new baseline. / 受保护宿主输入复核未通过，无法创建代理。请重新显式授权该工作区写入一次，以重新捕获基线。'
+    b.createSession.mockRejectedValueOnce(new SessionCreateError(new RemoteError('gateway/internal', message, {}), undefined))
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    onTestFinished(() => { warning.mockRestore() })
+    const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
+    b.ctx.uiWorkspace.startSession('a' as WorkspaceId)
+    await vi.waitFor(() => { expect(toast.hooks.toast.getSnapshot()?.kind).toBe('createFailed') })
+    const notice = toast.hooks.toast.getSnapshot()
+    if (notice?.kind !== 'createFailed') throw new Error('Expected creation refusal notice')
+    const display = faceOf(b.slots.entries('workspace.toast').find(row => row.options.key === 'createFailed')!) as ToastDisplayInjected<'createFailed'>
+    expect(display.display(notice, b.locale.bind('workspace'), toast.dismissToast).text)
+      .toBe(`新建会话失败：gateway/internal: ${message}`)
+  })
 
   it('offers to open a source only after the Host refuses migration and never retries the fork', async () => {
     const b = await bench()

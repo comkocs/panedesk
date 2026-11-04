@@ -34,6 +34,8 @@
 
 `ProfileContext.overlayPaths` 可选记录命令行补丁的绝对路径，其解析内容在启动时固定。`bundleInputPaths` 记录本进程读取的 bundle 清单与补丁，并在重新组合后保留早先输入。启动器提供叠加路径，`readBundlePatches()` 扩充 bundle 集合。[沙盒策略](../../packages/sandbox/sandbox-policy/README.zh.md#protected-host-inputs)消费这些路径，不会将无关项目清单视为宿主输入。
 
+已登记的产品 home 根捕获全部输入，仅排除共享保护根辅助函数旁 `isHomeDiagnosticFile()` 选出的诊断普通文件。捕获与复核使用同一选择规则；链接、目录与未列名的路径仍是输入。这一读取选择不改变沙盒写排除。进程内捕获缓存仅逐项复用未变且时间戳足够早的条目；目录变化使该目录名单失效，不使无关文件失效。`ProtectedInputReviewError` 向准入消费端携带中英恢复提示。
+
 ## Profile 重新组合
 
 <a id="profile-reconciliation"></a>

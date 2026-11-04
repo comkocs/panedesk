@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ClientModuleRegistry } from '../../../client/modules/src/index.ts'
-import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
+import { grantProtectedWorkspace, ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import { SessionId } from '@panedesk/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
@@ -277,8 +277,48 @@ it.each([true, false])('waits for protected input review before admitting a new 
   if (allowed) expect('handle' in result).toBe(true)
   else {
     expect('error' in result).toBe(true)
+    if (!('error' in result)) throw new Error('Expected input review refusal')
+    expect(String(result.error)).toContain('Protected host input requires owner confirmation before creating an agent')
+    expect(String(result.error)).toContain('受保护宿主输入复核未通过，无法创建代理。')
+    expect(String(result.error)).toContain('Explicitly authorize workspace write access again')
+    expect(String(result.error)).toContain('请重新显式授权该工作区写入一次')
     expect(f.ctx.agents.get(SessionId(`review-admission-${allowed}`))).toBeUndefined()
   }
+})
+
+it('reuses unchanged input bytes through host authorization and new-agent review after another input changes', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'owner-incremental-review-'))
+  const workspace = join(root, 'workspace')
+  const home = join(root, 'state')
+  mkdirSync(workspace)
+  const first = join(workspace, 'first.js')
+  const last = join(workspace, 'last.js')
+  writeFileSync(first, 'export const first = 1')
+  writeFileSync(last, 'export const last = 2')
+  onTestFinished(() => { vi.restoreAllMocks(); rmSync(root, { recursive: true, force: true }) })
+  const f = await fixture(workspace)
+  setApprovalPolicy(f.agent.session, 'never')
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10_000)
+  const integrity = new ProtectedInputIntegrity(workspace, home)
+  const profile: ProfileContext = {
+    name: 'incremental-review', cwd: workspace, dir: workspace, home, patchPath: first,
+    installAnchor: first, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    inputIntegrity: integrity,
+  }
+  await grantProtectedWorkspace(profile, workspace, [])
+  const verify = vi.spyOn(integrity, 'verify')
+  f.ctx.provide('profileContext', profile)
+  await vi.waitFor(() => { expect(verify.mock.settledResults[0]?.value).toBe(true) })
+  const read = vi.spyOn(fs, 'openSync')
+  const unchanged = await f.ctx.agents.create({ sessionId: SessionId('unchanged-input-review'), meta: { cwd: workspace } })
+  expect(read.mock.calls.filter(([path, flags]) => (path === first || path === last) && flags === 'r')).toHaveLength(0)
+  await unchanged.dispose()
+  writeFileSync(last, 'export const last = 9')
+  read.mockClear()
+  await expect(f.ctx.agents.create({ sessionId: SessionId('changed-input-review'), meta: { cwd: workspace } }))
+    .rejects.toThrow('Protected host input requires owner confirmation before creating an agent')
+  expect(read.mock.calls.filter(([path, flags]) => path === last && flags === 'r').length).toBeGreaterThan(0)
+  expect(read.mock.calls.filter(([path, flags]) => path === first && flags === 'r')).toHaveLength(0)
 })
 
 it('retains bilingual capture recovery instructions in consent audit and new-agent denial', async () => {

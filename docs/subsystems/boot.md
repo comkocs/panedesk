@@ -34,6 +34,8 @@ The [boot package group](../../packages/boot/README.md) owns launcher-provided p
 
 `ProfileContext.overlayPaths` optionally records absolute command-line patch paths whose parsed contents are frozen at launch. `bundleInputPaths` records bundle manifests and patches read by the process, retaining earlier inputs across recompositions. The launcher supplies overlay paths; `readBundlePatches()` extends the bundle set. The [sandbox policy](../../packages/sandbox/sandbox-policy/README.md#protected-host-inputs) consumes these paths without treating unrelated project manifests as host inputs.
 
+A registered product-home root captures all inputs except diagnostic regular files selected by `isHomeDiagnosticFile()` beside the shared protected-root helpers. The same selection applies during capture and review; links, directories, and unlisted names remain inputs. This read selection does not change sandbox write exclusions. Process-local capture caches reuse only individually unchanged, mature entries; a changed directory invalidates its listing rather than unrelated files. `ProtectedInputReviewError` carries bilingual recovery instructions to admission consumers.
+
 ## Profile reconciliation
 
 <a id="profile-reconciliation"></a>

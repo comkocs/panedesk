@@ -11,6 +11,7 @@ import { bootProductionProfile } from './production-profile.ts'
 const NAME = 'headless-test-driver'
 const REQUIRED_ENTRY_ENV = 'DSH_LOADER_SMOKE_REQUIRED_ENTRY_ID'
 const FIBER_ACTIVE = 2 as FiberState.ACTIVE
+const FIBER_FAILED = 3 as FiberState.FAILED
 const [configPath, ...taskParts] = process.argv.slice(2)
 if (configPath === undefined || taskParts.length === 0 || taskParts.every(part => part.trim() === '')) {
   throw new Error(`${NAME}: expected <config-path> <task...>`)
@@ -18,11 +19,15 @@ if (configPath === undefined || taskParts.length === 0 || taskParts.every(part =
 
 const uninstallFailLoud = installFailLoud(NAME)
 let ctx: Context | undefined
+const startupFailure = Promise.withResolvers<{ error: unknown }>()
 try {
   loadEnv(NAME)
   ctx = await bootProductionProfile({
     binName: NAME,
     profile: 'headless',
+    prepare: (scope) => {
+      scope.on('agent-loop/config-start-failed', ({ error }) => { startupFailure.resolve({ error }) })
+    },
     overlayPaths: [resolveConfigPath(configPath, undefined), fileURLToPath(new URL('./cache-disabled.patch.yml', import.meta.url))],
   })
   const requiredEntryId = process.env[REQUIRED_ENTRY_ENV]
@@ -35,12 +40,18 @@ try {
       throw new Error(`${NAME}: required fixture entry did not activate: ${requiredEntryId}`)
     }
   }
-  const result = await runFixtureTurn(ctx, {
+  if (ctx.get('agents')?.roots().length === 0) {
+    for (const entry of ctx.loader.entries()) {
+      if (entry.fiber?.state === FIBER_FAILED) await entry.fiber.await()
+    }
+  }
+  const result = await Promise.race([startupFailure.promise, runFixtureTurn(ctx, {
     task: taskParts.join(' '),
     onEvent: (sessionId: string, event: SessionEvent) => {
       process.stdout.write(`${JSON.stringify({ type: 'session_event', sessionId, event })}\n`)
     },
-  })
+  })])
+  if ('error' in result) throw result.error
   process.stdout.write(`${JSON.stringify(result)}\n`)
 } catch (error: unknown) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)

@@ -1,7 +1,8 @@
 /** Direct one-shot Agent driving, exact Session adoption, machine-readable projection, and exit mapping. */
 
 import { Readable } from 'node:stream'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import { brandString } from '@panedesk/dsh-brand'
 import AgentRegistry from '@panedesk/dsh-agent'
@@ -235,6 +236,33 @@ async function bench(script: Script, options: BenchOptions = {}): Promise<{
 }
 
 describe('headless runner', () => {
+  it('exits nonzero with bilingual recovery instructions when protected input review refuses admission', async () => {
+    const test = await bench({ afterPrompt() { throw new Error('Refused input must not reach a turn') } }, { json: true })
+    const integrity = new ProtectedInputIntegrity('/project')
+    const verify = vi.spyOn(integrity, 'verify').mockResolvedValue(false)
+    test.ctx.provide('profileContext', {
+      name: 'headless', cwd: '/project', dir: '/project', home: '/owner', patchPath: '/project/patch.yml',
+      installAnchor: '/project/package.json', startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+      inputIntegrity: integrity,
+    })
+    test.ctx.provide('typertGateway', {
+      hasLiveClient: () => false,
+      onOwnerReady: () => () => {},
+    } as never)
+    await test.ctx.plugin(ApprovalService, { policy: 'never' })
+    try {
+      const result = await test.run()
+      expect(result.code).toBe(1)
+      expect(verify).toHaveBeenCalled()
+      for (const output of [result.out, result.err]) {
+        expect(output).toContain('Protected host input requires owner confirmation before creating an agent')
+        expect(output).toContain('受保护宿主输入复核未通过，无法创建代理。')
+        expect(output).toContain('Explicitly authorize workspace write access again')
+        expect(output).toContain('请重新显式授权该工作区写入一次')
+      }
+    } finally { verify.mockRestore(); await test.ctx.fiber.dispose() }
+  })
+
   it.each([false, true])('never dispatches owner approval for an unattended run (resume=%s)', async (resume) => {
     let questions = 0
     let outcome: string | undefined

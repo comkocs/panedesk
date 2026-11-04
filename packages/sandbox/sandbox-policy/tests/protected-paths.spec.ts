@@ -8,6 +8,7 @@ import Loader from '@panedesk/cordis-plugin-loader'
 import { initProfile, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { resolveProtectedPaths } from '../src/protected-paths.ts'
+import { assertUnprotectedRoots, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 
 it('protects the effective owner authorization root without a profile service', async () => {
   const root = mkdtempSync(join(tmpdir(), 'owner-record-protection-'))
@@ -39,6 +40,31 @@ it.skipIf(process.platform === 'win32')('retains a watched symlink spelling as w
   ctx.provide('profileContext', profile)
   expect(resolveProtectedPaths(ctx)).toContain(target)
   expect(resolveProtectedPaths(ctx)).toContain(alias)
+})
+
+it('keeps ledger and session branches outside sandbox write grants under a home workspace', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'runtime-write-protection-'))
+  const home = join(root, '.panedesk')
+  const dir = join(home, 'profiles', 'active')
+  mkdirSync(dir, { recursive: true })
+  const ctx = new Context()
+  vi.stubEnv('PANEDESK_HOME', home)
+  onTestFinished(async () => {
+    await ctx.fiber.dispose()
+    vi.unstubAllEnvs()
+    rmSync(root, { recursive: true, force: true })
+  })
+  ctx.provide('profileContext', {
+    name: 'active', dir, patchPath: join(dir, 'cordis.patch.yml'), home,
+    cwd: root, installAnchor: join(dir, 'package.json'), startedBundles: [],
+    overlays: [], telemetryDisabledEnv: undefined,
+  })
+  const protectedPaths = resolveProtectedPaths(ctx, root)
+  expect(protectedWorkspaceBranches(root, protectedPaths)).toEqual([home])
+  for (const name of ['ledger', 'sessions']) {
+    expect(() => { assertUnprotectedRoots([join(home, name)], protectedPaths) })
+      .toThrow('Cannot grant sandbox writes across protected host path')
+  }
 })
 
 it('protects actual bundle configuration files outside the profile directory', () => {

@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
+import { grantProtectedWorkspace, ProtectedInputReviewError } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -243,7 +243,7 @@ export class ApprovalService extends Service {
       })
       scope.effect(() => scope.typertGateway.onOwnerReady(() => { ownerReady = true; schedule() }))
       scope.on('agent/created', async () => {
-        if (!await runReview()) throw new Error('Protected host input requires owner confirmation before creating an agent')
+        if (!await runReview()) throw new ProtectedInputReviewError()
       })
       schedule()
     })
