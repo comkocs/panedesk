@@ -822,8 +822,11 @@ async function bootEmptyPreview(origin: string, browser: Browser): Promise<void>
     // client graph event stream travels through the tunnel.
     expect([...failedResponses]).toEqual(['/open-in-app/apps'])
     // HMR recomposes configuration against the Worker's empty ES module cache without asking for a restart.
+    // The virtual Linux host cannot provide native cgroup socket attribution.
     expect(consoleErrors.filter(line => !line.includes('Failed to load resource: the server responded with a status of 404')))
-      .toEqual([])
+      .toEqual([
+        'local-subprocess-runtime: Known limitation: Linux sandbox connection sources cannot be distinguished; a valid owner cookie can still be replayed. Enable cgroup v2 user-session delegation or run untrusted processes as a separate user. / 已知限制：Linux 无法区分沙箱连接来源；有效 owner cookie 仍可被回放。请启用 cgroup v2 用户会话委派，或以不同用户运行不可信进程。',
+      ])
   } catch (error) {
     await saveFailureShot(page, 'preview-boot-empty')
     throw pageErrors.length === 0
