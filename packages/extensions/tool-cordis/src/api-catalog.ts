@@ -857,6 +857,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'connectionSources',
+    summary: 'Instance-owned platform registration, shared by all owner admission paths.',
+    description: 'Instance-owned platform registration, shared by all owner admission paths.',
+    methods: [
+      {
+        signature: 'register(platform: NodeJS.Platform, lookup: ConnectionSourceLookup): () => Promise<void>',
+        description: 'Register before the provider permits untrusted execution; removal fails closed for new connections.',
+        parameters: [{ name: 'platform', description: 'Operating system whose product markers the provider owns.' }, { name: 'lookup', description: 'Synchronous bounded lookup; exceptions become unknown at admission.' }],
+        returns: 'Owning-fiber disposer; existing socket decisions remain fixed until close.',
+      },
+      {
+        signature: 'classify(socket: ConnectionSourceSocket | undefined): ConnectionSource',
+        description: 'Select the host platform, without interpreting browser sandbox flags as product identity.',
+        parameters: [{ name: 'socket', description: 'Accepted transport facts, or undefined for an in-process carrier.' }],
+        returns: 'Registered decision; unimplemented platforms permit, withdrawn providers refuse.',
+      },
+    ],
+  },
+  {
     key: 'cotTranslation',
     summary: 'Optional reasoning translation delegates Session-bound storage to the translator.',
     description: 'Optional reasoning translation delegates Session-bound storage to the translator.',
@@ -7728,7 +7747,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    protectedInputs?: readonly ProtectedInputEnforcement[];\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    productSandbox?: true;\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    protectedInputs?: readonly ProtectedInputEnforcement[];\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
   },
   {
     name: 'ConfinedSandboxMode',
@@ -7736,7 +7755,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectionAdmission',
-    declaration: 'export type ConnectionAdmission = {\n    readonly peer: PeerScope;\n    readonly release: () => Promise<void>;\n} | {\n    readonly rejection: 401 | 403 | 409;\n};',
+    declaration: 'export type ConnectionAdmission = {\n    readonly peer: PeerScope;\n    readonly release: () => Promise<void>;\n} | {\n    readonly rejection: 401 | 403 | 409;\n    readonly reason?: string;\n};',
   },
   {
     name: 'ConnectionFetchHandler',
@@ -7752,7 +7771,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectionIndexRequest',
-    declaration: 'export interface ConnectionIndexRequest extends ConnectionTrustRequest {\n    readonly socket?: {\n        readonly remoteAddress?: string | undefined;\n    };\n    readonly method?: string | undefined;\n    readonly url?: string | undefined;\n}',
+    declaration: 'export interface ConnectionIndexRequest extends ConnectionTrustRequest {\n    readonly method?: string | undefined;\n    readonly url?: string | undefined;\n}',
   },
   {
     name: 'ConnectionIndexResponse',
@@ -7791,8 +7810,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ConnectionRpcResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: ConnectionRpcFailure;\n};',
   },
   {
+    name: 'ConnectionSource',
+    declaration: 'export type ConnectionSource = \'product-sandbox\' | \'non-product\' | \'unknown\';',
+  },
+  {
+    name: 'ConnectionSourceLookup',
+    declaration: 'export type ConnectionSourceLookup = (socket: ConnectionSourceSocket | undefined) => ConnectionSource;',
+  },
+  {
+    name: 'ConnectionSourceSocket',
+    declaration: 'export interface ConnectionSourceSocket {\n    readonly remoteAddress?: string | undefined;\n    readonly remotePort?: number | undefined;\n    readonly localAddress?: string | undefined;\n    readonly localPort?: number | undefined;\n    readonly destroyed?: boolean | undefined;\n    once?(event: \'close\', listener: () => void): unknown;\n}',
+  },
+  {
     name: 'ConnectionTrustRequest',
-    declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+    declaration: 'export interface ConnectionTrustRequest {\n    readonly socket?: ConnectionSourceSocket;\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -9952,7 +9983,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PeerAdmission',
-    declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n};',
+    declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n    readonly reason?: string;\n};',
   },
   {
     name: 'PeerId',
@@ -12440,7 +12471,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessSpawnSpec',
-    declaration: 'export interface SubprocessSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    stdio: SubprocessStdio;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n    env?: NodeJS.ProcessEnv | undefined;\n}',
+    declaration: 'export interface SubprocessSpawnSpec {\n    productSandbox?: true;\n    argv: readonly string[];\n    cwd: string;\n    stdio: SubprocessStdio;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n    env?: NodeJS.ProcessEnv | undefined;\n}',
   },
   {
     name: 'SubprocessStdinMode',
@@ -12472,7 +12503,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessTerminalSpawnSpec',
-    declaration: 'export interface SubprocessTerminalSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    terminalType: string;\n    shellActivity?: boolean | undefined;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
+    declaration: 'export interface SubprocessTerminalSpawnSpec {\n    productSandbox?: true;\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    terminalType: string;\n    shellActivity?: boolean | undefined;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
   },
   {
     name: 'SurfaceEvent',

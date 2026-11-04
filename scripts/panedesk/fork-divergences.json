@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "platform-source-documentation-sync",
+      "description": "Synchronize platform source registration and confinement documentation",
+      "origin": "Owner authentication isolation",
+      "reason": "Register the platform connection-source service and its types, document internal host identity owners, and regenerate service, type, graph and configuration catalogs. Preserve existing source behavior while aligning confinement facts and bilingual references. These documentation changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/gen-cordis-catalog.ts", "scripts/gen-doc-graphs.ts",
+          "docs/subsystems/sandbox.md", "docs/subsystems/sandbox.zh.md",
+          "docs/subsystems/subprocess.md", "docs/subsystems/subprocess.zh.md",
+          "docs/config-catalog.md", "docs/config-catalog.zh.md",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/web-server.md", "docs/subsystems/web-server.zh.md",
+          "docs/capability-seams.md", "docs/capability-seams.zh.md", "docs/capability-seams.i18n.yaml",
+          "docs/event-producer-consumer.md", "docs/event-producer-consumer.zh.md"
+        ]
+      }
+    },
+    {
       "id": "windows-product-job-owner-admission",
       "description": "Identify Windows product sandbox TCP connections through host-owned Jobs",
       "origin": "Owner authentication isolation",

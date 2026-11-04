@@ -167,6 +167,31 @@ Types: [Principal](typert.zh.md)
 
 Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connection/src/rpc.ts)
 
+<a id="ctxconnectionsources--connectionsourceregistry"></a>
+
+### `ctx.connectionSources` — `ConnectionSourceRegistry`
+
+Instance-owned platform registration, shared by all owner admission paths.
+
+```ts cordis-catalog
+/**
+ * Register before the provider permits untrusted execution; removal fails closed for new connections.
+ * @param platform - Operating system whose product markers the provider owns.
+ * @param lookup - Synchronous bounded lookup; exceptions become unknown at admission.
+ * @returns Owning-fiber disposer; existing socket decisions remain fixed until close.
+ */
+register(platform: NodeJS.Platform, lookup: ConnectionSourceLookup): () => Promise<void>
+
+/**
+ * Select the host platform, without interpreting browser sandbox flags as product identity.
+ * @param socket - Accepted transport facts, or undefined for an in-process carrier.
+ * @returns Registered decision; unimplemented platforms permit, withdrawn providers refuse.
+ */
+classify(socket: ConnectionSourceSocket | undefined): ConnectionSource
+```
+
+Source: [`packages/client/connection/src/connection-source.ts`](../../packages/client/connection/src/connection-source.ts)
+
 <a id="ctxwebapp--webapp"></a>
 
 ### `ctx.webApp` — `WebApp`

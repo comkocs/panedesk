@@ -100,6 +100,8 @@ The seam applies no defaults: every disposition, limit, and directory is explici
  * request/spec split is the owning template).
  */
 interface SubprocessSpawnSpec {
+  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
+  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
   /** Working directory for the child. */

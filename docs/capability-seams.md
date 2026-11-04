@@ -7,6 +7,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_client_connection["client-connection"]
+  svc_connectionSources["ctx.connectionSources<br/>Owner connection source classification"]
   pkg_client_ui_nodes["client-ui-nodes"]
   svc_nodes["ctx.nodes<br/>Owner node observations and operations"]
   pkg_client_ui_inbox["client-ui-inbox"]
@@ -101,7 +103,6 @@ flowchart LR
   pkg_client_ui_plugin_market["client-ui-plugin-market"]
   svc_kernelStatus["ctx.kernelStatus<br/>Accounting startup observations"]
   svc_profileContext["ctx.profileContext<br/>Launcher-owned profile data"]
-  pkg_client_connection["client-connection"]
   svc_connection["ctx.connection<br/>Authenticated browser transport"]
   pkg_api_gateway["api-gateway"]
   pkg_host_frontend_static["host-frontend-static"]
@@ -404,6 +405,7 @@ flowchart LR
   pkg_bash_sandbox --> svc_shell
   pkg_browser_use --> svc_browserUse
   pkg_client_connection --> svc_connection
+  pkg_client_connection --> svc_connectionSources
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
@@ -845,6 +847,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.connectionSources` | `service` | [`client-connection`](../packages/client/connection) | - | - | - | Registers bounded platform lookups and refuses unavailable source facts after a provider withdraws. |
 | `ctx.nodes` | `service` | [`client-ui-nodes`](../packages/client/ui-nodes) | - | - | - | Reads bounded node and live callback observations and forwards confirmed actions through existing local-operator authorization. |
 | `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | Reads exact receiving-session metadata and verified mailbox isolation without message mutations. |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine. |

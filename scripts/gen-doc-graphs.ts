@@ -109,6 +109,10 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'connectionSources', pkg: 'client-connection', title: 'Owner connection source classification', mode: 'service',
+    note: 'Registers bounded platform lookups and refuses unavailable source facts after a provider withdraws.',
+  },
+  {
     key: 'nodes', pkg: 'client-ui-nodes', title: 'Owner node observations and operations', mode: 'service',
     note: 'Reads bounded node and live callback observations and forwards confirmed actions through existing local-operator authorization.',
   },
