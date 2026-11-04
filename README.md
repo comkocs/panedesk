@@ -47,6 +47,8 @@ Owner-installed MCP servers and providers run with their own capabilities, outsi
 <a id="sandbox-session-isolation-and-limitations"></a>
 ## Sandbox session isolation and limitations
 
+When the workspace contains the product home, such as when starting in `$HOME`, the first write authorization scans overlapping protected directories individually; a fresh Linux development home measured 18–32 ms across headless and Web hosts, but installed plugin trees can cost more. Start in a project directory rather than using `$HOME` as the workspace.
+
 Bubblewrap gives both confined modes a private `/tmp` and masks host tmux, screen, session-bus, X11 and Wayland socket directories, including explicit runtime-directory overrides. Tools requiring these host sessions are unavailable inside that sandbox; ordinary temporary files use the private tmpfs. macOS Seatbelt denies outbound UNIX sockets under temporary and configured session directories; native macOS validation remains outstanding. See [runner details](packages/sandbox/sandbox-local/README.md#known-limitations-and-deferred-work).
 
 Linux runners apply Landlock abstract-UNIX socket scope on kernels with ABI 6 or later. Without that scope, abstract sockets remain reachable: on an X11 desktop a sandbox process may inject keys into other windows. Startup is not refused for this limitation. Sandbox network namespaces plus user-space networking are required before the M9 stable release.

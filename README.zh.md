@@ -47,6 +47,8 @@ owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedes
 <a id="sandbox-session-isolation-and-limitations"></a>
 ## 沙箱会话隔离与限制
 
+工作区包含产品 home 时（如在 `$HOME` 下启动），首次写授权会逐个扫描重叠的受保护目录；Linux 开发检出使用全新 home 时，headless 与 Web 宿主实测为 18–32 毫秒，已安装插件树的开销可能更大。请在项目目录启动，不要把 `$HOME` 当作工作区。
+
 Bubblewrap 在两种受限模式下均提供私有 `/tmp`，遮挡宿主 tmux、screen、会话总线、X11 与 Wayland 套接字目录，包括显式指定的运行时目录。依赖这些宿主会话的工具在该沙箱内不可用；普通临时文件使用私有 tmpfs。macOS Seatbelt 拒绝临时目录及配置的会话目录下的 UNIX 套接字出站连接；macOS 原生验收仍待实机。见 [runner 细节](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)。
 
 Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scope。没有该 scope 时，抽象套接字仍可达：在 X11 桌面上，沙箱进程可能向其他窗口注入按键。此限制不导致拒绝启动。M9 正式发布前补沙箱网络命名空间 + 用户态网络。
