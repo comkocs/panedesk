@@ -15479,6 +15479,19 @@
       }
     },
     {
+      "id": "inspector-auth-source-fixtures",
+      "description": "Complete Inspector authentication fixtures for owner source admission",
+      "origin": "Inspector route test compatibility",
+      "reason": "Provide the connectionSourceRejection method in the typed browser authentication fixtures used by Inspector route and lifecycle tests. Keep all assertions and production owner source admission unchanged. This fixture repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/experimental/inspector/tests/plugin-routes.host.spec.ts",
+          "packages/experimental/inspector/tests/plugin.host.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "shared-instance-graph-current-peers",
       "description": "Regenerate the bilingual shared-instance graph from current peer dependencies",
       "origin": "Generated package graph freshness",

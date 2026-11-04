@@ -59,9 +59,10 @@ describe('experimental Inspector Host DevTools routes', () => {
       registerUpgrade: (route) => { upgrades.push(route); return () => {} },
     }
     context.provide('webServer', webServer as WebServer)
-    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi' | 'authorizeIndex'> = {
+    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi' | 'authorizeIndex' | 'connectionSourceRejection'> = {
       isAuthenticated: () => true,
       authenticateApi: () => undefined,
+      connectionSourceRejection: () => undefined,
       authorizeIndex: (_request, response) => {
         if (options.indexAllowed?.() !== false) return true
         response.writeHead(401)
