@@ -4,7 +4,7 @@ import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import type {} from '@panedesk/dsh-ssh'
 import { z } from 'zod'
 
-const factsSchema = z.object({ argv: z.array(z.string()).min(1), enforcement: z.enum(['full', 'partial']), denialSignatures: z.array(z.string()), runnerFailureRules: z.array(z.object({ allowedExitCodes: z.array(z.number().int()).optional(), fatalSignatures: z.array(z.string()), informationalLines: z.array(z.string()).optional() }).strict()) }).strict()
+const factsSchema = z.object({ productSandbox: z.boolean().optional(), argv: z.array(z.string()).min(1), enforcement: z.enum(['full', 'partial']), denialSignatures: z.array(z.string()), runnerFailureRules: z.array(z.object({ allowedExitCodes: z.array(z.number().int()).optional(), fatalSignatures: z.array(z.string()), informationalLines: z.array(z.string()).optional() }).strict()) }).strict()
 
 /** Resolve each confinement request on the same host as its filesystem and subprocess providers. */
 export class SshSandboxProvider extends SandboxProvider {
@@ -16,7 +16,10 @@ export class SshSandboxProvider extends SandboxProvider {
       const confined = await this.ctx.ssh.request('sandbox', { argv, policy }, factsSchema, signal)
       signal?.throwIfAborted()
       return {
-        ...confined,
+        argv: confined.argv,
+        enforcement: confined.enforcement,
+        denialSignatures: confined.denialSignatures,
+        ...(confined.productSandbox === true ? { productSandbox: true } : {}),
         runnerFailureRules: confined.runnerFailureRules.map(rule => ({
           fatalSignatures: rule.fatalSignatures,
           ...(rule.allowedExitCodes === undefined ? {} : { allowedExitCodes: rule.allowedExitCodes }),

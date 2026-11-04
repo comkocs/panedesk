@@ -10853,6 +10853,15 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
+      '@panedesk/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis

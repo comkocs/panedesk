@@ -10,7 +10,7 @@
  * @module @panedesk/dsh-experimental-ptc-runtime-python
  */
 
-import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { accessSync, constants as fsConstants, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join, resolve } from 'node:path'
@@ -25,7 +25,8 @@ import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
 import { SandboxUnavailableError, classifyRunnerFailure, isRunnerSpawnFailure } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, SandboxMode } from '@panedesk/dsh-sandbox'
 import type {} from '@panedesk/dsh-sandbox-policy'
-import { bootstrapInput, PYTHON_BOOTSTRAP_LOADER } from './launch.ts'
+import type { SubprocessHandle } from '@panedesk/dsh-subprocess'
+import { bootstrapInput, PYTHON_BOOTSTRAP_LOADER, PYTHON_MANAGED_LAUNCHER } from './launch.ts'
 import type { BootMessage, ChildToHost, ReplyMessage } from './protocol.ts'
 import { checkDoneValue, encodeJsonPlain, hasUnsafeIntegerToken, logTruncationMarker, validateChildFrame } from './protocol.ts'
 
@@ -307,17 +308,6 @@ export function hostFrameParseCeiling(heapLimit: number = getHeapStatistics().he
 }
 
 /**
- * Interval between process-group liveness probes while settlement waits for an
- * escalated SIGKILL to empty the group (see the `killing` branch in
- * {@link PythonPtcRuntime.execute}'s settle). A poll rather than an event
- * because the group members are the model's own descendants, which the host does
- * not `wait()` for and gets no exit signal from; the probe is a signal-0
- * `process.kill(-pid, 0)`, so the interval only bounds how promptly a now-empty
- * group is noticed, capped by `graceMs + CLOSE_REAP_MARGIN_MS`.
- */
-const GROUP_REAP_POLL_MS = 50
-
-/**
  * Extract a human message from an unknown thrown value.
  *
  * `String(error)` runs the value's own conversion, and a host binding may reject
@@ -441,7 +431,7 @@ const PYTHON_PROBE_TIMEOUT_MS = 5_000
 
 /** The only host environment fact exposed to the child. */
 function pythonEnvironment(): NodeJS.ProcessEnv {
-  return { TMPDIR: tmpdir() }
+  return { ...Object.fromEntries(Object.keys(process.env).map(key => [key, undefined])), TMPDIR: tmpdir() }
 }
 
 /** Fail load unless `bin` is a responsive CPython 3.10+ interpreter. */
@@ -742,7 +732,7 @@ interface LiveRun {
  * `AbortSignal`; every disposer awaits child-process exit.
  */
 export class PythonPtcRuntime extends PtcRuntime {
-  static inject = ['sandbox', 'sandboxPolicy']
+  static inject = ['sandbox', 'sandboxPolicy', 'subprocess']
   static Config: z<Config> = z.object({
     cpuSeconds: z.number().default(60),
     maxWallMs: z.number().default(600_000),
@@ -956,12 +946,9 @@ export class PythonPtcRuntime extends PtcRuntime {
   }
 
   /**
-   * Dispose to quiescence: fail every in-flight run as aborted and AWAIT each
-   * child's exit so no subprocess that stays in the child's process group
-   * outlives the fiber. A descendant that escaped the group with `setsid()` /
-   * `start_new_session=True` is unreachable by `kill(-pid)` and is the documented
-   * exception (see the package README's Known Limitations); the process-group
-   * teardown reaps everything that stays in the group.
+   * Abort live runs and await their provider-managed ranges. Observation failures
+   * reject disposal rather than reporting quiescence. Process-group fallback has
+   * the provider's documented escaped-descendant limits.
    */
   private async teardown(): Promise<void> {
     this.disposed = true
@@ -1001,10 +988,13 @@ export class PythonPtcRuntime extends PtcRuntime {
     const controller = new AbortController()
     const completion = Promise.withResolvers<void>()
     const live: LiveRun = { controller, finished: completion.promise }
-    const complete = (): void => {
+    const complete = (error?: Error): void => {
+      if (error !== undefined) { completion.reject(error); return }
       this.live.delete(live)
       completion.resolve()
     }
+    // Retain observation failures for teardown without an unhandled rejection.
+    void live.finished.catch(() => {})
     this.live.add(live)
     const onAbort = (): void => {
       controller.abort({ kind: 'abort', message: messageOf(request.signal?.reason) } satisfies PtcRunFailure)
@@ -1149,7 +1139,7 @@ export class PythonPtcRuntime extends PtcRuntime {
     return bindings
   }
 
-  /** Spawn one confined program and retain ownership until its process group settles. */
+  /** Spawn one confined program and retain ownership until its managed range settles. */
   private execute(
     request: PtcRunSpec & { signal: AbortSignal },
     bindings: Map<string, ValidatedNamespace>,
@@ -1157,24 +1147,34 @@ export class PythonPtcRuntime extends PtcRuntime {
     input: string,
     sandbox: PtcRunSandbox,
     confined: ConfinedArgv | undefined,
-    complete: () => void,
+    complete: (error?: Error) => void,
   ): Promise<PtcRunResult> {
-    let child: ChildProcessWithoutNullStreams
-    let proto: Duplex | null
+    let child: SubprocessHandle & { stdin: NonNullable<SubprocessHandle['stdin']>; stdout: NonNullable<SubprocessHandle['stdout']>; stderr: NonNullable<SubprocessHandle['stderr']> }
+    let proto: Duplex
+    let ownershipTransferred = false
     try {
-      child = spawn(argv[0], argv.slice(1), {
-        cwd: request.cwd,
-        env: pythonEnvironment(),
-        detached: true, // Own the process group used by termination and exit observation.
-        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+      const handle = this.ctx.subprocess.spawn({
+        argv: [this.pythonBin, '-I', '-c', PYTHON_MANAGED_LAUNCHER, ...argv],
+        cwd: request.cwd, env: pythonEnvironment(), graceMs: this.config.graceMs,
+        stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', control: 'pipe' },
+        ...confined?.productSandbox === true ? { productSandbox: true } : {},
       })
-      proto = child.stdio[3] as Duplex | null
-      /* v8 ignore next 3 -- Node's extra-stdio typing includes null; four pipe entries supply fd 3. */
-      if (proto === null) {
-        throw new Error('dsh-ptc-runtime-python: python subprocess spawned without a fd-3 pipe')
+      const { stdin, stdout, stderr, control } = handle
+      if (stdin === undefined || stdout === undefined || stderr === undefined || control === undefined) {
+        handle.terminate()
+        void handle.done.catch(() => {})
+        ownershipTransferred = true
+        void handle.waitForExit().then((empty) => {
+          complete(empty ? undefined : new Error('python subprocess exit observation ended before quiescence'))
+        }, (error: unknown) => {
+          complete(new Error(`python subprocess exit observation failed: ${messageOf(error)}`))
+        })
+        throw new Error('dsh-ptc-runtime-python: python subprocess spawned without four protocol streams')
       }
+      child = { ...handle, stdin, stdout, stderr }
+      proto = control
     } catch (error: unknown) {
-      complete()
+      if (!ownershipTransferred) complete()
       return Promise.resolve({ logs: [], sandbox, error: {
         kind: confined !== undefined && isRunnerSpawnFailure(error, argv[0], request.cwd) ? 'sandbox-unavailable' : 'worker-exit',
         message: `python spawn error: ${messageOf(error)}`,
@@ -2060,183 +2060,35 @@ export class PythonPtcRuntime extends PtcRuntime {
         void drainReplies()
       }
 
-      // Escalate SIGTERM → grace → SIGKILL on the entire process group. Idempotent
-      // via `killing`.
-      let killing = false
-      let graceTimer: NodeJS.Timeout | undefined
-      // A backstop for the one case `close` cannot cover: model code that starts
-      // a descendant with `os.setsid()`/`start_new_session=True` moves it into a
-      // fresh process group, so the SIGTERM/SIGKILL aimed at the child's group
-      // (`kill(-pid)`) never reaches it. If that orphan inherited stdout/stderr/
-      // fd 3 and outlives the run, those pipes stay open and `close` never fires
-      // — leaving run() (and a teardown awaiting `finished`) hung indefinitely.
-      // finish() arms this deadline; when it fires we detach our stream handles
-      // and settle on the already-decided result regardless of the orphan.
+      // The provider owns signalling, escalation, and observation of the same range.
       let closeDeadline: NodeJS.Timeout | undefined
-      // The leader's start time, read once while it is certainly alive. `child.pid`
-      // keeps its numeric value after the leader is reaped (Node clears the
-      // internal handle, not the field), and `close` can trail `exit` by seconds
-      // while a pipe-holding descendant keeps the streams open. Signalling
-      // `-child.pid` in that window is a RAW syscall -- `child.kill()` would
-      // refuse, having dropped its handle, but `process.kill` has no such guard --
-      // so a recycled pgid would receive this run's SIGTERM and armed SIGKILL.
-      // `groupEmpty()` cannot cover it: it reports whether the group has members,
-      // not whether they are OURS, and it runs only after the first signal.
-      // The repository already takes this position in
-      // packages/subprocess/subprocess-local (`ProcessIdentity`, "preventing
-      // teardown escalation after PID reuse"); this is the same guard, kept local
-      // because a dependency on that package would be a new architectural edge.
-      const leaderStarted = child.pid === undefined ? undefined : readProcessStart(child.pid)
-      const killGroup = (sig: NodeJS.Signals): void => {
-        try {
-          /* v8 ignore next -- undefined pid means spawn never produced a process; finish() short-circuits before reaching kill(). */
-          if (child.pid === undefined) return
-          // A pid alone cannot answer this: `process.kill(pid, 0)` succeeds just
-          // as well for a REPLACEMENT process holding the recycled number. Only
-          // the start time distinguishes the two, so a reading that DISAGREES
-          // means the number now belongs to another process and must not be
-          // signalled.
-          //
-          // An ABSENT reading is the ordinary case, not a mismatch: once the
-          // leader is reaped its `/proc/<pid>/stat` is gone, while the group it
-          // led can still hold survivors that this teardown exists to reap. So
-          // only a present-and-different reading blocks the signal; undefined
-          // falls through, which is also the behavior on platforms with no
-          // `/proc` to read.
-          const nowStarted = readProcessStart(child.pid)
-          // The refusal arm needs a real pid recycled into a new group leader
-          // between spawn and teardown, which no test can schedule; the reader
-          // itself is covered directly by the process-identity test.
-          /* v8 ignore next -- unreachable without real pid reuse; see above. */
-          if (leaderStarted !== undefined && nowStarted !== undefined && nowStarted !== leaderStarted) return
-          process.kill(-child.pid, sig)
-        } catch {
-          // ESRCH — the process already died. Nothing to do.
-        }
-      }
+      let rangeWait: Promise<void> | undefined
       const kill = (): void => {
-        /* v8 ignore next -- kill() is idempotent; tests do not double-invoke it. */
-        if (killing) return
-        killing = true
-        killGroup('SIGTERM')
-        // Escalate to SIGKILL after the grace window. The timer is `unref`'d so a
-        // pending SIGKILL never keeps the host process alive on its own; the
-        // guarantee that a same-group survivor is actually reaped before the fiber
-        // goes quiescent is enforced by settle() awaiting the group's death (see
-        // there), NOT by this timer firing during host lifetime. A setsid-escaped
-        // orphan in a FRESH group is the different case `closeDeadline` in finish()
-        // covers, since `close` never fires there.
-        graceTimer = setTimeout(() => { killGroup('SIGKILL') }, this.config.graceMs)
-        graceTimer.unref()
-      }
-      // True once the group has no members left: a signal-0 probe to the whole
-      // group (`kill(-pid, 0)`) throws ESRCH when empty (EPERM would still mean a
-      // member exists). Only meaningful once a spawn produced a pid.
-      const groupEmpty = (): boolean => {
-        /* v8 ignore next -- pid is always defined once escalation runs; the guard narrows the type. */
-        if (child.pid === undefined) return true
-        try {
-          process.kill(-child.pid, 0)
-          return false
-        } catch (error: unknown) {
-          return (error as NodeJS.ErrnoException).code === 'ESRCH'
-        }
+        if (rangeWait !== undefined) return
+        child.terminate()
+        rangeWait = child.waitForExit().then((empty) => {
+          if (!empty) throw new Error('python subprocess exit observation ended before quiescence')
+        })
+        void rangeWait.catch(() => {})
       }
 
       let resolved = false
-      // The decided terminal result for a live child, recorded by finish() and
-      // read by the `close` handler that settles it once the pipes have drained.
+      // The decided terminal result is retained until the provider outcome and
+      // drained read endpoints can settle it without losing a buffered fd-3 frame.
       let decided: Omit<PtcRunResult, 'logs'>
 
-      // The single settlement point: resolve run() with the decided result and
-      // mark the fiber quiescent. Idempotent — the first call wins, so a later
-      // `close` after done/timeout/abort is absorbed as a no-op.
+      // Resolve the decided result once; runtime disposal independently awaits
+      // successful provider observation of the entire managed range.
       const settle = (result: Omit<PtcRunResult, 'logs'>): void => {
         if (resolved) return
         resolved = true
         if (closeDeadline !== undefined) clearTimeout(closeDeadline)
         resolve({ ...result, logs, sandbox: { ...sandbox } })
-        // Mark the fiber quiescent for THIS run: drop it from `live` and resolve
-        // `finished` (what teardown awaits). Deferred until the process group is
-        // actually empty — dropping from `live` before then would let a
-        // `dispose()` that races a just-resolved run() snapshot an empty `live`
-        // and return while a same-group survivor is still alive, making teardown's
-        // "no SAME-GROUP subprocess outlives the fiber" guarantee false for that
-        // window (a setsid escapee is the documented exception — see teardown's
-        // JSDoc). Keeping the run in `live` until the group is reaped is exactly
-        // what makes a concurrent teardown await it.
-        const finalize = (): void => {
-          complete()
-        }
-        // `finished` is what teardown awaits to honor "no same-group subprocess
-        // outlives the fiber". When no escalation ran (normal completion, no
-        // kill) or the group is already empty, cancel the pending SIGKILL and
-        // finalize now. Clearing it is what bounds the PID-reuse hazard: an armed
-        // `kill(-pid)` left to fire up to graceMs later could hit a RECYCLED pgid
-        // once the kernel reused the leader's pid, SIGKILLing an unrelated group.
-        // So the timer stays armed only while a real survivor exists — a
-        // same-group descendant that ignored SIGTERM but released the pipes,
-        // still alive here because its `close` is what got us to settle. In that
-        // case withhold finalize and poll the group on REF'd timers (a
-        // short-lived host would otherwise exit before the unref'd SIGKILL fired,
-        // reparenting the survivor to init), clearing the timer the moment the
-        // group empties. The wait is bounded by `graceMs + CLOSE_REAP_MARGIN_MS`
-        // in the normal case; if the host event loop was blocked past both timers
-        // the deadline branch below sends SIGKILL itself and grants ONE more reap
-        // margin, so the outer bound is `graceMs + 2 * CLOSE_REAP_MARGIN_MS`.
-        if (!killing || groupEmpty()) {
-          if (graceTimer !== undefined) clearTimeout(graceTimer)
-          finalize()
-          return
-        }
-        const deadline = Date.now() + this.config.graceMs + CLOSE_REAP_MARGIN_MS
-        // Once the deadline forces us to send SIGKILL ourselves, allow one more
-        // reap window for the kernel to tear the group down before giving up:
-        // SIGKILL is asynchronous, so the group is not gone the instant it is
-        // sent. `finalize` only runs on a confirmed-empty group, except at this
-        // final hard bound where nothing more can be done.
-        let hardDeadline = 0
-        const pollGroup = (): void => {
-          if (groupEmpty()) {
-            // The group is gone; the grace SIGKILL is moot. Cancel it (it may not
-            // have fired yet) and finalize. graceTimer is always defined here:
-            // pollGroup runs only when `killing` is set, and kill() armed it.
-            clearTimeout(graceTimer)
-            finalize()
-            return
-          }
-          if (hardDeadline === 0 && Date.now() >= deadline) {
-            // Deadline reached with the group still non-empty. This is reachable
-            // when the host event loop was blocked past both timers: Node runs
-            // this poll before the grace SIGKILL timer, so that SIGKILL may never
-            // have fired. Send it HERE (idempotent if the timer already ran) and
-            // keep polling for the group to actually empty — finalizing on mere
-            // signal delivery would declare quiescence while the group is still
-            // dying. Bound the extra wait by one more reap margin.
-            killGroup('SIGKILL')
-            clearTimeout(graceTimer)
-            hardDeadline = Date.now() + CLOSE_REAP_MARGIN_MS
-          }
-          // Hard bound: the self-sent SIGKILL delivered but `groupEmpty()` still
-          // reports the group non-empty for a full extra reap margin. This is
-          // reachable, not a kernel quirk: a SIGKILL'd same-group survivor
-          // lingers as a ZOMBIE until its parent `wait()`s it, and in a
-          // container whose PID 1 does not reap orphans the survivor is
-          // reparented to init and never waited, so the signal-0 probe keeps
-          // succeeding — the same environment dependence the Agent Note's
-          // rejected "assert the reap with process.kill(pid, 0)" alternative
-          // documents. The ignore stays because that container cannot be built
-          // deterministically across CI platforms, not because the branch is
-          // unreachable; finalizing here bounds the wait so such a deployment
-          // still goes quiescent within `graceMs + 2 * CLOSE_REAP_MARGIN_MS`.
-          /* v8 ignore next 4 -- reachable only in a PID-1-doesn't-reap container (zombie survivor); not deterministically buildable. */
-          if (hardDeadline !== 0 && Date.now() >= hardDeadline) {
-            finalize()
-            return
-          }
-          setTimeout(pollGroup, GROUP_REAP_POLL_MS)
-        }
-        pollGroup()
+        // Keep the run live until the provider observes its managed range empty.
+        kill()
+        void rangeWait?.then(() => { complete() }, (error: unknown) => {
+          complete(new Error(`python subprocess exit observation failed: ${messageOf(error)}`))
+        })
       }
 
       const finish = (result: Omit<PtcRunResult, 'logs'>): void => {
@@ -2244,9 +2096,6 @@ export class PythonPtcRuntime extends PtcRuntime {
         settled = true
         decided = result
         request.signal.removeEventListener('abort', onAbort)
-        // A spawn failure (ENOENT, EACCES) never produced a pid, so there is no
-        // process to kill: settle now. Its `close` still fires later and reaches
-        // the idempotent settle() again as a no-op.
         // An unterminated flushed line never got a closing frame; it was
         // billed incrementally, so push it directly (admit would re-bill).
         // logsTruncated implies the hold is already empty (truncateLogs
@@ -2257,15 +2106,10 @@ export class PythonPtcRuntime extends PtcRuntime {
         }
         openSealed = []
         openParts = []
-        if (child.pid === undefined) {
-          settle(result)
-          return
-        }
-        // Live child: SIGTERM→grace→SIGKILL, then let `close` (below) settle the
-        // run so any `done` frame buffered on fd 3 is handled first and the
-        // process is fully reaped before the fiber goes quiescent.
+        // Provider termination starts escalation while read endpoints retain
+        // buffered frames. Disposal still awaits managed-range observation.
         kill()
-        // `close` awaits every stdio stream draining, which a setsid-escaped
+        // Read-endpoint drainage, which a setsid-escaped
         // orphan holding our inherited pipes can prevent forever. Bound that
         // wait: after SIGKILL has had the grace window plus a margin to reap the
         // child itself, force settlement on the decided result. Flush any
@@ -2273,7 +2117,7 @@ export class PythonPtcRuntime extends PtcRuntime {
         // with `os.write(1, ...)` and exited leaves it buffered, and destroying
         // the stream below drops it before an `end`/`close` flush could run, so
         // the diagnostic would be lost from `logs`. Detaching the stream handles
-        // then lets `close` land as a no-op if it ever arrives, and stops the
+        // lets a later provider outcome settle as a no-op, and stops the
         // orphan's stray output from being accounted against a run that already
         // finished. `unref` so the deadline never keeps the host process alive.
         closeDeadline = setTimeout(() => {
@@ -2288,16 +2132,21 @@ export class PythonPtcRuntime extends PtcRuntime {
         closeDeadline.unref()
       }
 
-      child.on('error', (error: Error) => {
-        finish({ error: { kind: confined !== undefined && isRunnerSpawnFailure(error, argv[0], request.cwd) ? 'sandbox-unavailable' : 'worker-exit', message: `python spawn error: ${error.message}` } })
-      })
       let bootstrapWriteFailed = false
-      // `close` (not `exit`) is the settlement trigger: it fires only after the
-      // process exits AND every stdio stream — including the fd-3 protocol pipe —
-      // has drained, so a `done` frame the child wrote just before exiting is
-      // always handled before we settle. macOS can deliver `exit` before that
-      // final fd-3 data; keying off `close` makes the ordering irrelevant.
-      child.on('close', (code: number | null, signal: NodeJS.Signals | null) => {
+      // Provider outcomes may precede pipe drainage; wait for all read endpoints
+      // before classifying an exit so buffered fd-3 completion retains priority.
+      const drained = Promise.all([child.stdout, child.stderr, proto].map(stream => new Promise<void>((drain) => {
+        if (stream.readableEnded || stream.destroyed) { drain(); return }
+        const finishDrain = (): void => {
+          stream.off('end', finishDrain)
+          stream.off('close', finishDrain)
+          drain()
+        }
+        stream.once('end', finishDrain)
+        stream.once('close', finishDrain)
+      })))
+      void child.done.then(async ({ exitCode: code, signal }) => {
+        await drained
         // An existing done/timeout/abort decision wins. Without a CPU report
         // frame, only SIGXCPU identifies CPU expiry: launchers can remap signals
         // to exit codes that programs can also choose deliberately.
@@ -2313,11 +2162,14 @@ export class PythonPtcRuntime extends PtcRuntime {
             ? { error: { kind: 'timeout', message: `CPU time exhausted (limit at most the configured ${this.config.cpuSeconds}s; a stricter inherited RLIMIT_CPU can fire sooner)` } }
             : { error: { kind: 'worker-exit', message: `python exited (code=${String(code)}, signal=${String(signal)}) before completing` } })
         settle(decided)
+      }, (error: unknown) => {
+        finish({ error: { kind: confined !== undefined && isRunnerSpawnFailure(error, argv[0], request.cwd) ? 'sandbox-unavailable' : 'worker-exit', message: `python spawn error: ${messageOf(error)}` } })
+        settle(decided)
       })
 
       // Fd-3 and the stdout/stderr pipes emit `error` on early child death
       // (ECONNRESET/EPIPE); swallow them so they do not become uncaught. The
-      // authoritative failure signal is `child.on('close')` above.
+      // authoritative failure signal is the provider outcome after pipe drainage.
       const silenceStreamError = (): void => {}
       proto.on('error', silenceStreamError)
       child.stdout.on('error', silenceStreamError)

@@ -9,6 +9,7 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 flowchart LR
   pkg_client_connection["client-connection"]
   svc_connectionSources["ctx.connectionSources<br/>Owner connection source classification"]
+  pkg_subprocess_local["subprocess-local"]
   pkg_client_ui_nodes["client-ui-nodes"]
   svc_nodes["ctx.nodes<br/>Owner node observations and operations"]
   pkg_client_ui_inbox["client-ui-inbox"]
@@ -289,7 +290,6 @@ flowchart LR
   pkg_sandbox_ssh["sandbox-ssh"]
   pkg_subprocess["subprocess"]
   svc_subprocess["ctx.subprocess<br/>Subprocess seam"]
-  pkg_subprocess_local["subprocess-local"]
   pkg_bash_local["bash-local"]
   pkg_bash_sandbox["bash-sandbox"]
   pkg_terminal_bash["terminal-bash"]
@@ -649,6 +649,8 @@ flowchart LR
   svc_configEditor --> pkg_settings
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
+  svc_connectionSources --> pkg_client_connection
+  svc_connectionSources --> pkg_subprocess_local
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
@@ -847,7 +849,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| `ctx.connectionSources` | `service` | [`client-connection`](../packages/client/connection) | - | - | - | Registers bounded platform lookups and refuses unavailable source facts after a provider withdraws. |
+| `ctx.connectionSources` | `service` | [`client-connection`](../packages/client/connection) | - | [`client-connection`](../packages/client/connection), [`subprocess-local`](../packages/subprocess/subprocess-local) | - | Registers bounded host-owned platform lookups and denies owners from product sandboxes or unknown sources, including after a provider withdraws. |
 | `ctx.nodes` | `service` | [`client-ui-nodes`](../packages/client/ui-nodes) | - | - | - | Reads bounded node and live callback observations and forwards confirmed actions through existing local-operator authorization. |
 | `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | Reads exact receiving-session metadata and verified mailbox isolation without message mutations. |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine. |

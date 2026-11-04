@@ -232,7 +232,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
-  linuxProductGroupOwner: 'internal root-context identity owner — packages/subprocess/subprocess-local/README.md owns retained Linux identities',
+  linuxProductGroupOwner: 'private root-owned Linux identity lifetime — packages/subprocess/subprocess-local/README.md owns registration retention across provider reloads',
   windowsProductJobs: 'internal root-context identity owner — packages/subprocess/subprocess-local/README.md owns retained Windows Jobs',
   hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',
   windowsBashConfig: 'not a service: boot-provided optional config accessor for Loader expressions — packages/host/host-bash-setup/README.md owns confirmed selection and restart semantics',
@@ -1237,6 +1237,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
   'Request',
   'Response',
   'IncomingMessage',
+  'NodeJS.Platform',
   'ServerResponse',
   'ReturnType',
   'Uint8Array',
@@ -1254,9 +1255,9 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   ConnectionTrustRequest: 'transport authentication input is owned by packages/client/connection/src/rpc.ts',
   PeerAdmission: 'Peer admission outcome is owned by packages/client/connection/src/rpc.ts',
   ConnectionAdmission: 'physical socket admission and release are owned by packages/client/connection/src/rpc.ts',
-  ConnectionSource: 'platform source classification is owned by packages/client/connection/src/connection-source.ts',
-  ConnectionSourceLookup: 'bounded platform lookup is owned by packages/client/connection/src/connection-source.ts',
-  ConnectionSourceSocket: 'physical connection facts are owned by packages/client/connection/src/connection-source.ts',
+  ConnectionSource: 'physical connection classification is owned by packages/client/connection/src/connection-source.ts',
+  ConnectionSourceLookup: 'bounded platform socket lookup is owned by packages/client/connection/src/connection-source.ts',
+  ConnectionSourceSocket: 'accepted socket facts are owned by packages/client/connection/src/rpc.ts',
   PeerScope: 'Peer scope contract is owned by packages/typert/protocol/src/types.ts',
   RemoteAccessPolicy: 'access policy contract is owned by packages/api/remote-access/README.md',
   RemoteAccessRequest: 'Gateway decision requests are owned by packages/api/remote-access/README.md',

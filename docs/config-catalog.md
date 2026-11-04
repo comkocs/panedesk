@@ -1303,8 +1303,8 @@ export interface InspectorOptions {
 
 ## `@panedesk/dsh-experimental-ptc-runtime-python`
 
-- `inject`: `sandbox` · `sandboxPolicy`
-- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:45`](../packages/experimental/ptc-runtime-python/src/index.ts)
+- `inject`: `sandbox` · `sandboxPolicy` · `subprocess`
+- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:46`](../packages/experimental/ptc-runtime-python/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: every cap, changeable from `cordis.yml` (no hardcoded tunables). */

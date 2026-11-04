@@ -185,6 +185,7 @@ export class RemoteProcesses {
         argv: request.argv, cwd,
         env: Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
         graceMs: request.graceMs, ...request.terminal,
+        ...(request.productSandbox === true ? { productSandbox: true } : {}),
         signal: record.controller.signal,
       })
       record.terminal = terminal
@@ -203,6 +204,7 @@ export class RemoteProcesses {
     }
     const stdio = request.stdio as NonNullable<Request['stdio']>
     const spec: SubprocessSpawnSpec = { argv: request.argv, cwd, env, graceMs: request.graceMs, signal: record.controller.signal,
+      ...(request.productSandbox === true ? { productSandbox: true } : {}),
       stdio: { stdin: stdio.stdin, stdout: 'pipe', stderr: 'pipe', ...(stdio.control === undefined ? {} : { control: stdio.control }) },
     }
     const ordinary = this.ctx.subprocess.spawn(spec)

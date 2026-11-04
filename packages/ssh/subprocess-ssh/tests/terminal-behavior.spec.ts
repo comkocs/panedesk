@@ -81,6 +81,18 @@ async function setup(options: {
 }
 
 describe('SSH terminal behavior', () => {
+  it.each([true, undefined] as const)('delivers terminal product confinement fact %s to the remote helper', async (productSandbox) => {
+    const test = await setup()
+    const fact = productSandbox === true ? { productSandbox } : {}
+    const handle = await test.runtime.spawnTerminal({ ...spec, ...fact })
+    expect(test.calls.find(call => call.method === 'process.prepare')?.params).toEqual({
+      argv: ['bash'], cwd: spec.cwd, env: undefined, graceMs: 100,
+      terminal: { terminalType: 'dumb', rows: 24, cols: 80, shellActivity: undefined }, ...fact,
+    })
+    await handle.terminate()
+    expect(await handle.done).toEqual(completion.outcome)
+  })
+
   it('publishes output and forwards terminal operations with remote process observations', async () => {
     const test = await setup()
     const handle = await test.runtime.spawnTerminal({ ...spec, env: { KEEP: 'value' } })

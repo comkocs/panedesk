@@ -51,7 +51,7 @@ Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scop
 
 本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。M9 正式发布前补本机回环网络限制。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
 
-owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护的 Host 配置启用。在具备 cgroup v2 用户委派及原生套接字 cgroup 归因的 Linux 上，经本地子进程提供方启动并登记的产品沙箱连接即使持有有效 cookie 也会被拒绝。实验 Python 运行时仍直接启动进程，不在此保护范围内。缺少前提时，启动给出双语警告，cookie 仍可能被回放；请启用用户会话委派或以不同账户运行不可信进程。套接字归因已在 Linux 7.0 验证，最低内核版本尚未核定。macOS Web 启动提示缺少本产品沙箱连接识别；Windows 已有平台登记口，但尚无来源判定器，两平台均不声称已阻止回放。见 [Linux 升级前提](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。见[认证行为](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)与[剩余限制](packages/client/connection/README.zh.md#known-limitations-and-deferred-work)。
+owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护的 Host 配置启用。在具备 cgroup v2 用户委派及原生套接字 cgroup 归因的 Linux 上，经本地子进程提供方启动并登记的产品沙箱连接即使持有有效 cookie 也会被拒绝。显式启用的实验 Python 运行时使用受管子进程提供方，并保留这项 Linux 登记。缺少前提时，启动给出双语警告，cookie 仍可能被回放；请启用用户会话委派或以不同账户运行不可信进程。套接字归因已在 Linux 7.0 验证，最低内核版本尚未核定。macOS Web 启动提示缺少本产品沙箱连接识别，不声称已阻止回放。Windows 通过宿主持有的作业对象成员关系与 TCP 属主识别产品沙箱；见 [Windows 前提与剩余限制](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。见 [Linux 升级前提](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。见[认证行为](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)与[剩余限制](packages/client/connection/README.zh.md#known-limitations-and-deferred-work)。
 
 ## 相对 DSH 改了什么
 

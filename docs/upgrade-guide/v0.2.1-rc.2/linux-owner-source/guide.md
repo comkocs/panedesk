@@ -13,7 +13,7 @@ Previously, a valid owner cookie could authorize a connection originating inside
 
 The prerequisite is cgroup v2 user-session delegation plus a native addon and kernel that expose socket cgroup identity. Linux 7.0 is verified; the minimum kernel version is not established. Without those prerequisites the host warns in English and Chinese, returns non-product, and does not claim protection against cookie replay. macOS retains its warning; Windows has a provider registration interface but no classifier. Cookie persistence, single-use launch tokens, and new-browser confirmation retain their existing semantics.
 
-The experimental Python runtime uses direct process creation and is not registered by the local subprocess provider. It remains vulnerable to cookie replay. SSH confinement replies currently reject the added product marker in their strict parser; those remote executions fail rather than acquire local source attribution. Do not treat either path as covered by this mechanism.
+The opt-in experimental Python runtime now requires a subprocess provider and forwards confinement facts to it. The local Linux provider registers its confined processes under the same prerequisites; released profiles still do not enable this runtime. Its fd-3 protocol and TMPDIR-only model environment are unchanged. SSH confinement preserves the product marker through remote ordinary and terminal execution; upgrade the client and helper together. Its registration is remote and does not identify connections to the calling Host's gateway or protect an independently running remote Host. See [remote ownership and limitations](../../../../packages/ssh/ssh/README.md#understand-the-implementation).
 
 ## Migration
 

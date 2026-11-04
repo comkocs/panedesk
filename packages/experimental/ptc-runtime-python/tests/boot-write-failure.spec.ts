@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createRuntimeContext } from './setup.ts'
+import type { SubprocessHandle, SubprocessSpawnSpec } from '@panedesk/dsh-subprocess'
 
 /**
  * Mocked subprocess pipes control synchronous write failures and backpressure
@@ -12,7 +13,38 @@ const { execFileSyncMock, spawnMock } = vi.hoisted(() => ({ execFileSyncMock: vi
 vi.mock('node:child_process', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:child_process')>()
   execFileSyncMock.mockImplementation(original.execFileSync)
-  return { ...original, execFileSync: execFileSyncMock, spawn: spawnMock }
+  return { ...original, execFileSync: execFileSyncMock }
+})
+
+vi.mock('@panedesk/dsh-subprocess-local', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@panedesk/dsh-subprocess-local')>()
+  return { ...original, default: class extends original.default {
+    override spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
+      const child = spawnMock(spec.argv[0]) as EventEmitter & {
+        pid?: number
+        stdin: PassThrough
+        stdout: PassThrough
+        stderr: PassThrough
+        stdio: PassThrough[]
+      }
+      const done = new Promise<{ exitCode: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+        child.once('error', reject)
+        child.once('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
+          child.stdout.end(); child.stderr.end(); child.stdio[3]?.end()
+          resolve({ exitCode, signal })
+        })
+      })
+      return {
+        stdin: child.stdin, stdout: child.stdout, stderr: child.stderr, control: child.stdio[3], collected: {}, done,
+        ...child.pid === undefined ? {} : { processIdentity: { pid: child.pid } },
+        terminate() {
+          for (const stream of child.stdio) stream.destroy()
+          queueMicrotask(() => child.emit('close', null, 'SIGTERM'))
+        },
+        async waitForExit() { return true },
+      }
+    }
+  } }
 })
 
 const { PythonPtcRuntime } = await import('../src/index.ts')

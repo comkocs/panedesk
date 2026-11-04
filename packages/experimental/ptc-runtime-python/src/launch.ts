@@ -12,6 +12,16 @@ export const PYTHON_BOOTSTRAP_LOADER = [
   'exec(compile(_sources["bootstrap"], "<dsh-ptc-bootstrap>", "exec"), globals())',
 ].join('\n')
 
+/** Adapt the managed fd-7 carrier before invoking the selected sandbox runner. */
+export const PYTHON_MANAGED_LAUNCHER = [
+  'import os, sys',
+  'os.environ.pop("DSH_SUBPROCESS_CONTROL", None)',
+  'os.dup2(7, 3)',
+  'os.close(7)',
+  'for fd in (0, 1, 2, 3): os.set_blocking(fd, True)',
+  'os.execve(sys.argv[1], sys.argv[1:], os.environ)',
+].join('\n')
+
 /**
  * Read shipped assets through the host filesystem, including packaged virtual files.
  * @returns Trusted sources encoded for the interpreter's stdin loader.

@@ -189,6 +189,7 @@ describe('PythonPtcRuntime — seam descriptors and misuse', () => {
       "await ctx.plugin((await import('./packages/session/session-projection/src/index.ts')).default)",
       "await ctx.plugin((await import('./packages/sandbox/sandbox-policy/src/index.ts')).default, { mode: 'danger-full-access' })",
       "await ctx.plugin((await import('./packages/sandbox/sandbox-local/src/index.ts')).default, {})",
+      "await ctx.plugin((await import('./packages/subprocess/subprocess-local/src/index.ts')).default)",
       'try {',
       '  await ctx.plugin(PythonPtcRuntime, { maxValueBytes: 50 * 1024 * 1024, addressSpaceMb: 1024 })',
       "  console.log('LOADED')",
