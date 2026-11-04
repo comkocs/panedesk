@@ -14,6 +14,8 @@ Planned next: public-release preparation, then long-running sessions and subagen
 
 ## Platform behavior
 
+On Linux, the deny-only retired identity filter can mistake an ordinary owner connection for an unknown source and refuse admission; it neither permits historical product identities nor refuses new sandbox starts. At approximately 100,000, 1 million, and 2 million retired identities inserted, the estimated false-positive rates are 0.00047%, 2.07%, and 14.3%, respectively. A browser's cgroup identity is stable, so a false positive persists until host restart. Close all sandbox sockets before restarting the host to clear the filter. See the [Linux upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.md).
+
 Windows product-sandbox TCP connections cannot act as owner even with a valid cookie: admission checks host-owned Job membership, not browser integrity, AppContainer status, or token restrictions. Missing connection ownership refuses owner access. Ordinary browsers remain eligible. Windows behavior is verified with substitutes, not native hardware. Scheduled tasks, WMI, COM, and ShellExecute delegation to an outside process remain unverified hardening work required before the M9 stable release. This Windows-specific description supersedes the earlier platform limitation retained in the session-cookie section below. See the [Windows upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.md).
 
 Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use an authenticated Web or desktop frontend for owner approval on Windows; console isolation is deferred. Interactive Windows CLI / TUI startup prints this warning.

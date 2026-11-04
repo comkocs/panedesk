@@ -4,11 +4,12 @@
       "id": "linux-product-scope-limitation",
       "description": "Keep sandbox execution available without a live delegated scope",
       "origin": "Owner authentication isolation",
-      "reason": "Warn bilingually when a usable native socket query cannot be paired with a live delegated launch scope, preserve existing command confinement, and classify visible unregistered cgroups under the existing non-product rule instead of refusing startup. Keep product identities and failed socket observations deny-only. These changes can be contributed upstream.",
+      "reason": "Warn bilingually when a usable native socket query cannot be paired with a live delegated launch scope, preserve existing command confinement, and classify visible unregistered cgroups under the existing non-product rule instead of refusing startup. Test a positive capability probe followed by unavailable scope confirmation: commands start, the identity registry stays empty and the bilingual warning occurs once; successful scope launches receive the same registry and publish an identity. Keep product identities and failed socket observations deny-only. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/subprocess/subprocess-local/src/index.ts",
+          "packages/subprocess/subprocess-local/tests/product-scope.spec.ts",
           "packages/subprocess/subprocess-local/README*",
           "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*"
         ]
@@ -18,7 +19,7 @@
       "id": "product-identity-reclamation",
       "description": "Reclaim sandbox identities without historical launch limits",
       "origin": "Owner authentication isolation",
-      "reason": "Bound exact retired Linux IDs with a deny-only historical filter that cannot permit reused identities, and reclaim settled Windows Jobs only after native accounting reports no active members. Retain pending launches and live descendants, collect failed launches immediately, and document filter false positives and native validation limits. These changes can be contributed upstream.",
+      "reason": "Bound exact retired Linux IDs with a deny-only historical filter that cannot permit reused identities, and reclaim settled Windows Jobs only after native accounting reports no active members. Retain pending launches and live descendants, collect failed launches immediately, and document filter false-positive estimates, recovery and native validation limits. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -28,6 +29,9 @@
           "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts",
           "packages/subprocess/subprocess-local/tests/windows-product-jobs.spec.ts",
           "packages/subprocess/subprocess-local/README*",
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
           "packages/subprocess/win32-process/src/product-job.ts",
           "packages/subprocess/win32-process/tests/product-job.spec.ts",
           "packages/subprocess/win32-process/README*",

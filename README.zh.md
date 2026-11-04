@@ -14,6 +14,8 @@
 
 ## 平台行为
 
+Linux 的仅拒绝退役身份过滤器可能将普通 owner 连接误判为未知来源并拒绝准入；它既不会放行历史产品身份，也不会拒绝新沙箱启动。插入约 10 万、100 万、200 万个退役身份时，估算误报率分别为 0.00047%、2.07%、14.3%。浏览器的 cgroup 身份固定，一旦误中会持续到宿主重启。请先关闭所有沙箱套接字，再重启宿主以清空过滤器。详见 [Linux 升级指南](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。
+
 Windows 本产品沙箱的 TCP 连接即使持有有效 cookie 也不能充当 owner：准入检查宿主持有的作业对象成员身份，不按浏览器完整性、AppContainer 状态或令牌限制判断。查不出连接属主时拒绝 owner；普通浏览器仍可认证。Windows 行为仅经替身验证，未在原生实机验收。经计划任务、WMI、COM、ShellExecute 委托沙箱外进程代起尚未核验，列入 M9 正式发布前必到的加固工作。Windows 行为以本段为准，取代下方会话 cookie 段保留的旧平台限制描述。参见 [Windows 升级指南](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。
 
 Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请使用经过认证的 Web 或桌面前端；控制台隔离为后续工作。Windows CLI / TUI 交互启动时会输出此提示。
