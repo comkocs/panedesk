@@ -1,6 +1,30 @@
 {
   "divergences": [
     {
+      "id": "owner-connection-source-admission",
+      "description": "Check physical connection sources before granting owner authority",
+      "origin": "Owner authentication isolation",
+      "reason": "Share a three-valued host source adapter and socket-lifetime cache across HTTP admission, WebSocket upgrades, launch-token exchange and API Peer publication. Refuse sandbox and unknown sources with bilingual diagnostics before credentials are consumed. Platform identity adapters remain separate. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/connection/src/connection-source.ts",
+          "packages/client/connection/tsconfig.host.json",
+          "packages/client/connection/src/auth-locale.ts",
+          "packages/client/connection/src/browser-auth.ts",
+          "packages/client/connection/src/index.ts",
+          "packages/client/connection/src/rpc-host.ts",
+          "packages/client/connection/src/rpc.ts",
+          "packages/client/connection/tests/connection-source.host.spec.ts",
+          "packages/client/connection/README.md",
+          "packages/client/connection/README.zh.md",
+          "packages/client/connection/README.i18n.yaml",
+          "packages/api/gateway/src/index.ts",
+          "packages/api/gateway/src/stream-server.ts"
+        ]
+      }
+    },
+    {
       "id": "sandbox-owned-landlock-fixture",
       "description": "Keep the Landlock fallback assertion independent of concurrent temporary directories",
       "origin": "Local sandbox test isolation",

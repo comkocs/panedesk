@@ -453,10 +453,11 @@ function rawText(data: RawData): string {
  * Reject an upgrade without transferring socket ownership to ws.
  * @param socket - carrier socket that receives the HTTP rejection.
  * @param status - authentication or browser-trust rejection status.
+ * @param detail - Optional connection-source refusal; absent uses the status text.
  */
-export function rejectRemoteStreamUpgrade(socket: Duplex, status: 401 | 403 | 409): void {
+export function rejectRemoteStreamUpgrade(socket: Duplex, status: 401 | 403 | 409, detail?: string): void {
   const reason = status === 401 ? 'Unauthorized' : status === 403 ? 'Forbidden' : 'Conflict'
-  const body = reason.toLowerCase()
+  const body = detail ?? reason.toLowerCase()
   socket.end([
     `HTTP/1.1 ${String(status)} ${reason}`,
     'Connection: close',

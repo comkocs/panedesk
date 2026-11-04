@@ -130,10 +130,13 @@ export class HostConnectionService extends Service implements HostConnectionHand
     if (!this.isTrusted(request)) return { rejection: 403 }
     if (this.disposed) return { rejection: 401 }
     const secure = this.owner.get('webServer')?.protocol === 'https:'
-    if (this.browserAuth.isAuthenticated(request, secure)) return { peer: this.browserPeer }
-    const id = this.browserAuth.authenticateApi(request, secure)
-    const record = id === undefined ? undefined : this.peers.get(id)
-    return record === undefined ? { rejection: 401 } : { peer: record.peer }
+    const browser = this.browserAuth.isAuthenticated(request, secure)
+    const id = browser ? undefined : this.browserAuth.authenticateApi(request, secure)
+    const peer = browser ? this.browserPeer : id === undefined ? undefined : this.peers.get(id)?.peer
+    if (peer === undefined) return { rejection: 401 }
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- PrincipalMap supports non-owner extensions.
+    const reason = peer.principal.kind === 'owner' ? this.browserAuth.connectionSourceRejection(request) : undefined
+    return reason === undefined ? { peer } : { rejection: 403, reason }
   }
 
   /** Create one in-process Peer owned by the Context that read this service. */
@@ -273,7 +276,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
         const admission = this.admit(req)
         if ('rejection' in admission) {
           res.writeHead(admission.rejection)
-          res.end(admission.rejection === 401 ? 'unauthorized' : 'forbidden')
+          res.end(admission.reason ?? (admission.rejection === 401 ? 'unauthorized' : 'forbidden'))
           return
         }
         await bridge(req, res, fetchHandler, admission.peer)

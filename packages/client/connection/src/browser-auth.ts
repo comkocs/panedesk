@@ -4,6 +4,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import type { PeerId } from '@panedesk/dsh-typert-protocol'
 import { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
 import { authLocale } from './auth-locale.ts'
+import type { OwnerConnectionSource } from './connection-source.ts'
 import { confirmBrowserLogin, type ConfirmBrowserLogin } from './owner-confirmation.ts'
 import { credentialKey } from '@panedesk/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@panedesk/dsh-credentials'
@@ -221,6 +222,7 @@ export class BrowserAuth {
     private readonly secret: Buffer,
     maxAgeDays: number,
     private readonly confirm: ConfirmBrowserLogin,
+    private readonly connectionSource?: OwnerConnectionSource,
   ) {
     this.launchToken = processLaunchToken(processOwner)
     this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
@@ -237,6 +239,7 @@ export class BrowserAuth {
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
    * @param confirm - Host-owned confirmation; defaults to the controlling terminal.
+   * @param connectionSource - Host platform admission adapter; absent leaves source identification to the carrier.
    * @returns initialized authentication owner with the process owner's launch token.
    */
   static async create(
@@ -244,8 +247,9 @@ export class BrowserAuth {
     credentials: CredentialProvider,
     maxAgeDays: number,
     confirm: ConfirmBrowserLogin = confirmBrowserLogin,
+    connectionSource?: OwnerConnectionSource,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, confirm)
+    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, confirm, connectionSource)
   }
 
   /**
@@ -304,6 +308,7 @@ export class BrowserAuth {
           this.writePending(res)
           return false
         }
+        if (this.rejectConnectionSource(req, res)) return false
         this.launchToken.consumed = true
         const issuedAt = Date.now()
         const expiresAt = issuedAt + this.maxAgeMilliseconds
@@ -350,6 +355,7 @@ export class BrowserAuth {
         return false
       }
       if (req.method === 'GET' && url.pathname === '/' && this.isAuthenticated(req, secure)) {
+        if (this.rejectConnectionSource(req, res)) return false
         res.writeHead(303, {
           'cache-control': 'no-store',
           'location': './',
@@ -361,7 +367,7 @@ export class BrowserAuth {
       this.writeUnauthorized(req, res)
       return false
     }
-    if (this.isAuthenticated(req, secure)) return true
+    if (this.isAuthenticated(req, secure)) return !this.rejectConnectionSource(req, res)
     if (header(req.headers, 'cookie') !== undefined) this.writePending(res)
     else this.writeUnauthorized(req, res)
     return false
@@ -397,6 +403,7 @@ export class BrowserAuth {
     }
     const issuedAt = Date.now()
     const expiresAt = issuedAt + this.maxAgeMilliseconds
+    if (this.rejectConnectionSource(req, res)) return
     const id = publish(interactions)
     const value = encodeCookie({ version: 2, authority, id, issuedAt, expiresAt }, this.secret)
     res.writeHead(302, {
@@ -445,6 +452,23 @@ export class BrowserAuth {
     if (payload.version === COOKIE_PAYLOAD_VERSION && payload.confirmation !== undefined
       && !this.confirmed.has(payload.confirmation)) return undefined
     return payload
+  }
+
+  /**
+   * Check physical origin only after credentials identify an owner candidate.
+   * @param request - Accepted transport request.
+   * @returns Bilingual refusal, or undefined when the host adapter permits the connection.
+   */
+  connectionSourceRejection(request: ConnectionTrustRequest): string | undefined {
+    return this.connectionSource?.rejection(request)
+  }
+
+  private rejectConnectionSource(req: ConnectionTrustRequest, res: ConnectionIndexResponse): boolean {
+    const reason = this.connectionSourceRejection(req)
+    if (reason === undefined) return false
+    res.writeHead(403, { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' })
+    res.end(`${reason}\n`)
+    return true
   }
 
   private writePending(res: ConnectionIndexResponse): void {
