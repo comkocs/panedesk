@@ -71,7 +71,7 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: DeepSeek Messages sett
     })
     expect(scaffold.ctx.settings.describe().find(row => row.ns === 'llm-deepseek')?.value).not.toHaveProperty('protocol')
     expect(settings).not.toContain('sk-e2e-')
-    const credentials = await readFile(join(scaffold.harnessHome, '.credentials.yaml'), 'utf8')
+    const credentials = await readFile(join(scaffold.harnessHome, 'private', '.credentials.yaml'), 'utf8')
     expect(credentials).toContain('DEEPSEEK_API_KEY: sk-e2e-messages')
     expect(credentials).not.toContain('DEEPSEEK_MESSAGES_API_KEY')
     expect(await page.locator('body').innerText()).not.toContain('sk-e2e-')

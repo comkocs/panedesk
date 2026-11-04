@@ -92,7 +92,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     await credentialStep.waitFor({ state: 'detached', timeout: 15_000 })
     expect(await page.locator('#root').evaluate(root => (root as HTMLElement).inert)).toBe(false)
 
-    const stored = await readFile(join(scaffold.harnessHome, '.credentials.yaml'), 'utf8')
+    const stored = await readFile(join(scaffold.harnessHome, 'private', '.credentials.yaml'), 'utf8')
     expect(stored.includes(`DEEPSEEK_API_KEY: ${secret}`)).toBe(true)
     expect((await page.content()).includes(secret)).toBe(false)
     expect((await page.locator('body').ariaSnapshot()).includes(secret)).toBe(false)

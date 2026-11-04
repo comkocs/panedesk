@@ -44,17 +44,6 @@ const WEB_SERVER = '@panedesk/dsh-host-webserver'
 
 const workspaces = indexWorkspacePackages(repoRoot)
 
-it('packs browser connection without the host terminal readline module', () => {
-  const result = packVfsImage({
-    profile: 'connection', roster: ['@panedesk/dsh-client-connection'], workspaces,
-    resolveFrom: repoRoot, entries: ['@panedesk/dsh-client-connection'],
-  })
-  expect(result.missing).toEqual([])
-  const connection = result.files['node_modules/@panedesk/dsh-client-connection/lib/index.js']
-  expect(connection).toBeDefined()
-  expect(new TextDecoder().decode(connection)).not.toContain('node:readline')
-})
-
 it.each([
   'node_modules/plain/lib/client.pdf.js',
   'node_modules/@scope/plugin/lib/client.terminal.js',
@@ -155,6 +144,17 @@ const archive = async (): Promise<Uint8Array> =>
   archiveMemo ??= await inflateImage(packed().image, 'the image this spec packed')
 
 ;(subjectBuilt ? describe : describe.skip)('packed image', () => {
+  it('packs browser connection without the host terminal readline module', () => {
+    const result = packVfsImage({
+      profile: 'connection', roster: ['@panedesk/dsh-client-connection'], workspaces,
+      resolveFrom: repoRoot, entries: ['@panedesk/dsh-client-connection'],
+    })
+    expect(result.missing).toEqual([])
+    const connection = result.files['node_modules/@panedesk/dsh-client-connection/lib/index.js']
+    expect(connection).toBeDefined()
+    expect(new TextDecoder().decode(connection)).not.toContain('node:readline')
+  })
+
   it('materializes the roster with every dependency resolved', () => {
     const result = packed()
     expect(workspaces.has(SUBJECT)).toBe(true)

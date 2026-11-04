@@ -41,7 +41,7 @@ describe.skipIf(MODE === 'record').each([false, true])('web e2e: native credenti
 
   it('keeps the notice and Models settings without another credential dialog or credential write', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-onboarding-native'))
-    const credentialPath = join(scaffold.harnessHome, '.credentials.yaml')
+    const credentialPath = join(scaffold.harnessHome, 'private', '.credentials.yaml')
     const credentials = await readFile(credentialPath, 'utf8')
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     const welcome = page.getByRole('dialog', { name: WELCOME_NOTICE_COPY.zh.title })

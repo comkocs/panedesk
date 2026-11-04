@@ -98,7 +98,7 @@ describe.skipIf(MODE === 'record')('web e2e: another usable provider ends first-
     // Only minimax-cn is reachable; DeepSeek still holds no credential.
     const document = await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')
     expect(document).toContain('apiKeyEnv: MINIMAX_CN_API_KEY')
-    const credentials = await readFile(join(scaffold.harnessHome, '.credentials.yaml'), 'utf8')
+    const credentials = await readFile(join(scaffold.harnessHome, 'private', '.credentials.yaml'), 'utf8')
     expect(credentials).toContain('MINIMAX_CN_API_KEY: sk-e2e-minimax')
     expect(credentials).not.toContain('DEEPSEEK_API_KEY')
 

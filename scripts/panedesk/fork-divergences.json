@@ -1,10 +1,29 @@
 {
   "divergences": [
     {
+      "id": "web-regressions-private-credentials-and-owner-cookies",
+      "description": "Align non-authentication Web regressions with protected credentials and owner cookies",
+      "origin": "Web regression fixture compatibility",
+      "reason": "Use protected connection configuration for unattended server-restart fixtures, reuse the single-use login cookie in browser contexts, and authenticate passive API connections with the browser cookie rather than a launch token. Read credential assertions from the exact private directory without weakening expectations or changing authentication-focused tests. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/web/tests/approval-composer.e2e.ts",
+          "apps/web/tests/deepseek-messages-settings.e2e.ts",
+          "apps/web/tests/models-settings.e2e.ts",
+          "apps/web/tests/onboarding-deepseek-config.e2e.ts",
+          "apps/web/tests/onboarding-native.e2e.ts",
+          "apps/web/tests/onboarding-usable-provider.e2e.ts",
+          "apps/web/tests/server-restart.e2e.ts",
+          "apps/web/tests/fixtures/restart-startup.overlay.yml"
+        ]
+      }
+    },
+    {
       "id": "worker-connection-host-terminal-loading",
       "description": "Keep the host readline builtin out of packed Worker imports",
       "origin": "Worker preview compatibility",
-      "reason": "Load readline through the host builtin loader only after a safe controlling terminal is available. Preserve default owner confirmation, noninteractive refusal and terminal decisions; assert the real packed connection entry has no node:readline import. These changes can be contributed upstream.",
+      "reason": "Load readline through the host builtin loader only after a safe controlling terminal is available. Preserve default owner confirmation, noninteractive refusal and terminal decisions; assert the real packed connection entry has no node:readline import within the existing built-artifact suite. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

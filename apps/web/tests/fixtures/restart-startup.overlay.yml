@@ -1,3 +1,6 @@
+- id: connection
+  config:
+    requireOwnerConfirmation: false
 - id: session-controller
   inject: [webRestartReady]
 - insert:
