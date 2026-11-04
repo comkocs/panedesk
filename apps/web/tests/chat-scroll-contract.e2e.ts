@@ -1597,7 +1597,7 @@ describe('web e2e: long Chat scroll contract', () => {
       await openSeed(world.page, TOOL_FIXTURE, TOOL_FIXTURE.markers.assistant(TOOL_FIXTURE.turns))
       const resolved = await world.scaffold.ctx.sessionController.resolveAgent(TOOL_SESSION_ID)
       if ('error' in resolved) throw resolved.error
-      world.scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
+      await world.scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
       const settled = world.scaffold.whenTurnSettled(60_000)
       let released = false
       try {
@@ -1832,7 +1832,7 @@ describe('web e2e: long Chat scroll contract', () => {
       await openSeed(world.page, INPUTS_FIXTURE, INPUTS_FIXTURE.markers.assistant(INPUTS_FIXTURE.turns))
       const resolved = await world.scaffold.ctx.sessionController.resolveAgent(FLING_SESSION_ID)
       if ('error' in resolved) throw resolved.error
-      world.scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
+      await world.scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
       const backToBottom = world.page.getByRole('button', { name: 'Back to bottom', exact: true })
       const settled = world.scaffold.whenTurnSettled(60_000)
       const releaseText = holdTextAfter(world, 16)

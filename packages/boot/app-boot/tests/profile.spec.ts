@@ -94,7 +94,7 @@ const tmp = (): string => {
   return dir
 }
 
-it('loads the approved profile patch after its writable copy is deleted offline', () => {
+it('loads the approved profile patch after its writable copy is deleted offline', async () => {
   const workspace = tmp()
   const home = tmp()
   const installAnchor = stageInstallation({})
@@ -104,14 +104,14 @@ it('loads the approved profile patch after its writable copy is deleted offline'
   const integrity = new ProtectedInputIntegrity(workspace, home)
   integrity.observe(join(workspace, 'package.json'))
   integrity.observe(patch)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   rmSync(patch)
   const restarted = new ProtectedInputIntegrity(workspace, home)
   const profile = loadProfileDirectory('panedesk', workspace, installAnchor, { integrity: restarted })
   expect(profile.patches).toEqual([{ id: 'trusted', disabled: true }])
 })
 
-it('captures live host inputs supplied by the profile owner before granting workspace writes', () => {
+it('captures live host inputs supplied by the profile owner before granting workspace writes', async () => {
   const workspace = tmp()
   const home = tmp()
   const plugin = join(workspace, 'plugin')
@@ -124,7 +124,7 @@ it('captures live host inputs supplied by the profile owner before granting work
     startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
     protectedInputPaths: () => [plugin],
   }
-  grantProtectedWorkspace(context, workspace, [])
+  await grantProtectedWorkspace(context, workspace, [])
   writeFileSync(module, 'unconfirmed')
   const restarted = new ProtectedInputIntegrity(workspace, home)
   expect(restarted.covers(module)).toBe(true)

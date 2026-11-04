@@ -342,7 +342,7 @@ describe('profile reconciliation settlement', () => {
     writeFileSync(patchPath, '[]\n')
     const integrity = new ProtectedInputIntegrity(dir, home)
     integrity.observe(patchPath)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const patches: PatchOptions[] = [{ insert: [{ id: 'retained', name: './noop.mjs' }] }]
     const ctx = await boot(NAME, join(dir, 'cordis.yml'), patches, (host) => {
       host.provide('profileContext', {

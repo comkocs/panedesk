@@ -13,13 +13,13 @@ import { onTestFinished } from 'vitest'
  * @param additionalInputs Other protected names approved in the same baseline.
  * @returns Context carrying an owner-local persistent baseline.
  */
-export function coveredContext(workspace: string, input: string, ...additionalInputs: string[]): Context {
+export async function coveredContext(workspace: string, input: string, ...additionalInputs: string[]): Promise<Context> {
   const home = mkdtempSync(join(tmpdir(), 'protected-link-owner-'))
   writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
   onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
   const integrity = new ProtectedInputIntegrity(workspace, home)
   for (const path of [input, ...additionalInputs]) integrity.observe(path)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const profile: ProfileContext = {
     name: 'test', dir: home, patchPath: input, cwd: workspace, home,
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],

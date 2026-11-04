@@ -113,7 +113,7 @@ it('retains the trusted copy across restart after an offline edit', async () => 
   const home = join(f.root, 'owner-state')
   const first = new ProtectedInputIntegrity(f.workspace, home)
   first.observe(f.path)
-  first.grantWrite()
+  await first.grantWrite()
   writeFileSync(f.path, 'offline edit')
   const restarted = new ProtectedInputIntegrity(f.workspace, home)
   restarted.observe(f.path)
@@ -121,17 +121,17 @@ it('retains the trusted copy across restart after an offline edit', async () => 
   expect(restarted.readTrusted(f.path)?.toString()).toBe('initial')
 })
 
-it('reports coverage only after a durable write grant and rejects state inside the workspace', () => {
+it('reports coverage only after a durable write grant and rejects state inside the workspace', async () => {
   const f = fixture()
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(f.path)
   expect(integrity.covers(f.path)).toBe(false)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   expect(integrity.covers(f.path)).toBe(true)
   expect(integrity.covers(join(f.workspace, 'unrelated'))).toBe(false)
   const unsafe = new ProtectedInputIntegrity(f.workspace, join(f.workspace, 'owner-state'))
   unsafe.observe(f.path)
-  expect(() => { unsafe.grantWrite() }).toThrow('outside the writable workspace')
+  expect(() => unsafe.grantWrite()).toThrow('outside the writable workspace')
 })
 
 it('reads an ungranted workspace with nested home without permitting a durable grant', async () => {
@@ -144,7 +144,7 @@ it('reads an ungranted workspace with nested home without permitting a durable g
   const confirm = vi.fn(async () => false)
   expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
   expect(confirm).not.toHaveBeenCalled()
-  expect(() => { integrity.grantWrite() }).toThrow('outside the writable workspace')
+  expect(() => integrity.grantWrite()).toThrow('outside the writable workspace')
 })
 
 it('rejects an owner-state directory linked into the writable workspace', () => {
@@ -153,15 +153,15 @@ it('rejects an owner-state directory linked into the writable workspace', () => 
   symlinkSync(f.workspace, linkedHome, process.platform === 'win32' ? 'junction' : 'dir')
   const integrity = new ProtectedInputIntegrity(f.workspace, linkedHome)
   integrity.observe(f.path)
-  expect(() => { integrity.grantWrite() }).toThrow('outside the writable workspace')
+  expect(() => integrity.grantWrite()).toThrow('outside the writable workspace')
 })
 
-it('reuses durable trust through a workspace directory alias', () => {
+it('reuses durable trust through a workspace directory alias', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const first = new ProtectedInputIntegrity(f.workspace, home)
   first.observe(f.path)
-  first.grantWrite()
+  await first.grantWrite()
   const alias = join(f.root, 'workspace-alias')
   symlinkSync(f.workspace, alias, process.platform === 'win32' ? 'junction' : 'dir')
   writeFileSync(f.path, 'offline edit')
@@ -190,7 +190,7 @@ it('does not establish trust or prompt before workspace write access is granted'
   expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
   expect(integrity.readTrusted(f.path)?.toString()).toBe('owner edit before grant')
   expect(confirm).not.toHaveBeenCalled()
-  integrity.grantWrite()
+  await integrity.grantWrite()
   writeFileSync(f.path, 'model edit in the same session')
   expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(false)
   expect(integrity.readTrusted(f.path)?.toString()).toBe('owner edit before grant')
@@ -233,7 +233,7 @@ it('returns verified module bytes and rejects newly added modules until exact ow
   writeFileSync(entry, 'export const value = 1')
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(directory)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   expect(integrity.readExecutable(entry)?.toString()).toBe('export const value = 1')
   const dynamic = join(directory, 'dynamic.js')
   writeFileSync(dynamic, 'export const value = 2')
@@ -245,7 +245,7 @@ it('returns verified module bytes and rejects newly added modules until exact ow
   expect(() => integrity.readExecutable(dynamic)).toThrow('requires owner confirmation')
 })
 
-it('validates canonical linked module bytes against the recorded link tree', () => {
+it('validates canonical linked module bytes against the recorded link tree', async () => {
   const f = fixture()
   const target = join(f.root, 'plugin-target')
   mkdirSync(target)
@@ -255,13 +255,13 @@ it('validates canonical linked module bytes against the recorded link tree', () 
   symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(link)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   expect(integrity.readExecutable(entry)?.toString()).toBe('initial')
   writeFileSync(entry, 'changed')
   expect(() => integrity.readExecutable(entry)).toThrow('requires owner confirmation')
 })
 
-it('rejects a newly resolved outside target after a protected link is redirected', () => {
+it('rejects a newly resolved outside target after a protected link is redirected', async () => {
   const f = fixture()
   const original = join(f.root, 'original-plugin')
   const replacement = join(f.root, 'replacement-plugin')
@@ -274,18 +274,18 @@ it('rejects a newly resolved outside target after a protected link is redirected
   symlinkSync(original, link, process.platform === 'win32' ? 'junction' : 'dir')
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(link)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   unlinkSync(link)
   symlinkSync(replacement, link, process.platform === 'win32' ? 'junction' : 'dir')
   expect(() => integrity.readExecutable(entry)).toThrow('requires owner confirmation')
 })
 
-it('loads trusted inputs from other granted workspaces before parsing a new launch', () => {
+it('loads trusted inputs from other granted workspaces before parsing a new launch', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const first = new ProtectedInputIntegrity(f.workspace, home)
   first.observe(f.path)
-  first.grantWrite()
+  await first.grantWrite()
   writeFileSync(f.path, 'unapproved offline edit')
   const launch = join(f.root, 'another-project')
   mkdirSync(launch)
@@ -294,7 +294,7 @@ it('loads trusted inputs from other granted workspaces before parsing a new laun
   expect(restarted.readTrusted(f.path)?.toString()).toBe('initial')
 })
 
-it('refuses conflicting trusted copies from overlapping granted workspaces', () => {
+it('refuses conflicting trusted copies from overlapping granted workspaces', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const nested = join(f.workspace, 'nested')
@@ -303,16 +303,16 @@ it('refuses conflicting trusted copies from overlapping granted workspaces', () 
   writeFileSync(path, 'first owner version')
   const first = new ProtectedInputIntegrity(f.workspace, home)
   first.observe(path)
-  first.grantWrite()
+  await first.grantWrite()
   writeFileSync(path, 'second owner version')
   const second = new ProtectedInputIntegrity(nested, home)
   second.observe(path)
-  second.grantWrite()
+  await second.grantWrite()
   expect(() => ProtectedInputIntegrity.openOwnerRecords(join(f.root, 'launch'), home))
     .toThrow('Conflicting protected host input records')
 })
 
-it('retains descendant configuration copies when only their directory was registered', () => {
+it('retains descendant configuration copies when only their directory was registered', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const directory = join(f.workspace, 'profile')
@@ -321,14 +321,14 @@ it('retains descendant configuration copies when only their directory was regist
   writeFileSync(manifest, '{"name":"trusted"}')
   const first = new ProtectedInputIntegrity(f.workspace, home)
   first.observe(directory)
-  first.grantWrite()
+  await first.grantWrite()
   writeFileSync(manifest, '{"name":"unapproved"}')
   const restarted = new ProtectedInputIntegrity(f.workspace, home)
   expect(restarted.covers(manifest)).toBe(true)
   expect(restarted.readTrusted(manifest)?.toString()).toBe('{"name":"trusted"}')
 })
 
-it('rejects a directory snapshot when an earlier descendant changes during traversal', () => {
+it('rejects a directory snapshot when an earlier descendant changes during traversal', async () => {
   const f = fixture()
   const directory = join(f.workspace, 'tree')
   mkdirSync(directory)
@@ -346,14 +346,14 @@ it('rejects a directory snapshot when an earlier descendant changes during trave
     return bytes
   })
   try {
-    expect(() => { integrity.grantWrite() }).toThrow('changed while being read')
+    await expect(integrity.grantWrite()).rejects.toThrow('changed while being read')
   } finally {
     spy.mockRestore()
   }
   expect(integrity.covers(first)).toBe(false)
 })
 
-it('rejects an earlier linked root changed while a later root is captured', () => {
+it('rejects an earlier linked root changed while a later root is captured', async () => {
   const f = fixture()
   const firstTarget = join(f.root, 'first-target')
   const secondTarget = join(f.root, 'second-target')
@@ -376,7 +376,7 @@ it('rejects an earlier linked root changed while a later root is captured', () =
     return bytes
   })
   try {
-    expect(() => { integrity.grantWrite() }).toThrow('changed while being read')
+    await expect(integrity.grantWrite()).rejects.toThrow('changed while being read')
   } finally {
     spy.mockRestore()
   }
@@ -389,7 +389,7 @@ it('refreshes an existing reader after another host commits an owner-approved re
   const home = join(f.root, 'owner-state')
   const writer = new ProtectedInputIntegrity(f.workspace, home)
   writer.observe(f.path)
-  writer.grantWrite()
+  await writer.grantWrite()
   const reader = new ProtectedInputIntegrity(f.workspace, home)
   writeFileSync(f.path, 'approved by another host')
   expect(await writer.verify({ blocked: vi.fn(), confirm: async () => true })).toBe(true)
@@ -400,12 +400,12 @@ it('refreshes an existing reader after another host commits an owner-approved re
   expect(confirm).not.toHaveBeenCalled()
 })
 
-it('refreshes trusted bytes after a separate owner process approves the replacement', () => {
+it('refreshes trusted bytes after a separate owner process approves the replacement', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const reader = new ProtectedInputIntegrity(f.workspace, home)
   reader.observe(f.path)
-  reader.grantWrite()
+  await reader.grantWrite()
   writeFileSync(f.path, 'approved in another process')
   // This filesystem fixture imports no Cordis or profile composition.
   const entry = new URL('../src/input-integrity.ts', import.meta.url).href
@@ -421,12 +421,12 @@ it('refreshes trusted bytes after a separate owner process approves the replacem
   expect(reader.readExecutable(f.path)?.toString()).toBe('approved in another process')
 })
 
-it('refuses deletion of an already granted durable record instead of trusting current files', () => {
+it('refuses deletion of an already granted durable record instead of trusting current files', async () => {
   const f = fixture()
   const home = join(f.root, 'owner-state')
   const integrity = new ProtectedInputIntegrity(f.workspace, home)
   integrity.observe(f.path)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   rmSync(join(home, 'windows-workspace-write', 'protected-inputs'), { recursive: true })
   writeFileSync(f.path, 'untrusted after record loss')
   expect(() => integrity.readTrusted(f.path)).toThrow('Protected workspace record disappeared')
@@ -449,7 +449,7 @@ it('captures deep linked dependency trees without exceeding the filesystem symli
   symlinkSync(directories[0]!, link, 'dir')
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(link)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const confirm = vi.fn(async () => false)
   expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
   expect(confirm).not.toHaveBeenCalled()
@@ -474,7 +474,7 @@ it('accepts only ancestor permission tightening and still rejects owner changes'
   fs.chmodSync(f.workspace, 0o777)
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(f.path)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   ancestorMode = 0o700n
   fs.chmodSync(f.workspace, 0o700)
   const confirm = vi.fn(async () => false)

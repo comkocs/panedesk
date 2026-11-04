@@ -172,9 +172,9 @@ export class ApprovalService extends Service {
       let running = false
       let requested = false
       let ownerReady = false
-      const review = async (): Promise<void> => {
+      const review = async (): Promise<boolean> => {
         const agents = scope.agents.roots()
-        if (agents.length === 0) return
+        if (agents.length === 0) return true
         const records = new Set([...(profile.inputIntegrities?.values() ?? []),
           ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
         const approved = new Set<string>()
@@ -193,9 +193,10 @@ export class ApprovalService extends Service {
               if (allowed) approved.add(change.path)
               return active() && allowed
             },
-          })) return
+          })) return false
         }
-        if (approved.size === 0 || lifetime.signal.aborted) return
+        if (lifetime.signal.aborted) return false
+        if (approved.size === 0) return true
         if (profile.reloadProtectedInputs !== undefined) await profile.reloadProtectedInputs()
         else {
           for (const agent of agents) agent.inject(createUserMessage({
@@ -203,6 +204,19 @@ export class ApprovalService extends Service {
             source: { kind: 'user-approval' },
           }))
         }
+        return active()
+      }
+      let reviews = Promise.resolve(true)
+      const runReview = (): Promise<boolean> => {
+        const operation = reviews.then(async () => {
+          if (lifetime.signal.aborted) return false
+          if (profile.runInputReview === undefined) return review()
+          let accepted = false
+          await profile.runInputReview(async () => { accepted = await review() })
+          return accepted
+        })
+        reviews = operation.catch(() => false)
+        return operation
       }
       const schedule = (): void => {
         requested = true
@@ -213,8 +227,7 @@ export class ApprovalService extends Service {
             try {
               while (requested && !lifetime.signal.aborted) {
                 requested = false
-                if (profile.runInputReview === undefined) await review()
-                else await profile.runInputReview(review)
+                await runReview()
               }
             } catch (error) { scope.logger.warn('Protected host input review failed: %s', error) }
             finally { running = false }
@@ -229,7 +242,9 @@ export class ApprovalService extends Service {
         }
       })
       scope.effect(() => scope.typertGateway.onOwnerReady(() => { ownerReady = true; schedule() }))
-      scope.on('agent/created', () => { schedule() })
+      scope.on('agent/created', async () => {
+        if (!await runReview()) throw new Error('Protected host input requires owner confirmation before creating an agent')
+      })
       schedule()
     })
 
@@ -337,7 +352,9 @@ export class ApprovalService extends Service {
         else {
           authorizing = true
           const profile = this.ctx.get('profileContext')
-          if (profile !== undefined) grantProtectedWorkspace(profile, req.purpose.workspace, [])
+          if (profile !== undefined) await grantProtectedWorkspace(profile, req.purpose.workspace, [])
+          req.signal?.throwIfAborted()
+          timeout?.signal.throwIfAborted()
           await authorization?.commit()
           req.signal?.throwIfAborted()
         }

@@ -83,7 +83,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
           if (open.completedStages.includes('permission')) return
           const permissions = ctx.get('permissionPresets')
           if (permissions === undefined) throw new Error('Permission service is unavailable')
-          permissions.set(agent.session, def.permissionPreset)
+          await permissions.set(agent.session, def.permissionPreset)
         } })
       ctx.effect(() => () => handle.dispose())
       return handle.agent
@@ -149,7 +149,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
       } else if (stage === 'permission') {
         const permissions = ctx.get('permissionPresets')
         if (permissions === undefined) throw new Error('Permission service is unavailable')
-        permissions.set(agent.session, def.permissionPreset)
+        await permissions.set(agent.session, def.permissionPreset)
       } else if (stage === 'subscriptions') await subscribe(agent, open)
       else if (stage === 'title') {
         const titles = ctx.get('sessionTitle')

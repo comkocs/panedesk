@@ -13,8 +13,9 @@ export type { ProfileContext, ProfilePnpmInvocation } from './profile-context-ty
  * @param context Launcher-owned profile and record inventory.
  * @param workspace Actual sandbox write root, not necessarily the launch directory.
  * @param paths Current protected input spellings, including Loader links.
+ * @returns Completion of durable capture; rejection must prevent publication of write access.
  */
-export function grantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): void {
+export function grantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): Promise<void> {
   const root = resolve(workspace)
   const records = context.inputIntegrities ??= new Map()
   let integrity = records.get(root)
@@ -26,7 +27,7 @@ export function grantProtectedWorkspace(context: ProfileContext, workspace: stri
   for (const path of [context.dir, join(context.dir, 'package.json'), context.patchPath, join(context.home, PROFILE_PATCH_FILENAME),
     ...context.bundleInputPaths ?? [], ...context.overlayPaths ?? [],
     ...context.protectedInputPaths?.() ?? [], ...paths]) integrity.observe(path)
-  integrity.grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
+  return integrity.grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
 }
 
 /**

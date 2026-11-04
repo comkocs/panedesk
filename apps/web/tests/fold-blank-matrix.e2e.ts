@@ -592,7 +592,7 @@ async function prepareWorld(browser: Browser, scenario: Case, scaffold: WebScaff
     await page.locator(MAIN_ROOT).getByText('FOLDMX_BODY', { exact: false }).last().waitFor({ timeout: 30_000 })
     const resolved = await scaffold.ctx.sessionController.resolveAgent(sessionId)
     if ('error' in resolved) throw resolved.error
-    scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
+    await scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
     await choosePreferences(page, scenario)
     return { browser, scaffold, page, root: MAIN_ROOT, target: sessionId, tripwire, searchQuery: fixture.markers.user(1) }
   }
@@ -600,7 +600,7 @@ async function prepareWorld(browser: Browser, scenario: Case, scaffold: WebScaff
   await seedSession(scaffold, parentFixture.log, sessionId)
   const resolved = await scaffold.ctx.sessionController.resolveAgent(sessionId)
   if ('error' in resolved) throw resolved.error
-  scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
+  await scaffold.ctx.permissionPresets.set(resolved.agent.session, 'danger-full-access')
   const childId = await createChild(scaffold, sessionId, scenario)
   await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
   await openSessionBySearch(page, parentFixture.markers.user(1))

@@ -12,6 +12,7 @@ import { createWebhookSession } from '../src/session.ts'
 
 interface HarnessOptions {
   failAt?: 'permission-resolve' | 'preset-resolve' | 'standing' | 'workspace' | 'agent' | 'attach' | 'permission-set' | 'title' | 'followup'
+  permissionCapture?: Promise<void>
   failDetach?: boolean
   failDispose?: boolean
   abortAt?: 'workspace' | 'agent' | 'attach' | 'permission-continuation'
@@ -89,6 +90,7 @@ function harness(options: HarnessOptions = {}): SessionHarness {
           controller.abort(new Error('abort after permission setup'))
         })
         if (options.failAt === 'permission-set') throw new Error('permission set failed')
+        return options.permissionCapture
       },
     },
     agentDefaultModel: {
@@ -198,6 +200,22 @@ function modelRequestListener(test: SessionHarness): (
 }
 
 describe('webhook Session creation', () => {
+  it.each([true, false])('awaits permission capture before prompt admission: %s', async (accepted) => {
+    const capture = Promise.withResolvers<undefined>()
+    const test = harness({ permissionCapture: capture.promise })
+    const pending = create(test)
+    const outcome = pending.then(() => 'created', (error: unknown) => error)
+    await vi.waitFor(() => { expect(test.calls).toContain('permission-set:read-only') })
+    expect(test.messages).toEqual([])
+    if (accepted) capture.resolve(undefined)
+    else capture.reject(new Error('capture failed'))
+    expect(await outcome).toEqual(accepted ? 'created' : new Error('capture failed'))
+    expect(test.messages).toHaveLength(accepted ? 1 : 0)
+    if (!accepted) {
+      expect(test.calls.slice(-2)).toEqual(['detach', 'dispose'])
+    }
+  })
+
   it('preflights, mounts, attaches, configures, titles, and prompts in order', async () => {
     const test = harness()
     await create(test)

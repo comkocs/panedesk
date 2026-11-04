@@ -161,9 +161,9 @@ function agentFor(session: Session): Agent {
   } as Agent
 }
 
-function autoSession(ctx: Context, id: string, cwd = '/workspace'): { session: Session; agent: Agent } {
+async function autoSession(ctx: Context, id: string, cwd = '/workspace'): Promise<{ session: Session; agent: Agent }> {
   const session = ctx.sessions.create(SessionId(id), { meta: { cwd } })
-  ctx.permissionPresets.set(session, AUTO_PRESET)
+  await ctx.permissionPresets.set(session, AUTO_PRESET)
   return { session, agent: agentFor(session) }
 }
 
@@ -266,7 +266,7 @@ describe('native review request', () => {
       reasoningDecisionChunks('{"risk":"low","decision":"allow"}'),
     ])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'native-sections', '/workspace/project')
+    const { session, agent } = await autoSession(ctx, 'native-sections', '/workspace/project')
     const oldCallId = ToolCallId('old-call')
     const outerCallId = ToolCallId('outer-call')
     const historicalInnerId = ToolCallId('outer-call:code:0')
@@ -484,7 +484,7 @@ describe('native review request', () => {
       decisionChunks('{"risk":"low","decision":"allow"}'),
     ])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'native-reused-call-id')
+    const { session, agent } = await autoSession(ctx, 'native-reused-call-id')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('reused-native-call')
     appendAssistant(session, [
@@ -546,7 +546,7 @@ describe('native review request', () => {
         origin: 'subagent',
       },
     })
-    ctx.permissionPresets.set(session, AUTO_PRESET)
+    await ctx.permissionPresets.set(session, AUTO_PRESET)
     setApprovalPolicy(session, 'never')
     const agent = agentFor(session)
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
@@ -598,7 +598,7 @@ describe('native review request', () => {
     const incomplete = ctx.sessions.create(SessionId('child-role-incomplete'), {
       meta: { cwd: '/workspace', parentSession: parentId, origin: 'subagent' },
     })
-    ctx.permissionPresets.set(incomplete, AUTO_PRESET)
+    await ctx.permissionPresets.set(incomplete, AUTO_PRESET)
     appendHeader(incomplete, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     appendUser(incomplete, 'Unverified creation-window text.', { kind: 'user' })
     const incompleteCallId = ToolCallId('child-role-incomplete-call')
@@ -626,7 +626,7 @@ describe('native review request', () => {
       decisionChunks('{"risk":"medium","decision":"deny"}'),
     ])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'compacted-authorization')
+    const { session, agent } = await autoSession(ctx, 'compacted-authorization')
     setApprovalPolicy(session, 'never')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const authorization = session.append('user/message', createUserMessage({
@@ -689,7 +689,7 @@ describe('native review request', () => {
     const probe = registerProbe(ctx)
 
     for (const item of cases) {
-      const { session, agent } = autoSession(ctx, `directive-${item.id}`)
+      const { session, agent } = await autoSession(ctx, `directive-${item.id}`)
       appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
       for (const [index, message] of item.messages.entries()) {
         appendUser(session, message, { kind: 'user', rpcId: `${item.id}-${String(index)}` } as never)
@@ -723,7 +723,7 @@ describe('native review request', () => {
       decisionChunks('{"risk":"medium","decision":"allow"}'),
     ])
     registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'native-raw-arguments')
+    const { session, agent } = await autoSession(ctx, 'native-raw-arguments')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
 
     const emptyId = ToolCallId('empty-arguments')
@@ -791,7 +791,7 @@ describe('native review request', () => {
     })
 
     for (const item of cases) {
-      const { session, agent } = autoSession(ctx, `legal-${item.id}`)
+      const { session, agent } = await autoSession(ctx, `legal-${item.id}`)
       appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
       session.append('turn/start', { turn: 1 })
       const callId = ToolCallId(`legal-${item.id}-call`)
@@ -830,7 +830,7 @@ describe('native review request', () => {
     const { ctx } = await harness([decisionChunks('{"risk":"medium","decision":"deny","reason":"not authorized"}')])
     const probe = registerProbe(ctx)
     ctx.on('approval/request', () => Promise.resolve<ApprovalOutcome>(outcome))
-    const { session, agent } = autoSession(ctx, `ask-${outcome}`)
+    const { session, agent } = await autoSession(ctx, `ask-${outcome}`)
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     session.append('turn/start', { turn: 1 })
     const callId = ToolCallId(`ask-${outcome}-call`)
@@ -857,7 +857,7 @@ describe('native review request', () => {
       return Promise.resolve<ApprovalOutcome>('allowed-once')
     })
     ctx.on('tools/pre-execute', () => Promise.resolve<PreToolDecision>({ kind: 'deny', reason: 'downstream guard' }))
-    const { session, agent } = autoSession(ctx, 'ask-downstream-deny')
+    const { session, agent } = await autoSession(ctx, 'ask-downstream-deny')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     session.append('turn/start', { turn: 1 })
     const callId = ToolCallId('ask-downstream-deny-call')
@@ -952,7 +952,7 @@ describe('native review request', () => {
     const messages: string[] = []
 
     for (const id of cases) {
-      const { session, agent } = autoSession(ctx, id)
+      const { session, agent } = await autoSession(ctx, id)
       const schema: ToolSchema = {
         name: 'probe', description: 'probe', parameters: { type: 'object' },
       }
@@ -987,7 +987,7 @@ describe('native review request', () => {
     ctx.on('llm/stream', () => {
       throw 'middleware refused'
     })
-    const { session, agent } = autoSession(ctx, 'non-error-failure')
+    const { session, agent } = await autoSession(ctx, 'non-error-failure')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('non-error-failure-call')
     appendAssistant(session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
@@ -1012,7 +1012,7 @@ describe('PTC and bypass semantics', () => {
       decisionChunks(JSON.stringify({ risk: 'medium', decision: 'deny', reason: rawReason })),
     ])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'ptc-inner')
+    const { session, agent } = await autoSession(ctx, 'ptc-inner')
     setApprovalPolicy(session, 'never')
     appendHeader(session)
     appendUser(session, 'inspect only', { kind: 'user' })
@@ -1086,7 +1086,7 @@ describe('PTC and bypass semantics', () => {
       decisionChunks('{"risk":"low","decision":"allow"}'),
     ])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, 'ptc-reused-call-id')
+    const { session, agent } = await autoSession(ctx, 'ptc-reused-call-id')
     const outerCallId = ToolCallId('reused-outer')
     const subCallId = ToolCallId('reused-outer:code:0')
     session.append('turn/start', { turn: 1 })
@@ -1170,7 +1170,7 @@ describe('PTC and bypass semantics', () => {
     const probe = registerProbe(ctx)
     const ordinary = ctx.sessions.create(SessionId('ordinary'), { meta: { cwd: '/workspace' } })
     const ordinaryAgent = agentFor(ordinary)
-    const auto = autoSession(ctx, 'outer-run-code')
+    const auto = await autoSession(ctx, 'outer-run-code')
 
     await expect(ctx.tools.execute({
       signal: new AbortController().signal,
@@ -1238,7 +1238,7 @@ describe('out-of-process delegation boundary', () => {
 
     const agent = await externalTestParent(ctx, process.cwd())
     const session = agent.session
-    ctx.permissionPresets.set(session, AUTO_PRESET)
+    await ctx.permissionPresets.set(session, AUTO_PRESET)
     setApprovalPolicy(session, 'never')
     const schema = ctx.tools.schemas(agent).find(item => item.name === 'delegate_remote')
     if (schema === undefined) throw new Error('remote delegation tool schema is missing')
@@ -1322,7 +1322,7 @@ describe('cancellation and integration teardown', () => {
     }
     const { ctx, adapter } = await harness([controlled])
     const probe = registerProbe(ctx)
-    const { session, agent } = autoSession(ctx, `caller-cancel-${outcome}`)
+    const { session, agent } = await autoSession(ctx, `caller-cancel-${outcome}`)
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     session.append('turn/start', { turn: 1 })
     const callId = ToolCallId(`caller-cancel-${outcome}-call`)
@@ -1354,7 +1354,7 @@ describe('cancellation and integration teardown', () => {
       }
       const { ctx, adapter, auto } = await harness([controlled])
       const probe = registerProbe(ctx)
-      const { session, agent } = autoSession(ctx, `dispose-live-${outcome}`)
+      const { session, agent } = await autoSession(ctx, `dispose-live-${outcome}`)
       appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
       const callId = ToolCallId(`dispose-${outcome}-call`)
       appendAssistant(session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
@@ -1396,21 +1396,22 @@ describe('cancellation and integration teardown', () => {
       decisionChunks('{"risk":"low","decision":"allow"}'),
     ])
     const probe = registerProbe(ctx)
-    const first = autoSession(ctx, 'dispose-migration-first')
-    const second = autoSession(ctx, 'dispose-migration-second')
+    const first = await autoSession(ctx, 'dispose-migration-first')
+    const second = await autoSession(ctx, 'dispose-migration-second')
     appendHeader(second.session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('dispose-migration-call')
     appendAssistant(second.session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
     appendNativeCall(second.session, callId, 'probe', '{}')
     let observedPreset: string | undefined
     let selectionFailure: unknown
+    let selection: void | Promise<void> = undefined
     let competingCall: ReturnType<typeof ctx.tools.execute> | undefined
     ctx.on('session/event', (session, event) => {
       if (session !== first.session || event.type !== 'permission/preset'
         || event.data.preset !== 'danger-full-access') return
       observedPreset = ctx.permissionPresets.current(second.session)
       try {
-        ctx.permissionPresets.set(second.session, AUTO_PRESET)
+        selection = ctx.permissionPresets.set(second.session, AUTO_PRESET)
       } catch (error) {
         selectionFailure = error
       }
@@ -1424,6 +1425,7 @@ describe('cancellation and integration teardown', () => {
     })
 
     await auto.dispose()
+    await Promise.resolve(selection)
 
     expect(observedPreset).toBe(AUTO_PRESET)
     expect(selectionFailure).toEqual(new Error('auto-review: integration is closing'))
@@ -1451,7 +1453,7 @@ describe('cancellation and integration teardown', () => {
       await releaseDownstream.promise
       return next()
     })
-    const { session, agent } = autoSession(ctx, 'dispose-downstream')
+    const { session, agent } = await autoSession(ctx, 'dispose-downstream')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('dispose-downstream-call')
     appendAssistant(session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
@@ -1485,7 +1487,7 @@ describe('cancellation and integration teardown', () => {
       if (exec.name === 'probe') controller.abort(new Error('caller stopped before dispatch'))
       return decision
     })
-    const { session, agent } = autoSession(ctx, 'caller-cancel-no-dispatch')
+    const { session, agent } = await autoSession(ctx, 'caller-cancel-no-dispatch')
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('caller-cancel-no-dispatch-call')
     appendAssistant(session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
@@ -1503,7 +1505,7 @@ describe('cancellation and integration teardown', () => {
 
   it('reinstall restores Auto availability without re-enabling a migrated session', async () => {
     const { ctx, auto } = await harness([])
-    const { session } = autoSession(ctx, 'reinstall-after-dispose')
+    const { session } = await autoSession(ctx, 'reinstall-after-dispose')
 
     await auto.dispose()
     expect(ctx.permissionPresets.current(session)).toBe('danger-full-access')
@@ -1678,7 +1680,7 @@ describe('logged-fact failures', () => {
     const probe = registerProbe(ctx)
 
     for (const { id, prepare } of cases) {
-      const { session, agent } = autoSession(ctx, id)
+      const { session, agent } = await autoSession(ctx, id)
       const callId = ToolCallId(`${id}-call`)
       prepare(session, callId)
       const result = await ctx.tools.execute({
@@ -1699,7 +1701,7 @@ describe('logged-fact failures', () => {
     const { ctx, adapter } = await harness([decisionChunks('{"risk":"low","decision":"allow"}')])
     const probe = registerProbe(ctx)
     const session = ctx.sessions.create(SessionId('missing-cwd'))
-    ctx.permissionPresets.set(session, AUTO_PRESET)
+    await ctx.permissionPresets.set(session, AUTO_PRESET)
     appendHeader(session, [{ name: 'probe', description: 'probe', parameters: { type: 'object' } }])
     const callId = ToolCallId('missing-cwd-call')
     appendAssistant(session, [{ type: 'tool-call', id: callId, name: 'probe', arguments: '{}' }])
@@ -1798,7 +1800,7 @@ describe('logged-fact failures', () => {
     ]
 
     for (const item of cases) {
-      const { session, agent } = autoSession(ctx, `ptc-${item.id}`)
+      const { session, agent } = await autoSession(ctx, `ptc-${item.id}`)
       appendHeader(session)
       const outer = ToolCallId(`${item.id}-outer`)
       const inner = ToolCallId(`${item.id}-inner`)

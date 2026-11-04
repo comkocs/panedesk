@@ -11,7 +11,9 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import { apply } from '../src/index.ts'
 import { internals } from '../src/runner-internals.ts'
 
-it.each(['en', 'zh'] as const)('reports every host fallback in %s without a model request', async (locale) => {
+it.each([
+  ['en', true], ['zh', true], ['en', false], ['zh', false],
+] as const)('reports every host fallback in %s with JSON %s without a model request', async (locale, json) => {
   const root = mkdtempSync(join(tmpdir(), 'headless-sandbox-status-'))
   const workspace = join(root, 'workspace')
   const home = join(root, 'owner')
@@ -20,7 +22,7 @@ it.each(['en', 'zh'] as const)('reports every host fallback in %s without a mode
   mkdirSync(workspace)
   const integrity = new ProtectedInputIntegrity(workspace, home)
   integrity.observe(input)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const profile: ProfileContext = {
     name: 'test', dir: home, patchPath: input, cwd: workspace, home,
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
@@ -46,8 +48,15 @@ it.each(['en', 'zh'] as const)('reports every host fallback in %s without a mode
   internals.readStdin = async () => { throw new Error('Diagnostic must not read stdin') }
   const exited = Promise.withResolvers<number>()
   ctx.provide('appExit', (code: number) => { exited.resolve(code) })
-  apply(ctx, { sandboxStatus: locale, json: true })
+  apply(ctx, { sandboxStatus: locale, json })
   expect(await exited.promise).toBe(0)
+  if (!json) {
+    expect(stdout).toBe(`full: ${locale === 'zh' ? '1 项由宿主兜底' : '1 input protected by host fallback'}\n${[
+      `native\t${home}`, `native\t${join(home, 'cordis.patch.yml')}`,
+      `native\t${join(home, 'windows-workspace-write')}`, `host-fallback\t${input}`,
+    ].join('\n')}\n`)
+    return
+  }
   expect(JSON.parse(stdout)).toMatchObject({
     type: 'sandbox-status', enforcement: 'full',
     hostFallbackCount: 1,

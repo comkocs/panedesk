@@ -154,6 +154,36 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     } finally { await fiber.dispose(); await custom.dispose() }
   })
 
+  it('requires a session write policy before materializing workspace access', async () => {
+    const { sandbox, fiber } = await setup()
+    const ws = workspaceRoot()
+    scratch.push(ws)
+    try {
+      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'read-only', workspaceRoot: ws,
+        sessionId: SessionId('read-only-materialization') })).rejects.toThrow('requires an approved session policy')
+      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws }))
+        .rejects.toThrow('requires an approved session policy')
+      expect(mockState.grants).toEqual([])
+      await sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws,
+        sessionId: SessionId('approved-materialization'), protectedPaths: [] })
+      expect(mockState.grants.filter(grant => grant.added.some(entry => entry.standing))).toHaveLength(1)
+    } finally { await fiber.dispose(); cleanup() }
+  })
+
+  it('refuses ACL management on a provider without the built-in Windows runner', async () => {
+    const { sandbox, fiber } = await setup()
+    const ws = workspaceRoot()
+    scratch.push(ws)
+    sandbox.internals = { platform: 'linux' }
+    try {
+      expect(() => sandbox.hasWorkspaceWriteGrant(ws)).toThrow('requires the built-in Windows sandbox provider')
+      expect(() => { sandbox.revokeWorkspaceWriteGrant(ws) }).toThrow('requires the built-in Windows sandbox provider')
+      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws,
+        sessionId: SessionId('unsupported-materialization') })).rejects.toThrow('requires the built-in Windows sandbox provider')
+      expect(mockState.grants).toEqual([])
+    } finally { await fiber.dispose(); cleanup() }
+  })
+
   it('does not create grants for a cancelled confinement request', async () => {
     const { sandbox, fiber } = await setup()
     try {

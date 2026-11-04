@@ -334,6 +334,7 @@ export class LocalSandboxProvider extends SandboxProvider {
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
     policy = this.protectedPolicy(policy)
+    if (policy.mode === 'workspace-write') await this.waitForInputCapture(policy.workspaceRoot, signal)
     if (this.runnerCommand !== undefined) {
       const protectedInputs = this.coveredInputs(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
@@ -393,6 +394,19 @@ export class LocalSandboxProvider extends SandboxProvider {
     }
   }
 
+  private async waitForInputCapture(workspace: string, signal?: AbortSignal): Promise<void> {
+    const profile = this.ctx.get('profileContext')
+    if (profile !== undefined) {
+      const root = canonicalPath(workspace)
+      const records = new Set([
+        ...profile.inputIntegrity !== undefined && canonicalPath(profile.cwd) === root ? [profile.inputIntegrity] : [],
+        ...[...profile.inputIntegrities ?? []].filter(([path]) => canonicalPath(path) === root).map(([, record]) => record),
+      ])
+      for (const record of records) await record.waitForCapture()
+    }
+    signal?.throwIfAborted()
+  }
+
   private coveredInputs(policy: SandboxPolicy, runner: SelectedRunner['runner']) {
     const temp = runner === 'windows-acl' && policy.sessionId !== undefined
       ? this.tempCapabilities.get(JSON.stringify([String(policy.sessionId), policy.workspaceRoot])) : undefined
@@ -444,6 +458,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     if (policy.mode !== 'workspace-write' || sessionId === undefined) {
       throw new Error('Workspace write materialization requires an approved session policy')
     }
+    await this.waitForInputCapture(policy.workspaceRoot, signal)
     const workspace = canonicalPath(policy.workspaceRoot)
     assertOwnerWorkspace(workspace, resolveOwnerMaterialPaths(this.ctx), true)
     const protectedPaths = [

@@ -35,7 +35,7 @@ async function launch(ambientOverride = false, tamperedOverlay = false) {
     await writeFile(patch, '- id: connection\n  config: {}\n')
     const integrity = new ProtectedInputIntegrity(f.cwd, f.home)
     integrity.observe(patch)
-    integrity.grantWrite()
+    await integrity.grantWrite()
   }
   if (ambientOverride || tamperedOverlay) {
     await writeFile(patch, '- id: connection\n  config:\n    requireOwnerConfirmation: false\n')

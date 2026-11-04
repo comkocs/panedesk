@@ -255,12 +255,18 @@ export class PermissionPresetService extends TypertRemoteService {
       apply: applyPermissionEvent,
       wire: { viewSchema: selectionSchema, view: state => ({ currentValue: this.derive(state) }) },
     })
-    ctx.on('session/created', (session) => {
-      this.initialize(session)
-    })
-    for (const session of ctx.sessions.list()) {
-      this.initialize(session)
+    const initializations = new WeakMap<Session, Promise<void>>()
+    const initialize = (session: Session): Promise<void> => {
+      const pending = initializations.get(session)
+      if (pending !== undefined) return pending
+      const operation = Promise.resolve(this.initialize(session))
+      initializations.set(session, operation)
+      void operation.catch(() => {})
+      return operation
     }
+    ctx.on('session/created', (session) => { void initialize(session) })
+    ctx.on('agent/created', async ({ agent }) => { await initialize(agent.session) })
+    for (const session of ctx.sessions.list()) void initialize(session)
 
     // The /permission command: the one write path a web client uses (the
     // popup contribution submits the picked preset as this line). The child
@@ -274,7 +280,7 @@ export class PermissionPresetService extends TypertRemoteService {
         // No settlement text labels its value with this command's own name: a
         // surface that renders `name · text` (the web command row) would
         // otherwise read `permission · Permission preset: workspace-write.`
-        handler: ({ agent, rawInput }) => {
+        handler: async ({ agent, rawInput }) => {
           const name = rawInput.trim()
           if (name === '') {
             return { kind: 'success', text: `current preset ${this.current(agent.session)} (available: ${this.names.join(', ')})` }
@@ -282,7 +288,7 @@ export class PermissionPresetService extends TypertRemoteService {
           if (!this.names.includes(name)) {
             return { kind: 'error', text: `unknown preset "${name}" (available: ${this.names.join(', ')})` }
           }
-          this.apply(agent.session, name, (policy) => { this.ctx.approval.setPolicy(agent, policy) })
+          await this.apply(agent.session, name, (policy) => { this.ctx.approval.setPolicy(agent, policy) })
           return { kind: 'success', text: `preset ${name}` }
         },
       })
@@ -359,7 +365,7 @@ export class PermissionPresetService extends TypertRemoteService {
   async authorizeWorkspaceWrite(workspace: string): Promise<void> {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
-    this.captureWorkspace(workspace)
+    await this.captureWorkspace(workspace)
     await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
     this.emitChanged('permission-presets/workspace-write-changed')
   }
@@ -510,31 +516,34 @@ export class PermissionPresetService extends TypertRemoteService {
    * setter. Selecting the effective preset again appends nothing.
    * @param session - the session the switch belongs to.
    * @param name - the preset to switch to; unknown names throw.
+   * @returns Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.
    */
-  set(session: Session, name: string): void {
-    this.apply(session, name, (policy) => { setApprovalPolicy(session, policy) })
+  set(session: Session, name: string): void | Promise<void> {
+    return this.apply(session, name, (policy) => { setApprovalPolicy(session, policy) })
   }
 
-  private captureWorkspace(workspace: string): void {
+  private captureWorkspace(workspace: string): Promise<void> | undefined {
     const profile = this.ctx.get('profileContext')
-    if (profile !== undefined) grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
+    if (profile !== undefined) return grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
+    return undefined
   }
 
-  private captureSession(session: Session, mode: SandboxMode): void {
-    if (mode !== 'workspace-write') return
+  private captureSession(session: Session, mode: SandboxMode): Promise<void> | undefined {
+    if (mode !== 'workspace-write') return undefined
     const policy = this.ctx.get('sandboxPolicy')
     const workspace = session.header.cwd ?? policy?.workspaceRoot
-    if (workspace !== undefined) this.captureWorkspace(workspace)
+    return workspace === undefined ? undefined : this.captureWorkspace(workspace)
   }
 
   /** Apply one preset through its durable identity and canonical knob setters. */
-  private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void {
+  private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void | Promise<void> {
     const spec = this.resolve(name)
     if (name === AUTO_PRESET) this.autoAdmit?.()
-    this.captureSession(session, spec.sandbox)
-    const current = this.current(session)
-    const knobs = this.permissionState(session)
-    const updateKnobs = (): void => {
+    const captured = this.captureSession(session, spec.sandbox)
+    const commit = (): void => {
+      const current = this.current(session)
+      const knobs = this.permissionState(session)
+      if (current !== name) session.append('permission/preset', { preset: name })
       if (spec.sandbox !== (knobs.sandbox ?? this.ctx.shell.sandboxMode)
         || (knobs.sandbox === null && this.ctx.get('sandboxPolicy')?.windowsDefault === true)) {
         setSandboxMode(session, spec.sandbox)
@@ -543,8 +552,8 @@ export class PermissionPresetService extends TypertRemoteService {
         setApproval(spec.approval)
       }
     }
-    if (current !== name) session.append('permission/preset', { preset: name })
-    updateKnobs()
+    if (captured === undefined) commit()
+    else return captured.then(commit)
   }
 
   /**
@@ -557,8 +566,9 @@ export class PermissionPresetService extends TypertRemoteService {
    * an already initialized session records only a changed approval policy.
    * @param session - Session being prepared or restored.
    * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
+   * @returns Capture completion when required; permission facts are published only after it succeeds.
    */
-  initialize(session: Session, approvalOverride?: ApprovalPolicy): void {
+  initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void> {
     const state = this.permissionState(session)
     const { preset, sandbox, approval, seeded } = state
     if (preset === AUTO_PRESET) {
@@ -570,28 +580,36 @@ export class PermissionPresetService extends TypertRemoteService {
     if (preset === null && sandbox === null && approval === null && !seeded) {
       const name = this.defaultPreset
       const spec = this.resolve(name)
-      session.append('permission/preset', { preset: name })
-      if (!this.implicitWindowsDefault()) {
-        this.captureSession(session, spec.sandbox)
-        setSandboxMode(session, spec.sandbox)
+      const implicit = this.implicitWindowsDefault()
+      const captured = implicit ? undefined : this.captureSession(session, spec.sandbox)
+      const commit = (): void | Promise<void> => {
+        if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride)
+        session.append('permission/preset', { preset: name })
+        if (!implicit) setSandboxMode(session, spec.sandbox)
+        setApprovalPolicy(session, approvalOverride ?? spec.approval)
       }
-      setApprovalPolicy(session, approvalOverride ?? spec.approval)
-      return
+      if (captured === undefined) return commit()
+      else return captured.then(commit)
     }
 
-    this.captureSession(session, sandbox ?? this.ctx.shell.sandboxMode as SandboxMode)
-    const effective = this.derive(state)
-    if (preset === null && effective !== CUSTOM_PRESET) {
-      session.append('permission/preset', { preset: effective })
+    const captured = this.captureSession(session, sandbox ?? this.ctx.shell.sandboxMode as SandboxMode)
+    const commit = (): void | Promise<void> => {
+      if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride)
+      const effective = this.derive(state)
+      if (preset === null && effective !== CUSTOM_PRESET) {
+        session.append('permission/preset', { preset: effective })
+      }
+      if (sandbox === null && !this.implicitWindowsDefault()) {
+        setSandboxMode(session, this.ctx.shell.sandboxMode as SandboxMode)
+      }
+      if (approvalOverride !== undefined && approvalOverride !== approval) {
+        setApprovalPolicy(session, approvalOverride)
+      } else if (approval === null) {
+        setApprovalPolicy(session, this.ctx.approval.config.policy ?? 'ask')
+      }
     }
-    if (sandbox === null && !this.implicitWindowsDefault()) {
-      setSandboxMode(session, this.ctx.shell.sandboxMode as SandboxMode)
-    }
-    if (approvalOverride !== undefined && approvalOverride !== approval) {
-      setApprovalPolicy(session, approvalOverride)
-    } else if (approval === null) {
-      setApprovalPolicy(session, this.ctx.approval.config.policy ?? 'ask')
-    }
+    if (captured === undefined) return commit()
+    else return captured.then(commit)
   }
 
   /** Publish non-vetoing inventory or catalog invalidation after a state change. */

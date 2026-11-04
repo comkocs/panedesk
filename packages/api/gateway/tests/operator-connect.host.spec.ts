@@ -2,7 +2,8 @@
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { initProfile, readProfileManifest } from '@panedesk/dsh-app-boot'
+import { initProfile, ProtectedInputIntegrity, readProfileManifest } from '@panedesk/dsh-app-boot'
+import * as fs from 'node:fs'
 import PluginManager from '@panedesk/dsh-plugin-manager'
 import * as packageOperations from '../../../boot/plugin-manager/src/operations.ts'
 import * as githubConnection from '../../../boot/plugin-manager/src/github-connection.ts'
@@ -33,6 +34,8 @@ import { z } from 'zod'
 import { parseRemoteStreamServerMessage, type RemoteStreamServerMessage } from '../src/stream-protocol.ts'
 import { RemoteStreamMuxServer } from '../src/stream-server.ts'
 import OperatorConnectFixture from './operator-connect-fixture.ts'
+
+vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
 vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
   const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
@@ -81,6 +84,57 @@ afterEach(async () => {
 })
 
 describe('operator connect through Loader composition', () => {
+  it('admits a new connection and keeps heartbeats live during slow protected input capture', async () => {
+    const host = await boot(false, false, false, 100)
+    const existing = await mux(host, await exchange(host, 'answer'))
+    await events(existing)
+    const directory = join(host.workspace, 'protected')
+    await mkdir(directory)
+    for (let index = 0; index < 24; index++) await writeFile(join(directory, `${index}.js`), `export const value = ${index}`)
+    const integrity = new ProtectedInputIntegrity(host.workspace, join(dirname(host.workspace), 'capture-owner'))
+    integrity.observe(directory)
+    const descriptors = new Set<number>()
+    const openFile = fs.openSync
+    const readFile = fs.readSync
+    const closeFile = fs.closeSync
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => {
+      const descriptor = openFile(...args)
+      if (typeof args[0] === 'string' && args[0].startsWith(directory) && args[1] === 'r') descriptors.add(descriptor)
+      return descriptor
+    })
+    const delay = new Int32Array(new SharedArrayBuffer(4))
+    vi.spyOn(fs, 'readSync').mockImplementation((...args: Parameters<typeof fs.readSync>) => {
+      if (descriptors.has(args[0])) Atomics.wait(delay, 0, 0, 15)
+      return readFile(...args)
+    })
+    vi.spyOn(fs, 'closeSync').mockImplementation((descriptor) => {
+      descriptors.delete(descriptor)
+      closeFile(descriptor)
+    })
+    const pings: number[] = []
+    const heartbeat = Promise.withResolvers<undefined>()
+    existing.socket.on('ping', () => {
+      pings.push(performance.now())
+      if (pings.length === 3) heartbeat.resolve(undefined)
+    })
+    let settled = false
+    const capture = Promise.resolve().then(() => integrity.grantWrite()).finally(() => { settled = true })
+    try {
+      const started = performance.now()
+      const arriving = await mux(host, await exchange(host, 'answer'))
+      await events(arriving)
+      expect(settled).toBe(false)
+      expect(performance.now() - started).toBeLessThanOrEqual(3000)
+      await heartbeat.promise
+      expect(settled).toBe(false)
+      for (let index = 1; index < pings.length; index++) expect(pings[index]! - pings[index - 1]!).toBeLessThanOrEqual(3000)
+      expect(existing.socket.readyState).toBe(WebSocket.OPEN)
+      expect(arriving.socket.readyState).toBe(WebSocket.OPEN)
+      expect(existing.errors).toEqual([])
+      expect(arriving.errors).toEqual([])
+    } finally { await capture }
+  })
+
   it.each([
     ['product-sandbox', false], ['unknown', false], ['product-sandbox', true], ['unknown', true],
   ] as const)('rejects %s at all owner entries through the production adapter (TLS=%s)', async (source, tls) => {
@@ -363,7 +417,7 @@ describe('operator connect through Loader composition', () => {
 
 })
 
-async function boot(workspaceAccess = false, pluginManagement = false, tls = false): Promise<Host> {
+async function boot(workspaceAccess = false, pluginManagement = false, tls = false, heartbeatIntervalMs?: number): Promise<Host> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-operator-connect-'))
   roots.push(root)
   const workspace = join(root, 'workspace')
@@ -385,7 +439,7 @@ async function boot(workspaceAccess = false, pluginManagement = false, tls = fal
     { name: '@panedesk/dsh-host-frontend-static', config: { distIndex } },
     { name: '@panedesk/dsh-typert-registry' },
     { name: '@panedesk/dsh-api-remote-access' },
-    { name: '@panedesk/dsh-api-gateway' },
+    { name: '@panedesk/dsh-api-gateway', ...heartbeatIntervalMs === undefined ? {} : { config: { websocketHeartbeatIntervalMs: heartbeatIntervalMs } } },
     { name: '@fixture/operator-connect' },
     ...pluginManagement ? [{ name: '@panedesk/dsh-plugin-manager' }] : [],
     { name: '@panedesk/dsh-session-projection' },

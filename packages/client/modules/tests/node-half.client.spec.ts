@@ -740,7 +740,7 @@ describe('client bundle activation', () => {
     const home = join(root!, 'owner-state')
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     context.provide('profileContext', {
       name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
       installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
@@ -755,14 +755,14 @@ describe('client bundle activation', () => {
     expect(service.graph()).not.toBe(before)
   })
 
-  it('discovers an approved client package through a file entry without an intermediate manifest', () => {
+  it('discovers an approved client package through a file entry without an intermediate manifest', async () => {
     const packageName = '@fixture/protected-file-entry'
     writeBuiltPackage(packageName, {})
     const workspace = join(root!, 'node_modules', ...packageName.split('/'))
     const home = join(root!, 'owner-state')
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const { service } = constructWithRoute([pathToFileURL(join(workspace, 'lib', 'client.js')).href], {
       profileContext: {
         name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
@@ -773,7 +773,7 @@ describe('client bundle activation', () => {
     expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
   })
 
-  it.each([false, true])('rejects unconfirmed metadata that hides a protected client package (file entry: %s)', (fileEntry) => {
+  it.each([false, true])('rejects unconfirmed metadata that hides a protected client package (file entry: %s)', async (fileEntry) => {
     const packageName = '@fixture/protected-metadata'
     writeBuiltPackage(packageName, {})
     const workspace = join(root!, 'node_modules', ...packageName.split('/'))
@@ -781,7 +781,7 @@ describe('client bundle activation', () => {
     const manifest = join(workspace, 'package.json')
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     writeFileSync(manifest, JSON.stringify({
       name: packageName, exports: { './package.json': './package.json' },
     }))
@@ -807,7 +807,7 @@ describe('client bundle activation', () => {
     }))
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     context.provide('profileContext', {
       name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
       installAnchor: join(workspace, 'package.json'), cwd: workspace, home,

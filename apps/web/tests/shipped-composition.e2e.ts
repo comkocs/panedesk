@@ -1028,7 +1028,7 @@ it('rolls back a failed shipped Auto initialization before publishing or interce
       setup: agentCtx => ctx.agentPresets.mount(agentCtx).then(() => undefined),
     })
     try {
-      ctx.permissionPresets.set(handle.agent.session, 'auto')
+      await ctx.permissionPresets.set(handle.agent.session, 'auto')
       const targetPath = join(scaffold.workspaceCwd, 'auto-init-rollback.txt')
       // The successful write is a rollback sentinel: this unsupported
       // contribution performs no review, so success proves the failed shipped
@@ -1071,9 +1071,9 @@ it('withdraws Auto on shipped Loader unload and does not restore migrated live s
   const terminals = ctx.agentPresets.serviceFor(handle.agent, 'terminals')
   try {
     if (terminals === undefined) throw new Error('shipped minimal preset has no terminal registry')
-    ctx.permissionPresets.set(handle.agent.session, 'danger-full-access')
+    await ctx.permissionPresets.set(handle.agent.session, 'danger-full-access')
     const terminal = await terminals.spawn(handle.agent, { type: 'shell', cwd: scaffold.workspaceCwd })
-    ctx.permissionPresets.set(handle.agent.session, 'auto')
+    await ctx.permissionPresets.set(handle.agent.session, 'auto')
     expect(ctx.permissionPresets.current(handle.agent.session)).toBe('auto')
 
     await autoEntry.update({ disabled: true })

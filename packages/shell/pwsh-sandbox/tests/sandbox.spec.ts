@@ -98,7 +98,7 @@ it.each(['kill', 'none'] as const)('hands protected inputs and writable workspac
   const input = join(spillDir, 'plugin.mjs')
   const integrity = new ProtectedInputIntegrity(spillDir, home)
   integrity.observe(input)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const profile: ProfileContext = {
     name: 'test', dir: spillDir, patchPath: input, cwd: spillDir, home,
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],

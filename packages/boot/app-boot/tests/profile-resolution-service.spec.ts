@@ -71,7 +71,7 @@ describe('profile package metadata service', () => {
     file(entry, 'module.exports = "trusted"')
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const ctx = new Context()
     contexts.push(ctx)
     ctx.provide('profileContext', {
@@ -103,7 +103,7 @@ describe('profile package metadata service', () => {
     file(entry, 'export const value = "trusted"')
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const ctx = new Context()
     contexts.push(ctx)
     ctx.provide('profileContext', {
@@ -133,7 +133,7 @@ describe('profile package metadata service', () => {
     file(entry, 'module.exports = "approved"')
     const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const custom = registerHooks({
       load(url, context, nextLoad) {
         if (url === pathToFileURL(entry).href) return { format: 'commonjs', source: 'module.exports = "transformed"', shortCircuit: true }
@@ -173,7 +173,7 @@ describe('profile package metadata service', () => {
     file(good, 'module.exports = "ordinary plugin"')
     const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const ctx = new Context()
     contexts.push(ctx)
     ctx.provide('profileContext', {
@@ -205,7 +205,7 @@ describe('profile package metadata service', () => {
     ]))
     const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
     integrity.observe(workspace)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     const warnings: string[] = []
     const ctx = await boot('protected-composition', config, [], async (ctx) => {
       ctx.logger.exporter({

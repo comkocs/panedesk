@@ -112,7 +112,7 @@ for (const [action, command] of actions) it(`native bwrap protected inputs: ${ac
   const originalTarget = lstatSync(target)
   const missingAncestor = join(workspace, 'missing')
   const nestedInput = join(missingAncestor, 'ancestor', 'config.yml')
-  const ctx = coveredContext(workspace, input, nestedInput)
+  const ctx = await coveredContext(workspace, input, nestedInput)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox

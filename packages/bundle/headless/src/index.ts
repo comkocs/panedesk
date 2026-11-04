@@ -255,7 +255,7 @@ async function resolveAgent(
   agents: Context['agents'],
   sessionId: SessionId,
   agentOptions: { provider: string; model: string },
-  setup: (agentCtx: Context, agent: Agent) => void,
+  setup: (agentCtx: Context, agent: Agent) => Promise<void>,
   cwd: string,
 ): Promise<Agent> {
   // Resuming promises the caller a log a later process can continue. Without a
@@ -352,13 +352,13 @@ async function run(ctx: Context, config: Config, io: HeadlessIo): Promise<void> 
   // host plane and the agent reads them from the global layer. A deployment
   // that DOES configure one has to join it here first
   // (@panedesk/dsh-agent-preset-registry README, "Composing a child agent").
-  const setup = (agentCtx: Context, agent: Agent): void => {
+  const setup = async (agentCtx: Context, agent: Agent): Promise<void> => {
     const selected: ModelSelectionRef = { current: selection, assembled: undefined }
     installModelSelection(agentCtx, selected)
     if (agentCtx.get('typertGateway')?.hasLiveClient() !== true) {
       const permissions = agentCtx.get('permissionPresets')
       if (permissions === undefined) setApprovalPolicy(agent.session, 'never')
-      else permissions.initialize(agent.session, 'never')
+      else await permissions.initialize(agent.session, 'never')
     }
   }
   const sessionId = brandString<SessionId>(config.sessionId ?? `session-${randomUUID()}`)

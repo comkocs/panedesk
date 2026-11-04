@@ -148,6 +148,16 @@ export class SshConnection extends Service {
       }).parse(params)
       const { requiresWorkspaceAuthorization: _authorization, ...rawPolicy } = input.policy
       const policy = policySchema.parse(rawPolicy)
+      if (policy.mode === 'workspace-write') {
+        const profile = this.ctx.get('profileContext')
+        const records = new Set([
+          ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity],
+          ...profile?.inputIntegrities?.values() ?? [],
+        ])
+        for (const record of records) await record.waitForCapture()
+        bounded?.throwIfAborted()
+        this.assertOpen()
+      }
       const { protectedPaths, ...remotePolicy } = policy
       params = { ...input, policy: this.targetsLocalHost()
         ? { ...remotePolicy, protectedPaths: [...new Set([...protectedPaths ?? [], ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined)])] }

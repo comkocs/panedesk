@@ -70,7 +70,7 @@ describe('permissions projection unit', () => {
     ctx.sessionProjections.onChanged((_session, key, value, seq) => {
       changes.push({ key, value, seq })
     })
-    ctx.permissionPresets.set(session, 'danger-full-access')
+    await ctx.permissionPresets.set(session, 'danger-full-access')
     const permissionChanges = changes.filter(change => change.key === 'permissions')
     expect(permissionChanges).toHaveLength(3)
     expect(permissionChanges.at(-1)).toMatchObject({ key: 'permissions', value: { currentValue: 'danger-full-access' } })

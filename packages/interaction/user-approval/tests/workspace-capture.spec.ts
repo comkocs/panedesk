@@ -48,6 +48,7 @@ it.each([
       },
     })
     const session = ctx.sessions.create(SessionId('capture-timing'), { meta: { cwd: workspace } })
+    await ctx.permissionPresets.initialize(session)
     expect(ctx.sandboxPolicy.resolve({ session }).mode).toBe(captured ? 'workspace-write' : 'read-only')
     writeFileSync(patch, 'changed after session publication')
     const reader = new ProtectedInputIntegrity(workspace, home)

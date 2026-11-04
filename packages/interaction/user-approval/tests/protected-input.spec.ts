@@ -1,5 +1,6 @@
 /** Protected-input decisions use authenticated owner transport even between turns. */
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import * as fs from 'node:fs'
 import SandboxPolicyService from '../../../sandbox/sandbox-policy/src/index.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,6 +19,8 @@ import { Peer, apply as applyConnection, inject as connectionInject } from '../.
 import { provideBrowserCredentials } from '../../../api/gateway/tests/browser-credentials.ts'
 import type { RemoteEventDownlinkFrame } from '../../../api/gateway/src/stream-protocol.ts'
 import ApprovalService, { type ApprovalOutcome, setApprovalPolicy } from '../src/index.ts'
+
+vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
 vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
   const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
@@ -130,7 +133,7 @@ it.each(['allowed-once', 'rejected'] as const)('reviews offline inputs after own
   writeFileSync(path, 'trusted')
   const integrity = new ProtectedInputIntegrity(workspace, join(root, 'state'))
   integrity.observe(path)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   writeFileSync(path, 'offline edit')
   const notice = vi.spyOn(f.agent, 'inject')
   f.ctx.provide('profileContext', {
@@ -172,7 +175,7 @@ it.each([
   writePackage('trusted')
   const integrity = new ProtectedInputIntegrity(workspace, home)
   integrity.observe(workspace)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const client = new Context()
   onTestFinished(() => client.fiber.dispose())
   client.baseUrl = pathToFileURL(root).href + '/'
@@ -249,6 +252,82 @@ it('retains offline input refusal notices without HMR in an unattended profile',
   expect(transport).not.toHaveBeenCalled()
   expect(integrity.readTrusted(path)?.toString()).toBe('trusted')
   expect(f.agent.status).toBe('idle')
+})
+
+it.each([true, false])('waits for protected input review before admitting a new agent: %s', async (allowed) => {
+  const f = await fixture()
+  const integrity = new ProtectedInputIntegrity('/project')
+  const baseline = vi.spyOn(integrity, 'verify').mockResolvedValue(true)
+  f.ctx.provide('profileContext', {
+    name: 'admission', cwd: '/project', dir: '/project', home: '/owner', patchPath: '/project/patch.yml',
+    installAnchor: '/project/package.json', startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    inputIntegrity: integrity,
+  })
+  await vi.waitFor(() => { expect(baseline).toHaveBeenCalled() })
+  const reviewing = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<boolean>()
+  baseline.mockImplementation(async () => { reviewing.resolve(undefined); return release.promise })
+  let settled = false
+  const pending = f.ctx.agents.create({ sessionId: SessionId(`review-admission-${allowed}`), meta: { cwd: '/project' } })
+  const outcome = pending.then((handle) => { settled = true; return { handle } }, (error: unknown) => { settled = true; return { error } })
+  await reviewing.promise
+  await Promise.resolve()
+  try { expect(settled).toBe(false) } finally { release.resolve(allowed) }
+  const result = await outcome
+  if (allowed) expect('handle' in result).toBe(true)
+  else {
+    expect('error' in result).toBe(true)
+    expect(f.ctx.agents.get(SessionId(`review-admission-${allowed}`))).toBeUndefined()
+  }
+})
+
+it('retains bilingual capture recovery instructions in consent audit and new-agent denial', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'owner-capture-failure-'))
+  const workspace = join(root, 'workspace')
+  const home = join(root, 'state')
+  mkdirSync(workspace)
+  const path = join(workspace, 'patch.yml')
+  writeFileSync(path, 'trusted')
+  const f = await fixture(workspace)
+  const integrity = new ProtectedInputIntegrity(workspace, home)
+  integrity.observe(path)
+  const original = fs.openSync
+  const read = vi.spyOn(fs, 'openSync').mockImplementation((...args) => {
+    if (args[0] === path && args[1] === 'r') throw new Error('capture interrupted')
+    return original(...args)
+  })
+  onTestFinished(() => { read.mockRestore(); rmSync(root, { recursive: true, force: true }) })
+  f.ctx.provide('profileContext', {
+    name: 'failed-capture', cwd: workspace, dir: workspace, home, patchPath: path,
+    installAnchor: path, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    inputIntegrity: integrity,
+  })
+  f.agent.session.append('turn/start', { turn: 1 })
+  const commit = vi.fn(async () => {})
+  const rollback = vi.fn(async () => {})
+  const pending = f.ctx.approval.request({ agent: f.agent, toolName: 'capture-fixture',
+    purpose: { type: 'workspace-write', workspace } }, { check() {}, commit, rollback })
+  const frame = await f.events.next()
+  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected workspace write approval')
+  expect((await f.reply(frame.value.eventId, 'allowed-once')).result.ok).toBe(true)
+  expect(await pending).toBe('rejected')
+  expect(commit).not.toHaveBeenCalled()
+  expect(rollback).toHaveBeenCalledOnce()
+  const audit = f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')
+  const english = 'Explicitly authorize workspace write access again to capture a new baseline.'
+  const chinese = '请重新显式授权该工作区写入一次，以重新捕获基线。'
+  expect(JSON.stringify(audit)).toContain(english)
+  expect(JSON.stringify(audit)).toContain(chinese)
+  for (const [index, message] of [english, chinese].entries()) {
+    const sessionId = SessionId(`failed-capture-${index}`)
+    await expect(f.ctx.agents.create({ sessionId, meta: { cwd: workspace } })).rejects.toThrow(message)
+    expect(f.ctx.agents.get(sessionId)).toBeUndefined()
+  }
+  read.mockRestore()
+  await integrity.grantWrite()
+  const recovered = SessionId('capture-recovered')
+  await f.ctx.agents.create({ sessionId: recovered, meta: { cwd: workspace } })
+  expect(f.ctx.agents.get(recovered)).toBeDefined()
 })
 
 it('does not prompt an unattended session and retains a passive refusal notice', async () => {

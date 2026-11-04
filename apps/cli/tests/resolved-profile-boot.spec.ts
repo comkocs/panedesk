@@ -101,7 +101,7 @@ describe('runProfile with an application-owned profile', () => {
     const profile = loadProfileDirectory('test', dir, anchor)
     const integrity = new ProtectedInputIntegrity(workspace, home)
     for (const path of [join(dir, 'package.json'), patch, overlay]) integrity.observe(path)
-    integrity.grantWrite()
+    await integrity.grantWrite()
     writeFileSync(join(dir, 'package.json'), 'not-json')
     writeFileSync(patch, '[invalid-yaml')
     writeFileSync(overlay, '[invalid-yaml')

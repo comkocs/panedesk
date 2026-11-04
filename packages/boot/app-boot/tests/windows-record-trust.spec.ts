@@ -25,7 +25,7 @@ it('omits untrusted recorded and current configuration but keeps read-only reads
   onTestFinished(() => { state.unsafe = false; vi.restoreAllMocks(); rmSync(root, { recursive: true, force: true }) })
   const initial = new ProtectedInputIntegrity(workspace, home)
   initial.observe(input)
-  initial.grantWrite()
+  await initial.grantWrite()
   writeFileSync(input, 'attacker current bytes')
   state.unsafe = true
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -33,7 +33,7 @@ it('omits untrusted recorded and current configuration but keeps read-only reads
   expect(warning).toHaveBeenCalledWith(expect.stringContaining('UnsafeWindowsStateError:'))
   expect(reopened.readTrusted(input)).toBeUndefined()
   expect(() => reopened.readExecutable(input)).toThrow('Windows owner state')
-  expect(() => { reopened.grantWrite() }).toThrow('Windows owner state')
+  expect(() => reopened.grantWrite()).toThrow('Windows owner state')
   expect(initial.readTrusted(input)).toBeUndefined()
   const owner = { confirm: vi.fn(async () => true), blocked: vi.fn() }
   expect(await initial.verify(owner)).toBe(false)

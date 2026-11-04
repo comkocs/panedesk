@@ -22,6 +22,8 @@ import { createInboxStub, provideWorkingDirectoryFixture } from '@panedesk/dsh-a
 import { apply, Config } from '../src/index.ts'
 import SubagentRuntime from '@panedesk/dsh-subagent'
 import ApprovalService from '@panedesk/dsh-user-approval'
+import PermissionPresetService from '@panedesk/dsh-permission-presets'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
 import { internals } from '../src/runner-internals.ts'
 
 const originalInternals = { ...internals }
@@ -257,6 +259,27 @@ describe('headless runner', () => {
       expect(await test.run()).toMatchObject({ code: 0 })
       expect(questions).toBe(0)
       expect(outcome).toBe('rejected')
+    } finally { await test.ctx.fiber.dispose() }
+  })
+
+  it('initializes the permission service before running an unattended task', async () => {
+    let observed: string | undefined
+    const test = await bench({
+      afterPrompt(session, message) {
+        const event = session.snapshotEvents().findLast(event => event.type === 'approval/policy')
+        if (event?.type === 'approval/policy') observed = event.data.policy
+        appendTurn(session, 1, message, 'initialized', true)
+      },
+    })
+    await test.ctx.plugin(ApprovalService, { policy: 'ask' })
+    await test.ctx.plugin(SandboxPolicy, { mode: 'read-only', workspaceRoot: process.cwd() })
+    test.ctx.provide('shell', { sandboxMode: 'read-only' })
+    await test.ctx.plugin(PermissionPresetService, {
+      presets: { 'read-only': { sandbox: 'read-only', approval: 'ask' } },
+    })
+    try {
+      expect(await test.run()).toMatchObject({ code: 0 })
+      expect(observed).toBe('never')
     } finally { await test.ctx.fiber.dispose() }
   })
 

@@ -45,7 +45,7 @@ it.each(['linux', 'darwin'])('protects a linked input target with executable pla
   mkdirSync(workspace)
   writeFileSync(target, 'plugins: []\n')
   symlinkSync(target, alias)
-  const ctx = coveredContext(workspace, alias)
+  const ctx = await coveredContext(workspace, alias)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -68,7 +68,7 @@ it.each(['linux', 'darwin'])('protects a linked input target with executable pla
 it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an absent input to host validation without creating mount points: %s', async (name) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-absent-'))
   const input = join(root, name)
-  const ctx = coveredContext(root, input)
+  const ctx = await coveredContext(root, input)
   const profile = ctx.get('profileContext')
   if (profile === undefined) throw new Error('Profile context missing')
   vi.stubEnv('PANEDESK_HOME', profile.home)

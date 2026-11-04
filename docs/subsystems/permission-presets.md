@@ -165,8 +165,9 @@ optionOf(name: string): PresetOption
  * setter. Selecting the effective preset again appends nothing.
  * @param session - the session the switch belongs to.
  * @param name - the preset to switch to; unknown names throw.
+ * @returns Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.
  */
-set(session: Session, name: string): void
+set(session: Session, name: string): void | Promise<void>
 
 /**
  * Fill every missing permission fact before a session is published. A
@@ -178,8 +179,9 @@ set(session: Session, name: string): void
  * an already initialized session records only a changed approval policy.
  * @param session - Session being prepared or restored.
  * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
+ * @returns Capture completion when required; permission facts are published only after it succeeds.
  */
-initialize(session: Session, approvalOverride?: ApprovalPolicy): void
+initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void>
 ```
 
 Types: [ApprovalPolicy](approval.md) · [Session](session.md)

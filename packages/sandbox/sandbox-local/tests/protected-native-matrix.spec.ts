@@ -33,7 +33,7 @@ for (const platform of ['linux', 'darwin', 'win32']) for (const effect of effect
       writeFileSync(target, 'owner')
       symlinkSync(target, input)
     } else if (effect !== 'create absent input') writeFileSync(input, 'owner')
-    const ctx = coveredContext(workspace, input)
+    const ctx = await coveredContext(workspace, input)
     onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
     native.allows = []; native.denies = []
     await ctx.plugin(LocalSandboxProvider)

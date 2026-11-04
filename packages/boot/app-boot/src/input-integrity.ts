@@ -2,8 +2,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { setImmediate } from 'node:timers/promises'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 import { protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
+import { en, zh } from './input-integrity-locales.ts'
 
 /** Windows policy refuses workspace writes that include owner-state storage. */
 export class WorkspaceContainsStateError extends Error {
@@ -72,24 +74,118 @@ function treeStamp(path: string): string {
     const link = lstatSync(path, { bigint: true })
     const target = statSync(path, { bigint: true })
     return [realpathSync(path), ...[link, target].map(stat =>
-      `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`)].join('\0')
+      `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}:${stat.nlink}`)].join('\0')
   } catch (error) {
     if (missing(error)) return 'missing'
     throw error
   }
 }
 
-function snapshot(
-  path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), excluded?: string,
+interface CapturePass {
+  recordedAt: number
+  identities: Map<string, string>
+  stamps: Map<string, string>
+  nodes: Map<string, { identity: string; kind: 'file' | 'directory' | 'other' | 'missing'; target: string }>
+  directories: Map<string, readonly string[]>
+  bytes: Map<string, { chunks?: readonly Buffer[]; blob: string }>
+}
+
+function capturePass(): CapturePass {
+  return { recordedAt: Date.now(), identities: new Map(), stamps: new Map(), nodes: new Map(), directories: new Map(), bytes: new Map() }
+}
+
+function* contentDigest(filename: string): Generator<void, string> {
+  const descriptor = openSync(filename, 'r')
+  const hash = createHash('sha256')
+  const chunk = Buffer.allocUnsafe(64 * 1024)
+  try {
+    let length: number
+    while ((length = readSync(descriptor, chunk, 0, chunk.length, null)) > 0) {
+      hash.update(chunk.subarray(0, length))
+      yield
+    }
+    return hash.digest('hex')
+  } finally { closeSync(descriptor) }
+}
+
+function* unchangedEntry(pass: CapturePass, filename: string): Generator<void, boolean> {
+  if (identity(filename) !== pass.identities.get(filename)) return false
+  const target = canonicalLocation(filename)
+  const bytes = pass.bytes.get(target)
+  if (bytes !== undefined && (yield* contentDigest(filename)) !== bytes.blob) return false
+  const names = pass.directories.get(target)
+  return names === undefined || JSON.stringify(readdirSync(target).sort()) === JSON.stringify(names)
+}
+
+function* checkPass(pass: CapturePass): Generator<void, void> {
+  for (const [filename, before] of pass.stamps) {
+    yield
+    const after = treeStamp(filename)
+    if (after === before) continue
+    if (! (yield* unchangedEntry(pass, filename))) throw new Error(`Protected host input changed while being read: ${filename}`)
+    pass.stamps.set(filename, after)
+  }
+}
+
+function recentStamp(stamp: string, recordedAt: number): boolean {
+  // Two seconds conservatively covers coarse filesystem timestamp granularity.
+  const cutoff = BigInt(Math.trunc(recordedAt - 2000)) * 1_000_000n
+  return stamp.split('\0').slice(1).some(value => value.split(':').slice(4, 6).some(time => BigInt(time) >= cutoff))
+}
+
+function* reusablePass(pass: CapturePass): Generator<void, boolean> {
+  // macOS ctime mutability is unverified: retain full reads there. Windows relies
+  // on protected inputs remaining unwritable by the sandbox; ChangeTime is mutable.
+  if (process.platform !== 'linux' && process.platform !== 'win32') return false
+  const recordedAt = Date.now()
+  for (const [filename, before] of pass.stamps) {
+    yield
+    const after = treeStamp(filename)
+    if (after !== before || recentStamp(before, pass.recordedAt)) {
+      if (! (yield* unchangedEntry(pass, filename))) return false
+    }
+  }
+  yield* checkPass(pass)
+  // Age metadata from before the first read, not after a potentially long pass.
+  pass.recordedAt = recordedAt
+  return true
+}
+
+function finishSync<T>(operation: Generator<void, T>): T {
+  let next = operation.next()
+  while (!next.done) next = operation.next()
+  return next.value
+}
+
+async function finishAsync<T>(operation: Generator<void, T>): Promise<T> {
+  await setImmediate()
+  let deadline = performance.now() + 8
+  let next = operation.next()
+  while (!next.done) {
+    if (performance.now() >= deadline) {
+      await setImmediate()
+      deadline = performance.now() + 8
+    }
+    next = operation.next()
+  }
+  return next.value
+}
+
+function* snapshot(
+  path: string, root: string, files?: Map<string, Buffer>, pass = capturePass(), excluded?: string,
   blobs?: string, selected?: string, legacy = false,
-): InputSnapshot {
+): Generator<void, InputSnapshot> {
+  const { stamps } = pass
   const hash = createHash('sha256')
   const copies: { path: string; content?: string; blob?: string }[] = []
   const ancestors: { path: string; mode: number }[] = []
   const chunk = Buffer.allocUnsafe(64 * 1024)
   if (blobs !== undefined) mkdirSync(blobs, { recursive: true, mode: 0o700 })
   const capture = (filename: string): void => {
-    if (!stamps.has(filename)) stamps.set(filename, treeStamp(filename))
+    if (!stamps.has(filename)) {
+      stamps.set(filename, treeStamp(filename))
+      pass.identities.set(filename, identity(filename))
+    }
   }
   for (let current = path; contains(root, current); current = dirname(current)) {
     capture(current)
@@ -103,16 +199,55 @@ function snapshot(
     if (current === dirname(current)) break
   }
   const visited = new Set<string>()
-  const walk = (filename: string, logicalFilename = filename): void => {
+  const walk = function* (filename: string, logicalFilename = filename): Generator<void, void> {
+    yield
     if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return
     capture(filename)
-    hash.update(logicalFilename).update('\0').update(identity(filename, false, legacy)).update('\0')
-    let stat: ReturnType<typeof statSync>
-    try { stat = statSync(filename) } catch (error) {
-      if (missing(error)) return
-      throw error
+    const key = `${legacy ? 'legacy' : 'current'}\0${filename}`
+    let node = pass.nodes.get(key)
+    if (node === undefined) {
+      const value = identity(filename, false, legacy)
+      try {
+        const stat = statSync(filename)
+        node = { identity: value, kind: stat.isFile() ? 'file' : stat.isDirectory() ? 'directory' : 'other', target: realpathSync(filename) }
+      } catch (error) {
+        if (!missing(error)) throw error
+        node = { identity: value, kind: 'missing', target: filename }
+      }
+      pass.nodes.set(key, node)
     }
-    if (stat.isFile()) {
+    hash.update(logicalFilename).update('\0').update(node.identity).update('\0')
+    if (node.kind === 'file') {
+      const canonical = node.target
+      const cached = pass.bytes.get(canonical)
+      if (cached !== undefined) {
+        const retain = files !== undefined && (selected === undefined || logicalFilename === selected)
+        const retained: Buffer[] = []
+        if (cached.chunks !== undefined) {
+          for (const bytes of cached.chunks) { hash.update(bytes); yield }
+          retained.push(...cached.chunks)
+        } else {
+          if (blobs === undefined) throw new Error('Protected input capture has no content storage')
+          const descriptor = openSync(join(blobs, cached.blob), 'r')
+          const digest = createHash('sha256')
+          try {
+            let length: number
+            while ((length = readSync(descriptor, chunk, 0, chunk.length, null)) > 0) {
+              const bytes = chunk.subarray(0, length)
+              hash.update(bytes)
+              digest.update(bytes)
+              if (retain) retained.push(Buffer.from(bytes))
+              yield
+            }
+            if (digest.digest('hex') !== cached.blob) throw new Error('Protected input copy changed during capture')
+          } finally { closeSync(descriptor) }
+        }
+        hash.update('\0')
+        if (blobs === undefined) copies.push({ path: logicalFilename, content: Buffer.concat(retained).toString('base64') })
+        else copies.push({ path: logicalFilename, blob: cached.blob })
+        if (retain) files.set(logicalFilename, Buffer.concat(retained))
+        return
+      }
       const descriptor = openSync(filename, 'r')
       const temporary = blobs === undefined ? undefined : join(blobs, `${randomUUID()}.new`)
       let output: number | undefined
@@ -126,19 +261,25 @@ function snapshot(
           const bytes = chunk.subarray(0, length)
           hash.update(bytes)
           digest.update(bytes)
-          if (blobs === undefined || logicalFilename === selected) retained.push(Buffer.from(bytes))
+          if (blobs === undefined || files !== undefined && (selected === undefined || logicalFilename === selected)) {
+            retained.push(Buffer.from(bytes))
+          }
           if (output !== undefined) {
             let offset = 0
             while (offset < length) offset += writeSync(output, bytes, offset, length - offset)
           }
+          yield
         }
         const after = fstatSync(descriptor, { bigint: true })
-        if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size
-          || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) {
-          throw new Error(`Protected host input changed while being read: ${filename}`)
+        const blob = digest.digest('hex')
+        if (before.dev !== after.dev || before.ino !== after.ino || before.mode !== after.mode || before.size !== after.size
+          || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs || before.nlink !== after.nlink) {
+          if (before.mode !== after.mode || (yield* contentDigest(filename)) !== blob) {
+            throw new Error(`Protected host input changed while being read: ${filename}`)
+          }
         }
         hash.update('\0')
-        const blob = digest.digest('hex')
+        pass.bytes.set(canonical, { ...blobs === undefined ? { chunks: retained } : {}, blob })
         if (output !== undefined) { closeSync(output); output = undefined }
         if (temporary !== undefined && blobs !== undefined) {
           const destination = join(blobs, blob)
@@ -158,12 +299,17 @@ function snapshot(
       }
       return
     }
-    if (stat.isDirectory()) {
-      const target = realpathSync(filename)
+    if (node.kind === 'directory') {
+      const target = node.target
       if (visited.has(target)) return
       visited.add(target)
-      // Resolve each directory once without accumulating links in descendant filesystem calls.
-      for (const name of readdirSync(target).sort()) walk(join(target, name), join(logicalFilename, name))
+      let names = pass.directories.get(target)
+      if (names === undefined) {
+        names = readdirSync(target).sort()
+        pass.directories.set(target, names)
+      }
+      // Each logical root retains its own cycle order and path spelling.
+      for (const name of names) yield* walk(join(target, name), join(logicalFilename, name))
     }
   }
   let kind: InputSnapshot['kind'] = 'missing'
@@ -175,10 +321,7 @@ function snapshot(
   } catch (error) {
     if (!missing(error)) throw error
   }
-  walk(path)
-  for (const [filename, before] of stamps) {
-    if (treeStamp(filename) !== before) throw new Error(`Protected host input changed while being read: ${filename}`)
-  }
+  yield* walk(path)
   const direct = copies.find(file => file.path === path)
   const treeDigest = hash.digest('hex')
   const digest = legacy ? treeDigest : createHash('sha256').update(treeDigest).update(JSON.stringify(ancestors)).digest('hex')
@@ -261,7 +404,9 @@ export class ProtectedInputIntegrity {
   private granted: boolean
   private revision: string | undefined
   private verifying = false
+  private grant: { promise: Promise<void>; pending: boolean } | undefined
   private stateFailure: Error | undefined
+  private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
 
   private stateTrusted(): boolean {
     if (this.record === undefined || process.platform !== 'win32') return true
@@ -363,6 +508,7 @@ export class ProtectedInputIntegrity {
       }
       approved.set(item.path, value)
     }
+    this.verifiedPass = undefined
     this.approved.clear()
     for (const [path, value] of approved) {
       this.approved.set(path, value)
@@ -399,8 +545,8 @@ export class ProtectedInputIntegrity {
     }
   }
 
-  private capture(path: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), selected?: string): InputSnapshot {
-    return snapshot(path, this.root, files, stamps,
+  private *capture(path: string, files?: Map<string, Buffer>, pass = capturePass(), selected?: string): Generator<void, InputSnapshot> {
+    return yield* snapshot(path, this.root, files, pass,
       this.record === undefined ? undefined : canonicalLocation(dirname(this.record)),
       this.record === undefined ? undefined : join(dirname(this.record), 'blobs'), selected,
       this.approved.has(path) && this.approved.get(path)?.ancestors === undefined)
@@ -444,21 +590,45 @@ export class ProtectedInputIntegrity {
     // Only mutable record storage is excluded; its ancestors also contain host inputs.
     if (this.isRecordStorage(path)) return
     this.observed.add(path)
-    if (this.record === undefined && !this.approved.has(path)) this.approved.set(path, this.capture(path))
+    if (this.record === undefined && !this.approved.has(path)) {
+      const pass = capturePass()
+      const value = finishSync(this.capture(path, undefined, pass))
+      finishSync(checkPass(pass))
+      this.approved.set(path, value)
+    }
   }
 
   /**
    * Capture owner inputs before publishing write access; existing grants never reset trust.
    * @param protectedPaths Native write exclusions; omission requires state outside the workspace.
+   * @returns Shared pending capture; a failed capture denies consumers until a later explicit grant retries it.
    */
-  grantWrite(protectedPaths: readonly string[] = []): void {
+  grantWrite(protectedPaths: readonly string[] = []): Promise<void> {
     this.assertRecordLocation(protectedPaths)
+    if (this.grant?.pending === true) return this.grant.promise
     this.refreshRecord()
-    if (this.granted) return
+    if (this.granted) return Promise.resolve()
+    const grant = { promise: this.captureGrant().catch((cause: unknown) => {
+      throw new Error(`${en.captureFailed} / ${zh.captureFailed} ${String(cause)}`, { cause })
+    }), pending: true }
+    grant.promise = grant.promise.finally(() => { grant.pending = false })
+    this.grant = grant
+    return grant.promise
+  }
+
+  private assertCapturedRoots(candidates: ReadonlyMap<string, InputSnapshot>): void {
+    for (const path of this.observed) {
+      if (!candidates.has(path)) throw new Error(`Protected host input registered during capture: ${path}`)
+    }
+  }
+
+  private async captureGrant(): Promise<void> {
     if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
-    const stamps = new Map<string, string>()
+    const pass = capturePass()
     const candidates = new Map<string, InputSnapshot>()
-    for (const path of this.observed) candidates.set(path, this.capture(path, undefined, stamps))
+    for (const path of this.observed) candidates.set(path, await finishAsync(this.capture(path, undefined, pass)))
+    await finishAsync(checkPass(pass))
+    this.assertCapturedRoots(candidates)
     const previous = new Map(this.approved)
     for (const [path, value] of candidates) this.approved.set(path, value)
     try { this.persist() } catch (error) {
@@ -467,6 +637,15 @@ export class ProtectedInputIntegrity {
       throw error
     }
     this.granted = true
+    this.verifiedPass = { pass, roots: new Set(candidates.keys()) }
+  }
+
+  /**
+   * Wait for the latest requested baseline without creating a grant; failure remains a denial until an explicit retry.
+   * @returns Completion of the latest capture, including its failure.
+   */
+  async waitForCapture(): Promise<void> {
+    await this.grant?.promise
   }
 
   /**
@@ -564,10 +743,10 @@ export class ProtectedInputIntegrity {
     })
     if (roots.length === 0 && !contains(this.root, path)) return undefined
     let bytes: Buffer | undefined
-    const stamps = new Map<string, string>()
+    const pass = capturePass()
     for (const { root, value, candidate } of roots) {
       const files = new Map<string, Buffer>()
-      const current = this.capture(root, files, stamps, candidate)
+      const current = finishSync(this.capture(root, files, pass, candidate))
       if (!matches(value, current)) throw new Error(`Protected host input requires owner confirmation: ${root}`)
       const content = files.get(candidate)
       if (content !== undefined) {
@@ -575,6 +754,7 @@ export class ProtectedInputIntegrity {
         bytes = content
       }
     }
+    finishSync(checkPass(pass))
     if (bytes === undefined) throw new Error(`Protected host input requires owner confirmation: ${path}`)
     return bytes
   }
@@ -636,6 +816,7 @@ export class ProtectedInputIntegrity {
    * @returns Whether every input still matches its approved identity and bytes; ungranted workspaces need no approval.
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
+    await this.waitForCapture()
     if (this.verifying) throw new Error('Protected host input verification is already pending')
     this.refreshRecord()
     if (this.stateFailure !== undefined) return false
@@ -647,28 +828,35 @@ export class ProtectedInputIntegrity {
   }
 
   private async verifyCandidate(owner: ProtectedInputOwner): Promise<boolean> {
+    const cached = this.verifiedPass
+    if (cached !== undefined && await finishAsync(reusablePass(cached.pass))
+      && [...this.observed].every(path => cached.roots.has(path))) return true
+    this.verifiedPass = undefined
     const changes: ProtectedInputChange[] = []
     const candidates = new Map<string, InputSnapshot>()
-    const captured = new Map<string, string>()
+    const captured = capturePass()
     for (const path of this.observed) {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
-      const value = this.capture(path, undefined, captured)
+      const value = await finishAsync(this.capture(path, undefined, captured))
       candidates.set(path, value)
       const approved = this.approved.get(path)
       if (approved === undefined || !matches(approved, value)) changes.push({ path, previous, current: value.digest })
     }
+    await finishAsync(checkPass(captured))
     for (const change of changes) {
       owner.blocked(change)
       if (!await owner.confirm(change)) return false
     }
-    const checked = new Map<string, string>()
+    const checked = capturePass()
     for (const [path, candidate] of candidates) {
-      const current = this.capture(path, undefined, checked)
+      const current = await finishAsync(this.capture(path, undefined, checked))
       if (!matches(candidate, current) || !matches(current, candidate)) {
         owner.blocked({ path, previous: candidate.digest, current: current.digest })
         return false
       }
     }
+    await finishAsync(checkPass(checked))
+    this.assertCapturedRoots(candidates)
     const previous = new Map(this.approved)
     for (const [path, candidate] of candidates) this.approved.set(path, candidate)
     const tightened = [...candidates].some(([path, candidate]) => {
@@ -680,6 +868,7 @@ export class ProtectedInputIntegrity {
       for (const [path, value] of previous) this.approved.set(path, value)
       throw error
     }
+    this.verifiedPass = { pass: checked, roots: new Set(candidates.keys()) }
     return true
   }
 }

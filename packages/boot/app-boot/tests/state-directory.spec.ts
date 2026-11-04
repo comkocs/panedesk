@@ -12,7 +12,7 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
   assertWindowsStateTrusted: vi.fn(),
 }))
 
-it.each(['linux', 'darwin'] as const)('establishes nested owner state behind the first protected child on %s', (platform) => {
+it.each(['linux', 'darwin'] as const)('establishes nested owner state behind the first protected child on %s', async (platform) => {
   const workspace = mkdtempSync(join(tmpdir(), 'nested-owner-state-'))
   const home = join(workspace, '.panedesk', 'nested')
   const dir = join(home, 'profiles', 'active')
@@ -26,7 +26,7 @@ it.each(['linux', 'darwin'] as const)('establishes nested owner state behind the
     overlays: [], startedBundles: [], telemetryDisabledEnv: undefined,
     protectedInputPaths: () => [join(workspace, '.panedesk')],
   }
-  expect(() => { grantProtectedWorkspace(profile, workspace, [join(workspace, '.panedesk')]) }).not.toThrow()
+  await expect(grantProtectedWorkspace(profile, workspace, [join(workspace, '.panedesk')])).resolves.toBeUndefined()
   const reopened = ProtectedInputIntegrity.openOwnerRecords(workspace, home)
   expect(reopened.readTrusted(patchPath)?.toString()).toBe('[]\n')
 })
@@ -42,7 +42,7 @@ it.each(['linux', 'darwin'] as const)('retains sibling input baselines while exc
   onTestFinished(() => { vi.restoreAllMocks(); rmSync(workspace, { recursive: true, force: true }) })
   const integrity = new ProtectedInputIntegrity(workspace, home)
   integrity.observe(home)
-  integrity.grantWrite([home])
+  await integrity.grantWrite([home])
   const reopened = ProtectedInputIntegrity.openOwnerRecords(workspace, home)
   expect(reopened.covers(input)).toBe(true)
   expect(reopened.readTrusted(input)?.toString()).toBe('export const value = 1\n')
@@ -65,5 +65,5 @@ it('opens a Windows read-only session with nested state without granting write a
   onTestFinished(() => { vi.restoreAllMocks(); rmSync(workspace, { recursive: true, force: true }) })
   const integrity = ProtectedInputIntegrity.openOwnerRecords(workspace, join(workspace, '.panedesk'))
   expect(integrity.covers(workspace)).toBe(false)
-  expect(() => { integrity.grantWrite() }).toThrow('outside the writable workspace')
+  expect(() => integrity.grantWrite()).toThrow('outside the writable workspace')
 })

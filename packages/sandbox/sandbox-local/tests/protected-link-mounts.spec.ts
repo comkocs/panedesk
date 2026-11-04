@@ -26,7 +26,7 @@ it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('marks every
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
   const input = join(root, 'input')
   const path = kind === 'non-directory ancestor' ? join(input, 'config.yml') : input
-  const ctx = coveredContext(root, path)
+  const ctx = await coveredContext(root, path)
   const { home } = ctx.profileContext
   vi.stubEnv('PANEDESK_HOME', home)
   onTestFinished(() => { vi.unstubAllEnvs() })
@@ -84,7 +84,7 @@ it.each(layouts)('mounts the canonical target of a %s read-only', async (_layout
     symlinkSync(modules, join(workspace, 'linked-node_modules'), 'dir')
   } else mkdirSync(dirname(alias), { recursive: true })
   symlinkSync(target, alias, 'dir')
-  const ctx = coveredContext(workspace, alias)
+  const ctx = await coveredContext(workspace, alias)
   vi.stubEnv('PANEDESK_HOME', ctx.profileContext.home)
   onTestFinished(() => { vi.unstubAllEnvs() })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
@@ -114,7 +114,7 @@ it('leaves external linked targets under the read-only root without an alias mou
   mkdirSync(workspace)
   writeFileSync(target, 'owner')
   symlinkSync(target, alias)
-  const ctx = coveredContext(workspace, alias)
+  const ctx = await coveredContext(workspace, alias)
   vi.stubEnv('PANEDESK_HOME', ctx.profileContext.home)
   onTestFinished(() => { vi.unstubAllEnvs() })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })

@@ -42,7 +42,7 @@ export function apply(ctx) {
   if (covered) {
     const integrity = new ProtectedInputIntegrity(workspace, home)
     integrity.observe(overlay)
-    integrity.grantWrite()
+    await integrity.grantWrite()
   }
   const result = await execa(process.execPath, [
     '--import', import.meta.resolve('tsx/esm'), join(repo, 'apps/cli/src/bin.ts'), '--profile', 'headless', '--patch', overlay,

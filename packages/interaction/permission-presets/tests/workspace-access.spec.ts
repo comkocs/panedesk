@@ -132,6 +132,29 @@ describe('Windows workspace settings', () => {
     expect(revoke).not.toHaveBeenCalled()
     expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
   })
+  it('discovers registered directory sources once and removes them on disposal', async () => {
+    const { ctx, home, inspect } = await fixture()
+    const other = join(home, 'other')
+    mkdirSync(other)
+    inspect.mockReturnValue(true)
+    ctx.provide('sessionPersistence', { list: async () => [{ header: {} }, { header: { cwd: home } }] })
+    const dispose = ctx.permissionPresets.registerWorkspaceDirectories(async () => [other, home, join(home, 'deleted')])
+    expect((await ctx.permissionPresets.workspaceWriteAccess()).entries).toEqual([
+      { workspace: home, source: 'legacy' }, { workspace: other, source: 'legacy' },
+    ])
+    await dispose()
+    expect((await ctx.permissionPresets.workspaceWriteAccess()).entries).toEqual([{ workspace: home, source: 'legacy' }])
+    inspect.mockReturnValue(false)
+    expect((await ctx.permissionPresets.workspaceWriteAccess()).entries).toEqual([])
+  })
+  it('propagates directory inspection failures other than a missing path', async () => {
+    const { ctx } = await fixture()
+    ctx.permissionPresets.registerWorkspaceDirectories(async () => ['denied'])
+    vi.spyOn(ctx.sandboxPolicy.workspaceAccess, 'canonical').mockImplementation(() => {
+      throw Object.assign(new Error('inspection denied'), { code: 'EACCES' })
+    })
+    await expect(ctx.permissionPresets.workspaceWriteAccess()).rejects.toThrow('inspection denied')
+  })
   it('does not expose Windows authorization writes on another platform', async () => {
     const { ctx, home, revoke } = await fixture('linux')
     expect(await ctx.permissionPresets.workspaceWriteAccess()).toEqual({ supported: false, entries: [] })

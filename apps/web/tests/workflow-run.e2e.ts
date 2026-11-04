@@ -70,7 +70,7 @@ describe.skipIf(MODE === 'record')('web e2e: durable workflow run in Chat', () =
     await connectFreshWorkspace(page, scaffold.workspaceCwd)
     const sessions = scaffold.ctx.sessions.list()
     expect(sessions).toHaveLength(1)
-    scaffold.ctx.permissionPresets.set(sessions[0]!, 'danger-full-access')
+    await scaffold.ctx.permissionPresets.set(sessions[0]!, 'danger-full-access')
   }, 120_000)
 
   afterAll(async () => {

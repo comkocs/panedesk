@@ -484,7 +484,7 @@ it('reports failed rather than applied when a protected profile edit is not conf
   const integrity = new ProtectedInputIntegrity(profile.cwd, home)
   for (const path of [join(profile.dir, 'package.json'), profile.patchPath,
     join(profile.home, 'cordis.patch.yml'), ...profile.bundleInputPaths ?? []]) integrity.observe(path)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   profile.inputIntegrity = integrity
   const result = await manager.setPluginEnabled(id, false)
   expect(result.application).toBe('failed')

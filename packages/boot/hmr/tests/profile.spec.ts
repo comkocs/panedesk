@@ -196,7 +196,7 @@ it.each(['direct-write', 'create-missing', 'rename-copy', 'delete-recreate', 'sy
       const manifest = join(f.dir, 'package.json')
       const integrity = new ProtectedInputIntegrity(f.home, ownerHome)
       for (const path of [f.profile.patchPath, homePatch, manifest]) integrity.observe(path)
-      integrity.grantWrite()
+      await integrity.grantWrite()
       f.profile.inputIntegrity = integrity
       await mountAgentLoopTestDependencies(f.ctx)
       provideWorkingDirectoryFixture(f.ctx)

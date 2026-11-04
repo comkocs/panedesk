@@ -41,7 +41,7 @@ it('reloads after saving an image tightens an existing home but refuses widened 
     onTestFinished(() => { spy.mockRestore() })
   }
   integrity.observe(manifest)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const requestInputReview = vi.fn()
   const ctx = await boot('attachment-reload-test', config, [], (host) => {
     host.provide('profileContext', {
@@ -81,7 +81,7 @@ it.each(['create-missing', 'replace-link', 'link-to-directory', 'link-to-file', 
   writeFileSync(join(workspace, 'probe.mjs'), 'export function apply() {}\n')
   const integrity = new ProtectedInputIntegrity(workspace, home)
   integrity.observe(patchPath)
-  integrity.grantWrite()
+  await integrity.grantWrite()
   const ctx = await boot('fallback-test', join(workspace, 'cordis.yml'), [
     { insert: [{ id: 'retained', name: './probe.mjs' }] },
   ], (host) => {

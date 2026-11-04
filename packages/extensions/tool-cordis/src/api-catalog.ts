@@ -2330,14 +2330,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when `name` is neither a configured preset, live `auto`, nor `custom`.'],
       },
       {
-        signature: 'set(session: Session, name: string): void',
+        signature: 'set(session: Session, name: string): void | Promise<void>',
         description: 'Record a changed preset, then update each changed knob through its own setter. Selecting the effective preset again appends nothing.',
         parameters: [{ name: 'session', description: 'the session the switch belongs to.' }, { name: 'name', description: 'the preset to switch to; unknown names throw.' }],
+        returns: 'Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.',
       },
       {
-        signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy): void',
+        signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void>',
         description: 'Fill every missing permission fact before a session is published. A genuinely fresh session uses the current user default; seeded or partially initialized sessions preserve their effective knob values and only gain the missing durable facts. A stored Auto identity requires its live integration and passes its admission check before publication. An unattended override uses the same initial event positions; an already initialized session records only a changed approval policy.',
         parameters: [{ name: 'session', description: 'Session being prepared or restored.' }, { name: 'approvalOverride', description: 'Explicit caller policy; absent preserves the configured or stored policy.' }],
+        returns: 'Capture completion when required; permission facts are published only after it succeeds.',
       },
     ],
   },
@@ -10255,7 +10257,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
   },
   {
     name: 'ProtectedInputOwner',
