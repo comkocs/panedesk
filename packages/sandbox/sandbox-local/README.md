@@ -82,6 +82,8 @@ This section explains runner selection, the per-platform profiles, and the failu
 
 ### Runner selection
 
+The native `nested-user-pid` regression uses `PANEDESK_TEST_UNSHARE` (default: `unshare`) for both its host probe and confined replay. With `PANEDESK_CI_NATIVE_SANDBOX=required`, unavailable namespaces must produce the exact permission denial inside the product sandbox, never a skip; this fallback leaves hosts allowing user namespaces unverified, a hardening requirement before the stable release. Without required native sandboxing, the unavailable probe skips with its reason.
+
 Selection is by platform first, probes second: each platform has a runner chain (`linux`: `bwrap` then Landlock; `darwin`: Seatbelt; `win32`: the ACL restricted-token runner). A sole candidate is selected without a probe; competing candidates are functionally probed once in chain order, and the first usable verdict is cached for the provider's lifetime. A platform with no chain, or a chain where every probe fails, is unavailable and fails closed at `confine()`.
 
 ### Platform profiles

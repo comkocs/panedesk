@@ -82,6 +82,8 @@ Windows ACL 隔离也返回 `productSandbox: true`。消费者必须保留该事
 
 ### runner 选择
 
+原生 `nested-user-pid` 回归的宿主探测与受限回放均使用 `PANEDESK_TEST_UNSHARE`（缺省为 `unshare`）。设置 `PANEDESK_CI_NATIVE_SANDBOX=required` 时，命名空间不可用必须在产品沙箱内产生精确的权限拒绝，不能跳过；此退路仍未核验放开 userns 的主机，是正式发布前必到的加固要求。未要求原生沙箱时，探测不可用仍带原因跳过。
+
 选择按平台优先、探测其次：每个平台都有 runner 链（`linux`：`bwrap` 再 Landlock；`darwin`：Seatbelt；`win32`：ACL 受限令牌 runner）。唯一候选直接选择、不探测；竞争候选按链序各执行一次功能探测，首个可用结论在提供方生命周期内缓存。没有链的平台、或链上所有探测都失败时，平台不可用，`confine()` 会拒绝执行。
 
 ### 平台 profile

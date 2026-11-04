@@ -173,18 +173,32 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
           }
         }
       } else {
+        const unshare = process.env.PANEDESK_TEST_UNSHARE ?? 'unshare'
+        let namespaceDenial: string | undefined
+        const namespaceDenials = [
+          'unshare: unshare failed: Operation not permitted\n',
+          'unshare: write failed /proc/self/uid_map: Operation not permitted\n',
+        ]
         if (name === 'nested-user-pid') {
-          const probe = spawnSync('unshare', ['--user', '--map-root-user', '--pid', '--fork', '/bin/true'], { encoding: 'utf8', timeout: 5000 })
+          const probe = spawnSync(unshare, ['--user', '--map-root-user', '--pid', '--fork', '/bin/true'], { encoding: 'utf8', timeout: 5000 })
           if (probe.status !== 0) {
-            const reason = `unprivileged user/PID namespaces unavailable: status=${probe.status}; ${probe.stderr.trim()}`
-            console.info(reason)
-            skip(reason)
+            const reason = `unprivileged user/PID namespaces unavailable: status=${probe.status}; ${probe.stderr?.trim() ?? probe.error?.message}`
+            writeSync(1, `${reason}\n`)
+            if (!delegationRequired) skip(reason)
+            expect(probe.error).toBeUndefined()
+            expect(probe.status).toBe(1)
+            expect(probe.signal).toBe(null)
+            expect(namespaceDenials).toContain(probe.stderr)
+            namespaceDenial = probe.stderr === namespaceDenials[0]
+              ? namespaceDenials[0]
+              : 'unshare: cannot open /proc/self/uid_map: Permission denied\n'
+            writeSync(1, 'unverified: hosts allowing user namespaces have not been verified\n')
           }
         }
         const migrating = name === 'landlock-subgroup-migration'
         const argv = ['/usr/bin/python3', '-I', '-c', migrating ? migration : replay,
           ...name === 'landlock-double-fork' ? ['orphan'] : []]
-        if (name === 'nested-user-pid') argv.unshift('unshare', '--user', '--map-root-user', '--pid', '--fork')
+        if (name === 'nested-user-pid') argv.unshift(unshare, '--user', '--map-root-user', '--pid', '--fork')
         const prepared = confined ? await sandbox.confine(argv, { mode: 'workspace-write', workspaceRoot: workspace }) : { argv, productSandbox: undefined }
         const handle = subprocess.spawn({
           argv: prepared.argv, ...prepared.productSandbox === true ? { productSandbox: true } : {}, cwd: workspace,
@@ -207,6 +221,20 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
         }
         const outcome = await handle.done
         const exited = await handle.waitForExit()
+        if (namespaceDenial !== undefined) {
+          const stderr = handle.collected.stderr!.readFrom(0)
+          writeSync(1, `sandbox user/PID namespace denial: status=${outcome.exitCode}; ${stderr.text}`)
+          verify(() => {
+            expect(outcome.exitCode).toBe(1)
+            expect(outcome.signal).toBe(null)
+            expect(exited).toBe(true)
+            expect(prepared.productSandbox).toBe(true)
+            expect(output).toBe('')
+            expect(stderr.lossy).toBe(false)
+            expect(stderr.text).toBe(namespaceDenial)
+          })
+          return
+        }
         verify(() => {
           expect(outcome.exitCode).toBe(0)
           expect(exited).toBe(true)
