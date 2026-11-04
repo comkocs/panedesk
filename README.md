@@ -14,7 +14,9 @@ Planned next: public-release preparation, then long-running sessions and subagen
 
 ## Platform behavior
 
-Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use the desktop app for owner approval on Windows; console isolation is deferred. Interactive Windows CLI / TUI startup prints this warning.
+Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use an authenticated Web or desktop frontend for owner approval on Windows; console isolation is deferred. Interactive Windows CLI / TUI startup prints this warning.
+
+Windows Web refuses new browser logins unless the owner disables new-browser confirmation in protected configuration. The Windows distribution asks on first run; accepting writes a connection row with both `requireOwnerConfirmation: false` and `trustedHosts: !!js ctx.webStartup.trustedHosts`. Sign in again after upgrading because the signing key moved. Disabling confirmation makes an unused launch link sufficient for login; protect links and cookies. To revoke this choice, remove the override or set confirmation to `true`, then restart; Windows will refuse new browser logins again, and existing cookies are not revoked by this setting. See the [upgrade instructions](docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.md).
 
 An owner private directory may be inside the workspace on Linux/macOS, but a workspace inside an owner directory is refused. Landlock excludes protected first-level branches from write grants; other existing branches remain writable, but new files or directories at the workspace root cannot be created. Windows permits read-only startup when the workspace contains owner storage, but refuses write authorization.
 

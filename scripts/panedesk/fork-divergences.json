@@ -1,6 +1,23 @@
 {
   "divergences": [
     {
+      "id": "windows-web-owner-login-guidance",
+      "description": "Document explicit Windows Web login consent and its revocation",
+      "origin": "Owner authentication documentation",
+      "reason": "Explain the distribution's first-run consent, protected connection configuration with invocation-derived trusted hosts, signing-key relocation login, and the distinction between disabling new-browser confirmation and revoking existing cookies. Keep the Windows shared-console warning and allow authenticated Web or desktop approval. These documentation changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "web-keyless-smoke-owner-session",
       "description": "Keep keyless CLI smoke fixtures compatible with single-use browser login",
       "origin": "Web regression fixture compatibility",
