@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "native-source-hygiene-registration",
+      "description": "Register native source publication and keep hygiene checks bounded and typed",
+      "origin": "Owner authentication isolation",
+      "reason": "Allow the published socket cgroup source alongside existing auditable native sources, type the Windows allocation fixture without an unknown assertion and prune its retired baseline entry, and size Git inventory capture for the tracked workspace. Preserve product behavior and existing assertions. These maintenance changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/check-workspace-constraints.ts",
+          "packages/subprocess/win32-process/tests/process-allocation-failure.spec.ts",
+          "scripts/no-unknown-casts.baseline.json",
+          "scripts/rescope-vendor.ts"
+        ]
+      }
+    },
+    {
       "id": "linux-native-owner-source-tests",
       "description": "Exercise native Linux owner admission and report delegation warnings per case",
       "origin": "Owner authentication isolation",
