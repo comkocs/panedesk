@@ -15515,6 +15515,16 @@
       }
     },
     {
+      "id": "protected-link-session-mount-fixture",
+      "description": "Own virtual session mount destinations in linked-input tests",
+      "origin": "Host-independent sandbox mount fixtures",
+      "reason": "Model session mount destinations with a test-owned directory instead of assuming the host already has every conventional session directory. Retain the exact per-ancestor symlink assertions and protected-input mount expectations. This fixture repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts"]
+      }
+    },
+    {
       "id": "persistent-pwsh-native-output-limitation",
       "description": "Document unavailable native PowerShell terminal output capture",
       "origin": "Native sandbox PowerShell output limitation",

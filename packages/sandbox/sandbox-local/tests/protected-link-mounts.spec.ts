@@ -6,7 +6,7 @@ import { coveredContext } from './host-coverage-fixture.ts'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
-import { sessionSocketDirectories } from '../src/session-sockets.ts'
+import * as sessionSockets from '../src/session-sockets.ts'
 
 function mountDestinations(argv: readonly string[]): { kind: string; path: string }[] {
   const mounts: { kind: string; path: string }[] = []
@@ -68,6 +68,11 @@ const layouts = [
 
 it.each(layouts)('mounts the canonical target of a %s read-only', async (_layout, spelling) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-link-mounts-'))
+  const sessions = join(root, 'sessions')
+  mkdirSync(sessions)
+  // Mount destinations are virtual; this host-side path check owns its session fixture.
+  const sessionDirectories = vi.spyOn(sessionSockets, 'sessionSocketDirectories').mockReturnValue([sessions])
+  onTestFinished(() => { sessionDirectories.mockRestore() })
   const workspace = join(root, 'workspace')
   const target = join(workspace, 'store', 'package')
   const alias = join(workspace, spelling)
@@ -122,7 +127,7 @@ it('leaves external linked targets under the read-only root without an alias mou
     { kind: '--ro-bind', path: '/' }, { kind: '--dev', path: '/dev' }, { kind: '--proc', path: '/proc' },
     { kind: '--tmpfs', path: '/tmp' },
     { kind: '--bind', path: workspace },
-    ...sessionSocketDirectories().map(path => ({ kind: '--tmpfs', path })),
+    ...sessionSockets.sessionSocketDirectories().map(path => ({ kind: '--tmpfs', path })),
     { kind: '--ro-bind', path: '/sys/fs/cgroup' },
     { kind: '--tmpfs', path: join(ctx.profileContext.home, 'private') },
     { kind: '--remount-ro', path: join(ctx.profileContext.home, 'private') },
