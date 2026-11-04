@@ -15515,6 +15515,16 @@
       }
     },
     {
+      "id": "worktree-native-admission-time-budget",
+      "description": "Allow all native worktree admission commands to settle",
+      "origin": "Native admission test lifecycle",
+      "reason": "Give the live-caller test an explicit forty-second budget for three real checkouts, each running nine confined subprocesses with a ten-second per-command deadline. Keep all path variants, exact assertions, and executed admission registration unchanged; do not classify an unfinished cell as pending evidence. This test timing repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"]
+      }
+    },
+    {
       "id": "cordis-inspect-product-sandbox-snapshot",
       "description": "Refresh the current subprocess public type snapshot",
       "origin": "Public subprocess sandbox attribution types",

@@ -1727,7 +1727,8 @@ it('create_worktree denies a caller without live identity through the real workt
   expect(readFileSync(target, 'utf8')).toBe(original)
 })
 
-it('create_worktree confines commands for a live caller', async (test) => {
+// Three real checkouts each run nine confined subprocesses; the per-command budget is 10s.
+it('create_worktree confines commands for a live caller', { timeout: 40_000 }, async (test) => {
   nativeEvidence(test, '@panedesk/dsh-experimental-tool-worktree:create_worktree')
   const { ctx, root, workspace, target, original } = await fixture('native', true, true)
   const repository = join(workspace, 'repository')
