@@ -1,6 +1,19 @@
 {
   "divergences": [
     {
+      "id": "web-keyless-smoke-owner-session",
+      "description": "Keep keyless CLI smoke fixtures compatible with single-use browser login",
+      "origin": "Web regression fixture compatibility",
+      "reason": "Pass the protected unattended connection overlay before Web application arguments. Preserve the first login redirect assertion and reuse its cookie in the browser context instead of exchanging the same launch link twice. These loopback-only fixtures do not require invocation-derived trusted hosts. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/web/tests/smoke-real.e2e.ts",
+          "apps/web/tests/fixtures/unattended-connection.overlay.yml"
+        ]
+      }
+    },
+    {
       "id": "web-regressions-private-credentials-and-owner-cookies",
       "description": "Align non-authentication Web regressions with protected credentials and owner cookies",
       "origin": "Web regression fixture compatibility",

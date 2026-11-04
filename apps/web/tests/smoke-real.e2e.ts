@@ -317,7 +317,8 @@ describe('panedesk web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), '--profile', 'web',
+        '--patch', fileURLToPath(new URL('./fixtures/unattended-connection.overlay.yml', import.meta.url)), '--no-open', '--port', '0'],
       {
         cwd: sessionsDir,
         env: {
@@ -334,9 +335,15 @@ describe('panedesk web keyless CLI smoke', () => {
     try {
       const readyUrl = await waitForReadyLine(child)
       expect(readyUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+$/u)
-      expect((await fetch(readyUrl, { redirect: 'manual' })).status).toBe(303)
+      const login = await fetch(readyUrl, { redirect: 'manual' })
+      expect(login.status).toBe(303)
+      const cookie = login.headers.get('set-cookie')!.split(';', 1)[0]!
+      const separator = cookie.indexOf('=')
       browser = await chromium.launch({ headless: true })
       const page = await newEnglishPage(browser)
+      await page.context().addCookies([{
+        name: cookie.slice(0, separator), value: cookie.slice(separator + 1), url: new URL(readyUrl).origin,
+      }])
       const pluginScripts: string[] = []
       const cacheHeaders = new Map<string, string | undefined>()
       // Chromium reports `preload as=script` as Script and reuses that same
@@ -439,7 +446,8 @@ describe('panedesk web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), '--profile', 'web',
+        '--patch', fileURLToPath(new URL('./fixtures/unattended-connection.overlay.yml', import.meta.url)), '--no-open', '--port', '0'],
       {
         cwd: workspace,
         env: {
@@ -552,7 +560,8 @@ describe('panedesk web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), '--profile', 'web',
+        '--patch', fileURLToPath(new URL('./fixtures/unattended-connection.overlay.yml', import.meta.url)), '--no-open', '--port', '0'],
       {
         cwd: workspace,
         env: {
@@ -632,7 +641,8 @@ describe('panedesk web keyless CLI smoke', () => {
     const tsxLoader = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
     const child = spawn(
       process.execPath,
-      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), 'web', '--no-open', '--port', '0'],
+      ['--import', tsxLoader, join(REPO_ROOT, 'apps/cli/src/bin.ts'), '--profile', 'web',
+        '--patch', fileURLToPath(new URL('./fixtures/unattended-connection.overlay.yml', import.meta.url)), '--no-open', '--port', '0'],
       {
         cwd: workspace,
         env: {
