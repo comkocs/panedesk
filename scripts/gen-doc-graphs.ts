@@ -407,6 +407,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The dsh launcher supplies data-only profile locations and composition inputs; reload scheduling belongs to dsh-hmr.',
   },
   {
+    key: 'connectionSources', pkg: 'client-connection', title: 'Physical connection source registration', mode: 'core',
+    consumers: ['client-connection', 'subprocess-local'],
+    note: 'Registers host-owned platform classifiers and denies owners from product sandboxes or unknown registered sources.',
+  },
+  {
     key: 'connection',
     pkg: 'client-connection',
     title: 'Authenticated browser transport',

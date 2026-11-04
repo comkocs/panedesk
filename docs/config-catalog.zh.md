@@ -457,7 +457,7 @@ export type Config = LocalConfig
 ## `@panedesk/dsh-client-connection`
 
 - `inject`: `credentials`
-- `source`: [`packages/client/connection/src/index.ts:98`](../packages/client/connection/src/index.ts)
+- `source`: [`packages/client/connection/src/index.ts:101`](../packages/client/connection/src/index.ts)
 
 ```ts config-catalog
 /** Browser authentication, request limits, and connection recovery configuration. */
@@ -1305,8 +1305,8 @@ export interface InspectorOptions {
 
 ## `@panedesk/dsh-experimental-ptc-runtime-python`
 
-- `inject`: `sandbox` · `sandboxPolicy`
-- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:45`](../packages/experimental/ptc-runtime-python/src/index.ts)
+- `inject`: `sandbox` · `sandboxPolicy` · `subprocess`
+- `source`: [`packages/experimental/ptc-runtime-python/src/index.ts:46`](../packages/experimental/ptc-runtime-python/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: every cap, changeable from `cordis.yml` (no hardcoded tunables). */

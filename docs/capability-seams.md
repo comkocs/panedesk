@@ -102,6 +102,8 @@ flowchart LR
   svc_kernelStatus["ctx.kernelStatus<br/>Accounting startup observations"]
   svc_profileContext["ctx.profileContext<br/>Launcher-owned profile data"]
   pkg_client_connection["client-connection"]
+  svc_connectionSources["ctx.connectionSources<br/>Physical connection source registration"]
+  pkg_subprocess_local["subprocess-local"]
   svc_connection["ctx.connection<br/>Authenticated browser transport"]
   pkg_api_gateway["api-gateway"]
   pkg_host_frontend_static["host-frontend-static"]
@@ -288,7 +290,6 @@ flowchart LR
   pkg_sandbox_ssh["sandbox-ssh"]
   pkg_subprocess["subprocess"]
   svc_subprocess["ctx.subprocess<br/>Subprocess seam"]
-  pkg_subprocess_local["subprocess-local"]
   pkg_bash_local["bash-local"]
   pkg_bash_sandbox["bash-sandbox"]
   pkg_terminal_bash["terminal-bash"]
@@ -404,6 +405,7 @@ flowchart LR
   pkg_bash_sandbox --> svc_shell
   pkg_browser_use --> svc_browserUse
   pkg_client_connection --> svc_connection
+  pkg_client_connection --> svc_connectionSources
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
@@ -647,6 +649,8 @@ flowchart LR
   svc_configEditor --> pkg_settings
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
+  svc_connectionSources --> pkg_client_connection
+  svc_connectionSources --> pkg_subprocess_local
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
@@ -906,6 +910,7 @@ flowchart LR
 | `ctx.pluginMarket` | `core` | [`plugin-market`](../packages/boot/plugin-market) | - | [`client-ui-plugin-market`](../packages/client/ui-plugin-market), [`plugin-market`](../packages/boot/plugin-market) | - | Fetches and validates the index sources the user configures; installation goes through the plugin manager. |
 | `ctx.kernelStatus` | `core` | [`app-boot`](../packages/boot/app-boot) | - | [`api-session-controller`](../packages/api/session-controller) | - | Publishes immutable accounting-service availability after Loader settlement, not ongoing health or usage estimates. |
 | `ctx.profileContext` | `core` | [`app-boot`](../packages/boot/app-boot) | - | [`plugin-manager`](../packages/boot/plugin-manager) | - | The dsh launcher supplies data-only profile locations and composition inputs; reload scheduling belongs to dsh-hmr. |
+| `ctx.connectionSources` | `core` | [`client-connection`](../packages/client/connection) | - | [`client-connection`](../packages/client/connection), [`subprocess-local`](../packages/subprocess/subprocess-local) | - | Registers host-owned platform classifiers and denies owners from product sandboxes or unknown registered sources. |
 | `ctx.connection` | `core` | [`client-connection`](../packages/client/connection) | - | [`api-gateway`](../packages/api/gateway), [`host-frontend-static`](../packages/host/frontend-static) | - | Owns browser authentication and shared HTTP request dispatch; API adapters register endpoints and streams. |
 | `ctx.worktrees` | `seam` | [`experimental-worktree`](../packages/experimental/worktree) | [`experimental-worktree`](../packages/experimental/worktree) | [`experimental-tool-worktree`](../packages/experimental/tool-worktree) | - | Explicit experimental creation from a pinned local commit. Existing write permissions govern checkout and shared Git metadata; the working-directory service owns the resulting Session directory. |
 | `ctx.workingDirectory` | `seam` | [`working-directory`](../packages/session/working-directory) | [`working-directory`](../packages/session/working-directory) | [`tool-working-directory`](../packages/session/tool-working-directory), [`tool-fs`](../packages/fs/tool-fs), [`tool-bash`](../packages/shell/tool-bash), [`tool-pwsh`](../packages/shell/tool-pwsh), [`subagent`](../packages/subagent/subagent), [`sdk-jsonrpc-server`](../packages/sdk/server) | - | One Session projection owns the effective execution directory. The filesystem validates changes; user context reports them while original metadata and write grants stay fixed. |

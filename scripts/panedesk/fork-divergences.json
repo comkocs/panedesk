@@ -1,6 +1,35 @@
 {
   "divergences": [
     {
+      "id": "python-managed-product-confinement",
+      "description": "Run experimental Python PTC through the managed subprocess provider",
+      "origin": "Owner authentication isolation",
+      "reason": "Forward positive product confinement facts, adapt the managed control carrier to the existing fd-3 protocol before runner execution, preserve the TMPDIR-only model environment and drained-stream classification, and delegate termination and exit observation to one managed range. Keep the experimental runtime opt-in and verify real descendant owner-cookie refusal with a host control. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/experimental/ptc-runtime-python/**", "pnpm-lock.yaml",
+          "README.md", "README.zh.md", "README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*", "docs/config-catalog*"
+        ]
+      }
+    },
+    {
+      "id": "owner-source-documentation-projections",
+      "description": "Synchronize owner-source facts in generated and paired documentation",
+      "origin": "Owner authentication isolation",
+      "reason": "Classify the physical-source registry and its private Linux lifetime owner in existing catalog tables, preserve exact productSandbox fields in paired type declarations, and regenerate the model-facing API catalog, source locations and service graphs without changing authentication or execution behavior. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/gen-cordis-catalog.ts", "scripts/gen-doc-graphs.ts",
+          "docs/subsystems/sandbox*", "docs/subsystems/subprocess*", "docs/subsystems/web-server*",
+          "docs/capability-seams.md", "docs/event-producer-consumer*",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ]
+      }
+    },
+    {
       "id": "ssh-product-confinement-forwarding",
       "description": "Preserve remote product confinement facts across SSH execution",
       "origin": "Owner authentication isolation",
@@ -20,7 +49,7 @@
       "id": "linux-product-socket-admission",
       "description": "Register Linux product cgroups before executing confined commands",
       "origin": "Owner authentication isolation",
-      "reason": "Carry explicit confinement facts through local subprocess and terminal consumers, migrate the trusted runner before execution, atomically acknowledge host registration, and retain observed identities across provider reloads and process cleanup. Deny unknown socket observations and warn without claiming protection when delegation is unavailable. Exclude cgroupfs from Linux write grants. Document the experimental Python direct-spawn gap and SSH parser incompatibility rather than claiming complete coverage. These changes can be contributed upstream.",
+      "reason": "Carry explicit confinement facts through local subprocess and terminal consumers, migrate the trusted runner before execution, atomically acknowledge host registration, and retain observed identities across provider reloads and process cleanup. Deny unknown socket observations and warn without claiming protection when delegation is unavailable. Exclude cgroupfs from Linux write grants. Document provider prerequisites and the remote SSH gateway limitation rather than claiming complete network coverage. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -53,7 +82,7 @@
       "id": "linux-native-socket-cgroup-query",
       "description": "Expose bounded Linux IPv4 and IPv6 socket cgroup queries",
       "origin": "Owner authentication isolation",
-      "reason": "Add a lazy Node-API socket-cgroup entry with capability probing and bounded client-direction inet_diag lookup. Reject incomplete or interrupted replies and document native installation and kernel prerequisites. IPv4 and IPv6 host-addon tests pass; full musl packaging remains dependent on the build toolchain. These changes can be contributed upstream.",
+      "reason": "Add a lazy Node-API socket-cgroup entry with capability probing and bounded client-direction inet_diag lookup. Reject incomplete or interrupted replies and document native installation and kernel prerequisites. IPv4 and IPv6 host-addon tests and the complete Linux glibc/musl native suite pass with a locally built static launcher; released platform packages still require their separate native publishing workflow. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

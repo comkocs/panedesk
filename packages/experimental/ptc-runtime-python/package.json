@@ -29,7 +29,8 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-util-values": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
-    "@panedesk/dsh-sandbox-policy": "workspace:*"
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/dsh-ptc-runtime": "workspace:*",
@@ -40,7 +41,10 @@
     "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-sandbox-local": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
-    "@panedesk/dsh-session": "workspace:*"
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*",
+    "@panedesk/dsh-subprocess-local": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*"
   },
   "dependencies": {
     "@panedesk/schemastery": "workspace:~"

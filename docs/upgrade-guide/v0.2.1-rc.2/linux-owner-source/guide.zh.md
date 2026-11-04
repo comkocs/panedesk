@@ -13,7 +13,7 @@ description: "当原生套接字归因和用户 cgroup 委派可用时，Linux �
 
 前提是 cgroup v2 用户会话委派，以及能提供套接字 cgroup 身份的原生 addon 和内核。Linux 7.0 已验证，最低内核版本尚未核定。缺少前提时，宿主以中英文警告，返回非产品，不声称能防止 cookie 回放。macOS 保留其警告；Windows 已有提供方登记口，但尚无判定器。cookie 持久化、一次性启动令牌及新浏览器确认沿用现有语义。
 
-实验 Python 运行时直接创建进程，不经本地子进程提供方登记，仍可能回放 cookie。SSH 隔离在远端普通进程与终端执行中保留产品标记；客户端和 helper 须一起升级。其登记发生在远端，不能识别通向调用 Host 网关的连接，也不保护独立运行的远端 Host。见[远端归属与限制](../../../../packages/ssh/ssh/README.zh.md#understand-the-implementation)。
+显式启用的实验 Python 运行时现在要求子进程提供方，并向其传递隔离事实。本地 Linux 提供方在相同前提下登记其受限进程；已发布 profile 仍不启用此运行时。fd-3 协议及模型环境仅含 TMPDIR 的语义不变。SSH 隔离在远端普通进程与终端执行中保留产品标记；客户端和 helper 须一起升级。其登记发生在远端，不能识别通向调用 Host 网关的连接，也不保护独立运行的远端 Host。见[远端归属与限制](../../../../packages/ssh/ssh/README.zh.md#understand-the-implementation)。
 
 ## 迁移
 

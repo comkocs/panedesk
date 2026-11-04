@@ -9,14 +9,14 @@
   en: 8c906b5a9148f1a7
   zh: 355b4117b6a37a6a
 /panedesk-dsh-experimental-ptc-runtime-python/summary:
-  en: bdcd4f38f97a3bab
-  zh: d93074f86ac2b9f5
+  en: ed35ba0b669df909
+  zh: 1dc5b050dc245e69
 /panedesk-dsh-experimental-ptc-runtime-python/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /panedesk-dsh-experimental-ptc-runtime-python/use-this-package:
-  en: 4695160db934a010
-  zh: 90dcd69e2aab43b3
+  en: 7a420a0caa0dafde
+  zh: b35e5a71a147bfb3
 /panedesk-dsh-experimental-ptc-runtime-python/use-this-package/what-you-get:
   en: ca7b9cc958069c7f
   zh: 8a4ac72d02ad76eb
@@ -30,8 +30,8 @@
   en: 7824816505e2b844
   zh: 3603d1c332c2ed5d
 /panedesk-dsh-experimental-ptc-runtime-python/understand-the-implementation/design-concept:
-  en: 706fb5750d6e766f
-  zh: b8f054bffb4c1ff2
+  en: d76b4f1802139518
+  zh: e6d6dfb4b28ea1da
 /panedesk-dsh-experimental-ptc-runtime-python/understand-the-implementation/wire-contract:
   en: 56cb353442d0aa01
   zh: bcb13e5dc761af4a
@@ -54,8 +54,8 @@
   en: 40294c1c31b74824
   zh: d805c6bd7270505e
 /panedesk-dsh-experimental-ptc-runtime-python/known-limitations-and-deferred-work:
-  en: 5d62ed07fefbefc4
-  zh: 2a03d9bc9265a200
+  en: fcae405ff831bc1e
+  zh: 94f721dbd5f40f82
 /panedesk-dsh-experimental-ptc-runtime-python/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98
