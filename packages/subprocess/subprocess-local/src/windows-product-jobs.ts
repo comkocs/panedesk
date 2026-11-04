@@ -12,7 +12,7 @@ declare module '@panedesk/cordis' {
 
 /** Each launch has a separate parent Job so unrelated existing Job chains never merge. */
 export class WindowsProductJobs extends Service {
-  private readonly jobs: Array<ReturnType<typeof createProductJob>> = []
+  private readonly jobs = new Set<{ job: ReturnType<typeof createProductJob>; settled: boolean }>()
   private api: ReturnType<typeof loadTcpOwnerBindings> | undefined
   private closed = false
 
@@ -22,9 +22,10 @@ export class WindowsProductJobs extends Service {
       const close = (): void => {
         this.closed = true
         const failures: unknown[] = []
-        for (const job of this.jobs) {
+        for (const { job } of this.jobs.values()) {
           try { job.close() } catch (error) { failures.push(error) }
         }
+        this.jobs.clear()
         if (failures.length > 0) this.ctx.logger.error(new AggregateError(failures, 'Windows product Job cleanup failed'))
       }
       process.once('exit', close)
@@ -47,10 +48,38 @@ export class WindowsProductJobs extends Service {
    * @returns A copied environment with the trusted runner's Job locator.
    */
   prepare(env: Record<string, string>): Record<string, string> {
-    if (this.closed || this.jobs.length >= 4096) throw new Error('Windows product Job identity capacity exhausted; restart the host')
+    if (this.closed) throw new Error('Windows product Job owner is closed')
+    this.collect()
     const job = createProductJob()
-    this.jobs.push(job)
+    this.jobs.add({ job, settled: false })
     return { ...env, [PRODUCT_JOB_ENV]: job.name }
+  }
+
+  /**
+   * Finish the trusted launch interval before an empty Job becomes reclaimable.
+   * @param env - Environment returned by prepare for this launch.
+   */
+  settle(env: Record<string, string>): void {
+    const name = env[PRODUCT_JOB_ENV]
+    if (name === undefined || this.closed) return
+    for (const entry of this.jobs) {
+      if (entry.job.name === name) entry.settled = true
+    }
+    this.collect()
+  }
+
+  private collect(): void {
+    for (const entry of this.jobs) {
+      if (!entry.settled) continue
+      try {
+        if (!entry.job.empty()) continue
+        entry.job.close()
+        this.jobs.delete(entry)
+      } catch (error) {
+        // Failed observations retain the identity and never establish nonmembership.
+        this.ctx.logger.warn(error)
+      }
+    }
   }
 
   /**
@@ -62,7 +91,7 @@ export class WindowsProductJobs extends Service {
     if (this.closed) return 'unknown'
     try {
       this.api ??= loadTcpOwnerBindings()
-      return lookupTcpOwner(this.api, this.jobs.map(job => job.handle), socket)
+      return lookupTcpOwner(this.api, [...this.jobs].map(({ job }) => job.handle), socket)
     } catch (_bindingsUnavailable) {
       return 'unknown'
     }

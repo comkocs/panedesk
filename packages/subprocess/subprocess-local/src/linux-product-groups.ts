@@ -36,6 +36,33 @@ class LinuxProductGroupOwner extends Service {
 export class LinuxProductGroups {
   private readonly groups = new Map<string, bigint>()
   private readonly retired = new Set<bigint>()
+  // Evicted identities remain deny-only even if the kernel later reuses a full ID.
+  // False positives lose owner admission, never product startup or confinement.
+  private readonly evicted = Buffer.alloc(1024 * 1024)
+
+  private identityBits(identity: bigint): number[] {
+    const bits: number[] = []
+    let hash = BigInt.asUintN(64, identity)
+    for (let index = 0; index < 4; index++) {
+      hash = BigInt.asUintN(64, (hash ^ (hash >> 30n)) * 0xbf58476d1ce4e5b9n)
+      hash = BigInt.asUintN(64, (hash ^ (hash >> 27n)) * 0x94d049bb133111ebn)
+      hash ^= hash >> 31n
+      bits.push(Number(hash & 0x7fffffn))
+    }
+    return bits
+  }
+
+  private remember(identity: bigint): void {
+    this.retired.add(identity)
+    if (this.retired.size <= 4096) return
+    const oldest = this.retired.values().next().value
+    if (oldest === undefined) return
+    for (const bit of this.identityBits(oldest)) {
+      const byte = bit >>> 3
+      this.evicted.writeUInt8(this.evicted.readUInt8(byte) | (1 << (bit & 7)), byte)
+    }
+    this.retired.delete(oldest)
+  }
 
   /**
    * Reuse the root-owned identity set across subprocess-provider reloads.
@@ -87,6 +114,7 @@ export class LinuxProductGroups {
         destinationPort: socket.localPort,
       })
       if (this.retired.has(id)) return 'product-sandbox'
+      const possiblyEvicted = this.identityBits(id).every(bit => (this.evicted.readUInt8(bit >>> 3) & (1 << (bit & 7))) !== 0)
       let visited = 0
       const contains = (path: string): boolean => {
         if (++visited > 4096) throw new Error('Product cgroup traversal exceeds admission bound')
@@ -99,7 +127,7 @@ export class LinuxProductGroups {
       }
       // An unlinked cgroup can still own a transferred socket. Only a currently
       // visible, non-product cgroup establishes the permissive classification.
-      return contains('/sys/fs/cgroup') ? 'non-product' : 'unknown'
+      return !possiblyEvicted && contains('/sys/fs/cgroup') ? 'non-product' : 'unknown'
     } catch (_unverifiable) {
       // A capable host never turns a failed per-connection query into permission.
       return 'unknown'
@@ -113,9 +141,6 @@ export class LinuxProductGroups {
    * @returns Cleanup after the managed range is positively observed empty.
    */
   prepare(files: LinuxLaunchFiles, unit: string): () => void {
-    if (this.retired.size + this.groups.size >= 65536) {
-      throw new Error('Product socket identity retention is full; restart the host after all sandbox sockets close')
-    }
     const ready = join(files.directory, 'cgroup-ready.json')
     const ack = join(files.directory, 'cgroup-ack')
     let registeredPath: string | undefined
@@ -149,13 +174,13 @@ export class LinuxProductGroups {
       if (registeredPath === undefined) return
       const path = registeredPath
       const identity = this.groups.get(path)
-      if (identity !== undefined) this.retired.add(identity)
+      if (identity !== undefined) this.remember(identity)
       try {
         if (!/^populated 0$/m.test(readFileSync(join(path, 'cgroup.events'), 'utf8'))) {
           throw new Error('Cannot release a populated product cgroup')
         }
         const remove = (directory: string): void => {
-          this.retired.add(statSync(directory, { bigint: true }).ino)
+          this.remember(statSync(directory, { bigint: true }).ino)
           for (const entry of readdirSync(directory, { withFileTypes: true })) {
             if (entry.isDirectory()) remove(join(directory, entry.name))
           }

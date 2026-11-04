@@ -12,6 +12,7 @@ interface ProductJobBindings {
   createJobObjectW(attributes: null, name: string): NativePtr | null
   openJobObjectW(access: number, inherit: number, name: string): NativePtr | null
   setInformationJobObject(job: NativePtr, cls: number, buffer: Buffer, length: number): number
+  queryInformationJobObject(job: NativePtr, cls: number, buffer: Buffer, length: number, returned: null): number
   assignProcessToJobObject(job: NativePtr, process: NativePtr): number
   getCurrentProcess(): NativePtr
   closeHandle(handle: NativePtr): number
@@ -26,6 +27,7 @@ function bindings(): ProductJobBindings {
     createJobObjectW: kernel.func('__stdcall', 'CreateJobObjectW', pointer, [pointer, 'str16']),
     openJobObjectW: kernel.func('__stdcall', 'OpenJobObjectW', pointer, ['uint32', 'int', 'str16']),
     setInformationJobObject: kernel.func('__stdcall', 'SetInformationJobObject', 'int', [pointer, 'int', pointer, 'uint32']),
+    queryInformationJobObject: kernel.func('__stdcall', 'QueryInformationJobObject', 'int', [pointer, 'int', pointer, 'uint32', pointer]),
     assignProcessToJobObject: kernel.func('__stdcall', 'AssignProcessToJobObject', 'int', [pointer, pointer]),
     getCurrentProcess: kernel.func('__stdcall', 'GetCurrentProcess', pointer, []),
     closeHandle: kernel.func('__stdcall', 'CloseHandle', 'int', [pointer]),
@@ -38,7 +40,12 @@ function bindings(): ProductJobBindings {
  * @param api - Native operations; omitted for production bindings.
  * @returns Identity and idempotent closure; the last handle closure terminates remaining members.
  */
-export function createProductJob(api: ProductJobBindings = bindings()): { name: string; handle: NativePtr; close(): void } {
+export function createProductJob(api: ProductJobBindings = bindings()): {
+  name: string
+  handle: NativePtr
+  empty(): boolean
+  close(): void
+} {
   const name = `Local\\Panedesk-product-${randomUUID()}`
   const handle = api.createJobObjectW(null, name)
   if (isNullPtr(handle)) throw new Error('CreateJobObjectW failed for product identity')
@@ -54,11 +61,23 @@ export function createProductJob(api: ProductJobBindings = bindings()): { name: 
     throw error
   }
   let closed = false
-  return { name, handle, close() {
-    if (closed) return
-    if (api.closeHandle(handle) === 0) throw new Error('CloseHandle failed for product identity')
-    closed = true
-  } }
+  return {
+    name, handle,
+    empty() {
+      if (closed) throw new Error('Product Job identity is closed')
+      const information = Buffer.alloc(abi.JOBOBJECT_BASIC_ACCOUNTING_SIZE)
+      if (api.queryInformationJobObject(handle, abi.JobObjectBasicAccountingInformation,
+        information, information.length, null) === 0) {
+        throw new Error('QueryInformationJobObject failed for product identity')
+      }
+      return information.readUInt32LE(abi.JOBOBJECT_BASIC_ACCOUNTING_ACTIVE_PROCESSES_OFFSET) === 0
+    },
+    close() {
+      if (closed) return
+      if (api.closeHandle(handle) === 0) throw new Error('CloseHandle failed for product identity')
+      closed = true
+    },
+  }
 }
 
 /**

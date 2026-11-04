@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "product-identity-reclamation",
+      "description": "Reclaim sandbox identities without historical launch limits",
+      "origin": "Owner authentication isolation",
+      "reason": "Bound exact retired Linux IDs with a deny-only historical filter that cannot permit reused identities, and reclaim settled Windows Jobs only after native accounting reports no active members. Retain pending launches and live descendants, collect failed launches immediately, and document filter false positives and native validation limits. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/subprocess/subprocess-local/src/index.ts",
+          "packages/subprocess/subprocess-local/src/linux-product-groups.ts",
+          "packages/subprocess/subprocess-local/src/windows-product-jobs.ts",
+          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts",
+          "packages/subprocess/subprocess-local/tests/windows-product-jobs.spec.ts",
+          "packages/subprocess/subprocess-local/README*",
+          "packages/subprocess/win32-process/src/product-job.ts",
+          "packages/subprocess/win32-process/tests/product-job.spec.ts",
+          "packages/subprocess/win32-process/README*",
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
+          "docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/*"
+        ]
+      }
+    },
+    {
       "id": "platform-source-documentation-sync",
       "description": "Synchronize platform source registration and confinement documentation",
       "origin": "Owner authentication isolation",

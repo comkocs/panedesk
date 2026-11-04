@@ -24,7 +24,7 @@ kind: "package-library"
 <a id="behavior"></a>
 ## 行为
 
-产品身份使用宿主持有的命名 kill-on-close 作业对象。可信 ACL runner 仅打开加入权限，在创建受限子进程前加入，随后关闭不可继承的临时句柄。不启用 breakaway 或 UI 限制。要求 Windows 8 / Server 2012 及之后版本能形成合法的[嵌套作业对象层级](https://learn.microsoft.com/en-us/windows/win32/procthread/nested-jobs)。TCP 查询按客户端方向读取有界的 IPv4、IPv6 属主 PID 表，以有限查询权限打开属主，再检查保留的作业对象句柄；失败为 unknown，不予放行。令牌标志不构成产品身份。Windows 原生实机验证尚未完成。
+产品身份使用宿主持有的命名 kill-on-close 作业对象。可信 ACL runner 仅打开加入权限，在创建受限子进程前加入，随后关闭不可继承的临时句柄。不启用 breakaway 或 UI 限制。要求 Windows 8 / Server 2012 及之后版本能形成合法的[嵌套作业对象层级](https://learn.microsoft.com/en-us/windows/win32/procthread/nested-jobs)。TCP 查询按客户端方向读取有界的 IPv4、IPv6 属主 PID 表，以有限查询权限打开属主，再检查保留的作业对象句柄；失败为 unknown，不予放行。令牌标志不构成产品身份。身份句柄通过 `JobObjectBasicAccountingInformation` 提供活动进程查询；调用方保留待启动身份，仅关闭已结算且观察为空的 Job，不能仅凭直接进程退出就关闭。Windows 原生实机验证尚未完成。
 
 - **唯一可复用 ABI owner** — `abi.ts` 拥有两条 process 路径消费的 Win32 常量与 x64 布局值。`ffi.ts` 懒加载 `kernel32.dll` 与 `advapi32.dll`，核验 `STARTUPINFOW` 和 `PROCESS_INFORMATION`，提供带类型的操作与错误格式化，并让沙箱策略通过同一组已加载库绑定剩余 API。
 - **restricted-token 创建** — `RestrictedProcessSpawnOptions` 要求沙箱的 primary token，并使用 `CreateProcessAsUserW`。pipe 与 inherited-stdio 路径共用命令行引号处理、cwd、restricted-token null 环境策略、返回值检查与句柄清理。

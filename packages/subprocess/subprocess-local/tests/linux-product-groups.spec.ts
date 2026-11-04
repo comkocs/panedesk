@@ -51,6 +51,32 @@ function registered() {
 }
 
 describe('Linux product socket attribution', () => {
+  it('starts and identifies product groups after more than 65536 completed launches', () => {
+    const groups = LinuxProductGroups.probe()
+    if (groups === undefined) throw new Error('Fixture requires attribution')
+    let identity = 100n
+    host.stat.mockImplementation(() => ({ ino: identity }))
+    for (let index = 0; index < 65537; index++) {
+      const release = groups.prepare(files, 'example.scope')
+      vi.advanceTimersByTime(5)
+      release()
+      identity++
+      vi.clearAllMocks()
+    }
+    const release = groups.prepare(files, 'example.scope')
+    vi.advanceTimersByTime(5)
+    host.query.mockReturnValue(identity)
+    expect(groups.classify(socket)).toBe('product-sandbox')
+    release()
+    host.query.mockReturnValue(100n)
+    host.stat.mockReturnValue({ ino: 1n })
+    expect(groups.classify(socket)).toBe('unknown')
+    expect(host.stat.mock.calls.length).toBeLessThan(10)
+    // Reappearance of an evicted full-width identity is not proof of a new owner.
+    host.stat.mockReturnValue({ ino: 100n })
+    expect(groups.classify(socket)).toBe('unknown')
+  })
+
   it('probes socket support before checking delegation and refuses missing delegation', () => {
     host.probe.mockReturnValue(false)
     expect(LinuxProductGroups.probe()).toBeUndefined()

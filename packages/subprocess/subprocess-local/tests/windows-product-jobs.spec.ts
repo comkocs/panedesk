@@ -58,6 +58,69 @@ function prepare() {
 }
 
 describe('Windows product source registration', () => {
+  it('starts and stops more than 4096 products without retaining empty identities', async () => {
+    const { ctx } = prepare()
+    let active = true
+    const empty = vi.fn(() => !active)
+    native.create.mockImplementation(() => ({ name: 'fixture-job', handle: 9n, close: native.close, empty }))
+    const owner = WindowsProductJobs.forHost(ctx)
+    try {
+      for (let index = 0; index < 4097; index++) {
+        active = true
+        const env = owner.prepare({})
+        expect(owner.classify(undefined)).toBe('product-sandbox')
+        expect(native.lookup.mock.calls.at(-1)?.[1]).toEqual([9n])
+        active = false
+        owner.settle(env)
+      }
+      expect(native.close).toHaveBeenCalledTimes(4097)
+      expect(empty).toHaveBeenCalledTimes(4097)
+      native.lookup.mockReturnValue('unknown')
+      expect(owner.classify(undefined)).toBe('unknown')
+      expect(native.lookup.mock.calls.at(-1)?.[1]).toEqual([])
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('retains pending launches and live descendants while reclaiming settled empty Jobs', async () => {
+    const { ctx } = prepare()
+    const empty = vi.fn(() => false)
+    native.create.mockImplementation(() => ({ name: 'fixture-job', handle: 9n, close: native.close, empty }))
+    const owner = WindowsProductJobs.forHost(ctx)
+    try {
+      const env = owner.prepare({})
+      owner.prepare({})
+      expect(empty).not.toHaveBeenCalled()
+      owner.settle(env)
+      expect(native.close).not.toHaveBeenCalled()
+      empty.mockReturnValue(true)
+      owner.prepare({})
+      expect(native.close).toHaveBeenCalledTimes(2)
+      expect(owner.classify(undefined)).toBe('product-sandbox')
+      expect(native.lookup.mock.calls.at(-1)?.[1]).toEqual([9n])
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('reclaims failed launches beyond 4096 attempts and still identifies the next product', async () => {
+    const { ctx, registry } = prepare()
+    native.create.mockImplementation(() => ({ name: 'fixture-job', handle: 9n, close: native.close, empty: () => true }))
+    const stopped = new Error('fixture launch stopped')
+    native.launch.mockImplementation(() => { throw stopped })
+    try {
+      await ctx.plugin(LocalSubprocessRuntime).await()
+      const spec = {
+        argv: ['trusted-runner'], cwd: process.cwd(), productSandbox: true as const, graceMs: 1,
+        stdio: { stdin: 'ignore' as const, stdout: { maxBytes: 64 }, stderr: { maxBytes: 64 } },
+      }
+      for (let index = 0; index < 4097; index++) {
+        expect(() => ctx.subprocess.spawn(spec)).toThrow(stopped)
+        expect(native.close).toHaveBeenCalledTimes(index + 1)
+      }
+      WindowsProductJobs.forHost(ctx).prepare({})
+      expect(registry.classify(undefined)).toBe('product-sandbox')
+      expect(native.lookup.mock.calls.at(-1)?.[1]).toEqual([9n])
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('uses TCP ownership and inherited Job facts for cookie admission, including descendants and IPv6', async () => {
     const { ctx, registry } = prepare()
     const actual = await vi.importActual<typeof import('@panedesk/dsh-win32-process')>('@panedesk/dsh-win32-process')

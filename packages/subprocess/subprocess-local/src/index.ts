@@ -243,23 +243,28 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
 
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     validateSubprocessSpec(spec)
-    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     const containmentMode = this.selectContainmentMode('ordinary')
+    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     let handle: LocalSubprocessHandle
     const internals: SpawnInternals = { ...this.internals, onSpillFailure: this.reportSpillFailure }
-    if (containmentMode === 'fallback') {
-      if (spec.productSandbox === true && this.productGroups !== undefined) {
-        throw new Error('Product sandbox registration requires a live delegated Linux scope')
+    try {
+      if (containmentMode === 'fallback') {
+        if (spec.productSandbox === true && this.productGroups !== undefined) {
+          throw new Error('Product sandbox registration requires a live delegated Linux scope')
+        }
+        handle = spawnSubprocess(this.windowsJobs === undefined ? spec : { ...spec, env }, internals)
+      } else {
+        const binding = prepareManagedProcessBinding(internals)
+        const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
+        const launch = linuxScope === undefined
+          ? launchWindowsJob(spec, env)
+          : launchLinuxScope(spec, env, linuxScope.literalArgv, this.productScopeOptions(spec.productSandbox))
+        handle = bindManagedProcess(spec, launch, binding)
+        if (linuxScope !== undefined) this.watchLinuxScopeStart(handle.done, linuxScope.generation)
       }
-      handle = spawnSubprocess(this.windowsJobs === undefined ? spec : { ...spec, env }, internals)
-    } else {
-      const binding = prepareManagedProcessBinding(internals)
-      const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
-      const launch = linuxScope === undefined
-        ? launchWindowsJob(spec, env)
-        : launchLinuxScope(spec, env, linuxScope.literalArgv, this.productScopeOptions(spec.productSandbox))
-      handle = bindManagedProcess(spec, launch, binding)
-      if (linuxScope !== undefined) this.watchLinuxScopeStart(handle.done, linuxScope.generation)
+    } catch (error) {
+      this.windowsJobs?.settle(env)
+      throw error
     }
     this.live.add(handle)
     const control = handle.control
@@ -271,8 +276,13 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     // settlement — a TERM-trapping helper that outlives the leader must stay
     // owned so teardown can still escalate it. For the common no-survivor
     // case waitForExit resolves immediately after settlement.
-    const release = (): Promise<void> =>
-      handle.waitForExit().then(() => { this.live.delete(handle) })
+    const release = (): Promise<void> => {
+      this.windowsJobs?.settle(env)
+      return handle.waitForExit().then(() => {
+        this.live.delete(handle)
+        this.windowsJobs?.settle(env)
+      })
+    }
     void handle.done.then(release, release).catch(() => {})
     return handle
   }
@@ -381,6 +391,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     } catch (error) {
       scope?.cleanup()
       activity?.dispose()
+      this.windowsJobs?.settle(env)
       throw error
     }
     // oxlint-disable-next-line eslint/prefer-const -- The owner can query readiness before the handle is published.
@@ -400,7 +411,10 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       owner,
       scope?.resolveOutcome,
       activity,
-      () => { this.terminals.delete(handle as LocalTerminalHandle) },
+      () => {
+        this.terminals.delete(handle as LocalTerminalHandle)
+        this.windowsJobs?.settle(env)
+      },
       spec.shellActivity === true,
     )
     this.terminals.add(handle)

@@ -8,6 +8,7 @@ function fixture() {
     createJobObjectW: vi.fn(() => 10n as NativePtr),
     openJobObjectW: vi.fn(() => 11n as NativePtr),
     setInformationJobObject: vi.fn(() => 1),
+    queryInformationJobObject: vi.fn((_job: NativePtr, _cls: number, buffer: Buffer) => { buffer.writeUInt32LE(0, 40); return 1 }),
     assignProcessToJobObject: vi.fn(() => 1),
     getCurrentProcess: vi.fn(() => -1n as NativePtr),
     closeHandle: vi.fn(() => 1),
@@ -16,6 +17,17 @@ function fixture() {
 }
 
 describe('host-owned product Job', () => {
+  it('queries all active members and refuses failed accounting or closed handles', () => {
+    const api = fixture()
+    const owner = createProductJob(api)
+    expect(owner.empty()).toBe(true)
+    api.queryInformationJobObject.mockImplementation((_job, _cls, buffer) => { buffer.writeUInt32LE(1, 40); return 1 })
+    expect(owner.empty()).toBe(false)
+    api.queryInformationJobObject.mockReturnValue(0)
+    expect(() => owner.empty()).toThrow('QueryInformationJobObject')
+    owner.close()
+    expect(() => owner.empty()).toThrow('closed')
+  })
   it('keeps the lasting handle at the host without breakaway or UI limits', () => {
     const api = fixture()
     const owner = createProductJob(api)
