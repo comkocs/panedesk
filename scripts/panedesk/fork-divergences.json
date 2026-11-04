@@ -143,7 +143,7 @@
       "id": "web-failure-matrix-owner-opt-out",
       "description": "Configure unattended failure-matrix startup explicitly",
       "origin": "Owner confirmation fixture configuration",
-      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry in the existing watcher patch. Deliberate connection disabling and all recovery assertions remain unchanged. These changes can be contributed upstream.",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry in the existing watcher patch. Launch tokens are single-use, so the fixture caches the first exchanged cookie per launch URL and exchanges again only for a different URL. Deliberate connection disabling and all recovery assertions remain unchanged. These changes can be contributed upstream.",
       "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"] }
     },
     {

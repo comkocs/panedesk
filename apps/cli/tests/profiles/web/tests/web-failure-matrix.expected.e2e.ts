@@ -132,13 +132,18 @@ function start(f: ReturnType<typeof fixture>, extra: string[] = [], nodeArgs: st
       }, { timeout: 45_000 }).toBe(true)
     } catch (cause) { throw new Error(`Web condition failed\n${stdout}\n${stderr}\n${readFileSync(f.diagnostics, 'utf8')}\n${readFileSync(f.events, 'utf8')}`, { cause }) }
   }
+  const cookies = new Map<string, string>()
   async function serves(currentServer = false) {
     await wait(() => /panedesk web: http:\/\//u.test(stdout))
     const url = currentServer ? readFileSync(f.serverUrl, 'utf8') : /panedesk web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
     if (!url) throw new Error('Missing Web URL')
-    const auth = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10_000) })
-    const cookie = auth.headers.get('set-cookie')?.split(';', 1)[0]
-    if (!cookie) throw new Error('Missing Web authentication cookie')
+    let cookie = cookies.get(url)
+    if (!cookie) {
+      const auth = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10_000) })
+      cookie = auth.headers.get('set-cookie')?.split(';', 1)[0]
+      if (!cookie) throw new Error('Missing Web authentication cookie')
+      cookies.set(url, cookie)
+    }
     const response = await fetch(new URL('/', url), { headers: { cookie }, signal: AbortSignal.timeout(10_000) })
     expect(response.status).toBe(200)
     const html = await response.text()
