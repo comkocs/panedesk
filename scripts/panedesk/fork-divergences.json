@@ -15515,6 +15515,16 @@
       }
     },
     {
+      "id": "cordis-inspect-product-sandbox-snapshot",
+      "description": "Refresh the current subprocess public type snapshot",
+      "origin": "Public subprocess sandbox attribution types",
+      "reason": "F-1b public type productSandbox (54a2ce36); upstream precedent for the same refresh: 512a0358",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl"]
+      }
+    },
+    {
       "id": "protected-link-session-mount-fixture",
       "description": "Own virtual session mount destinations in linked-input tests",
       "origin": "Host-independent sandbox mount fixtures",
