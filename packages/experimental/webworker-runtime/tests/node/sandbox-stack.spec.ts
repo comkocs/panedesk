@@ -18,6 +18,25 @@ async function run(x: { execute(spec: ShellExecSpec): Promise<ShellExecution> },
 
 
 vi.mock('node:child_process', async () => await import('../../src/node/builtin_modules/implemented/child_process.ts'))
+vi.mock('node:fs', async (importOriginal) => {
+  const host = await importOriginal<typeof import('node:fs')>()
+  const worker = await import('../../src/node/builtin_modules/implemented/fs.ts')
+  const virtual = (path: string): boolean => path === '/' || path === '/dsh' || path.startsWith('/dsh/')
+  const realpathSync = (path: string): string => virtual(path) ? worker.realpathSync(path) : host.realpathSync(path)
+  realpathSync.native = realpathSync
+  return {
+    ...host,
+    realpathSync,
+    existsSync: (path: string) => virtual(path) ? worker.existsSync(path) : host.existsSync(path),
+    statSync: (path: string) => virtual(path) ? worker.statSync(path) : host.statSync(path),
+    lstatSync: (path: string) => virtual(path) ? worker.lstatSync(path) : host.lstatSync(path),
+    mkdirSync: (path: string, options?: { recursive?: boolean; mode?: number }) => virtual(path)
+      ? worker.mkdirSync(path, options) : host.mkdirSync(path, options),
+    readdirSync: (path: string, options?: { withFileTypes?: boolean }) => virtual(path)
+      ? worker.readdirSync(path, options)
+      : options?.withFileTypes === true ? host.readdirSync(path, { withFileTypes: true }) : host.readdirSync(path),
+  }
+})
 
 const WORKSPACE = '/dsh/workspace'
 const OUTSIDE = '/dsh/home'
@@ -25,6 +44,7 @@ let vfs: MemoryVfs
 const contexts: Context[] = []
 
 beforeEach(() => {
+  vi.stubEnv('PANEDESK_HOME', OUTSIDE)
   vfs = new MemoryVfs()
   setActiveVfs(vfs)
   vfs.mkdirSync(WORKSPACE, { recursive: true })
@@ -45,6 +65,7 @@ beforeEach(() => {
 afterEach(async () => {
   await Promise.all(contexts.splice(0).map(async (ctx) => { await ctx.fiber.dispose() }))
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 /** Boot the production providers while only their platform primitives are replaced. */

@@ -28,8 +28,9 @@ async function setup(internals: LocalSandboxProvider['internals']) {
 
 describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
   let ownerState: string
+  let home: string
   beforeEach(() => {
-    const home = mkdtempSync(join(tmpdir(), 'provider-chain-owner-'))
+    home = mkdtempSync(join(tmpdir(), 'provider-chain-owner-'))
     vi.stubEnv('PANEDESK_HOME', home)
     ownerState = join(home, 'windows-workspace-write')
     mkdirSync(ownerState)
@@ -48,6 +49,7 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
       '--workspace', '/ws',
       '--temp', tmpdir(),
       '--mode', 'workspace-write',
+      '--unreadable-path', join(home, 'private'),
       '--protected-path', ownerState,
       '--state-directory', ownerState,
       '--',
@@ -63,7 +65,10 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
   it('read-only: same runner and contract, read-only mode flag', async () => {
     const sandbox = await setup({ platform: 'win32', windowsAclRunnerArgs: ['node', 'windows-acl-runner.js'] })
     const confined = await sandbox.confine(['true'], RO)
-    expect(confined.argv.slice(-4)).toEqual(['--mode', 'read-only', '--', 'true'])
+    expect(confined.argv).toEqual([
+      'node', 'windows-acl-runner.js', '--workspace', '/ws', '--temp', tmpdir(),
+      '--mode', 'read-only', '--unreadable-path', join(home, 'private'), '--', 'true',
+    ])
     expect(confined.enforcement).toBe('partial')
     expect(confined.runnerFailureRules).toEqual([{ allowedExitCodes: [127], fatalSignatures: ['windows-acl-run: '] }])
   })

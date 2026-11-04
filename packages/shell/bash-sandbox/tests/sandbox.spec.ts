@@ -15,7 +15,7 @@ import type { CollectedOutput, ShellExecSpec, ShellExecution, ShellRunResult } f
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { SANDBOX_UNAVAILABLE, SandboxProvider, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, SandboxExecutionPolicy, SandboxMode, SandboxPolicy } from '@panedesk/dsh-sandbox'
-import { SandboxPolicyService, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import { SandboxPolicyService, resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { SandboxBashExecutor } from '@panedesk/dsh-bash-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
@@ -259,7 +259,7 @@ describe('the provider hand-off', () => {
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
     expect(calls).toEqual([{
       argv: ['bash', '-c', 'echo \'a b\' "c\'d"'],
-      policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx) },
+      policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx) },
     }])
   })
 
@@ -310,7 +310,7 @@ describe('the provider hand-off', () => {
     const { ctx, bash, calls } = await setup({ mode: 'workspace-write' })
     const result = await run(bash, bash.resolve({ command: 'true' }))
     expect(result.sandbox).toEqual({ mode: 'workspace-write', denied: false, enforcement: 'full' })
-    expect(calls[0]?.policy).toEqual({ mode: 'workspace-write', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx) })
+    expect(calls[0]?.policy).toEqual({ mode: 'workspace-write', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx) })
   })
 
   it('an explicit workspaceRoot on the policy wins', async () => {
@@ -480,7 +480,7 @@ describe('per-call sandbox policy (the session and escalation carrier)', () => {
     const { ctx, bash } = await setup()
     expect(bash.sandboxMode).toBe('read-only')
     expect(bash.resolve({ command: 'true' }).sandboxPolicy).toEqual({
-      ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx),
+      ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx),
     })
   })
 
@@ -491,7 +491,7 @@ describe('per-call sandbox policy (the session and escalation carrier)', () => {
     await run(bash, bash.resolve({ command: 'true', sandboxPolicy: explicit }))
     await run(bash, bash.resolve({ command: 'true' }))
     expect(calls.map(call => call.policy)).toEqual([
-      explicit, { ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx) },
+      explicit, { ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx) },
     ])
   })
 

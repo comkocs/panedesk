@@ -13,7 +13,7 @@ import AgentRegistry, { type Agent } from '@panedesk/dsh-agent'
 import SandboxProvider from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
-import SandboxPolicyService, { resolveProtectedPaths, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { resolveOwnerMaterialPaths, resolveProtectedPaths, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 import ApprovalService from '@panedesk/dsh-user-approval'
 import type { ApprovalOutcome } from '@panedesk/dsh-user-approval'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -330,7 +330,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(initialized).toHaveBeenCalledWith(undefined)
     expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
       argv: ['/bin/bash', '-i'],
-      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/workspace'), protectedPaths: resolveProtectedPaths(ctx) },
+      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/workspace'), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx) },
     }])
   })
 
@@ -364,7 +364,7 @@ describe('BashTerminalBackend startup rollback', () => {
     })
     expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
       argv: ['/bin/bash', '-i'],
-      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/session-workspace'), protectedPaths: resolveProtectedPaths(ctx) },
+      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/session-workspace'), protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx) },
     }])
   })
 

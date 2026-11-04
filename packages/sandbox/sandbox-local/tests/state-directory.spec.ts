@@ -11,13 +11,21 @@ it.each(['linux', 'darwin'] as const)('hands a first-child state exclusion to co
   const home = join(workspace, '.panedesk', 'nested')
   const excluded = join(workspace, '.panedesk')
   const ctx = new Context()
-  vi.stubEnv('PANEDESK_HOME', home)
+  const ownerHome = mkdtempSync(join(tmpdir(), 'state-profile-owner-'))
+  mkdirSync(home, { recursive: true })
+  writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
+  ctx.provide('profileContext', {
+    name: 'state-profile', home, cwd: workspace, dir: home, patchPath: join(home, 'cordis.patch.yml'),
+    installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+  })
+  vi.stubEnv('PANEDESK_HOME', ownerHome)
   vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
   onTestFinished(async () => {
     await ctx.fiber.dispose()
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
     rmSync(workspace, { recursive: true, force: true })
+    rmSync(ownerHome, { recursive: true, force: true })
   })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox

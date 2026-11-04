@@ -51,6 +51,7 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
   const harness = await mountAgentLoopTestHarness(ctx)
   const agent = await harness.create(SessionId('windows-owner-write'), {}, { cwd: workspace })
   provideBrowserCredentials(ctx)
+  Object.defineProperty(ctx.credentials, 'protectedStoragePaths', { value: [join(root, 'credentials')] })
   await ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(RemoteAccess)

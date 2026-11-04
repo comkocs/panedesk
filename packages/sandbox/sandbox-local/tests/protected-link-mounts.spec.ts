@@ -79,6 +79,8 @@ it.each(layouts)('mounts the canonical target of a %s read-only', async (_layout
   } else mkdirSync(dirname(alias), { recursive: true })
   symlinkSync(target, alias, 'dir')
   const ctx = coveredContext(workspace, alias)
+  vi.stubEnv('PANEDESK_HOME', ctx.profileContext.home)
+  onTestFinished(() => { vi.unstubAllEnvs() })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -107,6 +109,8 @@ it('leaves external linked targets under the read-only root without an alias mou
   writeFileSync(target, 'owner')
   symlinkSync(target, alias)
   const ctx = coveredContext(workspace, alias)
+  vi.stubEnv('PANEDESK_HOME', ctx.profileContext.home)
+  onTestFinished(() => { vi.unstubAllEnvs() })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -116,5 +120,7 @@ it('leaves external linked targets under the read-only root without an alias mou
   expect(mountDestinations(handed.argv)).toEqual([
     { kind: '--ro-bind', path: '/' }, { kind: '--dev', path: '/dev' }, { kind: '--proc', path: '/proc' },
     { kind: '--bind', path: workspace },
+    { kind: '--tmpfs', path: join(ctx.profileContext.home, 'private') },
+    { kind: '--remount-ro', path: join(ctx.profileContext.home, 'private') },
   ])
 })

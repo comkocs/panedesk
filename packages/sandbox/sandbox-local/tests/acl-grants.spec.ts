@@ -13,6 +13,7 @@ import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { SessionId } from '@panedesk/dsh-session'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
+import { provideBrowserCredentials } from '../../../api/gateway/tests/browser-credentials.ts'
 
 /** Cross-file state shared with the vi.mock factory (hoisting contract). */
 const mockState = vi.hoisted(() => ({
@@ -91,9 +92,10 @@ function flag(argv: readonly string[], name: string): string | undefined {
 describe('windows-acl write grants (LocalSandboxProvider)', () => {
   const scratch: string[] = []
   let ownerState: string
+  let home: string
 
   beforeEach(() => {
-    const home = mkdtempSync(join(tmpdir(), 'acl-grants-owner-'))
+    home = mkdtempSync(join(tmpdir(), 'acl-grants-owner-'))
     scratch.push(home)
     vi.stubEnv('PANEDESK_HOME', home)
     ownerState = join(home, 'windows-workspace-write')
@@ -186,6 +188,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--mode', 'workspace-write',
         '--write-sid', WORKSPACE_SID,
         '--temp-write-sid', tempSid,
+        '--unreadable-path', join(home, 'private'),
         '--protected-path', ownerState,
         '--state-directory', ownerState,
         '--',
@@ -237,6 +240,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--workspace', ws,
         '--temp', tmpdir(),
         '--mode', 'read-only',
+        '--unreadable-path', join(home, 'private'),
         '--',
         'true',
       ])
@@ -327,7 +331,9 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
   })
 
   it('rejects a workspace containing the ambient temp root before any ACL mutation', async () => {
-    const { sandbox } = await setup()
+    const { ctx, sandbox } = await setup()
+    provideBrowserCredentials(ctx)
+    Object.defineProperty(ctx.credentials, 'protectedStoragePaths', { value: [] })
     await expect(sandbox.confine(['true'], {
       mode: 'workspace-write', workspaceRoot: realpathSync.native(tmpdir()), sessionId: SessionId('overlap'),
     })).rejects.toThrow(/temp root must be outside the workspace/u)
@@ -385,6 +391,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--workspace', '/ws',
         '--temp', tmpdir(),
         '--mode', 'workspace-write',
+        '--unreadable-path', join(home, 'private'),
         '--protected-path', ownerState,
         '--state-directory', ownerState,
         '--',

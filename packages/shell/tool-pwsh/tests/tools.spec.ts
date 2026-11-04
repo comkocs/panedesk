@@ -30,7 +30,7 @@ import { ShellExecutor } from '@panedesk/dsh-shell'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellProcess, ShellRunResult } from '@panedesk/dsh-shell'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
-import SandboxPolicyService, { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { escalationHintMarker, sandboxDenialMarker } from '@panedesk/dsh-sandbox'
 import * as ToolPwsh from '@panedesk/dsh-tool-pwsh'
 import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
@@ -596,6 +596,7 @@ describe('per-call sandbox policy resolution', () => {
       workspaceRoot: sessionCwd,
       sessionId: 'policy-session',
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: resolveOwnerMaterialPaths(ctx),
     })
   })
 
@@ -606,6 +607,7 @@ describe('per-call sandbox policy resolution', () => {
       mode: 'read-only',
       workspaceRoot: process.cwd(),
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: resolveOwnerMaterialPaths(ctx),
     })
 
     // The base FakeBash advertises no sandboxMode, so the tool must not stamp

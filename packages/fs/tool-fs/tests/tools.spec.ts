@@ -31,7 +31,7 @@ import type { FileReadOutcome } from '../src/read-render.ts'
 import { sessionResolveOptions } from '../src/session-cwd.ts'
 import ApprovalService from '@panedesk/dsh-user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
-import SandboxPolicyService, { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { SessionId, SessionLogOffset, SessionSeq } from '@panedesk/dsh-session'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 
@@ -957,7 +957,7 @@ describe('sandbox escalation API (write/edit)', () => {
       mode: 'workspace-write',
       workspaceRoot: '/session-project',
       sessionId: SessionId('sess-fs-esc'),
-      protectedPaths: resolveProtectedPaths(ctx),
+      protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx),
     }])
   })
 
@@ -968,7 +968,7 @@ describe('sandbox escalation API (write/edit)', () => {
       mode: 'read-only',
       workspaceRoot: '/session-project',
       sessionId: SessionId('sess-fs-esc'),
-      protectedPaths: resolveProtectedPaths(ctx),
+      protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx),
     }])
   })
 
@@ -1002,7 +1002,7 @@ describe('sandbox escalation API (write/edit)', () => {
       }, agent)
       expect(fs.stamped).toEqual([{
         mode: 'read-only', workspaceRoot: '/session-project', sessionId: SessionId('sess-fs-esc'),
-        protectedPaths: resolveProtectedPaths(ctx),
+        protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx),
       }])
     } finally { await ctx.fiber.dispose(); vi.restoreAllMocks() }
   })
@@ -1041,7 +1041,7 @@ describe('sandbox escalation API (write/edit)', () => {
       mode: 'danger-full-access',
       workspaceRoot: '/session-project',
       sessionId: SessionId('sess-fs-esc'),
-      protectedPaths: resolveProtectedPaths(ctx),
+      protectedPaths: resolveProtectedPaths(ctx), unreadablePaths: resolveOwnerMaterialPaths(ctx),
     }])
   })
 
@@ -1054,6 +1054,7 @@ describe('sandbox escalation API (write/edit)', () => {
     expect(fs.stamped).toEqual([{
       mode, workspaceRoot: '/session-project', sessionId: SessionId('sess-fs-esc'),
       protectedPaths: resolveProtectedPaths(ctx),
+      ...mode === 'danger-full-access' ? {} : { unreadablePaths: resolveOwnerMaterialPaths(ctx) },
     }])
   })
 

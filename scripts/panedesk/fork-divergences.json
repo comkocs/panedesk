@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "owner-material-ci-policy-fixtures",
+      "description": "Synchronize exact owner-material policies and isolated test storage",
+      "origin": "Owner material CI regression repair",
+      "reason": "Retain exact policy and runner argv assertions while including private read exclusions. Separate credential storage from intentionally nested state fixtures, use a memory-only credential provider for the ambient-temp overlap case, and route Worker filesystem primitives through its existing virtual filesystem. Do not change confinement behavior or weaken assertions. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/tool-fs/tests/tools.spec.ts",
+          "packages/shell/tool-pwsh/tests/tools.spec.ts",
+          "packages/shell/bash-sandbox/tests/sandbox.spec.ts",
+          "packages/terminal/terminal-bash/tests/index.spec.ts",
+          "packages/terminal/terminal-bash/tests/local.spec.ts",
+          "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
+          "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
+          "packages/sandbox/sandbox-local/tests/state-directory.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/provider-chain.spec.ts",
+          "packages/experimental/webworker-runtime/tests/node/sandbox-stack.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "production-terminal-isolation-regressions",
       "description": "Exercise production POSIX session separation and owner confirmation",
       "origin": "Owner terminal input isolation",
