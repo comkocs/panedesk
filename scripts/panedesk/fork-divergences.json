@@ -15548,7 +15548,7 @@
       "id": "cordis-inspect-product-sandbox-snapshot",
       "description": "Refresh the current subprocess public type snapshot",
       "origin": "Public subprocess sandbox attribution types",
-      "reason": "F-1b public type productSandbox (54a2ce36); upstream precedent for the same refresh: 512a0358",
+      "reason": "F-1b adds the public productSandbox field to the subprocess spawn specs; refreshed the same way upstream refreshes this catalog snapshot after public declaration changes",
       "match": {
         "type": "test-assertion",
         "paths": ["snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl"]
