@@ -124,6 +124,8 @@ rmSync(tempDir, { recursive: true, force: true })
 
 `workspace-write`（登录 SID、Everyone、工作区 SID、临时 SID）为工作区与会话的私有临时子目录分别授予 Write；`read-only`（登录 SID、Everyone——不含写入 SID）不授予任何内容。两种模式都 spawn 降级为 Low 完整性的令牌，对它而言只有被标记 Low 的目录保持可写。保活组（登录 SID + Everyone）在两种模式下都存在：没有它，早期 DLL 初始化会以 `0xC0000142` 死亡、CNG 会让 pwsh 以 `0xE0434352` 崩溃。写入 SID 有意留在 read-only 列表之外：先前 workspace-write 时期留下的常驻授权 ACE 仍然失效，因为 write-restricted 的 pass-2 检查只授予 restricting 列表所携带的内容，而常驻安全描述符改动让重新升级免于重新传播。
 
+两种模式还都携带产品限制 SID `S-1-4-1346457157-1145393995-1396853070-2`：非唯一 authority 4、`PANE`、`DESK`、`SBIN` 对应的大端 ASCII 整数，以及身份版本 2。其四个子 authority 区别于工作区的两个和临时目录的三个。本包不为此 SID 添加 ACE；对不含该 SID 的既有 ACL，加入它不改变访问结果。此标记本身不认证连接，也不能证明全部后代在进一步限制令牌后仍保留它。Windows 原生标记行为尚未经验证。
+
 NUL 写入是环境性的、不是被授权的：设备 DACL 授予 Everyone 读+写+执行（`0x1201BF`），因此访问掩码落在其内的打开者（cmd 的 `> NUL`、node 的 `\\.\NUL`）在两种模式下都能写。`Set-Content NUL` 在两种模式下都失败（PowerShell/.NET 层效应，非设备 DACL 所致），而 PowerShell 的 `> $null` 重定向不受影响。
 
 Authenticated Users 在两种列表中都不存在——WMI 命名空间安全检查失败（`0x80041003`），因此 CIM cmdlet 与 `Get-ComputerInfo` 在所有受限模式下都不可用，且 C:\-root 树创建逃逸被关闭。INTERACTIVE/LOCAL 同样不存在：宿主的 Public 树向 INTERACTIVE 授予写权限，因此 Public 写入被拒绝。

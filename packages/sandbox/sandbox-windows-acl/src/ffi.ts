@@ -153,6 +153,15 @@ export function ptrAddress(ptr: NativePtr): bigint {
 }
 
 /**
+ * Address a Buffer retained by the caller through a synchronous native call.
+ * @param buffer - Owned native record bytes.
+ * @returns Address valid while the buffer remains reachable.
+ */
+export function bufferAddress(buffer: Buffer): bigint {
+  return requireKoffi().address(buffer)
+}
+
+/**
  * Allocate a raw byte block.
  * @param length - byte count.
  * @returns allocated pointer.

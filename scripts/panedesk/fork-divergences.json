@@ -1,6 +1,24 @@
 {
   "divergences": [
     {
+      "id": "sandbox-product-restricted-sid",
+      "description": "Attach a capability-neutral product identity to both Windows sandbox token modes",
+      "origin": "Sandbox connection-source identification",
+      "reason": "Append a dedicated restricting SID without granting it any ACE, preserve existing capability lists and failure behavior, and compare the unchanged write-access matrix using native-call substitutes. This identity alone does not enforce gateway admission or prove retention after further token filtering. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox-windows-acl/src/ffi.ts",
+          "packages/sandbox/sandbox-windows-acl/src/token.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/token-failure-paths.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/process-marker.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/README.md",
+          "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "sandbox-host-session-socket-isolation",
       "description": "Hide conventional host session sockets and scope abstract UNIX connections",
       "origin": "Local sandbox session isolation",

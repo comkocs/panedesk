@@ -7,7 +7,7 @@
  * @module @panedesk/dsh-sandbox-windows-acl/token
  */
 
-import { allocBytes, allocPtrSlot, allocUint32, decodePtr, decodePtrAt, decodeUint32, encodeUint32, isNullPtr, ptrAddress, throwLastError, throwWin32 } from './ffi.ts'
+import { allocBytes, allocPtrSlot, allocUint32, bufferAddress, decodePtr, decodePtrAt, decodeUint32, encodeUint32, isNullPtr, ptrAddress, throwLastError, throwWin32 } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { buildExplicitAccess } from './acl.ts'
 import * as abi from './win32-abi.ts'
@@ -180,9 +180,9 @@ export interface RestrictingSidSet {
 
 /**
  * Create the write-restricted token with the mode-selected restricting list
- * (verified on Win11 26200, see the POC-worktree restrict-variant harness):
- *  - read-only:       [logon SID, EVERYONE]
- *  - workspace-write: [logon SID, EVERYONE, workspace SID, optional temp SID]
+ * (capability lists verified on Win11 26200; product marker tested with substitutes):
+ *  - read-only:       [logon SID, EVERYONE, product marker]
+ *  - workspace-write: [logon SID, EVERYONE, workspace SID, optional temp SID, product marker]
  *
  * The logon SID + EVERYONE keep-alive group is shared by both modes: early
  * DLL init dies with 0xC0000142 and CNG (`\Device\CNG` write trustee —
@@ -221,11 +221,21 @@ export function createRestrictedToken(
   known: RestrictingSidSet,
   mode: 'read-only' | 'workspace-write',
 ): NativePtr {
-  const restrictingSids = buildRestrictingSids(mode === 'read-only'
+  const capabilities = buildRestrictingSids(mode === 'read-only'
     ? [logonSid, known.world]
     : writeSids.length === 0
       ? (() => { throw new Error('createRestrictedToken: workspace-write restricting list requires at least one write SID') })()
       : [logonSid, known.world, ...writeSids])
+  // Non-unique authority 4; four subauthorities cannot collide with workspace/temp SIDs.
+  // PANE/DESK/SBIN as big-endian ASCII integers, followed by identity version 2.
+  // This package never grants this identity an ACE; existing ACL access is unchanged.
+  const marker = Buffer.alloc(24)
+  marker[0] = 1
+  marker[1] = 4
+  marker[7] = 4
+  ;[1346457157, 1145393995, 1396853070, 2].forEach((part, index) => marker.writeUInt32LE(part, 8 + index * 4))
+  const restrictingSids = Buffer.concat([capabilities, Buffer.alloc(abi.SID_AND_ATTRIBUTES_SIZE)])
+  restrictingSids.writeBigUInt64LE(bufferAddress(marker), capabilities.length)
   const tokenSlot = allocPtrSlot()
   const created = api.createRestrictedToken(
     currentToken,
@@ -236,6 +246,8 @@ export function createRestrictedToken(
     restrictingSids,
     tokenSlot,
   )
+  // Keep the SID bytes reachable until Windows has copied the restricting list.
+  marker.fill(0)
   if (created === 0) throwLastError(api, 'CreateRestrictedToken', `restricting SIDs: ${restrictingSids.length / abi.SID_AND_ATTRIBUTES_SIZE}`)
   const token = decodePtr(tokenSlot)
   if (token === null) throwWin32(api, 'CreateRestrictedToken', api.getLastError(), 'null token handle')
