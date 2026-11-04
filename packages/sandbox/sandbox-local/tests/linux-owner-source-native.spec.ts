@@ -71,8 +71,11 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation((message) => {
       if (message === LINUX_SOURCE_LIMITATION) count++
     })
+    // CI runs these cases only after its delegation probe passed, so a limitation warning there is a regression.
+    const delegationRequired = process.env.PANEDESK_CI_NATIVE_SANDBOX === 'required'
     const verify = (assertions: () => void) => {
       if (count > 0) {
+        if (delegationRequired) throw new Error(`LINUX_SOURCE_LIMITATION emitted ${String(count)} time(s) with required native sandboxing`)
         writeSync(1, 'unverified: delegation unavailable\n')
         skip('unverified: delegation unavailable')
       }
@@ -216,7 +219,7 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
         })
       }
     } catch (error) {
-      if (count > 0 && !requiredLandlockMissing) {
+      if (count > 0 && !requiredLandlockMissing && !delegationRequired) {
         writeSync(1, 'unverified: delegation unavailable\n')
         skip('unverified: delegation unavailable')
       }
