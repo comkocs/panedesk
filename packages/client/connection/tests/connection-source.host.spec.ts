@@ -14,8 +14,8 @@ const unknownReason = 'The connection source could not be verified and cannot ac
 function response() {
   const state: { status?: number; headers?: Readonly<Record<string, string>>; body?: string } = {}
   const value: ConnectionIndexResponse = {
-    writeHead(status, headers) { state.status = status; state.headers = headers },
-    end(body) { state.body = body },
+    writeHead(status, headers) { state.status = status; if (headers !== undefined) state.headers = headers },
+    end(body) { if (body !== undefined) state.body = body },
   }
   return { state, value }
 }
@@ -40,7 +40,8 @@ describe('owner connection source', () => {
     const f = await fixture(source)
     try {
       for (const endpoint of ['$events/result', 'permissionPresets/authorizeWorkspaceWrite', 'pluginManager/installBundle']) {
-        expect(f.connection.admit({ ...f.request, url: `/api/${endpoint}` })).toEqual({ rejection: 403, reason })
+        const request = { ...f.request, url: `/api/${endpoint}` }
+        expect(f.connection.admit(request)).toEqual({ rejection: 403, reason })
       }
       const connect = response()
       f.connection.authorizeConnect({ ...f.request, url: '/connect' }, connect.value)
