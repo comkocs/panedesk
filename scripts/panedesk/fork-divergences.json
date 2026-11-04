@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "linux-product-scope-limitation",
+      "description": "Keep sandbox execution available without a live delegated scope",
+      "origin": "Owner authentication isolation",
+      "reason": "Warn bilingually when a usable native socket query cannot be paired with a live delegated launch scope, preserve existing command confinement, and classify visible unregistered cgroups under the existing non-product rule instead of refusing startup. Keep product identities and failed socket observations deny-only. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/subprocess/subprocess-local/src/index.ts",
+          "packages/subprocess/subprocess-local/README*",
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*"
+        ]
+      }
+    },
+    {
       "id": "product-identity-reclamation",
       "description": "Reclaim sandbox identities without historical launch limits",
       "origin": "Owner authentication isolation",

@@ -97,6 +97,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
   private readonly productGroups: LinuxProductGroups | undefined
   private readonly windowsJobs: WindowsProductJobs | undefined
   private windowsSourceRegistered = false
+  private productScopeWarningIssued = false
 
   constructor(ctx: Context) {
     super(ctx)
@@ -226,6 +227,12 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       extensions.map(extension => resolve(process.cwd(), directory, command + extension)))
   }
 
+  private warnProductScopeUnavailable(): void {
+    if (this.productScopeWarningIssued) return
+    this.productScopeWarningIssued = true
+    this.ctx.logger.warn(LINUX_SOURCE_LIMITATION)
+  }
+
   private productScopeOptions(productSandbox: true | undefined): Pick<import('./linux-scope.ts').LinuxScopeInternals, 'productGroups' | 'privateRoot'> {
     if (productSandbox !== true || this.productGroups === undefined) return {}
     const privateRoot = this.ctx.get('credentials')?.protectedStoragePaths[0] ?? resolve(resolveDshHome(), 'private')
@@ -250,7 +257,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     try {
       if (containmentMode === 'fallback') {
         if (spec.productSandbox === true && this.productGroups !== undefined) {
-          throw new Error('Product sandbox registration requires a live delegated Linux scope')
+          this.warnProductScopeUnavailable()
         }
         handle = spawnSubprocess(this.windowsJobs === undefined ? spec : { ...spec, env }, internals)
       } else {
@@ -356,7 +363,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     const inspector = this.terminalInspector ?? createProcessInspector()
     const containmentMode = this.selectContainmentMode('terminal')
     if (containmentMode === 'fallback' && spec.productSandbox === true && this.productGroups !== undefined) {
-      throw new Error('Product sandbox registration requires a live delegated Linux scope')
+      this.warnProductScopeUnavailable()
     }
     const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     const platform = this.internals.platform ?? process.platform
