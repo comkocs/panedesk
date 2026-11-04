@@ -16,6 +16,8 @@ import { encodeMessage, MessageDecoder } from './framing.ts'
 
 /** How to launch the server and answer its config requests. */
 export interface ConnectionSpec {
+  /** Explicit local sandbox fact forwarded to the trusted subprocess bootstrap. */
+  readonly productSandbox?: true
   /** The resolved absolute executable path (no shell). */
   readonly command: string
   /** Arguments passed to the executable. */
@@ -91,6 +93,7 @@ export class LspConnection {
     // the contract). The seam owns managed-range signalling and observation.
     this.handle = spawner({
       argv: [spec.command, ...spec.args],
+      ...spec.productSandbox === true ? { productSandbox: true } : {},
       cwd: spec.cwd,
       stdio: {
         stdin: 'pipe',

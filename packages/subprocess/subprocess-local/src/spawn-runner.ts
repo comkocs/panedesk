@@ -16,6 +16,7 @@ import type {
   NativePtr,
 } from '@panedesk/dsh-win32-process'
 import { loadLinuxExecve } from './linux-execve.ts'
+import { enterLinuxProductGroup } from './linux-product-bootstrap.ts'
 import {
   consumeLinuxLaunchRequest,
   isWindowsTerminateRequest,
@@ -193,6 +194,7 @@ function runLinux(
   }
   try {
     host.chdir(request.cwd)
+    if (request.productSandbox === true) enterLinuxProductGroup(files)
     execLinuxTarget({ ...request, cwd: host.cwd() }, argv, internals)
   } catch (error) {
     writeLinuxStartupError(files, {

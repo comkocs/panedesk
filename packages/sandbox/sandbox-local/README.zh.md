@@ -56,6 +56,8 @@ kind: "package-reference"
 
 受限执行还排除凭据提供方的私密目录及已登记的桌面所有者材料目录。Bubblewrap 在可写绑定之后遮挡整个目录并创建新会话；Seatbelt 拒绝目录读取；Landlock 授予可读兄弟树，而不授予所有者材料的祖先目录；消失、悬空或无权访问的兄弟项会被省略，不扩大访问权。调用启动器前会再次检查授权根，以兼容旧版二进制；原生回归使用宿主编译器编译当前检出的 C 源码，不依赖被忽略的发布产物。无法支持的别名及位于所有者目录内的工作区会拒绝隔离。所有者目录可以位于工作区内：bubblewrap 先将通向它的第一级分支绑定为只读再遮挡目录，Seatbelt 拒绝写入及解除祖先目录链接，Landlock 不授予该分支写权。Windows 允许只读启动，但拒绝覆盖所有者目录的写授权。Windows 对专用所有者目录设置持久 Medium 禁止向上读写标签，不标记桌面 userData。显式 full-access 执行保持不变。这些机制不覆盖登记存储之外的任意凭据副本。本地子进程执行器在独立 POSIX 会话中启动 Landlock 和 Seatbelt 命令，stdin 使用管道或忽略。原生终端注入回归针对宿主浏览器确认，对比生产 bubblewrap 参数与其他参数相同的未分离会话对照；对照要求内核允许传统 TIOCSTI。内核禁用该 ioctl 不能作为会话隔离证据。
 
+Linux 隔离返回 `productSandbox: true`；消费者必须把该事实传给本地子进程服务，不得从可执行参数或 scope 名推断身份。Bubblewrap 在工作区绑定之后以只读覆盖 cgroupfs，Landlock 写授权即使面对重叠工作区也排除 cgroupfs。来源归因还需要[本地子进程提供者](../../subprocess/subprocess-local/README.zh.md#linux-sandbox-connection-identity)；仅有隔离不能识别网络连接。
+
 ### Windows 工作区撤销
 
 仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，用受限令牌 AccessCheck 检查根的有效写权，不授予权限；部分权限与继承权限也可被发现。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销盘点全树中精确匹配工作区 SID 的显式项，包括依赖目录，而非信任提供方的内存历史。原生后端在成功前使用受限令牌 AccessCheck 核验根及每个命中点，因此重启不会丢失授权位置。链接仅检查对象本身，不遍历目标；失败会保留持久撤销标记。见[原生清理及状态信任限制](../sandbox-windows-acl/README.zh.md#use-this-package)。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。`materializeWorkspaceWriteGrant()` 供策略消费方在已同意会话的首次文件变更前物化工作区及私有临时目录能力，无需启动进程。

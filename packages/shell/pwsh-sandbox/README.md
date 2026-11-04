@@ -31,6 +31,8 @@ Mount this executor instead of `dsh-pwsh-local` when PowerShell commands must no
 
 Choose it when a deployment needs file-level confinement for PowerShell commands, typically on Windows. The confinement substance is platform-neutral: the sandbox seam picks the platform's runner — the ACL restricted-token chain on Windows, bwrap/Landlock/Seatbelt elsewhere — while this executor owns the pwsh side. The sandbox policy (mode plus workspace root) is not this package's config: it rides each call from `ctx.sandboxPolicy`, with tool calls passing the calling session's resolved policy and direct calls falling back to deployment policy.
 
+The executor preserves the confinement result's explicit `productSandbox` identity through the local subprocess request. Full-access execution does not create that marker.
+
 ### Modes and file effects
 
 | Mode | File effects |

@@ -31,6 +31,8 @@ kind: "package-reference"
 
 当部署需要为 PowerShell 命令提供文件级隔离时选择它，通常是在 Windows 上。隔离实体本身是平台无关的：沙箱 seam 选择平台的 runner——Windows 上是 ACL 受限令牌链，其他平台是 bwrap/Landlock/Seatbelt——而本执行器只负责 pwsh 侧。沙箱策略（模式加工作区根目录）不是本包的配置：它随每次调用从 `ctx.sandboxPolicy` 而来，工具调用传调用会话解析后的策略，直接调用回退到部署策略。
 
+执行器将隔离结果中显式的 `productSandbox` 身份保留到本地子进程请求。full-access 执行不创建该标记。
+
 ### 模式与文件影响
 
 | 模式 | 文件影响 |

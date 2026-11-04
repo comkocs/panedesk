@@ -98,15 +98,17 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 export const PWSH_PROMPT_SETUP =
   "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
 
-async function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<string[]> {
+async function spawnArgv(
+  ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy, signal?: AbortSignal,
+): Promise<{ argv: string[]; productSandbox?: true }> {
   const argv = [config.shellPath, ...config.shellArgs]
-  if (policy.mode === 'danger-full-access') return argv
+  if (policy.mode === 'danger-full-access') return { argv }
   const sandbox = ctx.get('sandbox')
   if (sandbox === undefined) {
     throw new Error(`terminal-bash: sandbox mode "${policy.mode}" requires a ctx.sandbox provider in the execution world`)
   }
   // Re-state the discriminant because object spread does not preserve its narrowed type.
-  return (await sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)).argv
+  return sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)
 }
 
 // TODO(pty-initialize-race-home): Fold this outer abort race into
@@ -222,11 +224,12 @@ export class BashTerminalBackend implements TerminalBackend {
     const policy = await this.ctx.sandboxPolicy.requestWrite({
       agent: spec.owner, toolName: 'terminal-bash', ...spec.signal === undefined ? {} : { signal: spec.signal },
     })
-    const argv = await spawnArgv(this.ctx, this.config, policy, spec.signal)
+    const prepared = await spawnArgv(this.ctx, this.config, policy, spec.signal)
     spec.signal?.throwIfAborted()
-    if (argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')
+    if (prepared.argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')
     const terminal = await this.spawnTerminal({
-      argv,
+      argv: prepared.argv,
+      ...prepared.productSandbox === true ? { productSandbox: true } : {},
       cwd: spec.cwd ?? await this.ctx.workingDirectory.ensure(spec.owner, spec.signal),
       env: childEnvironment(spec, this.config.shellDialect),
       rows: this.config.rows,

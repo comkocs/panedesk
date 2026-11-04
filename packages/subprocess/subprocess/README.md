@@ -36,6 +36,8 @@ One provider registers `ctx.subprocess` per composition; load it beside the cons
 - name: '@panedesk/dsh-bash-local'
 ```
 
+Consumers preserve an explicit `productSandbox: true` from Linux confinement in ordinary and terminal spawn requests. Providers use it for trusted pre-exec identity registration, never as an inferred argv property; ordinary and full-access commands omit it.
+
 ### Starting a managed process
 
 The request is fully explicit: the program and arguments, the working directory, one stdio disposition per stream, a termination grace, an optional abort signal, and optional environment overrides. Target and managed-range identities remain provider-private. `done` resolves with the direct command's exit facts (`exitCode` and `signal`) and rejects for spawn or provider failures; collected output stays readable after exit.

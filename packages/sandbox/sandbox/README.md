@@ -31,6 +31,8 @@ Compose this service with one backend and a confined consumer, and every command
 
 Choose this package when a composition confines subprocesses on the host: it is the contract the local backends and the confined executors both implement, so mounting `sandbox-local` behind `ctx.sandbox` and a confined executor behind `ctx.shell` gives every bash or pwsh call a confined default. Choose something else when the process must run in an isolated environment — a container, microVM, or remote executor replaces the whole `ctx.shell`/`ctx.fs` capability rather than adding a backend here.
 
+A confinement result may carry `productSandbox: true` to identify actual Linux product confinement. Consumers must preserve that fact in the subprocess request alongside argv; it is not a request-controlled claim or a replacement for file enforcement.
+
 ### Confining a command
 
 Mount the service with a backend and a confined executor; the [base bundle](../../bundle/base/cordis.patch.yml) owns the shipped composition.

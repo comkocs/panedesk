@@ -15,6 +15,7 @@ import { basename, dirname, isAbsolute, join } from 'node:path'
 
 /** Target state restored by the Linux bootstrap after systemd establishes the scope. */
 export interface LinuxLaunchRequest {
+  productSandbox?: true
   cwd: string
   env: Record<string, string>
   control?: 'pipe'
@@ -98,10 +99,11 @@ function parseErrorResult(value: Record<string, unknown>): LinuxStartupError {
 /**
  * Create a private 0700 directory and one complete 0600 launch request.
  * @param request - target cwd and complete environment for the bootstrap.
+ * @param privateRoot - unreadable owner directory for product-sandbox handshakes; ordinary launches use the OS temporary directory.
  * @returns private paths owned by this launch.
  */
-export function createLinuxLaunchFiles(request: LinuxLaunchRequest): LinuxLaunchFiles {
-  const directory = mkdtempSync(join(tmpdir(), 'dsh-subprocess-launch-'))
+export function createLinuxLaunchFiles(request: LinuxLaunchRequest, privateRoot?: string): LinuxLaunchFiles {
+  const directory = mkdtempSync(join(privateRoot ?? tmpdir(), 'dsh-subprocess-launch-'))
   const files = {
     directory,
     requestPath: join(directory, 'launch-request.json'),
@@ -139,12 +141,15 @@ export function consumeLinuxLaunchRequest(requestPath: string): LinuxLaunchReque
   const text = readFileSync(requestPath, 'utf8')
   unlinkSync(requestPath)
   const value: unknown = JSON.parse(text)
-  if (!isRecord(value) || !hasExactKeys(value, ['cwd', 'env'], ['control'])
+  if (!isRecord(value) || !hasExactKeys(value, ['cwd', 'env'], ['control', 'productSandbox'])
     || typeof value.cwd !== 'string' || !isStringRecord(value.env)
+    || (value.productSandbox !== undefined && value.productSandbox !== true)
     || (value.control !== undefined && value.control !== 'pipe')) {
     throw new Error('subprocess runner received an invalid Linux launch request')
   }
-  return { cwd: value.cwd, env: value.env, ...value.control === 'pipe' ? { control: 'pipe' as const } : {} }
+  return { cwd: value.cwd, env: value.env,
+    ...value.productSandbox === true ? { productSandbox: true as const } : {},
+    ...value.control === 'pipe' ? { control: 'pipe' as const } : {} }
 }
 
 /**
@@ -261,6 +266,10 @@ export function cleanupLinuxLaunchFiles(files: LinuxLaunchFiles): void {
     for (const path of [
       files.requestPath,
       files.startupErrorPath,
+      join(files.directory, 'cgroup-ready.json'),
+      join(files.directory, 'cgroup-ready.pending'),
+      join(files.directory, 'cgroup-ack'),
+      join(files.directory, 'cgroup-ack.pending'),
     ]) {
       try { unlinkSync(path) } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error

@@ -97,6 +97,7 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   }
   // Apply session masks after workspace and protected-input mounts so none can reopen them.
   for (const path of sessionSocketDirectories()) args.push('--perms', '0700', '--tmpfs', path)
+  args.push('--ro-bind', '/sys/fs/cgroup', '/sys/fs/cgroup')
   args.push(...sessionEnvironmentArgs())
   for (const path of owners) {
     if (statSync(path).isDirectory()) args.push('--perms', '000', '--tmpfs', path, '--remount-ro', path)
@@ -170,7 +171,7 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
     // Landlock grants are additive: omit shared temp rather than denying an unrelated workspace.
     if (![...policy.protectedPaths ?? [], ...owners].some(path => rootsOverlap('/tmp', path))) readWrite.push('/tmp')
     const workspace = canonicalPath(policy.workspaceRoot)
-    const excluded = [...policy.protectedPaths ?? [], ...owners]
+    const excluded = [...policy.protectedPaths ?? [], ...owners, '/sys/fs/cgroup']
     const branches = protectedWorkspaceBranches(workspace, excluded)
     if (branches.length === 0) readWrite.push(workspace)
     else {

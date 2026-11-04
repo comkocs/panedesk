@@ -1,6 +1,39 @@
 {
   "divergences": [
     {
+      "id": "linux-product-socket-admission",
+      "description": "Register Linux product cgroups before executing confined commands",
+      "origin": "Owner authentication isolation",
+      "reason": "Carry explicit confinement facts through local subprocess and terminal consumers, migrate the trusted runner before execution, atomically acknowledge host registration, and retain observed identities across provider reloads and process cleanup. Deny unknown socket observations and warn without claiming protection when delegation is unavailable. Exclude cgroupfs from Linux write grants. Document the experimental Python direct-spawn gap and SSH parser incompatibility rather than claiming complete coverage. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md", "README.zh.md", "README.i18n.yaml",
+          "packages/subprocess/subprocess-local/src/linux-product-*.ts",
+          "packages/subprocess/subprocess-local/src/index.ts", "packages/subprocess/subprocess-local/src/linux-scope.ts",
+          "packages/subprocess/subprocess-local/src/runner-protocol.ts", "packages/subprocess/subprocess-local/src/spawn-runner.ts",
+          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts", "packages/subprocess/subprocess-local/tests/local.spec.ts",
+          "packages/subprocess/subprocess-local/package.json", "packages/subprocess/subprocess-local/tsconfig.json",
+          "packages/subprocess/subprocess-local/README*", "packages/subprocess/subprocess/README*", "packages/subprocess/subprocess/src/types.ts",
+          "packages/sandbox/sandbox/src/index.ts", "packages/sandbox/sandbox/README*",
+          "packages/sandbox/sandbox-local/src/index.ts", "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/tests/local.spec.ts", "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
+          "packages/sandbox/sandbox-local/README*",
+          "packages/shell/bash-local/src/index.ts", "packages/shell/bash-local/README*",
+          "packages/shell/pwsh-local/src/index.ts", "packages/shell/pwsh-local/README*",
+          "packages/shell/bash-sandbox/src/index.ts", "packages/shell/bash-sandbox/README*",
+          "packages/shell/pwsh-sandbox/src/index.ts", "packages/shell/pwsh-sandbox/README*",
+          "packages/terminal/terminal-bash/src/index.ts", "packages/terminal/terminal-bash/README*",
+          "packages/lsp/lsp-stdio/src/index.ts", "packages/lsp/lsp-stdio/src/connection.ts", "packages/lsp/lsp-stdio/README*",
+          "packages/ptc-runtime/ptc-runtime-node/src/index.ts", "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts", "packages/ptc-runtime/ptc-runtime-node/README*",
+          "packages/fs/tool-fs-search/src/search-core.ts", "packages/fs/tool-fs-search/README*",
+          "packages/experimental/worktree/src/process.ts", "packages/experimental/worktree/tests/process-source.spec.ts", "packages/experimental/worktree/README*",
+          "packages/boot/plugin-manager/tests/write-entry-routes.spec.ts",
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*", "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "linux-native-socket-cgroup-query",
       "description": "Expose bounded Linux IPv4 and IPv6 socket cgroup queries",
       "origin": "Owner authentication isolation",

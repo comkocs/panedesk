@@ -31,6 +31,8 @@ kind: "package-reference"
 
 它是 `dsh-bash-local` 的 Windows 对应实现：当 `pwsh` 是平台 shell 时选择它，组合即可把 POSIX 行换成 pwsh 行并保持相同的语义。执行器从显式 `pwshPath`、常见的 Windows 安装位置、PATH 条目，或作为最后手段的 Windows PowerShell 5.1 解析 `pwsh` 可执行文件。非隔离执行时它就是默认选择；需要沙箱能力时组合 `dsh-pwsh-sandbox`。
 
+执行准备可以只提供 argv，也可以提供 `{ argv, productSandbox }`。后者将隔离提供方的 Linux 身份事实保留到子进程请求；普通本地命令不会取得该标记。
+
 ### 最小配置
 
 按你需要的预算加载执行器；每个字段都有默认值，因此最小的组合就是单独一个插件条目。当组合了设置提供方时，用户段会叠加在该条目之上，预算无需重载即可在运行时变更（见[运行时调整预算](#adjusting-budgets-at-runtime)）。

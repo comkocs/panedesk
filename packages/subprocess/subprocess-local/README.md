@@ -36,6 +36,13 @@ Load the provider in the same composition as its consumers. It has no config fie
 - name: '@panedesk/dsh-bash-local'
 ```
 
+<a id="linux-sandbox-connection-identity"></a>
+### Linux sandbox connection identity
+
+Consumers preserve `productSandbox: true` from actual Linux confinement through ordinary and terminal spawn requests. When socket attribution and user cgroup delegation are available, the trusted bootstrap creates a child under its transient scope, moves itself there, and waits for the host's atomically published acknowledgement before executing the target. Handshake files live beneath unreadable owner storage. Ordinary commands are not registered. A capable host refuses an unregistered fallback rather than executing a marked command outside this sequence.
+
+The host-root identity service survives transport and subprocess-provider reloads. IPv4 and IPv6 queries use the client socket tuple; registered groups and descendants are product sources, and failed observations are unknown. Both deny owner admission. After the entire process range exits, directories are removed but observed IDs remain denied for the host lifetime because a transferred socket may outlive its creating process. Retention has a fixed admission limit and never evicts identities to allow another launch. Missing native socket attribution or writable cgroup delegation produces a bilingual startup limitation warning and non-product classification; this degraded mode does not prevent cookie replay. See the [connection admission registry](../../client/connection/README.md).
+
 ### Resolving executables
 
 Absolute executable paths are verified; bare names resolve against the scrubbed PATH with platform-aware executable extensions (`.COM`/`.EXE`/`.BAT`/`.CMD` on Windows). Relative paths containing separators are rejected — provide an absolute path or a bare PATH name — and relative PATH entries resolve from the host process cwd.

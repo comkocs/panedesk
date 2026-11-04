@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 Mount this executor when a composition needs Bash command execution on POSIX without confinement. It registers as `ctx.shell`, and the model-facing `bash` tool works over it immediately: an agent calls the tool, and the command runs as a fresh `bash -c` process with the budgets below.
 
+Prepared execution can supply either argv alone or `{ argv, productSandbox }`. The latter preserves the confinement provider's Linux identity fact in the subprocess request; ordinary local commands do not acquire it.
+
 ### Minimal configuration
 
 Load the executor with the budgets you want; every field has a default, so the smallest composition is the plugin entry alone. The settings provider (when composed) layers a user section over this entry, so budgets can change at runtime without a reload (see [Adjusting budgets at runtime](#adjusting-budgets-at-runtime)).

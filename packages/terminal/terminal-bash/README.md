@@ -46,7 +46,7 @@ Mount the terminal service, a subprocess provider, the sandbox and policy servic
 - name: '@panedesk/dsh-tool-terminal'
 ```
 
-`danger-full-access` starts the shell directly. Confined modes require a same-world `ctx.sandbox` provider: without one, the spawn fails before the shell starts. Confinement preparation receives the opening signal; cancellation prevents terminal allocation even if the provider returns later.
+`danger-full-access` starts the shell directly. Confined modes require a same-world `ctx.sandbox` provider: without one, the spawn fails before the shell starts. Confinement preparation receives the opening signal; cancellation prevents terminal allocation even if the provider returns later. An explicit Linux `productSandbox: true` result is preserved in the terminal spawn request for pre-exec source registration.
 
 Before accepting input, a confined terminal rechecks its mode, workspace root, and protected-path set against its opening policy. A change refuses input and requires a new terminal; this check does not terminate already-running commands.
 

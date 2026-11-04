@@ -36,6 +36,13 @@ kind: "package-reference"
 - name: '@panedesk/dsh-bash-local'
 ```
 
+<a id="linux-sandbox-connection-identity"></a>
+### Linux 沙箱连接身份
+
+消费者将实际 Linux 隔离返回的 `productSandbox: true` 保留至普通及终端启动请求。套接字归因及用户 cgroup 委派可用时，可信 bootstrap 在临时 scope 下创建子组、迁入自身，并等待宿主原子发布确认后才执行目标。握手文件位于不可读的所有者存储下。普通命令不登记。能力可用时，宿主拒绝未登记的 fallback，不会绕过该顺序执行带标记的命令。
+
+宿主根身份服务跨传输及子进程提供者重载保留。IPv4 和 IPv6 查询使用客户端套接字四元组；登记组及其后代属于产品来源，观察失败为 unknown，两者均拒绝 owner 准入。整个进程范围退出后删除目录，但已观察到的标识在宿主寿命内继续拒绝，因为转交的套接字可能比创建它的进程活得更久。保留集有固定准入上限，不会为允许新启动而驱逐身份。缺少原生套接字归因或可写 cgroup 委派时，启动输出双语已知限制警告并判为非产品；此降级模式不能阻止 cookie 回放。参见[连接准入登记口](../../client/connection/README.zh.md)。
+
 ### 解析可执行文件
 
 绝对可执行文件路径会被验证；裸名称根据清理后的 PATH 并以平台感知的可执行文件扩展名（Windows 上为 `.COM`/`.EXE`/`.BAT`/`.CMD`）解析。含分隔符的相对路径会被拒绝——请提供绝对路径或裸 PATH 名称——相对 PATH 条目从宿主进程 cwd 解析。

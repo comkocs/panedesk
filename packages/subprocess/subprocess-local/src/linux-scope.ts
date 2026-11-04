@@ -1,6 +1,7 @@
 /** Linux user-systemd scope launch and managed-range ownership. */
 
 import { controlPipe } from './control-spawn.ts'
+import type { LinuxProductGroups } from './linux-product-groups.ts'
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -31,6 +32,8 @@ import { childEnv } from './spawn.ts'
 
 /** Test seams for systemd command execution. */
 export interface LinuxScopeInternals {
+  productGroups?: LinuxProductGroups
+  privateRoot?: string
   spawn?: typeof spawn
   spawnSync?: typeof spawnSync
   systemctlQuery?: (command: string, args: readonly string[]) => Promise<SystemctlResult>
@@ -266,7 +269,15 @@ export class LinuxScopeNotStartedError extends Error {
 class LinuxScopeStartup {
   readonly terminationSignals = new Set<NodeJS.Signals>()
 
+  releaseProductGroup: (() => void) | undefined
+
   constructor(readonly files: LinuxLaunchFiles, private readonly kind: 'subprocess' | 'terminal') {}
+
+  cleanup(): void {
+    this.releaseProductGroup?.()
+    this.releaseProductGroup = undefined
+    cleanupLinuxLaunchFiles(this.files)
+  }
 
   resolveOutcome(outcome: SubprocessOutcome): SubprocessOutcome {
     const startup = readLinuxStartupError(this.files.startupErrorPath)
@@ -535,7 +546,7 @@ class SystemdScopeOwner implements BoundProcessOwner {
   }
 
   cleanup(): void {
-    cleanupLinuxLaunchFiles(this.startup.files)
+    this.startup.cleanup()
   }
 }
 
@@ -544,6 +555,7 @@ function scopeArgs(
   literalArgv: LiteralArgvOptions,
   invocation: RunnerInvocation,
   argv: readonly string[],
+  productSandbox = false,
 ): string[] {
   return [
     '--user',
@@ -551,6 +563,7 @@ function scopeArgs(
     '--quiet',
     '--collect',
     ...literalArgv,
+    ...productSandbox ? ['--property=Delegate=yes'] : [],
     `--unit=${unitBase}`,
     '--',
     ...invocation,
@@ -639,12 +652,21 @@ export function prepareLinuxTerminalScope(
   internals: LinuxScopeInternals = {},
 ): LinuxTerminalScopeLaunch {
   const invocation = internals.runnerInvocation ?? spawnRunnerInvocation()
-  const files = createLinuxLaunchFiles({ cwd: spec.cwd, env: targetEnv })
+  const productSandbox = spec.productSandbox === true && internals.productGroups !== undefined
+  const files = createLinuxLaunchFiles({ cwd: spec.cwd, env: targetEnv,
+    ...productSandbox ? { productSandbox: true } : {},
+  }, productSandbox ? internals.privateRoot : undefined)
   const startup = new LinuxScopeStartup(files, 'terminal')
   const unitBase = unitStem('dsh-terminal')
+  try {
+    if (productSandbox) startup.releaseProductGroup = internals.productGroups?.prepare(files, `${unitBase}.scope`)
+  } catch (error) {
+    startup.cleanup()
+    throw error
+  }
   return {
     command: internals.systemdRun ?? 'systemd-run',
-    args: scopeArgs(unitBase, literalArgv, invocation, spec.argv),
+    args: scopeArgs(unitBase, literalArgv, invocation, spec.argv, productSandbox),
     cwd: process.cwd(),
     env: runnerEnvironment(files.requestPath, invocation),
     bindOwner: direct => new SystemdScopeOwner(
@@ -657,7 +679,7 @@ export function prepareLinuxTerminalScope(
       internals.sleep ?? sleepWithAbort,
     ),
     resolveOutcome: outcome => startup.resolveOutcome(outcome),
-    cleanup: () => { cleanupLinuxLaunchFiles(files) },
+    cleanup: () => { startup.cleanup() },
   }
 }
 
@@ -676,12 +698,20 @@ export function launchLinuxScope(
   internals: LinuxScopeInternals = {},
 ): ManagedProcessLaunch {
   const invocation = internals.runnerInvocation ?? spawnRunnerInvocation()
+  const productSandbox = spec.productSandbox === true && internals.productGroups !== undefined
   const files = createLinuxLaunchFiles({
     cwd: spec.cwd, env: targetEnv,
+    ...productSandbox ? { productSandbox: true } : {},
     ...spec.stdio.control === undefined ? {} : { control: spec.stdio.control },
-  })
+  }, productSandbox ? internals.privateRoot : undefined)
   const startup = new LinuxScopeStartup(files, 'subprocess')
   const unitBase = unitStem('dsh-subprocess')
+  try {
+    if (productSandbox) startup.releaseProductGroup = internals.productGroups?.prepare(files, `${unitBase}.scope`)
+  } catch (error) {
+    startup.cleanup()
+    throw error
+  }
   let child: ReturnType<typeof spawn>
   try {
     child = (internals.spawn ?? spawn)(internals.systemdRun ?? 'systemd-run', scopeArgs(
@@ -689,6 +719,7 @@ export function launchLinuxScope(
       literalArgv,
       invocation,
       spec.argv,
+      productSandbox,
     ), {
       cwd: process.cwd(),
       env: runnerEnvironment(files.requestPath, invocation),
@@ -696,7 +727,7 @@ export function launchLinuxScope(
       detached: true,
     })
   } catch (error) {
-    cleanupLinuxLaunchFiles(files)
+    startup.cleanup()
     throw error
   }
   const direct = directOutcome(child, startup)

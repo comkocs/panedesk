@@ -8,7 +8,7 @@
  * @module @panedesk/dsh-subprocess-local
  */
 
-import { constants } from 'node:fs'
+import { constants, mkdirSync } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { delimiter, extname, isAbsolute, resolve } from 'node:path'
@@ -52,6 +52,10 @@ import { createProcessInspector } from './process-inspector.ts'
 import type { ProcessInspector } from './process-inspector.ts'
 import { LocalTerminalHandle } from './terminal.ts'
 import { prepareShellActivity } from './shell-activity.ts'
+import { LinuxProductGroups, LINUX_SOURCE_LIMITATION } from './linux-product-groups.ts'
+import { resolveDshHome } from '@panedesk/dsh-home-paths'
+import type {} from '@panedesk/dsh-client-connection'
+import type {} from '@panedesk/dsh-credentials'
 
 const requireNodePty = createLazyRequire<typeof NodePty>('node-pty', import.meta.url)
 
@@ -88,8 +92,17 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
   /** Test hook for platform process inspection; production resolves lazily on terminal spawn. */
   terminalInspector: ProcessInspector | undefined
 
+  private readonly productGroups: LinuxProductGroups | undefined
+
   constructor(ctx: Context) {
     super(ctx)
+    this.productGroups = process.platform === 'linux' ? LinuxProductGroups.forHost(ctx) : undefined
+    if (process.platform === 'linux') {
+      if (this.productGroups === undefined) ctx.logger.warn(LINUX_SOURCE_LIMITATION)
+      ctx.inject(['connectionSources'], (owner) => {
+        owner.connectionSources.register('linux', socket => this.productGroups?.classify(socket) ?? 'non-product')
+      })
+    }
     ctx.effect(() => {
       const onHostExit = (): void => { this.terminateForHostExit() }
       process.prependListener('exit', onHostExit)
@@ -199,6 +212,13 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       extensions.map(extension => resolve(process.cwd(), directory, command + extension)))
   }
 
+  private productScopeOptions(productSandbox: true | undefined): Pick<import('./linux-scope.ts').LinuxScopeInternals, 'productGroups' | 'privateRoot'> {
+    if (productSandbox !== true || this.productGroups === undefined) return {}
+    const privateRoot = this.ctx.get('credentials')?.protectedStoragePaths[0] ?? resolve(resolveDshHome(), 'private')
+    mkdirSync(privateRoot, { recursive: true, mode: 0o700 })
+    return { productGroups: this.productGroups, privateRoot }
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     validateSubprocessSpec(spec)
     const env = targetEnvironment(spec)
@@ -206,13 +226,16 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     let handle: LocalSubprocessHandle
     const internals: SpawnInternals = { ...this.internals, onSpillFailure: this.reportSpillFailure }
     if (containmentMode === 'fallback') {
+      if (spec.productSandbox === true && this.productGroups !== undefined) {
+        throw new Error('Product sandbox registration requires a live delegated Linux scope')
+      }
       handle = spawnSubprocess(spec, internals)
     } else {
       const binding = prepareManagedProcessBinding(internals)
       const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
       const launch = linuxScope === undefined
         ? launchWindowsJob(spec, env)
-        : launchLinuxScope(spec, env, linuxScope.literalArgv)
+        : launchLinuxScope(spec, env, linuxScope.literalArgv, this.productScopeOptions(spec.productSandbox))
       handle = bindManagedProcess(spec, launch, binding)
       if (linuxScope !== undefined) this.watchLinuxScopeStart(handle.done, linuxScope.generation)
     }
@@ -300,6 +323,9 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     spec.signal?.throwIfAborted()
     const inspector = this.terminalInspector ?? createProcessInspector()
     const containmentMode = this.selectContainmentMode('terminal')
+    if (containmentMode === 'fallback' && spec.productSandbox === true && this.productGroups !== undefined) {
+      throw new Error('Product sandbox registration requires a live delegated Linux scope')
+    }
     const env = targetEnvironment(spec)
     const platform = this.internals.platform ?? process.platform
     const activity = prepareShellActivity(spec, env, platform)
@@ -322,7 +348,8 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     try {
       scope = linuxScope === undefined
         ? undefined
-        : prepareLinuxTerminalScope(launch, { ...activity?.env ?? env, PWD: spec.cwd, TERM: spec.terminalType }, linuxScope.literalArgv)
+        : prepareLinuxTerminalScope(launch, { ...activity?.env ?? env, PWD: spec.cwd, TERM: spec.terminalType }, linuxScope.literalArgv,
+          this.productScopeOptions(spec.productSandbox))
       if (scope !== undefined) { options.cwd = scope.cwd; options.env = scope.env }
       terminal = requireNodePty().spawn(
         scope?.command ?? file,

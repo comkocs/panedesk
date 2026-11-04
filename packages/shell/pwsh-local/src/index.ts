@@ -244,7 +244,7 @@ export class PwshLocalExecutor extends ShellExecutor {
    */
   protected async executeArgv(
     spec: ShellExecSpec,
-    argvOrPrepare: readonly string[] | ((signal: AbortSignal) => Promise<readonly string[]>),
+    argvOrPrepare: readonly string[] | ((signal: AbortSignal) => Promise<readonly string[] | Pick<SubprocessSpawnSpec, 'argv' | 'productSandbox'>>),
     onStarted?: (process: ShellExecution) => void,
   ): Promise<ShellExecution> {
     // Deadline wiring by expiry policy. Each arm supplies the spawn signal,
@@ -271,6 +271,7 @@ export class PwshLocalExecutor extends ShellExecutor {
     }
 
     let argv: readonly string[] = []
+    let productSandbox: true | undefined
     let preparationTimedOut = false
     if (typeof argvOrPrepare === 'function') {
       const signal = spawnSignal ?? new AbortController().signal
@@ -278,10 +279,12 @@ export class PwshLocalExecutor extends ShellExecutor {
       const abort = (): void => { cancelled.reject(signal.reason) }
       signal.addEventListener('abort', abort, { once: true })
       try {
-        argv = await Promise.race([
+        const prepared = await Promise.race([
           Promise.resolve().then(() => { signal.throwIfAborted(); return argvOrPrepare(signal) }),
           cancelled.promise,
         ])
+        if ('argv' in prepared) { argv = prepared.argv; productSandbox = prepared.productSandbox }
+        else argv = prepared
         signal.throwIfAborted()
       } catch (error) {
         if (!classify().timedOut) {
@@ -300,7 +303,9 @@ export class PwshLocalExecutor extends ShellExecutor {
     let syncSpawnError: { error: unknown } | undefined
     try {
       if (!preparationTimedOut) {
-        running = this.ctx.subprocess.spawn(this.spawnSpec(spec, spec.stdoutMaxBytes, spawnSignal, argv))
+        running = this.ctx.subprocess.spawn({ ...this.spawnSpec(spec, spec.stdoutMaxBytes, spawnSignal, argv),
+          ...productSandbox === true ? { productSandbox } : {},
+        })
       }
     } catch (error) {
       syncSpawnError = { error }

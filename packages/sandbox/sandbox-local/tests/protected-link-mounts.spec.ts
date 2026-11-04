@@ -123,6 +123,7 @@ it('leaves external linked targets under the read-only root without an alias mou
     { kind: '--tmpfs', path: '/tmp' },
     { kind: '--bind', path: workspace },
     ...sessionSocketDirectories().map(path => ({ kind: '--tmpfs', path })),
+    { kind: '--ro-bind', path: '/sys/fs/cgroup' },
     { kind: '--tmpfs', path: join(ctx.profileContext.home, 'private') },
     { kind: '--remount-ro', path: join(ctx.profileContext.home, 'private') },
   ])

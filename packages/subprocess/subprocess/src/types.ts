@@ -75,6 +75,8 @@ export interface SubprocessStdio {
  * request/spec split is the owning template).
  */
 export interface SubprocessSpawnSpec {
+  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
+  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
   /** Working directory for the child. */
@@ -227,6 +229,8 @@ export interface SubprocessTerminalEnvironment {
 
 /** A fully specified terminal-process spawn. */
 export interface SubprocessTerminalSpawnSpec {
+  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
+  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. */
   argv: readonly string[]
   /** Working directory in this subprocess provider's execution world. */

@@ -93,14 +93,16 @@ const SEATBELT_SESSIONS = [...new Set(['/tmp', '/private/tmp', ...process.env.TM
 describe('profile dialects', () => {
   it('bwrap read-only: whole tree read-only with fresh /dev and private PID-scoped /proc, no writable mounts', () => {
     expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session', '--tmpfs', '/tmp',
-      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]), ...sessionEnvironmentArgs()])
+      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]),
+      '--ro-bind', '/sys/fs/cgroup', '/sys/fs/cgroup', ...sessionEnvironmentArgs()])
   })
 
   it('bwrap workspace-write: adds an ephemeral /tmp and rebinds the workspace root', () => {
     expect(bwrapProfileArgs(WW)).toEqual([
       '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session',
       '--tmpfs', '/tmp', '--bind', '/ws', '/ws',
-      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]), ...sessionEnvironmentArgs(),
+      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]),
+      '--ro-bind', '/sys/fs/cgroup', '/sys/fs/cgroup', ...sessionEnvironmentArgs(),
     ])
   })
 
@@ -168,6 +170,7 @@ describe('runnerCommand config', () => {
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
       argv: ['fake-runner', '--flag', ...bwrapProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
+      productSandbox: true,
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       // An operator runner's kernel mechanism is unknown: both Linux
@@ -217,6 +220,7 @@ describe('the platform chains', () => {
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
       argv: ['bwrap', ...bwrapProfileArgs({ ...RO, unreadablePaths: [ownerPrivate] }), '--', launcherPath(), '--scope-only', '--', 'true'],
+      productSandbox: true,
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['read-only file system'],
@@ -249,6 +253,7 @@ describe('the platform chains', () => {
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
       argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
+      productSandbox: true,
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['permission denied'],

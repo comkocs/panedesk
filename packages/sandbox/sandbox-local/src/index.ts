@@ -338,6 +338,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       const protectedInputs = this.coveredInputs(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
+        productSandbox: true,
         enforcement: 'full',
         protectedInputs,
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
@@ -353,6 +354,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       : this.runnerArgv(selected.runner, policy)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
+      ...selected.runner === 'bwrap' || selected.runner === 'landlock' ? { productSandbox: true as const } : {},
       enforcement: selected.enforcement,
       protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],

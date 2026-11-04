@@ -241,14 +241,18 @@ export async function runRipgrep(
     const command = [await resolveRgPath(), '--no-config', ...argv]
     const policy = ctx.sandboxPolicy.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
     let confined = command
+    let productSandbox: true | undefined
     if (policy.mode !== 'danger-full-access') {
       const sandbox = ctx.get('sandbox')
       if (sandbox === undefined) throw new Error('Search confinement requires a sandbox provider')
-      confined = (await sandbox.confine(command, { ...policy, mode: policy.mode }, exec.signal)).argv
+      const prepared = await sandbox.confine(command, { ...policy, mode: policy.mode }, exec.signal)
+      confined = prepared.argv
+      productSandbox = prepared.productSandbox
     }
     exec.signal.throwIfAborted()
     handle = ctx.subprocess.spawn({
       argv: confined,
+      ...productSandbox === true ? { productSandbox } : {},
       cwd: workdir,
       stdio: {
         stdin: 'ignore',

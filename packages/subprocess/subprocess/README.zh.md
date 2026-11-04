@@ -36,6 +36,8 @@ kind: "package-reference"
 - name: '@panedesk/dsh-bash-local'
 ```
 
+消费者在普通及终端启动请求中保留 Linux 隔离显式返回的 `productSandbox: true`。提供方用它在 exec 前进行可信身份登记，不从 argv 推断；普通及 full-access 命令省略该字段。
+
 ### 启动受管进程
 
 请求完全明确：程序与参数、工作目录、每条流一种 stdio 处置方式、终止宽限期、可选的中止信号与可选的环境覆盖。目标与受管范围标识保留在提供方内部。`done` 以直接命令的退出事实（`exitCode` 与 `signal`）resolve，并在 spawn 或提供方失败时 reject；收集输出在退出后仍可读取。

@@ -46,7 +46,7 @@ kind: "package-reference"
 - name: '@panedesk/dsh-tool-terminal'
 ```
 
-`danger-full-access` 直接启动 shell。受限模式要求同一执行世界中存在 `ctx.sandbox` 提供方：缺少时，spawn 会在 shell 启动前失败。限制准备过程接收打开操作的取消信号；即使提供方稍后返回，取消仍会阻止终端分配。
+`danger-full-access` 直接启动 shell。受限模式要求同一执行世界中存在 `ctx.sandbox` 提供方：缺少时，spawn 会在 shell 启动前失败。限制准备过程接收打开操作的取消信号；即使提供方稍后返回，取消仍会阻止终端分配。Linux 结果显式给出的 `productSandbox: true` 会保留到终端启动请求，供 exec 前登记来源。
 
 接收输入前，受限终端会将当前模式、工作区根与保护路径集合和打开时的策略重新比较。变化会拒绝输入，必须新建终端；此检查不会终止已在运行的命令。
 

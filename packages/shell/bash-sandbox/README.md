@@ -31,6 +31,8 @@ Mount this executor instead of `dsh-bash-local` when commands must not run with 
 
 Choose it when a deployment needs file-level confinement for Bash commands: the configured policy decides the default mode and workspace root, and each session can run under a different mode per call through the tool's escalation flow. The modes govern file effects only — network stays unrestricted and process visibility is backend-specific. For unconfined execution, or when no sandbox backend is available on the platform, mount `dsh-bash-local` instead.
 
+The executor preserves the confinement result's explicit `productSandbox` identity through the local subprocess request. Full-access execution does not create that marker.
+
 ### Modes and file effects
 
 | Mode | File effects |

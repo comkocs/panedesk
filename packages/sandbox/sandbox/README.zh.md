@@ -31,6 +31,8 @@ kind: "package-reference"
 
 当组合需要在宿主机上隔离子进程时选择本包：本地后端与受限执行器都实现这个约定，因此在 `ctx.sandbox` 后挂载 `sandbox-local`、在 `ctx.shell` 后挂载受限执行器，就能使每次 bash 或 pwsh 调用默认在限制下运行。当进程必须在隔离环境中运行时请另选方案——容器、microVM 或远程执行器会替换整个 `ctx.shell`/`ctx.fs` 能力，而不是在这里添加后端。
 
+隔离结果可携带 `productSandbox: true`，标明实际的 Linux 产品隔离。消费者必须将该事实与 argv 一起保留到子进程请求；它不是请求方可控制的声明，也不替代文件强制执行。
+
 ### 隔离命令
 
 挂载服务、后端与受限执行器；随附的组合由[基础组合包（base bundle）](../../bundle/base/cordis.patch.yml)定义。

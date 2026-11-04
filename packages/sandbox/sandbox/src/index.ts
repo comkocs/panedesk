@@ -115,6 +115,8 @@ export type ProtectedInputEnforcement = {
  * achieves for it.
  */
 export interface ConfinedArgv {
+  /** Forward to local subprocess requests so trusted bootstraps register actual product confinement. */
+  productSandbox?: true
   /** The wrapped argv (runner, profile, separator, then the caller's argv). */
   argv: string[]
   /** How completely the selected backend enforces the policy's file effects. */
