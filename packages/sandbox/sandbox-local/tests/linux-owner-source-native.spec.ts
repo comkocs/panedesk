@@ -1,7 +1,7 @@
 /** Real Linux owner admission through product confinement and socket attribution. */
 import { spawnSync } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync, writeSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, rmdirSync, statSync, writeSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
 import { connect, createServer as createTcpServer, type Socket } from 'node:net'
@@ -19,7 +19,10 @@ import { LINUX_SOURCE_LIMITATION } from '../../../subprocess/subprocess-local/sr
 
 const replay = `import sys,json,urllib.request,urllib.error,os,time
 p=json.load(sys.stdin)
-if len(sys.argv)>1:
+mode=sys.argv[1] if len(sys.argv)>1 else ''
+if mode=='nested':
+ print('userns='+os.readlink('/proc/self/ns/user')+' uid_map='+' '.join(open('/proc/self/uid_map').read().split()),flush=True)
+if mode=='orphan':
  first=os.fork()
  if first: os.waitpid(first,0); sys.exit(0)
  os.setsid()
@@ -197,7 +200,7 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
         }
         const migrating = name === 'landlock-subgroup-migration'
         const argv = ['/usr/bin/python3', '-I', '-c', migrating ? migration : replay,
-          ...name === 'landlock-double-fork' ? ['orphan'] : []]
+          ...name === 'landlock-double-fork' ? ['orphan'] : name === 'nested-user-pid' ? ['nested'] : []]
         if (name === 'nested-user-pid') argv.unshift(unshare, '--user', '--map-root-user', '--pid', '--fork')
         const prepared = confined ? await sandbox.confine(argv, { mode: 'workspace-write', workspaceRoot: workspace }) : { argv, productSandbox: undefined }
         const handle = subprocess.spawn({
@@ -241,6 +244,13 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
           if (confined) expect(prepared.productSandbox).toBe(true)
           if (migrating) {
             expect(output.split('\n').slice(1)).toEqual(['parent: denied errno=13', 'self: denied errno=13', 'sibling: denied errno=13', ''])
+          } else if (name === 'nested-user-pid') {
+            // A denial only counts after the replay proves it entered a fresh user namespace.
+            const evidence = /^userns=(user:\[\d+\]) uid_map=0 (\d+) 1\n/.exec(output)
+            expect(evidence).not.toBeNull()
+            expect(evidence![1]).not.toBe(readlinkSync('/proc/self/ns/user'))
+            expect(evidence![2]).toBe(String(process.getuid?.()))
+            expect(output.slice(evidence![0].length)).toBe('status=403 principal=denied\n')
           } else {
             expect(output).toBe(`${name === 'landlock-double-fork' ? 'ppid=1\n' : ''}status=${confined ? '403 principal=denied' : '200 principal=owner'}\n`)
           }
