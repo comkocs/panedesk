@@ -347,7 +347,9 @@ describe('session search admission', () => {
       expect(argv[0]).toBe('bwrap')
       expect(argv).toContain('--new-session')
       expect(argv.join('\n')).toContain(['--tmpfs', join(home, 'private'), '--remount-ro', join(home, 'private')].join('\n'))
-      expect(argv.indexOf('--tmpfs')).toBeGreaterThan(argv.lastIndexOf('--bind'))
+      const ownerMask = argv.indexOf(join(home, 'private')) - 1
+      expect(argv[ownerMask]).toBe('--tmpfs')
+      expect(ownerMask).toBeGreaterThan(argv.lastIndexOf('--bind'))
     }
     setSandboxMode(caller.session, 'danger-full-access')
     const result = await call(ctx, name, { pattern: '*' }, { agent: caller })

@@ -38,6 +38,17 @@ Owner-installed MCP servers and providers run with their own capabilities, outsi
 | Linux | bubblewrap (`bwrap`), with Landlock as fallback. | Defaults to workspace-write for workspace and temporary roots; explicit mode selection overrides it. | Enabled, using the configured Bash or `bash` on PATH. | Missing or unusable bubblewrap tries Landlock; no usable runner or insufficient protected-input enforcement means refusal, never unconfined execution. Older Landlock ABIs may provide partial confinement. Native Node/workflow process tests require `PANEDESK_CI_NATIVE_SANDBOX=required`; otherwise they skip with a reason. Not every kernel configuration has been validated; the persistent pwsh terminal is unavailable under the native sandbox (no output reaches the reader; calls time out). |
 | macOS | Seatbelt through `sandbox-exec`. | Defaults to workspace-write for workspace and temporary roots; explicit mode selection overrides it. | Enabled, using the configured Bash or `bash` on PATH. | Paths are normalized on the host. Seatbelt does not hide host processes; platform-injected regressions do not constitute native macOS validation. |
 
+<a id="sandbox-session-isolation-and-limitations"></a>
+## Sandbox session isolation and limitations
+
+Bubblewrap gives both confined modes a private `/tmp` and masks host tmux, screen, session-bus, X11 and Wayland socket directories, including explicit runtime-directory overrides. Tools requiring these host sessions are unavailable inside that sandbox; ordinary temporary files use the private tmpfs. macOS Seatbelt denies outbound UNIX sockets under temporary and configured session directories; native macOS validation remains outstanding. See [runner details](packages/sandbox/sandbox-local/README.md#known-limitations-and-deferred-work).
+
+Linux runners apply Landlock abstract-UNIX socket scope on kernels with ABI 6 or later. Without that scope, abstract sockets remain reachable: on an X11 desktop a sandbox process may inject keys into other windows. Startup is not refused for this limitation. Sandbox network namespaces plus user-space networking are required before the M9 stable release.
+
+Landlock-only machines cannot hide pathname session sockets. If conventional user tmux, screen or session-bus locations exist, command startup warns in English and Chinese but does not refuse execution or change its exit code. Such sessions can execute commands outside confinement; run them under a separate user account. Sandbox network namespaces plus user-space networking are required before the M9 stable release.
+
+Loopback networking is unrestricted. If local sshd accepts an available private key, `ssh localhost` can escape the sandbox. `~/.ssh` is not masked, preserving SSH-based Git pushes. Local loopback restrictions are required before the M9 stable release. These limits also mean session isolation is not a general sandbox-network guarantee; explicit full-access execution remains unchanged.
+
 ## What changed from DSH
 
 - **Slim by default.** The default `slim` preset provides the headless core, context compaction, large-output spill, the tool-call timeout guard and `AGENTS.md` loading. The [generated preset table](docs/panedesk/architecture.md) owns the current row counts and membership.

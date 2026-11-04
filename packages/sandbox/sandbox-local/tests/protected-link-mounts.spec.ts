@@ -6,6 +6,7 @@ import { coveredContext } from './host-coverage-fixture.ts'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
+import { sessionSocketDirectories } from '../src/session-sockets.ts'
 
 function mountDestinations(argv: readonly string[]): { kind: string; path: string }[] {
   const mounts: { kind: string; path: string }[] = []
@@ -119,7 +120,9 @@ it('leaves external linked targets under the read-only root without an alias mou
   const handed = await provider.confine(['true'], { mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [alias] })
   expect(mountDestinations(handed.argv)).toEqual([
     { kind: '--ro-bind', path: '/' }, { kind: '--dev', path: '/dev' }, { kind: '--proc', path: '/proc' },
+    { kind: '--tmpfs', path: '/tmp' },
     { kind: '--bind', path: workspace },
+    ...sessionSocketDirectories().map(path => ({ kind: '--tmpfs', path })),
     { kind: '--tmpfs', path: join(ctx.profileContext.home, 'private') },
     { kind: '--remount-ro', path: join(ctx.profileContext.home, 'private') },
   ])

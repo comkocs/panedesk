@@ -100,6 +100,15 @@ export function grantArgs(grants: LauncherGrants): string[] {
 }
 
 /**
+ * Optional abstract-UNIX scope for a process already confined by mounts.
+ * Older kernels execute the command without this scope; filesystem policy is unchanged.
+ * @returns Launcher arguments before the command separator.
+ */
+export function scopeOnlyArgs(): string[] {
+  return ['--scope-only']
+}
+
+/**
  * Functional probe: `landlock-run --probe` builds and enforces a maximal
  * ruleset in a short-lived child and exits 0 only when the running kernel
  * actually enforces it — `--version`-style checks would miss a kernel that

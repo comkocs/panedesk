@@ -15,6 +15,7 @@ import {
   grantArgs,
   launcherPath,
   probe,
+  scopeOnlyArgs,
 } from '@panedesk/node-addon-system/landlock-run';
 
 await assert.rejects(import('@panedesk/node-addon-system'), {
@@ -26,6 +27,7 @@ assert.equal(LAUNCHER_BIN, 'landlock-run');
 assert.equal(LAUNCHER_FAILURE_EXIT, 125);
 
 // --- grantArgs: flag spelling, ordering, and empty grants ---
+assert.deepEqual(scopeOnlyArgs(), ['--scope-only']);
 assert.deepEqual(grantArgs({}), []);
 assert.deepEqual(grantArgs({ readOnly: ['/'] }), ['--ro', '/']);
 assert.deepEqual(

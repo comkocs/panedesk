@@ -18,7 +18,7 @@ Use the Linux `landlock-run` executable to confine subprocesses, or the `./flock
 
 ## Use
 
-`@panedesk/node-addon-system/landlock-run` exports `launcherPath`, `probe`, and `grantArgs` for Landlock. Its executable name, flags, and failure semantics are defined by the [CLI contract](docs/cli-contract.md). Missing or inaccessible grant paths are omitted without granting their ancestors; other rule failures still prevent execution.
+`@panedesk/node-addon-system/landlock-run` exports `launcherPath`, `probe`, `grantArgs`, and `scopeOnlyArgs` for Landlock. Both launcher modes isolate abstract UNIX sockets on ABI 6 or later; older kernels omit that optional scope without refusing startup. `scopeOnlyArgs` is for commands already confined by mounts and adds no filesystem restrictions. Its executable name, flags, and failure semantics are defined by the [CLI contract](docs/cli-contract.md). Missing or inaccessible grant paths are omitted without granting their ancestors; other rule failures still prevent execution.
 
 The [flock behavior contract](docs/flock-contract.md) maps descriptor, process, and advisory-lock semantics to independent native tests.
 

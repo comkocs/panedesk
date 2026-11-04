@@ -14,13 +14,17 @@
  *
  *   landlock-run [--ro <path>]... [--rw <path>]... -- <argv>...
  *   landlock-run --probe
+ *   landlock-run --scope-only -- <argv>...
  *
  * `--ro` grants read+execute beneath the path; `--rw` grants full filesystem
  * access beneath the path. Everything else is denied (Landlock is an
  * allow-list). `--probe` builds a maximal ruleset and reports whether the
  * running kernel actually enforces it — the executor's functional probe.
  *
- * Fail-closed: if the ruleset cannot be created or is NOT enforced by the
+ * `--scope-only` adds only abstract UNIX socket isolation where ABI >= 6;
+ * older kernels execute without this optional scope or filesystem rules.
+ *
+ * Filesystem fail-closed: if the ruleset cannot be created or is NOT enforced by the
  * kernel, the launcher exits non-zero WITHOUT exec'ing the command. A partial
  * (best-effort) enforcement on an older ABI is accepted and reported on
  * stderr; the consumer's mode vocabulary keeps its file-effect promises
@@ -57,7 +61,11 @@
  */
 struct landlock_ruleset_attr {
   uint64_t handled_access_fs;
+  uint64_t handled_access_net;
+  uint64_t scoped;
 };
+
+#define LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET (UINT64_C(1) << 0) /* ABI 6 */
 
 struct landlock_path_beneath_attr {
   uint64_t allowed_access;
@@ -132,6 +140,7 @@ static int fail_usage(const char *message, const char *detail) {
 /* Parsed CLI: either a probe, or grants plus the command argv after `--`. */
 struct cli {
   int probe;
+  int scope_only;
   const char **ro;
   size_t ro_count;
   const char **rw;
@@ -158,6 +167,9 @@ static int parse(int argc, char **argv, struct cli *cli) {
       }
       cli->probe = 1;
       index += 1;
+    } else if (strcmp(arg, "--scope-only") == 0) {
+      cli->scope_only = 1;
+      index += 1;
     } else if (strcmp(arg, "--ro") == 0 || strcmp(arg, "--rw") == 0) {
       if (index + 1 >= argc) {
         return fail_usage(arg, " requires a path");
@@ -174,6 +186,9 @@ static int parse(int argc, char **argv, struct cli *cli) {
     } else {
       return fail_usage("unknown argument: ", arg);
     }
+  }
+  if (cli->scope_only && (cli->ro_count != 0 || cli->rw_count != 0)) {
+    return fail_usage("--scope-only cannot accompany filesystem grants", NULL);
   }
   if (!cli->probe && (cli->command == NULL || cli->command[0] == NULL)) {
     return fail_usage("missing `-- <argv>...` command", NULL);
@@ -229,15 +244,19 @@ static int add_rule(int ruleset_fd, const char *path, uint64_t access) {
  */
 static int restrict_self(const struct cli *cli, int *partial) {
   long abi = syscall(__NR_landlock_create_ruleset, NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+  /* Mount confinement remains available when this optional IPC scope is absent. */
+  if (cli->scope_only && abi < 6) return 0;
   if (abi < 0) {
-    /* ENOSYS: kernel built without Landlock; EOPNOTSUPP: built but disabled.
-     * Either way: not enforceable — fail CLOSED, never exec unconfined. */
+    /* Filesystem confinement still fails closed without Landlock. */
     return fail(NOT_ENFORCED_MESSAGE, NULL);
   }
-  *partial = abi < MAX_ABI;
-  uint64_t handled = fs_mask_for_abi(abi < MAX_ABI ? abi : MAX_ABI);
+  *partial = !cli->scope_only && abi < MAX_ABI;
+  uint64_t handled = cli->scope_only ? 0 : fs_mask_for_abi(abi < MAX_ABI ? abi : MAX_ABI);
 
-  struct landlock_ruleset_attr attr = { .handled_access_fs = handled };
+  struct landlock_ruleset_attr attr = {
+    .handled_access_fs = handled,
+    .scoped = abi >= 6 ? LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET : 0,
+  };
   int ruleset_fd = (int)syscall(__NR_landlock_create_ruleset, &attr, sizeof attr, 0);
   if (ruleset_fd < 0) return fail("landlock ruleset error", strerror(errno));
 

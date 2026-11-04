@@ -7,6 +7,7 @@ This file pins the launcher's externally observable behavior — the cross-repo 
 ```text
 landlock-run [--ro <path>]... [--rw <path>]... -- <argv>...
 landlock-run --probe
+landlock-run --scope-only -- <argv>...
 ```
 
 - `--ro <path>`: grant read + execute beneath `<path>`.
@@ -15,6 +16,7 @@ landlock-run --probe
 - A grant on a non-directory keeps only its file-compatible access bits (this is how a `--rw /dev/null` grant works).
 - `--`: mandatory separator; everything after it is the command argv, exec'd via `execvp` with the launcher's environment unchanged.
 - `--probe`: mutually exclusive with grants and a command.
+- `--scope-only`: apply abstract-UNIX socket scope without filesystem rules, for a command already confined by a mount namespace. ABI below 6 or unavailable Landlock leaves this optional scope unapplied and still executes the command. Filesystem grants cannot accompany this mode.
 - No other flags, no environment-variable inputs.
 
 ## Exit codes
@@ -31,4 +33,4 @@ landlock-run --probe
 
 ## Confinement semantics
 
-The launcher sets `no_new_privs`, installs the ruleset on itself, and `exec`s the command; the ruleset is inherited across `execve`, so every descendant process is equally confined. The ruleset governs the filesystem accesses of the kernel's negotiated Landlock ABI (up to ABI 5); accesses newer than the running ABI are not governed and are the difference between `full` and `partial`.
+The launcher sets `no_new_privs`, installs the ruleset on itself, and `exec`s the command; the ruleset is inherited across `execve`, so every descendant process is equally confined. The ruleset governs the filesystem accesses of the kernel's negotiated Landlock ABI (up to ABI 5); accesses newer than the running ABI are not governed and are the difference between `full` and `partial`. On ABI 6 or later, both invocation modes additionally set `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`, preventing connections to abstract UNIX sockets outside the resulting domain. Older kernels omit this scope without refusing startup. Pathname UNIX sockets and TCP networking remain outside this scope; filesystem enforcement reports retain their existing meaning.

@@ -18,7 +18,7 @@ kind: "package-library"
 
 ## Use
 
-`@panedesk/node-addon-system/landlock-run` 为 Landlock 导出 `launcherPath`、`probe` 和 `grantArgs`。其可执行文件名、参数和失败语义由 [CLI 约定](docs/cli-contract.md) 定义。缺失或无权访问的授权路径会被省略，不改为授权其上级；其他规则失败仍阻止执行。
+`@panedesk/node-addon-system/landlock-run` 为 Landlock 导出 `launcherPath`、`probe`、`grantArgs` 和 `scopeOnlyArgs`。两种启动器模式在 ABI 6 及以上隔离抽象 UNIX 套接字；旧内核省略该可选 scope，不因此拒起。`scopeOnlyArgs` 用于已由挂载隔离的命令，不增加文件系统限制。其可执行文件名、参数和失败语义由 [CLI 约定](docs/cli-contract.md) 定义。缺失或无权访问的授权路径会被省略，不改为授权其上级；其他规则失败仍阻止执行。
 
 [flock 行为约定](docs/flock-contract.md) 将描述符、进程和咨询式锁语义对应到独立原生测试。
 

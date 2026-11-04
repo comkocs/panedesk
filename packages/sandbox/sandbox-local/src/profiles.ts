@@ -9,6 +9,7 @@ import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertOwnerWorkspace, assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, protectedWorkspaceBranches, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
+import { sessionEnvironmentArgs, sessionSocketDirectories } from './session-sockets.ts'
 
 /** Test containment after callers have canonicalized both paths. */
 function contains(root: string, path: string): boolean {
@@ -72,14 +73,15 @@ function mountPath(path: string): string | undefined {
  */
 export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   const owners = ownerDirectories(policy)
-  const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session']
+  const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session', '--tmpfs', '/tmp']
+  if (policy.mode === 'read-only' && contains('/tmp', canonicalPath(policy.workspaceRoot)) && canonicalPath(policy.workspaceRoot) !== '/tmp') {
+    const workspace = canonicalPath(policy.workspaceRoot)
+    args.push('--ro-bind', workspace, workspace)
+  }
   if (policy.mode === 'workspace-write') {
     const workspace = canonicalPath(policy.workspaceRoot)
     const protectedPaths = [...policy.protectedPaths ?? [], ...protectedWorkspaceBranches(workspace, owners)]
     const canonical = protectedPaths.map(mountPath).filter(path => path !== undefined)
-    const temporary = ![...protectedPaths.map(path => resolve(path)), ...canonical]
-      .some(path => contains('/tmp', path) || contains(path, '/tmp'))
-    if (temporary) args.push('--tmpfs', '/tmp')
     args.push('--bind', workspace, workspace)
     const paths = [...new Set(canonical.flatMap(path => contains(path, workspace) ? [workspace] : contains(workspace, path) ? [path] : []))]
       .sort((a, b) => a.length - b.length)
@@ -90,7 +92,12 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
       args.push('--bind', parent, parent)
     }
     for (const path of paths) args.push('--ro-bind', path, path)
+    // Apply after protected mounts too: an ancestor bind can restore host /tmp.
+    if (contains(workspace, '/tmp')) args.push('--tmpfs', '/tmp')
   }
+  // Apply session masks after workspace and protected-input mounts so none can reopen them.
+  for (const path of sessionSocketDirectories()) args.push('--perms', '0700', '--tmpfs', path)
+  args.push(...sessionEnvironmentArgs())
   for (const path of owners) {
     if (statSync(path).isDirectory()) args.push('--perms', '000', '--tmpfs', path, '--remount-ro', path)
     else args.push('--ro-bind', '/dev/null', path)
@@ -217,6 +224,13 @@ export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   }
   for (const path of owners) {
     forms.push(`(deny file-read* (subpath ${sbplString(path)}))`)
+  }
+  const sessionRoots = [...new Set(['/tmp', '/private/tmp', process.env.TMPDIR,
+    process.env.TMUX_TMPDIR, process.env.XDG_RUNTIME_DIR]
+    .filter((path): path is string => path !== undefined && isAbsolute(path))
+    .flatMap(path => [resolve(path), canonicalPath(path)]))]
+  for (const path of sessionRoots) {
+    forms.push(`(deny network-outbound (remote unix-socket (path-prefix ${sbplString(`${path}/`)})))`)
   }
   return ['-p', forms.join(' ')]
 }

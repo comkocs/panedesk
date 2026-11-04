@@ -30,6 +30,7 @@ import {
   LAUNCHER_BIN,
   LAUNCHER_FAILURE_EXIT,
   launcherPath as landlockLauncherPath,
+  scopeOnlyArgs,
   probe as defaultProbeLandlock,
 } from '@panedesk/node-addon-system/landlock-run'
 import { Context } from '@panedesk/cordis'
@@ -44,6 +45,7 @@ import { WorkspaceWriteAccess, resolveOwnerMaterialPaths, resolveProtectedPaths 
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { bwrapProfileArgs, landlockProfileArgs, ownerDirectories, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
 import { protectAclInputs } from './protected-acl.ts'
+import { hasHostSessionSockets } from './session-sockets.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
 export interface Config {
@@ -354,7 +356,9 @@ export class LocalSandboxProvider extends SandboxProvider {
       enforcement: selected.enforcement,
       protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
-      runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
+      runnerFailureRules: selected.runner === 'bwrap'
+        ? [...RUNNER_FAILURE_RULES.bwrap, ...RUNNER_FAILURE_RULES.landlock]
+        : RUNNER_FAILURE_RULES[selected.runner],
     })
   }
 
@@ -464,8 +468,13 @@ export class LocalSandboxProvider extends SandboxProvider {
   /** The selected rung's runner invocation (program + profile arguments) for one policy. */
   private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy): string[] {
     switch (runner) {
-      case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy)]
-      case 'landlock': return [this.landlockLauncher(), ...landlockProfileArgs(policy)]
+      case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy), '--', this.landlockLauncher(), ...scopeOnlyArgs()]
+      case 'landlock': {
+        if (hasHostSessionSockets()) {
+          this.ctx.logger.warn('Landlock-only sandbox processes may connect to host tmux, screen or session bus sockets and run host commands; use separate user accounts. / 仅用 Landlock 的沙箱仍可能连接宿主 tmux、screen 或会话总线并执行宿主命令；建议分用户运行。')
+        }
+        return [this.landlockLauncher(), ...landlockProfileArgs(policy)]
+      }
       case 'seatbelt': return [this.seatbeltExec(), ...seatbeltProfileArgs(policy)]
       case 'windows-acl': return this.windowsAclRunnerArgv(policy)
       default: return assertNever(runner)

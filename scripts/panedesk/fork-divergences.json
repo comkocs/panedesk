@@ -1,6 +1,45 @@
 {
   "divergences": [
     {
+      "id": "sandbox-host-session-socket-isolation",
+      "description": "Hide conventional host session sockets and scope abstract UNIX connections",
+      "origin": "Local sandbox session isolation",
+      "reason": "Give both bubblewrap modes private temporary and runtime directories, clear host session-routing variables, and apply optional Landlock abstract UNIX scope inside both Linux runners. Warn without refusing Landlock-only pathname access and deny temporary session socket connections in Seatbelt profiles. Preserve exact consumer assertions for hidden host inputs, document platform limitations and migration, and version the matching native launcher family. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/README.i18n.yaml",
+          "native/system/docs/cli-contract.md",
+          "native/system/docs/release-notes.md",
+          "native/system/package.json",
+          "native/system/packages/*/package.json",
+          "native/system/packages/entry/src/index.ts",
+          "native/system/packages/entry/src/main.c",
+          "native/system/test/entry.test.js",
+          "native/system/test/launcher.test.js",
+          "packages/sandbox/sandbox-local/src/index.ts",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/src/session-sockets.ts",
+          "packages/sandbox/sandbox-local/tests/local.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
+          "packages/sandbox/sandbox-local/tests/session-sockets.spec.ts",
+          "packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts",
+          "packages/sandbox/sandbox-local/tests/session-warning.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "packages/boot/plugin-manager/tests/native-profile-capture.ts",
+          "packages/fs/tool-fs-search/tests/tools.spec.ts",
+          "docs/upgrade-guide/v0.2.1-rc.2/sandbox-session-sockets/*"
+        ]
+      }
+    },
+    {
       "id": "windows-web-owner-login-guidance",
       "description": "Document explicit Windows Web login consent and its revocation",
       "origin": "Owner authentication documentation",

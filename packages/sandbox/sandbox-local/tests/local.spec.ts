@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
-import { LAUNCHER_FAILURE_EXIT } from '@panedesk/node-addon-system/landlock-run'
+import { LAUNCHER_FAILURE_EXIT, launcherPath } from '@panedesk/node-addon-system/landlock-run'
 import { SANDBOX_UNAVAILABLE, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import {
@@ -22,6 +22,7 @@ import {
 } from '@panedesk/dsh-sandbox-local'
 import type { Config } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from '../src/profiles.ts'
+import { sessionEnvironmentArgs, sessionSocketDirectories } from '../src/session-sockets.ts'
 
 vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
@@ -36,6 +37,8 @@ beforeEach(() => {
   const home = mkdtempSync(join(tmpdir(), 'sandbox-owner-'))
   tempDirs.push(home)
   vi.stubEnv('PANEDESK_HOME', home)
+  vi.stubEnv('TMUX_TMPDIR', '')
+  vi.stubEnv('XDG_RUNTIME_DIR', '')
   ownerState = join(home, 'windows-workspace-write')
   ownerPrivate = join(home, 'private')
 })
@@ -84,16 +87,20 @@ function fakeSeatbeltExec(status: number): string {
 
 /** The seatbelt read-only profile — every seatbelt profile starts with these forms. */
 const SEATBELT_RO_PROFILE = '(version 1) (allow default) (deny file-write*) (allow file-write* (literal "/dev/null"))'
+const SEATBELT_SESSIONS = [...new Set(['/tmp', '/private/tmp', ...process.env.TMPDIR ? [process.env.TMPDIR, realpathSync(process.env.TMPDIR)] : []])]
+  .map(path => `(deny network-outbound (remote unix-socket (path-prefix "${path}/")))`).join(' ')
 
 describe('profile dialects', () => {
   it('bwrap read-only: whole tree read-only with fresh /dev and private PID-scoped /proc, no writable mounts', () => {
-    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session'])
+    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session', '--tmpfs', '/tmp',
+      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]), ...sessionEnvironmentArgs()])
   })
 
   it('bwrap workspace-write: adds an ephemeral /tmp and rebinds the workspace root', () => {
     expect(bwrapProfileArgs(WW)).toEqual([
       '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session',
       '--tmpfs', '/tmp', '--bind', '/ws', '/ws',
+      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]), ...sessionEnvironmentArgs(),
     ])
   })
 
@@ -127,7 +134,7 @@ describe('profile dialects', () => {
   })
 
   it('seatbelt read-only: allow-default with every file write denied except the /dev/null literal', () => {
-    expect(seatbeltProfileArgs(RO)).toEqual(['-p', SEATBELT_RO_PROFILE])
+    expect(seatbeltProfileArgs(RO)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${SEATBELT_SESSIONS}`])
   })
 
   it('seatbelt workspace-write: one more allow for the canonicalized workspace root, /tmp, and the user temp dir', () => {
@@ -138,7 +145,7 @@ describe('profile dialects', () => {
     // where they resolve to the same directory.
     const roots = [...new Set(['/ws', realpathSync('/tmp'), realpathSync(tmpdir())])]
     const allow = `(allow file-write* ${roots.map(root => `(subpath "${root}")`).join(' ')})`
-    expect(seatbeltProfileArgs(WW)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow}`])
+    expect(seatbeltProfileArgs(WW)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow} ${SEATBELT_SESSIONS}`])
   })
 
   it('seatbelt workspace-write dedups a workspace root that already IS the temp dir', () => {
@@ -209,11 +216,14 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: ['bwrap', ...bwrapProfileArgs({ ...RO, unreadablePaths: [ownerPrivate] }), '--', 'true'],
+      argv: ['bwrap', ...bwrapProfileArgs({ ...RO, unreadablePaths: [ownerPrivate] }), '--', launcherPath(), '--scope-only', '--', 'true'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['read-only file system'],
-      runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }],
+      runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }, {
+        allowedExitCodes: [LAUNCHER_FAILURE_EXIT], fatalSignatures: ['landlock-run: '],
+        informationalLines: ['landlock-run: partial enforcement (older Landlock ABI)'],
+      }],
     })
     expect(probeLandlock).not.toHaveBeenCalled()
   })
@@ -223,13 +233,20 @@ describe('the platform chains', () => {
     const probeLandlock = vi.fn(() => 'full' as const)
     const launcher = fakeLauncher()
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
-    const directories = vi.spyOn(fs, 'readdirSync')
+    // Reuse each directory's first listing across validation, argv generation,
+    // and comparison: unrelated workers can change shared temp between them.
+    const readDirectory = fs.readdirSync
+    const entries = new Map<string, ReturnType<typeof fs.readdirSync>>()
+    const directories = vi.spyOn(fs, 'readdirSync').mockImplementation((...args) => {
+      const key = JSON.stringify(args)
+      let listing = entries.get(key)
+      if (!listing) {
+        listing = readDirectory(...args)
+        entries.set(key, listing)
+      }
+      return listing
+    })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
-    // Reuse this traversal's entries: unrelated workers can change shared temp between comparisons.
-    for (const result of [...directories.mock.results]) {
-      if (result.type !== 'return') throw new Error('Directory enumeration failed')
-      directories.mockImplementationOnce(() => result.value)
-    }
     expect(confined).toEqual({
       argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',

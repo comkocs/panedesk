@@ -52,7 +52,7 @@ kind: "package-reference"
 
 挂载提供方后，命令在你逐调用解析的模式下运行。强制执行是报告的事实，而非承诺：`full` 表示后端管辖模式承诺的每个文件操作，`partial` 表示它只管辖子集——Windows ACL 档（硬链接、读取不受限与 AppContainer ACL 边界）与较旧的 Landlock ABI 是当前的部分强制执行情形，因此需要绝对边界的消费方可以拒绝或向上暴露它们。被拒绝的文件操作通过后端的拒绝方言呈现，执行命令前失败的 runner 会报告结构化的 runner 失败签名。
 
-针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并，并按实际逐调用工作区解析状态排除项。Linux 和 macOS 由宿主预建嵌套状态目录，排除工作区根下通向其规范位置的第一级目录。Bubblewrap 将可写工作区内的规范保护目标覆盖为只读，不向符号链接名称挂载；外部目标仍由只读根保护。它省略缺失的挂载目的地，并绑定现存中间目录以防改名而不禁止同级文件写入。返回的 `protectedInputs` 记录逐项标明 `native` 或 `host-fallback`；无法表达的路径使用原因 `unrepresentable`，可替换的链接名称使用 `link-name`。每条兜底记录都要求宿主已有 owner 批准的输入清单覆盖；缺少覆盖时，在返回可执行参数或物化写授权之前以 `SANDBOX_UNAVAILABLE` 拒绝。已覆盖的兜底输入保留所选后端的强制执行等级：bubblewrap 仍为 `full`，Windows 与旧版 Landlock 的限制仍为 `partial`。查询不建立基线或授予信任，兜底记录仍可见，不冒充原生保护。Seatbelt 允许工作区写入，显式拒绝保护输入写入，并拒绝解除中间目录链接。共享临时根与保护输入重叠时省略该写授权。Landlock 逐项授予工作区现存第一级条目写权，排除包含保护输入的分支；无法在工作区根下创建新条目。可写根之外的缺失输入仍由默认只读保护。Windows 授予工作区能力，并增加保护输入拒绝 ACE 及不继承的祖先删除拒绝；可写根内的缺失名称及重解析点替换还需宿主侧校验。外部名称及其规范目标均位于所有可写根之外时无需兜底覆盖。Windows 检查包括会话已有的私有临时目录，而非环境临时根；新的 runner 调用创建全新私有子目录，不授予该根写权。Bubblewrap 省略与保护输入重叠的临时挂载。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
+针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并，并按实际逐调用工作区解析状态排除项。Linux 和 macOS 由宿主预建嵌套状态目录，排除工作区根下通向其规范位置的第一级目录。Bubblewrap 将可写工作区内的规范保护目标覆盖为只读，不向符号链接名称挂载；外部目标仍由只读根保护。它省略缺失的挂载目的地，并绑定现存中间目录以防改名而不禁止同级文件写入。返回的 `protectedInputs` 记录逐项标明 `native` 或 `host-fallback`；无法表达的路径使用原因 `unrepresentable`，可替换的链接名称使用 `link-name`。每条兜底记录都要求宿主已有 owner 批准的输入清单覆盖；缺少覆盖时，在返回可执行参数或物化写授权之前以 `SANDBOX_UNAVAILABLE` 拒绝。已覆盖的兜底输入保留所选后端的强制执行等级：bubblewrap 仍为 `full`，Windows 与旧版 Landlock 的限制仍为 `partial`。查询不建立基线或授予信任，兜底记录仍可见，不冒充原生保护。Seatbelt 允许工作区写入，显式拒绝保护输入写入，并拒绝解除中间目录链接。共享临时根与保护输入重叠时省略该写授权。Landlock 逐项授予工作区现存第一级条目写权，排除包含保护输入的分支；无法在工作区根下创建新条目。可写根之外的缺失输入仍由默认只读保护。Windows 授予工作区能力，并增加保护输入拒绝 ACE 及不继承的祖先删除拒绝；可写根内的缺失名称及重解析点替换还需宿主侧校验。外部名称及其规范目标均位于所有可写根之外时无需兜底覆盖。Windows 检查包括会话已有的私有临时目录，而非环境临时根；新的 runner 调用创建全新私有子目录，不授予该根写权。即使宿主输入位于宿主临时根内，Bubblewrap 也使用私有临时挂载；会话隔离之后仍遮挡已登记的所有者目录。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
 
 受限执行还排除凭据提供方的私密目录及已登记的桌面所有者材料目录。Bubblewrap 在可写绑定之后遮挡整个目录并创建新会话；Seatbelt 拒绝目录读取；Landlock 授予可读兄弟树，而不授予所有者材料的祖先目录；消失、悬空或无权访问的兄弟项会被省略，不扩大访问权。调用启动器前会再次检查授权根，以兼容旧版二进制；原生回归使用宿主编译器编译当前检出的 C 源码，不依赖被忽略的发布产物。无法支持的别名及位于所有者目录内的工作区会拒绝隔离。所有者目录可以位于工作区内：bubblewrap 先将通向它的第一级分支绑定为只读再遮挡目录，Seatbelt 拒绝写入及解除祖先目录链接，Landlock 不授予该分支写权。Windows 允许只读启动，但拒绝覆盖所有者目录的写授权。Windows 对专用所有者目录设置持久 Medium 禁止向上读写标签，不标记桌面 userData。显式 full-access 执行保持不变。这些机制不覆盖登记存储之外的任意凭据副本。本地子进程执行器在独立 POSIX 会话中启动 Landlock 和 Seatbelt 命令，stdin 使用管道或忽略。原生终端注入回归针对宿主浏览器确认，对比生产 bubblewrap 参数与其他参数相同的未分离会话对照；对照要求内核允许传统 TIOCSTI。内核禁用该 ioctl 不能作为会话隔离证据。
 
@@ -82,7 +82,7 @@ kind: "package-reference"
 
 ### 平台 profile
 
-bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；`workspace-write` 另加可写工作区绑定挂载，并在不与保护输入重叠时增加临时的 `/tmp`。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
+bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；两种模式均使用私有临时 `/tmp`，`workspace-write` 另加可写工作区绑定挂载。会话遮挡位于工作区挂载之后：`/run/screen`、`/run/user/<uid>`、常规 tmux/X11 目录与规范化的 `TMUX_TMPDIR`/`XDG_RUNTIME_DIR` 覆盖值均不能暴露宿主会话套接字。会话目录遮挡优先于重叠工作区，会隐藏其内容；项目工作区应位于宿主会话目录之外。位于 `/tmp` 下的工作区会显式重新挂载，因此存于该工作区内的任意套接字不属于常规会话目录遮挡范围。会话指向环境变量被清除；`XDG_RUNTIME_DIR` 指向私有运行时目录，临时变量指向 `/tmp`。内置 bwrap runner 在自身命名空间内执行原生启动器，应用可选抽象 UNIX scope；Landlock-only 在 ABI 6 及以上应用相同 scope，但不声称隔离具名套接字路径。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
 
 `@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。
 
@@ -141,6 +141,7 @@ Windows 档为每个工作区保留一个确定性写入 SID 和常驻 ACE，同
 - **保护名称防替换尚未完整验证**——平台注入检查核对参数，不是原生修改结果。目标只读挂载不能证明符号链接名称不可替换。Windows 缺失名称和重解析点还需宿主加载校验，单靠 ACL 拒绝条目不足。Landlock 排除受保护的第一级分支；存在排除项时，无法允许在工作区根下新建条目。
 - **Windows ACL 只能实现部分强制执行**——NTFS 硬链接会使工作区路径与外部路径指向同一个文件对象，已登记所有者目录之外的读取仍不受限，且被其他 AppContainer 工具以包 SID 标记过的目录树对 Low 完整性子进程不可读。提供方报告 `enforcement: 'partial'`，而不会把该边界夸大为完整强制执行。
 - **Landlock 可能只实现部分强制执行**——较旧且受支持的内核 ABI 只能限制自身公开的访问类别，因此报告 `enforcement: 'partial'`，不会夸大为完整强制执行。
+- **宿主会话与网络**——临时／会话目录的 UNIX 套接字由 bwrap 隐藏或由 Seatbelt 拒绝，依赖宿主会话的工具因此不可用。Seatbelt 强制执行尚未在 Mac 实机验证。Landlock-only 仍可连接具名套接字，发现常规 tmux、screen 或会话总线落点时提示；分用户运行可缓解宿主命令执行风险。没有 ABI 6 的内核仍可连接抽象套接字，包括可能的 X11 按键注入。两种限制均不拒起。见[网络限制及发布要求](../../../README.zh.md#sandbox-session-isolation-and-limitations)，包括 `ssh localhost`。自定义 bwrap 兼容 runner 自行负责抽象套接字 scope。
 - **Seatbelt 依赖已弃用的 `sandbox-exec`**——macOS 仍会提供它，但若 Apple 移除该私有策略引擎，该提供方无法替换或探测。
 - **runner 选择在提供方生命周期内缓存**——安装、移除或修复 runner 后，必须重载插件才能改变选择。
 - **`runnerCommand` 是操作方断言**——配置的自定义 runner 会跳过功能探测，并假定它诚实实现与 bwrap 兼容的 profile；如果它本身是 Bash 脚本，其解释器启动发生在该脚本施加约束之前。

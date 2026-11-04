@@ -5,7 +5,8 @@
  *
  * Preconditions and their skip semantics:
  * - Non-Linux host: skips entirely (exit 0) — there is nothing to build here.
- * - Linux without the built binary: FAILS — run `pnpm build:native` first.
+ * - Linux without the built binary: FAILS — run `pnpm build:native` first,
+ *   or pass an explicit host-compiled launcher as the first positional argument.
  * - Linux whose kernel does not enforce Landlock: skips the enforcement
  *   half, unless `NALR_REQUIRE_LANDLOCK=1` (set on CI, where a silent skip on
  *   the very platform that exists to prove enforcement would be a false
@@ -33,7 +34,7 @@ if (process.platform !== 'linux') {
   process.exit(0);
 }
 
-const launcher = launcherPath();
+const launcher = process.argv[2] ?? launcherPath();
 assert.ok(
   fs.existsSync(launcher),
   `launcher.test: no built launcher at ${launcher} — run \`pnpm build:native\` (apt-get install musl-tools) first`,
@@ -64,6 +65,18 @@ const run = (args, options = {}) => spawnSync(launcher, args, { encoding: 'utf8'
     const probeWithExtras = run(args);
     assert.equal(probeWithExtras.status, LAUNCHER_FAILURE_EXIT);
     assert.match(probeWithExtras.stderr, /--probe takes no other arguments/);
+  }
+}
+
+// --- optional socket scope keeps commands available independently of filesystem support ---
+{
+  const scoped = run(['--scope-only', '--', '/bin/sh', '-c', 'exit 7']);
+  assert.equal(scoped.status, 7, scoped.stderr);
+  assert.equal(scoped.stderr, '');
+  for (const flag of ['--ro', '--rw']) {
+    const mixed = run(['--scope-only', flag, '/', '--', 'true']);
+    assert.equal(mixed.status, LAUNCHER_FAILURE_EXIT);
+    assert.match(mixed.stderr, /--scope-only cannot accompany filesystem grants/);
   }
 }
 

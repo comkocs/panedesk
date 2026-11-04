@@ -38,6 +38,17 @@ owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedes
 | Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。Linux 原生沙箱下 pwsh 持久终端不可用(读不到输出、会超时)。 |
 | macOS | 通过 `sandbox-exec` 使用 Seatbelt。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 路径由本机规范化。Seatbelt 不隐藏宿主进程；平台注入回归不等于 macOS 实机验收。 |
 
+<a id="sandbox-session-isolation-and-limitations"></a>
+## 沙箱会话隔离与限制
+
+Bubblewrap 在两种受限模式下均提供私有 `/tmp`，遮挡宿主 tmux、screen、会话总线、X11 与 Wayland 套接字目录，包括显式指定的运行时目录。依赖这些宿主会话的工具在该沙箱内不可用；普通临时文件使用私有 tmpfs。macOS Seatbelt 拒绝临时目录及配置的会话目录下的 UNIX 套接字出站连接；macOS 原生验收仍待实机。见 [runner 细节](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)。
+
+Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scope。没有该 scope 时，抽象套接字仍可达：在 X11 桌面上，沙箱进程可能向其他窗口注入按键。此限制不导致拒绝启动。M9 正式发布前补沙箱网络命名空间 + 用户态网络。
+
+仅有 Landlock 的机器无法遮挡具名会话套接字路径。若常规用户 tmux、screen 或会话总线落点存在，命令启动会给出中英提示，但不拦启动、不改退出码。这些会话可能在沙箱外执行命令；建议分用户运行。M9 正式发布前补沙箱网络命名空间 + 用户态网络。
+
+本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。M9 正式发布前补本机回环网络限制。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
+
 ## 相对 DSH 改了什么
 
 - **默认瘦身。** 默认的 `slim` 预设提供最小 headless 核心、上下文压缩、大输出溢出落盘、工具调用超时守卫和 `AGENTS.md` 加载。当前插件行数与归属以[生成的预设表](docs/panedesk/architecture.zh.md)为准。

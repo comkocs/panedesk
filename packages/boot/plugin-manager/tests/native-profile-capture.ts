@@ -55,7 +55,10 @@ export function assertNativeProfile(
         continue
       }
       const covering = mounts.filter(mount => root === mount.path || root.startsWith(`${mount.path === '/' ? '' : mount.path}/`))
-      expect(covering.at(-1), `writable mount covers ${root}`).toMatchObject({ kind: '--ro-bind' })
+      if (canonicalPath(root).startsWith('/tmp/') && !rootsOverlap(workspace, root)) {
+        // The private temporary root hides these host inputs rather than rebinding them.
+        expect(covering.at(-1), `host temporary input exposed: ${root}`).toEqual({ kind: '--tmpfs', path: '/tmp' })
+      } else expect(covering.at(-1), `writable mount covers ${root}`).toMatchObject({ kind: '--ro-bind' })
     }
     const ordinary = join(workspace, 'ordinary-output.txt')
     const covering = mounts.filter(mount => ordinary === mount.path || ordinary.startsWith(`${mount.path === '/' ? '' : mount.path}/`))
