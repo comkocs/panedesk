@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "ssh-product-confinement-forwarding",
+      "description": "Preserve remote product confinement facts across SSH execution",
+      "origin": "Owner authentication isolation",
+      "reason": "Accept true, false and omitted productSandbox wire facts without weakening strict validation, carry positive facts through ordinary and terminal preparation to the remote managed subprocess provider, and document remote registration ownership and the independent remote gateway limitation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/ssh/sandbox-ssh/src/index.ts", "packages/ssh/sandbox-ssh/tests/provider.spec.ts",
+          "packages/ssh/ssh/src/schemas.ts", "packages/ssh/ssh/src/helper-processes.ts",
+          "packages/ssh/ssh/tests/helper-processes.spec.ts", "packages/ssh/ssh/README*",
+          "packages/ssh/subprocess-ssh/src/index.ts", "packages/ssh/subprocess-ssh/tests/terminal-behavior.spec.ts",
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*"
+        ]
+      }
+    },
+    {
       "id": "linux-product-socket-admission",
       "description": "Register Linux product cgroups before executing confined commands",
       "origin": "Owner authentication isolation",

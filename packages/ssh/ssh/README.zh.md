@@ -67,6 +67,8 @@ OpenSSH 主连接承载私有管理 RPC。每条程序流使用独立转发的 U
 
 对受限写入，经过认证的 helper 报告实际 OpenSSH 服务端地址。回环、本机接口地址及等价的 IPv4 映射 IPv6 地址保留调用宿主当前的保护输入；不按别名拼写判断本机。本机状态排除项使用请求的实际可写工作区，而非部署回退根目录。远端不接收本机保护路径。未报告地址的 helper 保守保留本机排除项。不支持 Windows 端点及 Windows 目录授权；消费方仍在 RPC 前执行原有权限与审批检查。
 
+SSH 隔离将 `productSandbox` 经普通进程与终端请求传给远端本地子进程提供方。Linux 委派可用时，`true` 请求远端产品 cgroup 登记；`false` 和省略均不请求产品登记。登记属于 helper 的远端生命周期，不属于调用 Host。远端回环通向远端机器，而非调用 Host 的网关；helper 不提供 owner 网关，此登记也不保护独立运行的远端 Host。请将这类 Host 部署在不同账户下，或限制其网络访问。helper 与客户端须一起升级，并验证匹配的摘要。
+
 连接会禁用 helper 的 SIGUSR1 调试器激活：脚本调用使用 `--disable-sigusr1`，可执行文件调用通过 `NODE_OPTIONS` 提供该标志。
 
 </details>

@@ -67,6 +67,8 @@ For terminals opting into shell activity observation, root exit retains the rese
 
 For confined writes, the authenticated helper reports the actual OpenSSH server address. Loopback, local interface addresses and equivalent IPv4-mapped IPv6 addresses retain the calling host's current protected inputs; alias spelling does not decide locality. Local state exclusions use the request's actual writable workspace, not the deployment fallback root. Remote endpoints receive no local protected paths. Helpers without an address conservatively retain local exclusions. Windows endpoints and Windows directory authorization are not supported; consumers retain their existing permission and approval checks before RPC.
 
+SSH confinement carries `productSandbox` through ordinary and terminal requests to the remote local-subprocess provider. `true` requests remote product-cgroup registration when Linux delegation is available; `false` and omission mean no product-registration request. Registration belongs to the helper's remote lifetime, not the calling Host. Remote loopback reaches the remote machine, not the calling Host's gateway; the helper exposes no owner gateway, and this registration does not protect an independently running remote Host. Deploy such a Host under a different account or restrict its network access. Upgrade the helper and client together and verify their matching digests.
+
 The connection disables the helper’s SIGUSR1 debugger activation: the script invocation uses `--disable-sigusr1`, and the executable invocation supplies that flag through `NODE_OPTIONS`.
 
 </details>
