@@ -135,15 +135,21 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
   const owners = ownerDirectories(policy).map(canonicalPath)
   const readOnly: string[] = []
   const visit = (path: string): void => {
-    const canonical = canonicalPath(path)
-    if (owners.some(owner => contains(owner, canonical))) return
-    if (!owners.some(owner => contains(canonical, owner))) {
-      readOnly.push(canonical)
-      return
-    }
-    for (const entry of readdirSync(canonical, { withFileTypes: true })) {
-      // Symlink targets receive their own grants; granting aliases can reopen a private ancestor.
-      if (!entry.isSymbolicLink()) visit(join(canonical, entry.name))
+    try {
+      const canonical = canonicalPath(path)
+      if (owners.some(owner => contains(owner, canonical))) return
+      if (!owners.some(owner => contains(canonical, owner))) {
+        readOnly.push(canonical)
+        return
+      }
+      for (const entry of readdirSync(canonical, { withFileTypes: true })) {
+        // Symlink targets receive their own grants; granting aliases can reopen a private ancestor.
+        if (!entry.isSymbolicLink()) visit(join(canonical, entry.name))
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw error
+      // An omitted sibling receives no grant, including when it disappears during enumeration.
     }
   }
   try { visit('/') } catch (error) {

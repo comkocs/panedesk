@@ -23,7 +23,8 @@ export const LAUNCHER_BIN = 'landlock-run'
 
 /**
  * The exit code for every launcher-level failure (usage error, unenforcing
- * kernel, unopenable grant root, failed exec). After a successful `exec`, the
+ * kernel, unexpected grant-root open errors, failed exec). Absent or inaccessible
+ * grant roots are omitted from the allow-list. After a successful `exec`, the
  * wrapped command may also return 125, so consumers also require a matching
  * launcher-owned fatal diagnostic to attribute launcher failure. Part of the
  * CLI contract.

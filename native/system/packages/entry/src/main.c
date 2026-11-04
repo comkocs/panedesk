@@ -194,9 +194,9 @@ static uint64_t fs_mask_for_abi(long abi) {
 static int add_rule(int ruleset_fd, const char *path, uint64_t access) {
   int path_fd = open(path, O_PATH | O_CLOEXEC);
   if (path_fd < 0) {
-    /* Fail closed on an unopenable grant root: silently narrowing the
-     * granted set would be safe, but running with a profile the caller did
-     * not get is not worth the ambiguity. */
+    /* Enumeration races and inaccessible siblings only narrow this allow-list.
+     * Never replace a skipped grant with its parent. */
+    if (errno == ENOENT || errno == EACCES || errno == EPERM) return 0;
     fprintf(stderr, "landlock-run: cannot open rule path: %s: %s\n", path, strerror(errno));
     return EXIT_LAUNCHER_FAILURE;
   }

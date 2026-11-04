@@ -124,14 +124,21 @@ const expectedNotice = enforcement === 'partial' ? `${PARTIAL_NOTICE}\n` : '';
   fs.rmSync(work, { recursive: true, force: true });
 }
 
-// --- fail closed: an unopenable grant root refuses to exec at all ---
+// --- fail closed: errors other than absent or inaccessible grants refuse exec ---
 {
-  const marker = path.join(os.tmpdir(), `nalr-should-not-exist-${process.pid}`);
-  const badGrant = run(['--ro', '/no/such/grant/root', '--', '/bin/sh', '-c', `echo x > ${marker}`]);
-  assert.equal(badGrant.status, LAUNCHER_FAILURE_EXIT);
-  assert.ok(badGrant.stderr.startsWith(FATAL_PREFIX));
-  assert.match(badGrant.stderr, /cannot open rule path/);
-  assert.ok(!fs.existsSync(marker), 'the command must never run when the launcher fails');
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'nalr-invalid-grant-'));
+  try {
+    const marker = path.join(work, 'marker');
+    const loop = path.join(work, 'loop');
+    fs.symlinkSync(loop, loop);
+    const badGrant = run(['--ro', loop, '--', '/bin/sh', '-c', `echo x > ${marker}`]);
+    assert.equal(badGrant.status, LAUNCHER_FAILURE_EXIT);
+    assert.ok(badGrant.stderr.startsWith(FATAL_PREFIX));
+    assert.match(badGrant.stderr, /cannot open rule path/);
+    assert.ok(!fs.existsSync(marker), 'the command must never run when the launcher fails');
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
 }
 
 console.log('launcher.test: ok');

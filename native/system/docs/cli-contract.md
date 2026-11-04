@@ -11,7 +11,7 @@ landlock-run --probe
 
 - `--ro <path>`: grant read + execute beneath `<path>`.
 - `--rw <path>`: grant full filesystem access beneath `<path>` (every access the negotiated kernel ABI can govern).
-- Everything not granted is denied — Landlock rulesets are allow-lists.
+- Everything not granted is denied — Landlock rulesets are allow-lists. Missing paths (including dangling links) and paths inaccessible with `EACCES` or `EPERM` are omitted when opened; no ancestor grant is substituted. Callers must not independently grant an ancestor of a path they intend to exclude.
 - A grant on a non-directory keeps only its file-compatible access bits (this is how a `--rw /dev/null` grant works).
 - `--`: mandatory separator; everything after it is the command argv, exec'd via `execvp` with the launcher's environment unchanged.
 - `--probe`: mutually exclusive with grants and a command.
@@ -19,7 +19,7 @@ landlock-run --probe
 
 ## Exit codes
 
-- `125` (`LAUNCHER_FAILURE_EXIT`): every launcher-level failure — usage error, kernel that cannot enforce Landlock, unopenable grant root, failed `exec`. The wrapped command was NOT run.
+- `125` (`LAUNCHER_FAILURE_EXIT`): every launcher-level failure — usage error, kernel that cannot enforce Landlock, grant root open errors other than `ENOENT`/`EACCES`/`EPERM`, failed `exec`. The wrapped command was NOT run.
 - After a successful `exec`, every child status is passed through unchanged, including 125. Consumers therefore require both status 125 and a `landlock-run: ` fatal line to attribute launcher failure.
 - `--probe`: `0` when the kernel enforces (fully or partially), `125` otherwise.
 

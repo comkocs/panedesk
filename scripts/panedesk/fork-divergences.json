@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "landlock-unavailable-siblings",
+      "description": "Omit unavailable siblings from Landlock allow-lists",
+      "origin": "Local confinement reliability",
+      "reason": "Skip ENOENT, EACCES and EPERM during sibling enumeration and native rule opening without granting an ancestor. Exercise dangling, removed and inaccessible grants against the real launcher while retaining fatal rejection for other open failures. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "native/system/packages/entry/src/main.c",
+          "native/system/packages/entry/src/index.ts",
+          "native/system/test/launcher.test.js",
+          "native/system/docs/cli-contract.md",
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/README.i18n.yaml",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/tests/landlock-missing-siblings.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "owner-confirmation-ci-fixtures",
       "description": "Keep unrelated browser fixtures explicit about owner confirmation",
       "origin": "Owner confirmation CI regression repair",
