@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "owner-partition-welcome-fixture",
+      "description": "Supply the owner session partition in the welcome startup substitute",
+      "origin": "Desktop startup CI regression repair",
+      "reason": "Align the Electron session substitute with the existing nonpersistent owner partition so both welcome startup paths reach their original assertions. Product startup behavior and assertions remain unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": ["apps/desktop/tests/welcome-startup.spec.ts"]
+      }
+    },
+    {
       "id": "owner-material-ci-policy-fixtures",
       "description": "Synchronize exact owner-material policies and isolated test storage",
       "origin": "Owner material CI regression repair",

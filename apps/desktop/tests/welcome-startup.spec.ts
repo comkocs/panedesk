@@ -86,9 +86,10 @@ vi.mock('electron', () => ({
   },
   net: { fetch: vi.fn() },
   nativeTheme: state.nativeTheme,
-  session: { defaultSession: {
+  session: { fromPartition: vi.fn(() => ({
+    fetch: vi.fn(), protocol: { handle: vi.fn() },
     setPermissionCheckHandler: vi.fn(), setPermissionRequestHandler: vi.fn(), webRequest: { onBeforeSendHeaders: vi.fn() },
-  } },
+  })) },
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
   ipcMain: {
     handle: (name: string, callback: (...args: unknown[]) => unknown) => { state.handlers.set(name, callback) },
