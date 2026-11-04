@@ -49,6 +49,8 @@ Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scop
 
 本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。M9 正式发布前补本机回环网络限制。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
 
+owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护的 Host 配置启用。这不阻止已有效 cookie 的回放。macOS Web 启动会提示尚缺本产品沙箱连接识别，M9 正式发布前必须补齐。见[认证行为](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)与[剩余限制](packages/client/connection/README.zh.md#known-limitations-and-deferred-work)。
+
 ## 相对 DSH 改了什么
 
 - **默认瘦身。** 默认的 `slim` 预设提供最小 headless 核心、上下文压缩、大输出溢出落盘、工具调用超时守卫和 `AGENTS.md` 加载。当前插件行数与归属以[生成的预设表](docs/panedesk/architecture.zh.md)为准。

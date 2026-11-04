@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "owner-macos-source-limitation",
+      "description": "Report missing macOS product-sandbox connection identification",
+      "origin": "Owner authentication isolation",
+      "reason": "Warn at macOS Web-carrier startup without refusing launch, document valid-cookie replay and the required pre-M9 enforcement work, and link session-cookie semantics from the root README. This is a known limitation, not a platform identification implementation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/connection/src/auth-locale.ts",
+          "packages/client/connection/src/index.ts",
+          "packages/client/connection/tests/node-half.host.spec.ts",
+          "packages/client/connection/README.md",
+          "packages/client/connection/README.zh.md",
+          "packages/client/connection/README.i18n.yaml",
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "sandbox-piped-job-ownership",
       "description": "Assign piped restricted children to a kill-on-close Job before execution",
       "origin": "Owner authentication isolation",

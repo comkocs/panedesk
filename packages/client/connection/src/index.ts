@@ -11,6 +11,7 @@ import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
+import { authLocale } from './auth-locale.ts'
 import { confirmBrowserLogin } from './owner-confirmation.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
@@ -149,6 +150,9 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
         : request => confirmBrowserLogin(request, config?.ownerConfirmationTimeoutMs ?? 60_000)),
   )
   ctx.inject(['webServer'], (webCtx) => {
+    if (process.platform === 'darwin') {
+      webCtx.logger.warn(`${authLocale.en.macosSourceLimitation} / ${authLocale.zh.macosSourceLimitation}`)
+    }
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
     webCtx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'global', name: '__DSH_CONNECTION_RECOVERY__', value: recovery })

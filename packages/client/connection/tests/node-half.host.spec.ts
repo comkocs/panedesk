@@ -137,6 +137,26 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
+  it('warns about macOS source identification without refusing host startup', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
+    const ctx = new Context()
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    provideBrowserCredentials(ctx)
+    const routes: WebRoute[] = []
+    ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
+    try {
+      await fiber.await()
+      expect(routes).toHaveLength(2)
+      expect(warn).toHaveBeenCalledWith('Known limitation: macOS cannot identify product-sandbox connections; a valid owner cookie can still be replayed. Connection-source enforcement is required before the M9 stable release. / 已知限制：macOS 无法识别本产品沙箱连接；有效 owner cookie 仍可被回放。M9 正式发布前必须补齐连接来源拦截。')
+    } finally {
+      Object.defineProperty(process, 'platform', descriptor)
+      warn.mockRestore()
+      await fiber.dispose()
+    }
+  })
+
   it.each([undefined, 2])('uses only host configuration for cookie persistence (%s)', async (cookieMaxAgeDays) => {
     const host = await mounted(cookieMaxAgeDays === undefined ? {} : { cookieMaxAgeDays })
     try {

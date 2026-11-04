@@ -1,6 +1,7 @@
 /** Host authentication refusal text, paired for CLI and browser entry points. */
 export const authLocale = {
   en: {
+    macosSourceLimitation: 'Known limitation: macOS cannot identify product-sandbox connections; a valid owner cookie can still be replayed. Connection-source enforcement is required before the M9 stable release.',
     sandboxSource: 'This request comes from a sandbox process and cannot act as owner.',
     unknownSource: 'The connection source could not be verified and cannot act as owner.',
     confirm: 'Allow this browser to act as owner?',
@@ -8,6 +9,7 @@ export const authLocale = {
     required: 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie.',
   },
   zh: {
+    macosSourceLimitation: '已知限制：macOS 无法识别本产品沙箱连接；有效 owner cookie 仍可被回放。M9 正式发布前必须补齐连接来源拦截。',
     sandboxSource: '本请求来自沙箱进程，不能以 owner 身份执行。',
     unknownSource: '本请求的连接来源查不出，不能以 owner 身份执行。',
     confirm: '允许此浏览器作为所有者操作吗？',

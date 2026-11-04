@@ -49,6 +49,8 @@ Landlock-only machines cannot hide pathname session sockets. If conventional use
 
 Loopback networking is unrestricted. If local sshd accepts an available private key, `ssh localhost` can escape the sandbox. `~/.ssh` is not masked, preserving SSH-based Git pushes. Local loopback restrictions are required before the M9 stable release. These limits also mean session isolation is not a general sandbox-network guarantee; explicit full-access execution remains unchanged.
 
+Owner cookies default to browser-session storage; persistence requires protected Host configuration. This does not prevent replay of an already-valid cookie. macOS Web startup reports its missing product-sandbox connection identification, which must be implemented before the M9 stable release. See [authentication behavior](packages/client/connection/README.md#browser-authentication-and-request-trust) and [remaining limitations](packages/client/connection/README.md#known-limitations-and-deferred-work).
+
 ## What changed from DSH
 
 - **Slim by default.** The default `slim` preset provides the headless core, context compaction, large-output spill, the tool-call timeout guard and `AGENTS.md` loading. The [generated preset table](docs/panedesk/architecture.md) owns the current row counts and membership.
