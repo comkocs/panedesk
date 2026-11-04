@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "sandbox-piped-job-ownership",
+      "description": "Assign piped restricted children to a kill-on-close Job before execution",
+      "origin": "Owner authentication isolation",
+      "reason": "Bring the piped restricted-token path under Job ownership without changing console or UI options. Expose a borrowed process-local Job handle and close it once through child settlement. This is a lifecycle prerequisite, not a connection-owner identification implementation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/subprocess/win32-process/src/process.ts",
+          "packages/subprocess/win32-process/tests/process.spec.ts",
+          "packages/subprocess/win32-process/tests/process-allocation-failure.spec.ts",
+          "packages/subprocess/win32-process/README.md",
+          "packages/subprocess/win32-process/README.zh.md",
+          "packages/subprocess/win32-process/README.i18n.yaml",
+          "packages/sandbox/sandbox-windows-acl/src/index.ts",
+          "packages/sandbox/sandbox-windows-acl/src/spawn.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/README.md",
+          "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "owner-session-cookie-default",
       "description": "Use session cookies unless protected configuration enables persistence",
       "origin": "Owner authentication isolation",

@@ -144,6 +144,8 @@ export interface AclSandboxChildResult {
 export interface AclSandboxChild {
   /** Child process id. */
   pid: number
+  /** Borrowed local Job handle; wait owns closure. Never close it or send its numeric value across processes. */
+  readonly job: NativePtr
   /** Resolve stdout/stderr and the exit code once the child exits. */
   wait(): Promise<AclSandboxChildResult>
 }
@@ -402,8 +404,8 @@ export class AclSandbox {
   /**
    * Spawn a process under the restricted token. Fails closed: throws on every
    * Win32 failure; the child is never created unrestricted. With
-   * `stdio: 'inherit'` the child shares the caller's stdio directly and is
-   * placed in a kill-on-close job (dies with the caller). Call dispose() only
+   * `stdio: 'inherit'` the child shares the caller's stdio directly. Both
+   * modes assign a kill-on-close Job before execution. Call dispose() only
    * after all children have exited — revoking grants under a live child
    * removes its remaining write allowance.
    * @param options - the program, argv/cwd, and stdio shape.
@@ -430,10 +432,15 @@ export class AclSandbox {
       let exitCodePromise: Promise<number> | undefined
       return {
         pid: native.pid,
+        job: native.job,
         wait: async () => {
-          exitCodePromise ??= Promise.resolve(waitForExit(api, native.process))
+          exitCodePromise ??= Promise.resolve().then(() => {
+            try { return waitForExit(api, native.process) }
+            finally {
+              if (api.closeHandle(native.job) === 0) throwLastError(api, 'CloseHandle', 'kill-on-close job')
+            }
+          })
           const exitCode = await exitCodePromise
-          if (api.closeHandle(native.job) === 0) throwLastError(api, 'CloseHandle', 'kill-on-close job')
           return { stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), exitCode }
         },
       }
@@ -446,14 +453,40 @@ export class AclSandbox {
     // the thread and would starve the drains while the child is still running
     // (pipe-buffer deadlock). The drains resolve only after the child closed
     // its pipe ends — by then the wait returns immediately.
-    let exitCodePromise: Promise<number> | undefined
+    const drained = Promise.all([stdout, stderr]).then(
+      buffers => ({ ok: true as const, buffers }),
+      (error: unknown) => ({ ok: false as const, error }),
+    )
+    let resultPromise: Promise<AclSandboxChildResult> | undefined
     return {
       pid: native.pid,
-      wait: async () => {
-        const stdoutBuffer = await stdout
-        const stderrBuffer = await stderr
-        exitCodePromise ??= Promise.resolve(waitForExit(api, native.process))
-        return { stdout: stdoutBuffer, stderr: stderrBuffer, exitCode: await exitCodePromise }
+      job: native.job,
+      wait: () => {
+        resultPromise ??= drained.then(async (result) => {
+          if (!result.ok) {
+            const failures: unknown[] = [result.error]
+            try {
+              if (api.closeHandle(native.job) === 0) throwLastError(api, 'CloseHandle', 'kill-on-close job')
+            } catch (error) { failures.push(error) }
+            // A failed Job close cannot guarantee termination; do not block on a live child.
+            if (failures.length === 1) {
+              try { waitForExit(api, native.process) } catch (error) { failures.push(error) }
+              await Promise.allSettled([stdout, stderr])
+            } else {
+              if (api.closeHandle(native.process) === 0) {
+                failures.push(new Win32Error('CloseHandle', api.getLastError(), 'process after drain failure'))
+              }
+            }
+            if (failures.length > 1) throw new AggregateError(failures, 'Pipe drain and child cleanup failed')
+            throw result.error
+          }
+          try {
+            return { stdout: result.buffers[0], stderr: result.buffers[1], exitCode: waitForExit(api, native.process) }
+          } finally {
+            if (api.closeHandle(native.job) === 0) throwLastError(api, 'CloseHandle', 'kill-on-close job')
+          }
+        })
+        return resultPromise
       },
     }
   }

@@ -407,6 +407,36 @@ describe('AclSandbox spawn', () => {
     await expect(child.wait()).resolves.toEqual(expected)
   })
 
+  it.each(['pipe', 'inherit'] as const)('exposes a borrowed %s Job and closes it once across repeated waits', async (stdio) => {
+    const { closeHandle, createJobObjectW } = state.stubs as HappyStubs
+    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
+    await sandbox.init()
+    const child = sandbox.spawn({ command: 'probe.exe', stdio })
+    expect(child.job).toBe(createJobObjectW.mock.results.at(-1)?.value)
+    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(0)
+    await child.wait()
+    await child.wait()
+    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(1)
+    sandbox.dispose()
+  })
+
+  it('closes the piped Job once and settles the process after a drain failure', async () => {
+    const { api, closeHandle } = state.stubs as HappyStubs
+    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
+    await sandbox.init()
+    api.getLastError = () => 5
+    const waitForSingleObject = vi.fn(() => 0)
+    api.waitForSingleObject = waitForSingleObject
+    const child = sandbox.spawn({ command: 'probe.exe', stdio: 'pipe' })
+    await expect(child.wait()).rejects.toMatchObject({ api: 'PeekNamedPipe' })
+    await expect(child.wait()).rejects.toMatchObject({ api: 'PeekNamedPipe' })
+    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(1)
+    expect(waitForSingleObject).toHaveBeenCalledOnce()
+    expect(closeHandle.mock.invocationCallOrder[closeHandle.mock.calls.findIndex(call => call[0] === child.job)])
+      .toBeLessThan(waitForSingleObject.mock.invocationCallOrder[0] ?? 0)
+    sandbox.dispose()
+  })
+
   it('inherit spawn settles with empty stdio and closes the kill-on-close job', async () => {
     const { closeHandle } = state.stubs as HappyStubs
     const workspace = scratch()

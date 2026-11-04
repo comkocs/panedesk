@@ -107,6 +107,8 @@ export interface RestrictedProcessSpawnOptions extends ProcessSpawnOptions {
 
 /** Piped child resources whose process and read handles remain caller-owned. */
 export interface SpawnedPipedProcess {
+  /** Kill-on-close Job handle closed by the lifecycle owner. */
+  job: NativePtr
   /** Direct child process id. */
   pid: number
   /** Process handle closed by waitForProcessExit. */
@@ -204,7 +206,7 @@ function createRestrictedProcess(
  * New console windows start hidden without changing console inheritance.
  * @param api - active binding table.
  * @param options - command, cwd, args, and restricted primary token.
- * @returns caller-owned process and pipe read handles.
+ * @returns caller-owned process, kill-on-close Job, and pipe read handles; assignment precedes resume.
  */
 export function spawnPipedProcess(
   api: Win32ProcessBindings,
@@ -240,7 +242,7 @@ export function spawnPipedProcess(
       api,
       options,
       buildCommandLine(options.command, options.args),
-      0,
+      abi.CREATE_SUSPENDED,
       startupInfo,
       processInfo,
     )
@@ -255,16 +257,31 @@ export function spawnPipedProcess(
       closeBestEffort(api, info.hProcess)
       throw new Error(`CreateProcessAsUserW succeeded but returned null process/thread handles (pid ${info.dwProcessId})`)
     }
+    owned.add(info.hProcess)
+    owned.add(info.hThread)
+    let job: NativePtr
+    try {
+      job = createKillOnCloseJob(api)
+      owned.add(job)
+      if (api.assignProcessToJobObject(job, info.hProcess) === 0) throwLastError(api, 'AssignProcessToJobObject')
+      if (api.resumeThread(info.hThread) === 0xFFFFFFFF) throwLastError(api, 'ResumeThread')
+    } catch (error) {
+      api.terminateProcess(info.hProcess, 1)
+      throw error
+    }
     closeOwned(api, owned, stdIn.read)
     closeOwned(api, owned, stdIn.write)
     closeOwned(api, owned, stdOut.write)
     closeOwned(api, owned, stdErr.write)
-    closeBestEffort(api, info.hThread)
+    closeOwned(api, owned, info.hThread)
+    owned.delete(info.hProcess)
+    owned.delete(job)
     owned.delete(stdOut.read)
     owned.delete(stdErr.read)
     return {
       pid: info.dwProcessId,
       process: info.hProcess,
+      job,
       stdoutRead: stdOut.read,
       stderrRead: stdErr.read,
     }

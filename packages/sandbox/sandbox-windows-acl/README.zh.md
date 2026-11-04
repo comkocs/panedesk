@@ -48,7 +48,7 @@ CLI 执行权威读回：每个对象都不得残留强制完整性标签 ACE。
 
 ### 直接 API
 
-`AclSandbox` 以捕获 stdio 的方式 spawn 受限子进程（runner 风格使用可用继承 stdio）。它要求显式提供私有临时目录，或用 `tempDir: null` 禁用临时写入——环境临时根目录绝不会被隐式授权。
+`AclSandbox` 以捕获 stdio 的方式 spawn 受限子进程（runner 风格使用可用继承 stdio）。两条路径都在子进程运行前分配 kill-on-close Job；`wait()` 在直接子进程结束后关闭该 Job，终止剩余成员。管道读取失败时，先关闭 Job 再等待进程终止；清理失败仍会报告。child 暴露进程内借用的 `job` 句柄供识别；调用方不得关闭它，也不得把其数值传给其他进程。它要求显式提供私有临时目录，或用 `tempDir: null` 禁用临时写入——环境临时根目录绝不会被隐式授权。
 
 ```ts
 import { mkdtempSync, rmSync } from 'node:fs'

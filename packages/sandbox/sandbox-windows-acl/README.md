@@ -47,7 +47,7 @@ The CLI performs the authoritative readback: no mandatory-label ACE may remain o
 
 ### Direct API
 
-`AclSandbox` spawns a confined child with captured stdio (or inherited stdio for runner-style use). It requires an explicit private temp directory, or `tempDir: null` to disable temp writes — the ambient temp root is never an implicit grant.
+`AclSandbox` spawns a confined child with captured stdio (or inherited stdio for runner-style use). Both paths assign a kill-on-close Job before the child runs; `wait()` closes that Job after direct-process settlement, terminating remaining members. A pipe-drain failure closes the Job before waiting for process termination; cleanup failures remain visible. The child exposes a borrowed process-local `job` handle for identification; callers must not close it or transfer its numeric value to another process. It requires an explicit private temp directory, or `tempDir: null` to disable temp writes — the ambient temp root is never an implicit grant.
 
 ```ts
 import { mkdtempSync, rmSync } from 'node:fs'

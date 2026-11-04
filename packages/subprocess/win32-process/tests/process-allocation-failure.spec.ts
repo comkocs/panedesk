@@ -82,6 +82,11 @@ describe('shared process allocation cleanup', () => {
   it('frees pipe slots and process structs after a successful piped spawn', () => {
     let nextHandle = 10n
     const api = {
+      createJobObjectW: vi.fn(() => 50n),
+      setInformationJobObject: vi.fn(() => 1),
+      assignProcessToJobObject: vi.fn(() => 1),
+      resumeThread: vi.fn(() => 0),
+      terminateProcess: vi.fn(() => 1),
       createPipe: vi.fn((readSlot: NativePtr, writeSlot: NativePtr) => {
         koffi.encode(readSlot, PVOID, nextHandle++)
         koffi.encode(writeSlot, PVOID, nextHandle++)
