@@ -1,12 +1,13 @@
 /** Resolve executable inputs from the running host, never from workspace directory conventions. */
 import { mkdirSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-app-boot'
 import type {} from '@panedesk/dsh-hmr'
 import type {} from '@panedesk/dsh-client-modules'
-import { canonicalPath } from '@panedesk/dsh-sandbox'
+import { canonicalPath, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
+import { resolveOwnerMaterialPaths } from './owner-material.ts'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 
 /**
@@ -24,23 +25,23 @@ export function resolveProtectedPaths(ctx: Context, workspace?: string): string[
       if (!(error instanceof Error && 'code' in error && error.code === 'ELOOP')) throw error
     }
   }
-  const addState = (home: string): void => {
-    const directory = join(home, 'windows-workspace-write')
-    add(directory)
-    if (workspace === undefined || process.platform === 'win32') return
-    const root = canonicalPath(workspace)
-    const target = canonicalPath(directory)
-    const suffix = relative(root, target)
-    if (suffix === '' || isAbsolute(suffix) || suffix === '..' || suffix.startsWith(`..${sep}`)) return
-    mkdirSync(directory, { recursive: true, mode: 0o700 })
-    const [child = ''] = suffix.split(sep)
-    add(join(root, child))
-  }
-  addState(resolveDshHome())
   const profile = ctx.get('profileContext')
+  const directories = new Set([
+    ...workspace === undefined ? [] : resolveOwnerMaterialPaths(ctx)
+      .filter(path => protectedWorkspaceBranches(workspace, [path]).length > 0),
+    ...[resolveDshHome(), ...profile === undefined ? [] : [profile.home]]
+      .map(home => join(home, 'windows-workspace-write')),
+  ])
+  for (const directory of directories) {
+    add(directory)
+    if (workspace === undefined || process.platform === 'win32') continue
+    const branches = protectedWorkspaceBranches(workspace, [directory])
+    if (branches.length === 0) continue
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+    for (const branch of branches) add(branch)
+  }
   if (profile !== undefined) {
     add(join(profile.home, 'cordis.patch.yml'))
-    addState(profile.home)
     add(profile.dir)
     add(profile.patchPath)
     for (const path of profile.bundleInputPaths ?? []) add(path)

@@ -19,8 +19,8 @@ export {
   validateEscalationArgs,
 } from './escalation.ts'
 export type { EscalationApproval, EscalationApprover, EscalationOutcome, EscalationRequest } from './escalation.ts'
-export { assertUnprotectedRoots, canonicalPath, rootsOverlap, writableRoots } from './roots.ts'
-export { isOwnerMaterial, isolatedOwnerPaths, OWNER_MATERIAL_DENIED } from './owner-material.ts'
+export { assertUnprotectedRoots, canonicalPath, protectedWorkspaceBranches, rootsOverlap, writableRoots } from './roots.ts'
+export { assertOwnerWorkspace, isOwnerMaterial, isolatedOwnerPaths, ownerMaterialDirectories, OWNER_MATERIAL_DENIED } from './owner-material.ts'
 
 /**
  * File-effect policy for confined processes. `read-only` permits only required

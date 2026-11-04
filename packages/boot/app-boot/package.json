@@ -37,6 +37,7 @@
   "dependencies": {
     "@panedesk/dsh-atomic-write": "workspace:*",
     "@panedesk/dsh-package-manifest": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@eslint-community/regexpp": "^4.12.2",
     "ajv": "^8.20.0",

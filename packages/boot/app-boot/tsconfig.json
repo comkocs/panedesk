@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../sandbox/sandbox" },
     { "path": "../../sandbox/sandbox-windows-acl" },
     {
       "path": "../../../vendor/cordis"

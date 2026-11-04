@@ -35,7 +35,7 @@ import {
 import { Context } from '@panedesk/cordis'
 import { protectedInputCovered } from '@panedesk/dsh-app-boot'
 import z from '@panedesk/schemastery'
-import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@panedesk/dsh-sandbox'
+import { SandboxProvider, SandboxUnavailableError, assertOwnerWorkspace, canonicalPath } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
@@ -366,7 +366,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
     }
     const protectedInputs = this.coveredInputs(policy, selected.runner)
-    if (selected.runner === 'windows-acl') ownerDirectories(policy)
+    if (selected.runner === 'windows-acl') assertOwnerWorkspace(policy.workspaceRoot, ownerDirectories(policy), policy.mode === 'workspace-write')
     if (selected.runner === 'landlock') landlockProfileArgs(policy)
     if (selected.runner === 'bwrap') bwrapProfileArgs(policy)
     if (selected.runner === 'seatbelt') seatbeltProfileArgs(policy)
@@ -439,6 +439,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       throw new Error('Workspace write materialization requires an approved session policy')
     }
     const workspace = canonicalPath(policy.workspaceRoot)
+    assertOwnerWorkspace(workspace, resolveOwnerMaterialPaths(this.ctx), true)
     const protectedPaths = [
       ...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
     ]
@@ -484,7 +485,9 @@ export class LocalSandboxProvider extends SandboxProvider {
    * @returns the runner invocation.
    */
   private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
-    const ownerArgs = ownerDirectories(policy).flatMap(path => ['--unreadable-path', path])
+    const owners = ownerDirectories(policy)
+    assertOwnerWorkspace(policy.workspaceRoot, owners, policy.mode === 'workspace-write')
+    const ownerArgs = owners.flatMap(path => ['--unreadable-path', path])
     const sessionId = policy.sessionId
     const protectedArgs = [...ownerArgs, ...policy.mode === 'workspace-write'
       ? [...(policy.protectedPaths ?? []).flatMap(path => ['--protected-path', path]),

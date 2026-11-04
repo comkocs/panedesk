@@ -5,7 +5,7 @@ import { rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { z } from 'zod'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
-import { canonicalPath } from '@panedesk/dsh-sandbox'
+import { assertOwnerWorkspace, canonicalPath, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 
 /** An evaluated workspace rule denied authorization; inspection failures use their original error. */
@@ -28,9 +28,11 @@ export class WorkspaceWriteAccess {
    * @param home - Resolved product home, never the current workspace.
    * @param protectedPaths - Live host inputs; omitted for record-only inventory and revocation consumers.
    * @param profileDirectory - Current protected profile, used for actionable workspace diagnostics.
+   * @param ownerDirectories - Live private-storage inventory; omission is for record-only consumers.
    */
   constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [],
-    private readonly profileDirectory: () => string | undefined = () => undefined) {
+    private readonly profileDirectory: () => string | undefined = () => undefined,
+    private readonly ownerDirectories: () => readonly string[] = () => []) {
     this.directory = join(home, 'windows-workspace-write')
   }
 
@@ -39,15 +41,18 @@ export class WorkspaceWriteAccess {
       const suffix = relative(root, path)
       return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
     }
+    try { assertOwnerWorkspace(workspace, this.ownerDirectories(), process.platform === 'win32') } catch (error) {
+      if (!(error instanceof Error)) throw error
+      throw new WorkspaceWriteRuleError(error.message)
+    }
     const protectedPaths = this.protectedPaths(workspace).map(canonicalPath)
     const directory = canonicalPath(this.directory)
     if (contains(workspace, directory)) {
       if (process.platform === 'win32') {
         throw new WorkspaceWriteRuleError('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。')
       }
-      const [child = ''] = relative(workspace, directory).split(sep)
-      const first = join(workspace, child)
-      if (first === workspace || !protectedPaths.includes(first)) {
+      const [first] = protectedWorkspaceBranches(workspace, [directory])
+      if (first === undefined || !protectedPaths.includes(first)) {
         throw new WorkspaceWriteRuleError('Workspace authorization records must be outside the writable workspace or protected at its first child')
       }
     }

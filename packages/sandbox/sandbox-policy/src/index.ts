@@ -150,7 +150,7 @@ export class SandboxPolicyService extends Service {
     this.defaultSource = effective.source
     this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
     this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), workspace => resolveProtectedPaths(this.ctx, workspace),
-      () => this.ctx.get('profileContext')?.dir)
+      () => this.ctx.get('profileContext')?.dir, () => resolveOwnerMaterialPaths(this.ctx))
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
     ctx.on('agent/created', ({ agent }) => {

@@ -45,7 +45,7 @@
  */
 
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import { rootsOverlap } from '@panedesk/dsh-sandbox'
+import { assertOwnerWorkspace, ownerMaterialDirectories } from '@panedesk/dsh-sandbox'
 import { SUBPROCESS_CONTROL_ENV, SUBPROCESS_CONTROL_FD } from '@panedesk/dsh-subprocess/control'
 import { closeSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -133,18 +133,10 @@ async function main(): Promise<number> {
   // a bogus root must fail loudly at the runner boundary, never mid-child.
   requireDirectory('--workspace', parsed.workspace)
   requireDirectory('--temp', parsed.temp)
-  const ownerDirectories = new Set([...parsed.unreadablePaths, join(resolveDshHome(), 'private')])
-  const desktopPrivatePaths = process.env.DSH_DESKTOP_PRIVATE_PATHS
-  if (desktopPrivatePaths !== undefined) {
-    const paths: unknown = JSON.parse(desktopPrivatePaths)
-    if (!Array.isArray(paths) || !paths.every((path): path is string => typeof path === 'string')) {
-      fail('Desktop private paths must be a JSON string array / 桌面私有目录必须为字符串数组。')
-    }
-    for (const path of paths) ownerDirectories.add(path)
-  }
-  if ([...ownerDirectories].some(path => rootsOverlap(path, parsed.workspace))) {
-    fail('Owner directories must be outside the workspace / 所有者目录必须与工作区互不包含。')
-  }
+  const ownerDirectories = ownerMaterialDirectories(
+    [...parsed.unreadablePaths, join(resolveDshHome(), 'private')], process.env.DSH_DESKTOP_PRIVATE_PATHS,
+  )
+  assertOwnerWorkspace(parsed.workspace, ownerDirectories, parsed.mode === 'workspace-write')
 
   const seamManaged = parsed.writeSid !== undefined || parsed.tempWriteSid !== undefined
   if (parsed.mode === 'read-only' && seamManaged) {

@@ -73,6 +73,21 @@ export function assertUnprotectedRoots(roots: readonly string[], protectedPaths:
 }
 
 /**
+ * Protect the first workspace child leading to any private or state directory.
+ * @param workspace - Canonical workspace root.
+ * @param paths - The shared private/state inventory, prepared by the host.
+ * @returns Distinct first children; paths outside the workspace do not add exclusions.
+ */
+export function protectedWorkspaceBranches(workspace: string, paths: readonly string[]): string[] {
+  const root = canonicalPath(workspace)
+  return [...new Set(paths.flatMap((path) => {
+    const suffix = relative(root, canonicalPath(path))
+    if (suffix === '' || isAbsolute(suffix) || suffix === '..' || suffix.startsWith(`..${sep}`)) return []
+    return [join(root, suffix.split(sep)[0] ?? '')]
+  }))]
+}
+
+/**
  * Derive canonical writable roots before applying protected-host exclusions.
  * @param policy - Per-call file policy.
  * @returns Workspace and platform temporary roots in workspace-write; otherwise empty.

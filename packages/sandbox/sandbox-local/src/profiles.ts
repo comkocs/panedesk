@@ -7,7 +7,7 @@
 import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/landlock-run'
 import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
+import { assertOwnerWorkspace, assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, protectedWorkspaceBranches, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 
 /** Test containment after callers have canonicalized both paths. */
@@ -17,15 +17,15 @@ function contains(root: string, path: string): boolean {
 }
 
 /**
- * Resolve private stores outside the workspace a command must read.
+ * Resolve private stores without admitting a workspace inside one.
  * @param policy - Resolved confinement policy.
  * @returns Private paths to exclude before admitting the command.
  */
 export function ownerDirectories(policy: SandboxPolicy): string[] {
   const paths = isolatedOwnerPaths(policy.unreadablePaths ?? [])
-  if (paths.some(path => rootsOverlap(path, policy.workspaceRoot))) {
-    throw new SandboxUnavailableError(policy.mode,
-      'Put the credentials file in a dedicated directory outside the workspace. / 把凭据文件放进单独目录，且与工作区互不包含。')
+  try { assertOwnerWorkspace(policy.workspaceRoot, paths) } catch (error) {
+    if (!(error instanceof Error)) throw error
+    throw new SandboxUnavailableError(policy.mode, error.message)
   }
   return paths
 }
@@ -71,10 +71,11 @@ function mountPath(path: string): string | undefined {
  * @returns profile arguments before the trailing separator and command argv.
  */
 export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
+  const owners = ownerDirectories(policy)
   const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session']
   if (policy.mode === 'workspace-write') {
     const workspace = canonicalPath(policy.workspaceRoot)
-    const protectedPaths = policy.protectedPaths ?? []
+    const protectedPaths = [...policy.protectedPaths ?? [], ...protectedWorkspaceBranches(workspace, owners)]
     const canonical = protectedPaths.map(mountPath).filter(path => path !== undefined)
     const temporary = ![...protectedPaths.map(path => resolve(path)), ...canonical]
       .some(path => contains('/tmp', path) || contains(path, '/tmp'))
@@ -90,7 +91,7 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
     }
     for (const path of paths) args.push('--ro-bind', path, path)
   }
-  for (const path of ownerDirectories(policy)) {
+  for (const path of owners) {
     if (statSync(path).isDirectory()) args.push('--perms', '000', '--tmpfs', path, '--remount-ro', path)
     else args.push('--ro-bind', '/dev/null', path)
   }
@@ -161,8 +162,17 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
   if (policy.mode === 'workspace-write') {
     // Landlock grants are additive: omit shared temp rather than denying an unrelated workspace.
     if (![...policy.protectedPaths ?? [], ...owners].some(path => rootsOverlap('/tmp', path))) readWrite.push('/tmp')
-    readWrite.push(policy.workspaceRoot)
-    assertUnprotectedRoots(readWrite, policy.protectedPaths)
+    const workspace = canonicalPath(policy.workspaceRoot)
+    const excluded = [...policy.protectedPaths ?? [], ...owners]
+    const branches = protectedWorkspaceBranches(workspace, excluded)
+    if (branches.length === 0) readWrite.push(workspace)
+    else {
+      for (const entry of readdirSync(workspace, { withFileTypes: true })) {
+        const path = join(workspace, entry.name)
+        if (!entry.isSymbolicLink() && !branches.includes(path)) readWrite.push(path)
+      }
+    }
+    assertUnprotectedRoots(readWrite, excluded)
   }
   return landlockGrantArgs({ readOnly: [...new Set(readOnly)], readWrite })
 }
@@ -182,22 +192,23 @@ function sbplString(path: string): string {
 export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   const forms = ['(version 1)', '(allow default)', '(deny file-write*)', `(allow file-write* (literal ${sbplString('/dev/null')}))`]
   const workspace = canonicalPath(policy.workspaceRoot)
+  const owners = ownerDirectories(policy)
+  const protectedPaths = [...policy.protectedPaths ?? [], ...owners, ...protectedWorkspaceBranches(workspace, owners)]
   const roots = writableRoots(policy).filter(
-    root => root === workspace || !(policy.protectedPaths ?? []).some(path => rootsOverlap(root, path)),
+    root => root === workspace || !protectedPaths.some(path => rootsOverlap(root, path)),
   )
   if (roots.length > 0) {
     forms.push(`(allow file-write* ${roots.map(root => `(subpath ${sbplString(root)})`).join(' ')})`)
   }
-  const paths = [...new Set((policy.protectedPaths ?? []).flatMap(path => [resolve(path), canonicalPath(path)]))]
+  const paths = [...new Set(protectedPaths.flatMap(path => [resolve(path), canonicalPath(path)]))]
   for (const path of paths) {
     forms.push(`(deny file-write* (subpath ${sbplString(path)}))`)
   }
   for (const parent of new Set(paths.flatMap(path => protectedParents(workspace, path)))) {
     forms.push(`(deny file-write-unlink (literal ${sbplString(parent)}))`)
   }
-  for (const path of ownerDirectories(policy)) {
+  for (const path of owners) {
     forms.push(`(deny file-read* (subpath ${sbplString(path)}))`)
-    forms.push(`(deny file-write* (subpath ${sbplString(path)}))`)
   }
   return ['-p', forms.join(' ')]
 }

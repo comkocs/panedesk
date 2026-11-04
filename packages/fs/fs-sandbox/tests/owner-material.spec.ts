@@ -16,13 +16,15 @@ afterEach(async () => {
   for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true })
 })
 
-it.each(['read-only', 'workspace-write'] as const)('denies owner material and aliases in %s', async (mode) => {
+it.each([
+  ['read-only', false], ['workspace-write', false], ['read-only', true], ['workspace-write', true],
+] as const)('denies owner material and aliases in %s with nested home %s', async (mode, nested) => {
   const root = mkdtempSync(join(tmpdir(), 'owner-material-'))
   directories.push(root)
-  const home = join(root, 'home')
   const workspace = join(root, 'workspace')
-  mkdirSync(home)
+  const home = join(nested ? workspace : root, 'home')
   mkdirSync(workspace)
+  mkdirSync(home)
   mkdirSync(join(home, 'private'))
   const document = join(home, 'private', '.credentials.yaml')
   writeFileSync(document, 'synthetic credential document', { mode: 0o600 })

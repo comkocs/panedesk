@@ -102,9 +102,13 @@ describe('profile dialects', () => {
       .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/ws'])
   })
 
-  it('landlock rejects a recursive workspace grant containing an active host input', () => {
-    expect(() => landlockProfileArgs({ ...WW, protectedPaths: ['/ws/active-host/plugin.js'] }))
-      .toThrow('protected host path')
+  it('landlock grants only unrelated first-level children beside an active host input', () => {
+    const workspace = mkdtempSync(join(tmpdir(), 'landlock-protected-'))
+    tempDirs.push(workspace)
+    fs.mkdirSync(join(workspace, 'active-host'))
+    fs.mkdirSync(join(workspace, 'project'))
+    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace, protectedPaths: [join(workspace, 'active-host', 'plugin.js')] }))
+      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', join(workspace, 'project')])
   })
 
   it('landlock read-only: readable tree plus a writable /dev/null, nothing else', () => {

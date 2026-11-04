@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
+import { protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 
 /** Windows policy refuses workspace writes that include owner-state storage. */
 export class WorkspaceContainsStateError extends Error {
@@ -422,13 +423,12 @@ export class ProtectedInputIntegrity {
     assertWindowsStateTrusted(this.record, this.root)
     const record = canonicalLocation(this.record)
     if (!contains(this.root, record)) return
-    const [child = ''] = relative(this.root, record).split(sep)
-    const first = join(this.root, child)
+    const [first] = protectedWorkspaceBranches(this.root, [record])
     if (process.platform === 'win32') {
       if (protectedPaths === undefined) return
       throw new WorkspaceContainsStateError()
     }
-    if (first !== this.root
+    if (first !== undefined
       && (protectedPaths === undefined || protectedPaths.some(path => canonicalLocation(path) === first))) return
     throw new Error('Protected input records must be outside the writable workspace or protected at its first child')
   }

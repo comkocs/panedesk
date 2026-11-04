@@ -55,6 +55,8 @@ Per-call policies can carry protected host inputs, excluded from confined write 
 
 The mode names the file effects a command may perform; enforcement completeness reports how fully the backend governs them.
 
+`ownerMaterialDirectories` owns canonical private-storage inventory, `assertOwnerWorkspace` rejects workspaces inside that storage and Windows write grants over it, and `protectedWorkspaceBranches` selects first-level exclusions shared by state records and owner isolation. Filesystem readers additionally compare file identity to reject hard-link aliases.
+
 | Mode | Effect |
 |---|---|
 | `read-only` | Denies writes except required sinks such as `/dev/null` |

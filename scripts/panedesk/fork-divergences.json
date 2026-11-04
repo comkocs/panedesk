@@ -1,6 +1,48 @@
 {
   "divergences": [
     {
+      "id": "nested-owner-workspace-isolation",
+      "description": "Isolate nested owner storage without refusing unrelated workspace writes",
+      "origin": "Local confinement and state consistency",
+      "reason": "Share canonical owner inventory and first-level state exclusions across policy, boot and native runners. Mask nested owner directories after read-only ancestor binds, deny Seatbelt ancestor replacement, and exclude protected Landlock branches while documenting root-creation denial. Windows permits read-only startup but refuses overlapping write authority. Preserve exact assertions and full-access semantics. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox/src/owner-material.ts",
+          "packages/sandbox/sandbox/src/roots.ts",
+          "packages/sandbox/sandbox/src/index.ts",
+          "packages/sandbox/sandbox/README.md",
+          "packages/sandbox/sandbox/README.zh.md",
+          "packages/sandbox/sandbox/README.i18n.yaml",
+          "packages/sandbox/sandbox-policy/src/index.ts",
+          "packages/sandbox/sandbox-policy/src/owner-material.ts",
+          "packages/sandbox/sandbox-policy/src/protected-paths.ts",
+          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
+          "packages/sandbox/sandbox-policy/README.md",
+          "packages/sandbox/sandbox-policy/README.zh.md",
+          "packages/sandbox/sandbox-policy/README.i18n.yaml",
+          "packages/sandbox/sandbox-local/src/index.ts",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/tests/local.spec.ts",
+          "packages/sandbox/sandbox-local/tests/state-directory.spec.ts",
+          "packages/sandbox/sandbox-local/tests/owner-nested-workspace.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "packages/sandbox/sandbox-windows-acl/src/runner.ts",
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/package.json",
+          "packages/boot/app-boot/tsconfig.json",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/fs/fs-sandbox/tests/owner-material.spec.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "landlock-unavailable-siblings",
       "description": "Omit unavailable siblings from Landlock allow-lists",
       "origin": "Local confinement reliability",
@@ -22,6 +64,67 @@
           "packages/sandbox/sandbox-local/README.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "web-default-process-owner-opt-out",
+      "description": "Make shared default Web fixtures explicitly unattended",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Shared schedule and default-isolation callers inherit it without assertion changes. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/default-web-process.ts"] }
+    },
+    {
+      "id": "web-schedule-owner-opt-out",
+      "description": "Use the shared unattended connection fixture for schedule timing",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation in the shared default-web-process helper. This caller has no direct diff and its assertions stay unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/schedule-timing.expected.e2e.ts"] }
+    },
+    {
+      "id": "web-isolation-owner-opt-out",
+      "description": "Use the shared unattended connection fixture for default isolation",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation in the shared default-web-process helper. This caller has no direct diff and its assertions stay unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-default-isolation.expected.e2e.ts"] }
+    },
+    {
+      "id": "web-public-url-owner-opt-out",
+      "description": "Configure unattended public URL fixtures explicitly",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Authentication and URL assertions remain unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/public-url.expected.e2e.ts"] }
+    },
+    {
+      "id": "web-best-effort-owner-opt-out",
+      "description": "Configure unattended best-effort startup explicitly",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Failure fixtures and assertions remain unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts"] }
+    },
+    {
+      "id": "web-failure-matrix-owner-opt-out",
+      "description": "Configure unattended failure-matrix startup explicitly",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry in the existing watcher patch. Deliberate connection disabling and all recovery assertions remain unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"] }
+    },
+    {
+      "id": "web-creator-manager-owner-opt-out",
+      "description": "Configure unattended creator-manager startup explicitly",
+      "origin": "Owner confirmation fixture configuration",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Plugin operations and assertions remain unchanged. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/creator-plugin-manager.expected.e2e.ts"] }
+    },
+    {
+      "id": "windows-console-and-uninstall-notices",
+      "description": "Document shared-console authority and preserved owner labels",
+      "origin": "Windows owner safety guidance",
+      "reason": "Warn interactive Windows CLI and TUI owners about shared-console key injection without changing process options or unattended output. Preserve uninstall behavior and add bilingual log and finish-page guidance for offline owner-label cleanup. Synchronize English and Chinese safety documentation. These changes can be contributed upstream.",
+      "match": { "type": "behavior", "paths": [
+        "README.md", "README.zh.md", "README.i18n.yaml",
+        "packages/sandbox/sandbox-windows-acl/README.md", "packages/sandbox/sandbox-windows-acl/README.zh.md", "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
+        "apps/cli/src/profile-boot.ts", "apps/cli/src/windows-permission-notice.ts", "apps/cli/tests/windows-permission-notice.spec.ts",
+        "apps/desktop/installer/strings.nsh", "apps/desktop/installer/uninstall.nsh", "apps/desktop/tests/uninstall-owner-notice.spec.ts"
+      ] }
     },
     {
       "id": "owner-confirmation-ci-fixtures",
