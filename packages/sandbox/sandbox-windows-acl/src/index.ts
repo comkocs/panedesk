@@ -45,7 +45,7 @@
 
 import { existsSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { Win32Error } from '@panedesk/dsh-win32-process'
+import { enterProductJob, PRODUCT_JOB_ENV, Win32Error } from '@panedesk/dsh-win32-process'
 import { isolatedOwnerPaths } from '@panedesk/dsh-sandbox'
 
 import { assertOwnerReadProtection, denyProtectedWrite, grantWrite, revokeWrite, setOwnerReadProtection } from './acl.ts'
@@ -247,6 +247,8 @@ export class AclSandbox {
   async init(): Promise<void> {
     if (this.api !== undefined) throw new Error('AclSandbox is already initialized')
     const api = await win32()
+    enterProductJob(process.env[PRODUCT_JOB_ENV])
+    Reflect.deleteProperty(process.env, PRODUCT_JOB_ENV)
     const currentToken = openCurrentProcessToken(api)
     let currentTokenOpen = true
     let restrictedToken: NativePtr | undefined

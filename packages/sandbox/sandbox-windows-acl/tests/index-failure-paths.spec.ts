@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path'
 import { Win32Error } from '@panedesk/dsh-win32-process'
 import { ERROR_BROKEN_PIPE } from '@panedesk/dsh-win32-process/src/abi.ts'
 import { processInformationType } from '@panedesk/dsh-win32-process/src/ffi.ts'
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import koffi from 'koffi'
 
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
@@ -39,7 +39,12 @@ interface HappyStubs {
   addMandatoryAce: MockFn
 }
 
-const state = vi.hoisted(() => ({ stubs: undefined as HappyStubs | undefined }))
+const state = vi.hoisted(() => ({ stubs: undefined as HappyStubs | undefined, enterProductJob: vi.fn() }))
+vi.mock('@panedesk/dsh-win32-process', async original => ({
+  ...await original<typeof import('@panedesk/dsh-win32-process')>(),
+  enterProductJob: state.enterProductJob,
+}))
+afterEach(() => { vi.unstubAllEnvs(); state.enterProductJob.mockReset() })
 
 vi.mock('../src/ffi.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/ffi.ts')>()
@@ -372,6 +377,35 @@ describe('AclSandbox init', () => {
 })
 
 describe('AclSandbox spawn', () => {
+  it.each(['pipe', 'inherit'] as const)('joins the product Job before %s execution and removes the locator', async (stdio) => {
+    vi.stubEnv('DSH_WINDOWS_PRODUCT_JOB', 'host-job')
+    const stubs = happyStubs()
+    state.stubs = stubs
+    state.enterProductJob.mockImplementation((name: string | undefined) => {
+      expect(name).toBe('host-job')
+      expect(stubs.createRestrictedToken).not.toHaveBeenCalled()
+      expect(stubs.createJobObjectW).not.toHaveBeenCalled()
+    })
+    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
+    try {
+      await sandbox.init()
+      expect(state.enterProductJob).toHaveBeenCalledExactlyOnceWith('host-job')
+      expect(process.env.DSH_WINDOWS_PRODUCT_JOB).toBeUndefined()
+      const child = sandbox.spawn({ command: 'probe.exe', stdio })
+      await child.wait()
+    } finally { sandbox.dispose() }
+  })
+
+  it('refuses restricted execution when product membership cannot be established', async () => {
+    vi.stubEnv('DSH_WINDOWS_PRODUCT_JOB', 'host-job')
+    state.enterProductJob.mockImplementation(() => { throw new Error('membership unavailable') })
+    const stubs = happyStubs()
+    state.stubs = stubs
+    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
+    await expect(sandbox.init()).rejects.toThrow('membership unavailable')
+    expect(stubs.createRestrictedToken).not.toHaveBeenCalled()
+    expect(stubs.createJobObjectW).not.toHaveBeenCalled()
+  })
   it('refuses control with piped stdio before starting a restricted process', async () => {
     const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
     await sandbox.init()

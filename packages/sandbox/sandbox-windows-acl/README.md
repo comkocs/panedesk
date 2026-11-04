@@ -129,6 +129,8 @@ Authenticated Users is absent from both lists — the WMI namespace security che
 
 ### The confinement runner
 
+With a host product-Job locator, `AclSandbox.init()` joins that Job before token creation and removes the locator from its environment. Both piped and inherited children inherit this membership and retain their own existing kill-on-close Jobs. The host alone retains the parent handle. Standalone library calls without a locator do not acquire host product identity. This path does not change console or ConPTY settings; membership and connection attribution have substitute coverage only, not native Windows acceptance.
+
 The seam-facing shape is the runner entry (`./runner`): an argv-prefix wrapper `dsh-sandbox-local` spawns in place of the caller's command, with the same architecture as bwrap/landlock-run/sandbox-exec. The runner creates the restricted token, spawns the wrapped argv under it with the caller's stdio passed straight through, wraps the child in a `KILL_ON_JOB_CLOSE` job, mirrors the child's exit code, and revokes its self-managed temp grant on exit. Every runner-side failure prints `windows-acl-run: <detail>` to stderr and exits 127 — the seam's runner-failure rules match that signature.
 
 ```sh

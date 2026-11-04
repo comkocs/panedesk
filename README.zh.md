@@ -14,6 +14,8 @@
 
 ## 平台行为
 
+Windows 本产品沙箱的 TCP 连接即使持有有效 cookie 也不能充当 owner：准入检查宿主持有的作业对象成员身份，不按浏览器完整性、AppContainer 状态或令牌限制判断。查不出连接属主时拒绝 owner；普通浏览器仍可认证。Windows 行为仅经替身验证，未在原生实机验收。经计划任务、WMI、COM、ShellExecute 委托沙箱外进程代起尚未核验，列入 M9 正式发布前必到的加固工作。Windows 行为以本段为准，取代下方会话 cookie 段保留的旧平台限制描述。参见 [Windows 升级指南](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。
+
 Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请使用经过认证的 Web 或桌面前端；控制台隔离为后续工作。Windows CLI / TUI 交互启动时会输出此提示。
 
 Windows Web 拒绝新浏览器登录，除非 owner 在受保护配置里关闭新浏览器确认。Windows 发行包首次运行会询问；接受后写入同时带有 `requireOwnerConfirmation: false` 与 `trustedHosts: !!js ctx.webStartup.trustedHosts` 的 connection 条目。升级后请重新登录一次，因为签名密钥已迁址。关闭确认后，持有未使用启动链接即可登录；请保护链接和 cookie。撤销此选择时，移除覆盖条目或把确认设为 `true`，然后重启；Windows 将再次拒绝新浏览器登录，此设置不会撤销已有 cookie。详见[升级说明](docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md)。

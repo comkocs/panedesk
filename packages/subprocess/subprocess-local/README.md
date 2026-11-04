@@ -43,6 +43,10 @@ Consumers preserve `productSandbox: true` from actual Linux confinement through 
 
 The host-root identity service survives transport and subprocess-provider reloads. IPv4 and IPv6 queries use the client socket tuple; registered groups and descendants are product sources, and failed observations are unknown. Both deny owner admission. After the entire process range exits, directories are removed but observed IDs remain denied for the host lifetime because a transferred socket may outlive its creating process. Retention has a fixed admission limit and never evicts identities to allow another launch. Missing native socket attribution or writable cgroup delegation produces a bilingual startup limitation warning and non-product classification; this degraded mode does not prevent cookie replay. See the [connection admission registry](../../client/connection/README.md).
 
+### Windows sandbox connection identity
+
+Windows confinement carries `productSandbox: true` through ordinary and terminal requests. Before either launch, the provider requires its connection-source registration and creates a separate host-owned product Job. The trusted ACL runner receives its locator, joins before restricted execution, and closes the temporary handle. Ordinary commands do not join. Root ownership retains up to 4096 identities across provider reloads; exhaustion refuses new sandboxes and requires a host restart. Host exit closes the remaining handles and kills members; existing per-command Job closure is unchanged. Connection lookup is synchronous and bounded, refuses missing facts, and uses the existing per-connection admission cache. Removing the provider makes new connections unknown. ConPTY parameters are unchanged; native Windows behavior remains unverified.
+
 ### Resolving executables
 
 Absolute executable paths are verified; bare names resolve against the scrubbed PATH with platform-aware executable extensions (`.COM`/`.EXE`/`.BAT`/`.CMD` on Windows). Relative paths containing separators are rejected — provide an absolute path or a bare PATH name — and relative PATH entries resolve from the host process cwd.

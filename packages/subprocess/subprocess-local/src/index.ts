@@ -47,6 +47,8 @@ import {
 import { LinuxScopeSelector } from './linux-scope-selector.ts'
 import type { LinuxScopeDecision } from './linux-scope-selector.ts'
 import { launchWindowsJob, probeWindowsJob } from './windows-job.ts'
+import { WindowsProductJobs } from './windows-product-jobs.ts'
+import { PRODUCT_JOB_ENV } from '@panedesk/dsh-win32-process'
 import { targetEnvironment } from './runner-launch.ts'
 import { createProcessInspector } from './process-inspector.ts'
 import type { ProcessInspector } from './process-inspector.ts'
@@ -93,10 +95,22 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
   terminalInspector: ProcessInspector | undefined
 
   private readonly productGroups: LinuxProductGroups | undefined
+  private readonly windowsJobs: WindowsProductJobs | undefined
+  private windowsSourceRegistered = false
 
   constructor(ctx: Context) {
     super(ctx)
     this.productGroups = process.platform === 'linux' ? LinuxProductGroups.forHost(ctx) : undefined
+    this.windowsJobs = process.platform === 'win32' ? WindowsProductJobs.forHost(ctx) : undefined
+    if (this.windowsJobs !== undefined) {
+      ctx.inject(['connectionSources'], (owner) => {
+        owner.connectionSources.register('win32', socket => this.windowsJobs?.classify(socket) ?? 'unknown')
+        owner.effect(() => {
+          this.windowsSourceRegistered = true
+          return () => { this.windowsSourceRegistered = false }
+        }, 'Windows source readiness')
+      })
+    }
     if (process.platform === 'linux') {
       if (this.productGroups === undefined) ctx.logger.warn(LINUX_SOURCE_LIMITATION)
       ctx.inject(['connectionSources'], (owner) => {
@@ -219,9 +233,17 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     return { productGroups: this.productGroups, privateRoot }
   }
 
+  private windowsProductEnvironment(productSandbox: true | undefined, env: Record<string, string>): Record<string, string> {
+    if (this.windowsJobs === undefined) return env
+    const clean = Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== PRODUCT_JOB_ENV))
+    if (productSandbox !== true) return clean
+    if (!this.windowsSourceRegistered) throw new Error('Windows product source is not registered / Windows 产品来源尚未登记')
+    return this.windowsJobs.prepare(clean)
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     validateSubprocessSpec(spec)
-    const env = targetEnvironment(spec)
+    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     const containmentMode = this.selectContainmentMode('ordinary')
     let handle: LocalSubprocessHandle
     const internals: SpawnInternals = { ...this.internals, onSpillFailure: this.reportSpillFailure }
@@ -229,7 +251,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       if (spec.productSandbox === true && this.productGroups !== undefined) {
         throw new Error('Product sandbox registration requires a live delegated Linux scope')
       }
-      handle = spawnSubprocess(spec, internals)
+      handle = spawnSubprocess(this.windowsJobs === undefined ? spec : { ...spec, env }, internals)
     } else {
       const binding = prepareManagedProcessBinding(internals)
       const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
@@ -326,7 +348,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     if (containmentMode === 'fallback' && spec.productSandbox === true && this.productGroups !== undefined) {
       throw new Error('Product sandbox registration requires a live delegated Linux scope')
     }
-    const env = targetEnvironment(spec)
+    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     const platform = this.internals.platform ?? process.platform
     const activity = prepareShellActivity(spec, env, platform)
     const launch = activity === undefined ? spec : { ...spec, argv: activity.argv, env: activity.env }

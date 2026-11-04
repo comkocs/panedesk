@@ -58,6 +58,8 @@ kind: "package-reference"
 
 Linux 隔离返回 `productSandbox: true`；消费者必须把该事实传给本地子进程服务，不得从可执行参数或 scope 名推断身份。Bubblewrap 在工作区绑定之后以只读覆盖 cgroupfs，Landlock 写授权即使面对重叠工作区也排除 cgroupfs。来源归因还需要[本地子进程提供者](../../subprocess/subprocess-local/README.zh.md#linux-sandbox-connection-identity)；仅有隔离不能识别网络连接。
 
+Windows ACL 隔离也返回 `productSandbox: true`。消费者必须保留该事实，使本地子进程提供者能在 ACL runner 执行受限子进程前登记宿主作业对象；普通与终端路径使用同一事实。
+
 ### Windows 工作区撤销
 
 仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，用受限令牌 AccessCheck 检查根的有效写权，不授予权限；部分权限与继承权限也可被发现。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销盘点全树中精确匹配工作区 SID 的显式项，包括依赖目录，而非信任提供方的内存历史。原生后端在成功前使用受限令牌 AccessCheck 核验根及每个命中点，因此重启不会丢失授权位置。链接仅检查对象本身，不遍历目标；失败会保留持久撤销标记。见[原生清理及状态信任限制](../sandbox-windows-acl/README.zh.md#use-this-package)。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。`materializeWorkspaceWriteGrant()` 供策略消费方在已同意会话的首次文件变更前物化工作区及私有临时目录能力，无需启动进程。

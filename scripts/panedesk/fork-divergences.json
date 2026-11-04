@@ -1,6 +1,32 @@
 {
   "divergences": [
     {
+      "id": "windows-product-job-owner-admission",
+      "description": "Identify Windows product sandbox TCP connections through host-owned Jobs",
+      "origin": "Owner authentication isolation",
+      "reason": "Preserve explicit Windows confinement facts through ordinary and terminal launches, retain host-owned named Jobs across provider reloads, join trusted ACL runners before restricted execution, and classify IPv4 and IPv6 TCP owners without relying on token flags. Refuse unavailable attribution, preserve per-command kill-on-close ownership and console settings, and document substitute-only validation and external-process delegation limits. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md", "README.zh.md", "README.i18n.yaml",
+          "packages/subprocess/win32-process/src/index.ts",
+          "packages/subprocess/win32-process/src/product-job.ts",
+          "packages/subprocess/win32-process/src/tcp-owner.ts",
+          "packages/subprocess/win32-process/tests/product-job.spec.ts",
+          "packages/subprocess/win32-process/tests/tcp-owner.spec.ts",
+          "packages/subprocess/win32-process/README*",
+          "packages/subprocess/subprocess-local/src/index.ts",
+          "packages/subprocess/subprocess-local/src/windows-product-jobs.ts",
+          "packages/subprocess/subprocess-local/tests/windows-product-jobs.spec.ts",
+          "packages/subprocess/subprocess-local/README*",
+          "packages/sandbox/sandbox-local/src/index.ts", "packages/sandbox/sandbox-local/README*",
+          "packages/sandbox/sandbox-windows-acl/src/index.ts", "packages/sandbox/sandbox-windows-acl/README*",
+          "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
+          "docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/*"
+        ]
+      }
+    },
+    {
       "id": "linux-product-socket-admission",
       "description": "Register Linux product cgroups before executing confined commands",
       "origin": "Owner authentication isolation",

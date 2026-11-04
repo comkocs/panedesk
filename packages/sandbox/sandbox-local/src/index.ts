@@ -354,7 +354,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       : this.runnerArgv(selected.runner, policy)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
-      ...selected.runner === 'bwrap' || selected.runner === 'landlock' ? { productSandbox: true as const } : {},
+      ...selected.runner === 'bwrap' || selected.runner === 'landlock' || selected.runner === 'windows-acl' ? { productSandbox: true as const } : {},
       enforcement: selected.enforcement,
       protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],

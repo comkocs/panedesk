@@ -132,6 +132,8 @@ Authenticated Users 在两种列表中都不存在——WMI 命名空间安全�
 
 ### 隔离 runner
 
+带有宿主产品作业对象定位名时，`AclSandbox.init()` 在创建令牌前加入该 Job，并从环境中删除定位名。piped 与继承 stdio 的子进程都继承其成员身份，同时保留原有独立 kill-on-close Job。仅宿主持有父句柄。不带定位名的独立库调用不会取得宿主产品身份。此路径不改控制台或 ConPTY 设置；成员身份与连接归因仅有替身覆盖，尚未通过 Windows 原生验收。
+
 面向 seam 的形态是 runner 入口（`./runner`）：`dsh-sandbox-local` 在调用者命令的位置 spawn 的 argv 前缀包装——与 bwrap/landlock-run/sandbox-exec 同一架构。runner 创建受限令牌，在它之下 spawn 包装后的 argv，调用者的 stdio 直接透传，把子进程包进 `KILL_ON_JOB_CLOSE` job，镜像子进程的退出码，并在退出时撤销其自行管理的临时授权。每个 runner 侧失败都会向 stderr 打印 `windows-acl-run: <detail>` 并以 127 退出——seam 的 runner 失败规则匹配该签名。
 
 ```sh
