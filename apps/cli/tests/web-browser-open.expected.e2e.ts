@@ -1,6 +1,6 @@
 /** Assembled keyless snapshot for the default `panedesk web` browser handoff. */
 
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,6 +41,9 @@ describe.skipIf(!builtArtifactsExist)('panedesk web browser-open assembled snaps
   it('hands the reachable page to the default browser after the shipped tree settles', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-web-browser-open-snapshot-'))
     tempRoots.push(root)
+    mkdirSync(join(root, '.panedesk'))
+    writeFileSync(join(root, '.panedesk', 'cordis.patch.yml'),
+      '- id: connection\n  config:\n    requireOwnerConfirmation: false\n')
     const result = await execa(process.execPath, [
       '--import', openerHook,
       builtBin,

@@ -109,6 +109,8 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
   const failures: unknown[] = []
   try {
+    await mkdir(join(world, '.panedesk'), { recursive: true })
+    await writeFile(join(world, '.panedesk/cordis.patch.yml'), '- id: connection\n  config:\n    requireOwnerConfirmation: false\n')
     subprocessFiber = await subprocessCtx.plugin(LocalSubprocessRuntime)
     // Watchers only: the built `panedesk web` below is the server under test, and the
     // built tree is this lane's precondition rather than something to rebuild.

@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "owner-confirmation-ci-fixtures",
+      "description": "Keep unrelated browser fixtures explicit about owner confirmation",
+      "origin": "Owner confirmation CI regression repair",
+      "reason": "Disable confirmation only in non-authentication fixture configuration, retain default confirmation for authentication cases, and exercise the built CLI with redirected input and a real controlling terminal. Synchronize the exact bilingual refusal expectation and request a fresh one-use browser link after the fixture's Node login without changing product defaults. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/web-browser-open.expected.e2e.ts",
+          "apps/cli/tests/web-owner-confirmation.expected.e2e.ts",
+          "apps/web/tests/scaffold.ts",
+          "apps/web/tests/hmr-live.e2e.ts",
+          "packages/api/gateway/tests/echo-stream.host.spec.ts",
+          "packages/api/gateway/tests/gateway-stream.host.spec.ts",
+          "packages/api/gateway/tests/gateway.host.spec.ts",
+          "packages/host/frontend-static/tests/frontend-static.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "owner-partition-welcome-fixture",
       "description": "Supply the owner session partition in the welcome startup substitute",
       "origin": "Desktop startup CI regression repair",

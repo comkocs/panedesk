@@ -664,17 +664,16 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // Preserve the composed surface-context choice because a patch replaces
     // the row's complete config.
     { id: 'web-runtime', config: { openBrowser: false, printUrl: false, surfaceContext } },
-    ...publicHost === undefined && options.remoteAuthority === undefined
-      ? []
-      : [{
-        id: 'connection',
-        config: {
-          trustedHosts: [
-            ...publicHost === undefined ? [] : [publicHost],
-            ...options.remoteAuthority === undefined ? [] : [options.remoteAuthority],
-          ],
-        },
-      }],
+    {
+      id: 'connection',
+      config: {
+        requireOwnerConfirmation: false,
+        trustedHosts: [
+          ...publicHost === undefined ? [] : [publicHost],
+          ...options.remoteAuthority === undefined ? [] : [options.remoteAuthority],
+        ],
+      },
+    },
     { id: 'credentials', config: { dshHome: harnessHome } },
     // The shipped directory-picker row is the -auto chooser, which resolves
     // the interaction from the RUNNING host (display, SSH launch, bind). The
@@ -988,7 +987,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     harnessHome,
     mode,
     baseUrl,
-    authenticatedUrl,
+    get authenticatedUrl() { return ctx.connection.authenticatedUrl(baseUrl) },
     ctx,
     workspaceCwd,
     persistenceRoot,
