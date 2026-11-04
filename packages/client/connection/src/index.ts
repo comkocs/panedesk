@@ -12,6 +12,7 @@ import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
 import { authLocale } from './auth-locale.ts'
+import { ConnectionSourceRegistry, OwnerConnectionSource } from './connection-source.ts'
 import { confirmBrowserLogin } from './owner-confirmation.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
@@ -33,6 +34,7 @@ export type {
   ConnectionRpcResult,
   ConnectionRequestBodyMode,
   ConnectionTrustRequest,
+  ConnectionSourceSocket,
   ClientRequest,
   HostConnectionHandle,
   HostConnectionFetch,
@@ -40,6 +42,7 @@ export type {
   RpcMessage,
   ServerResponse,
 } from './rpc.ts'
+export type { ConnectionSource, ConnectionSourceLookup, ConnectionSourceRegistry } from './connection-source.ts'
 export type { PeerId, PeerScope, Principal, RemoteInvocation } from '@panedesk/dsh-typert-protocol'
 export { RpcId, transportError } from './rpc.ts'
 export { Peer } from './peer.ts'
@@ -141,13 +144,15 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   // silently authorizing its hostname prefix at request time.
   for (const entry of trustedHosts) assertTrustedAuthority(entry)
   assertImageBodyCapacity(ctx, maxRequestBodyBytes)
+  const sources = ctx.root.get('connectionSources') ?? new ConnectionSourceRegistry(ctx.root)
   const connection = new HostConnectionService(
     ctx,
     trustedHosts,
     await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays,
       config?.requireOwnerConfirmation === false
         ? () => true
-        : request => confirmBrowserLogin(request, config?.ownerConfirmationTimeoutMs ?? 60_000)),
+        : request => confirmBrowserLogin(request, config?.ownerConfirmationTimeoutMs ?? 60_000),
+      new OwnerConnectionSource(socket => sources.classify(socket))),
   )
   ctx.inject(['webServer'], (webCtx) => {
     if (process.platform === 'darwin') {

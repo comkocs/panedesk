@@ -137,6 +137,57 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
+  it('uses the registered platform source before granting owner authority', async () => {
+    const ctx = new Context()
+    provideBrowserCredentials(ctx)
+    const provider = ctx.inject(['connectionSources'], (owner) => {
+      owner.connectionSources.register(process.platform, () => 'product-sandbox')
+    })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
+    try {
+      await fiber.await()
+      const connection = ctx.get('connection')!
+      const cookie = connection.desktopCookie('http://localhost')
+      expect(connection.admit({ headers: { host: 'localhost', cookie } })).toEqual({
+        rejection: 403,
+        reason: 'This request comes from a sandbox process and cannot act as owner. / 本请求来自沙箱进程，不能以 owner 身份执行。',
+      })
+      await provider.dispose()
+      expect(connection.admit({ headers: { host: 'localhost', cookie } })).toEqual({
+        rejection: 403,
+        reason: 'The connection source could not be verified and cannot act as owner. / 本请求的连接来源查不出，不能以 owner 身份执行。',
+      })
+    } finally { await fiber.dispose(); await provider.dispose(); await ctx.fiber.dispose() }
+  })
+
+  it('retains platform identity and withdrawal across connection reloads', async () => {
+    const ctx = new Context()
+    provideBrowserCredentials(ctx)
+    const plugin = { inject: [...inject], apply }
+    const first = ctx.plugin(plugin, { requireOwnerConfirmation: false })
+    try {
+      await first.await()
+      const registry = ctx.get('connectionSources')!
+      const provider = ctx.inject(['connectionSources'], (owner) => {
+        owner.connectionSources.register(process.platform, () => 'product-sandbox')
+      })
+      await provider.await()
+      await first.dispose()
+      const second = ctx.plugin(plugin, { requireOwnerConfirmation: false })
+      await second.await()
+      expect(ctx.get('connectionSources')!.classify(undefined)).toBe('product-sandbox')
+      expect(() => ctx.get('connectionSources')!.register(process.platform, () => 'non-product'))
+        .toThrow(`connection source already registered for ${process.platform}`)
+      expect(registry.classify(undefined)).toBe('product-sandbox')
+      await provider.dispose()
+      await second.dispose()
+      const third = ctx.plugin(plugin, { requireOwnerConfirmation: false })
+      await third.await()
+      expect(ctx.get('connectionSources')!.classify(undefined)).toBe('unknown')
+      expect(registry.classify(undefined)).toBe('unknown')
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('warns about macOS source identification without refusing host startup', async () => {
     const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
     const ctx = new Context()

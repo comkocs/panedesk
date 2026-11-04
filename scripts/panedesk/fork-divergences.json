@@ -70,7 +70,7 @@
       "id": "owner-connection-source-admission",
       "description": "Check physical connection sources before granting owner authority",
       "origin": "Owner authentication isolation",
-      "reason": "Share a three-valued host source adapter and socket-lifetime cache across HTTP admission, WebSocket upgrades, launch-token exchange and API Peer publication. Refuse sandbox and unknown sources with bilingual diagnostics before credentials are consumed. Platform identity adapters remain separate. These changes can be contributed upstream.",
+      "reason": "Share a three-valued host source adapter and socket-lifetime cache across HTTP admission, WebSocket upgrades, launch-token exchange and API Peer publication. Refuse sandbox and unknown sources with bilingual diagnostics before credentials are consumed. Inject the instance-owned connectionSources platform registry into production BrowserAuth, with effect-owned registration, duplicate rejection and fail-closed withdrawal. Exercise the real Loader HTTP and WebSocket owner entry paths. Platform identity adapters remain separate; an unimplemented platform is not claimed to enforce sandbox identity. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -82,6 +82,8 @@
           "packages/client/connection/src/rpc-host.ts",
           "packages/client/connection/src/rpc.ts",
           "packages/client/connection/tests/connection-source.host.spec.ts",
+          "packages/client/connection/tests/node-half.host.spec.ts",
+          "packages/api/gateway/tests/operator-connect.host.spec.ts",
           "packages/client/connection/README.md",
           "packages/client/connection/README.zh.md",
           "packages/client/connection/README.i18n.yaml",

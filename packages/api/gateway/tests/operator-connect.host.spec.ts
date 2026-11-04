@@ -12,6 +12,8 @@ import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import SandboxedFileSystem from '@panedesk/dsh-fs-sandbox'
 import PermissionPresetService from '@panedesk/dsh-permission-presets'
 import { IncomingMessage } from 'node:http'
+import { request as httpsRequest } from 'node:https'
+import { materializeTlsFixture } from '../../../host/webserver/tests/tls-fixture.ts'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -48,6 +50,7 @@ interface Host {
   readonly origin: string
   readonly fixture: OperatorConnectFixture
   readonly workspace: string
+  readonly ca?: string
 }
 const roots: string[] = []
 const hosts: Host[] = []
@@ -79,6 +82,53 @@ afterEach(async () => {
 
 describe('operator connect through Loader composition', () => {
   it.each([
+    ['product-sandbox', false], ['unknown', false], ['product-sandbox', true], ['unknown', true],
+  ] as const)('rejects %s at all owner entries through the production adapter (TLS=%s)', async (source, tls) => {
+    const host = await boot(true, true, tls)
+    host.ctx.connectionSources.register(process.platform, () => source)
+    const cookie = host.ctx.connection.desktopCookie(host.origin)
+    const reason = source === 'product-sandbox'
+      ? 'This request comes from a sandbox process and cannot act as owner. / 本请求来自沙箱进程，不能以 owner 身份执行。'
+      : 'The connection source could not be verified and cannot act as owner. / 本请求的连接来源查不出，不能以 owner 身份执行。'
+    const install = vi.spyOn(packageOperations, 'runProfilePnpm')
+    for (const [endpoint, args] of [
+      ['$events/result', { clientId: 'synthetic-client', eventId: 'synthetic-event', outcome: { kind: 'result', value: 'allowed' } }],
+      ['permissionPresets/authorizeWorkspaceWrite', { workspace: host.workspace }],
+      ['pluginManager/installBundle', { spec: 'synthetic-bundle' }],
+    ] as const) {
+      expect(await rpc(host, cookie, endpoint, args)).toEqual({ status: 403, body: reason })
+    }
+    expect(install).not.toHaveBeenCalled()
+    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+    expect(host.fixture.effects.size).toBe(0)
+    for (const target of [host.ctx.connection.authenticatedUrl(host.origin), `${host.origin}/connect`]) {
+      const response = await transportFetch(host, target, { redirect: 'manual', headers: { cookie } })
+      expect(response.status).toBe(403)
+      expect(await response.text()).toBe(`${reason}\n`)
+      expect(response.headers.get('set-cookie')).toBeNull()
+    }
+    expect(await refusedMux(host, cookie)).toBe(403)
+  })
+
+  it.each([false, true])('admits non-product owner exchange and event delivery (TLS=%s)', async (tls) => {
+    const host = await boot(true, true, tls)
+    host.ctx.connectionSources.register(process.platform, () => 'non-product')
+    const browser = await exchange(host, 'html')
+    const api = await exchange(host, 'answer')
+    const client = await mux(host, api)
+    const ready = await events(client)
+    const pending = host.fixture.pending('non-product-approval')
+    const delivery = await invocation(client, 'non-product-approval')
+    await success(host, api, '$events/result', {
+      clientId: ready.clientId, eventId: delivery.eventId, outcome: { kind: 'result', value: 'allowed' },
+    })
+    await expect(pending).resolves.toEqual({ kind: 'result', value: 'allowed' })
+    await success(host, browser, 'fixture/identity', { label: 'non-product-owner' })
+    expect(call(host, 'non-product-owner').peer.principal).toEqual({ kind: 'owner' })
+    await close(client)
+  })
+
+  it.each([
     ['$events/result', { clientId: 'synthetic-client', eventId: 'synthetic-event', outcome: { kind: 'result', value: 'allowed' } }],
     ['permissionPresets/authorizeWorkspaceWrite', { workspace: 'synthetic-workspace' }],
     ['pluginManager/installBundle', { spec: 'synthetic-bundle' }],
@@ -96,8 +146,9 @@ describe('operator connect through Loader composition', () => {
     expect(call(host, 'legitimate-owner').peer === host.ctx.connection.browserPeer).toBe(true)
   })
 
-  it('installs a disabled bundle only for the authenticated owner through HTTP', async () => {
-    const host = await boot(false, true)
+  it.each([false, true])('installs a disabled bundle only for the authenticated non-product owner (TLS=%s)', async (tls) => {
+    const host = await boot(false, true, tls)
+    host.ctx.connectionSources.register(process.platform, () => 'non-product')
     const dir = host.ctx.profileContext.dir
     const manifestPath = join(dir, 'package.json')
     const patchPath = join(dir, 'cordis.patch.yml')
@@ -136,8 +187,10 @@ describe('operator connect through Loader composition', () => {
     expect((await host.ctx.pluginManager.listBundles()).find(bundle => bundle.name === 'synthetic-owner-bundle')?.enabled).toBe(false)
   })
 
-  it('records workspace authorization only for the authenticated owner through HTTP', async () => {
-    const host = await boot(true)
+  it.each([false, true])('records workspace authorization only for the authenticated non-product owner (TLS=%s)', async (tls) => {
+    const host = await boot(true, false, tls)
+    host.ctx.connectionSources.register(process.platform, () => 'non-product')
+    if (process.platform !== 'win32') host.ctx.connectionSources.register('win32', () => 'non-product')
     const cookie = await exchange(host, 'html')
     const separator = cookie.indexOf('=')
     const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
@@ -310,7 +363,7 @@ describe('operator connect through Loader composition', () => {
 
 })
 
-async function boot(workspaceAccess = false, pluginManagement = false): Promise<Host> {
+async function boot(workspaceAccess = false, pluginManagement = false, tls = false): Promise<Host> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-operator-connect-'))
   roots.push(root)
   const workspace = join(root, 'workspace')
@@ -322,9 +375,12 @@ async function boot(workspaceAccess = false, pluginManagement = false): Promise<
   const distIndex = join(root, 'index.html')
   await writeFile(distIndex, '<head></head><body>operator fixture</body>')
   const configPath = join(root, 'cordis.yml')
+  const certificate = tls ? await materializeTlsFixture(join(root, 'tls')) : undefined
   const rows = [
     { name: '@panedesk/dsh-credentials-local', config: { path: join(privateDirectory, '.credentials.yaml'), watch: false } },
-    { name: '@panedesk/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
+    { name: '@panedesk/dsh-host-webserver', config: { host: '127.0.0.1', port: 0,
+      ...certificate === undefined ? {} : { tls: { certFile: certificate.certFile, keyFile: certificate.keyFile } },
+    } },
     { name: '@panedesk/dsh-client-connection', config: { requireOwnerConfirmation: false } },
     { name: '@panedesk/dsh-host-frontend-static', config: { distIndex } },
     { name: '@panedesk/dsh-typert-registry' },
@@ -390,7 +446,8 @@ async function boot(workspaceAccess = false, pluginManagement = false): Promise<
     }
     expect((await ctx.fs.readText(material, undefined, { mode: 'danger-full-access', workspaceRoot: workspace })).length)
       .toBeGreaterThan(0)
-    const host = { ctx, origin: `http://127.0.0.1:${ctx.webServer.port}`, fixture: ctx.operatorConnectFixture, workspace }
+    const host: Host = { ctx, origin: `${tls ? 'https' : 'http'}://127.0.0.1:${ctx.webServer.port}`,
+      fixture: ctx.operatorConnectFixture, workspace, ...certificate === undefined ? {} : { ca: certificate.ca } }
     hosts.push(host)
     return host
   } catch (error) {
@@ -399,12 +456,36 @@ async function boot(workspaceAccess = false, pluginManagement = false): Promise<
   }
 }
 
+async function transportFetch(
+  host: Host, target: string, init: { method?: string; redirect?: 'manual'; headers: Record<string, string>; body?: string },
+): Promise<Response> {
+  if (host.ca === undefined) return fetch(target, init)
+  return new Promise((resolve, reject) => {
+    const request = httpsRequest(target, { ca: host.ca, method: init.method, headers: init.headers }, (response) => {
+      const chunks: Buffer[] = []
+      response.on('data', (chunk: Buffer) => chunks.push(chunk))
+      response.on('error', reject)
+      response.on('end', () => {
+        const headers = new Headers()
+        for (const [key, value] of Object.entries(response.headers)) {
+          if (Array.isArray(value)) for (const entry of value) headers.append(key, entry)
+          else if (value !== undefined) headers.set(key, value)
+        }
+        if (response.statusCode === undefined) { reject(new Error('TLS response omitted its status')); return }
+        resolve(new Response(Buffer.concat(chunks), { status: response.statusCode, headers }))
+      })
+    })
+    request.on('error', reject)
+    request.end(init.body)
+  })
+}
+
 async function exchange(host: Host, mode: 'html' | 'none' | 'answer'): Promise<string> {
   const target = new URL(mode === 'html'
     ? host.ctx.connection.authenticatedUrl(`${host.origin}/`) : `${host.origin}/connect`)
   if (mode !== 'html') target.searchParams.set('interactions', mode)
   const ownerCookie = mode === 'html' ? undefined : await exchange(host, 'html')
-  const response = await fetch(target, { redirect: 'manual', headers: {
+  const response = await transportFetch(host, target.href, { redirect: 'manual', headers: {
     accept: mode === 'html' ? 'text/html' : 'application/json',
     ...ownerCookie === undefined ? {} : { cookie: ownerCookie },
   } })
@@ -416,7 +497,9 @@ async function exchange(host: Host, mode: 'html' | 'none' | 'answer'): Promise<s
 }
 
 function socketClient(host: Host, cookie: string): SocketClient {
-  const socket = new WebSocket(`${host.origin.replace('http:', 'ws:')}/api/remote.mux`, { headers: { cookie } })
+  const socket = new WebSocket(`${host.origin.replace(/^http/, 'ws')}/api/remote.mux`, {
+    headers: { cookie }, ...host.ca === undefined ? {} : { ca: host.ca },
+  })
   const closed = new Promise<void>((resolve) => { socket.once('close', () => { resolve() }) })
   const frames: RemoteStreamServerMessage[] = []
   const errors: Error[] = []
@@ -490,7 +573,7 @@ async function invocation(client: SocketClient, label: string): Promise<z.infer<
 async function rpc(
   host: Host, cookie: string, endpoint: string, args: object,
 ): Promise<{ status: number; body: unknown }> {
-  const response = await fetch(`${host.origin}/api/${endpoint}`, {
+  const response = await transportFetch(host, `${host.origin}/api/${endpoint}`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' },
     body: JSON.stringify({ type: 'client-request', rpcId: randomUUID(), method: endpoint, payload: { args } }),
   })

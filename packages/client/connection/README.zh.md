@@ -44,7 +44,7 @@ kind: "package-reference"
 
 cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$PANEDESK_HOME/private/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。浏览器与 API cookie 默认采用不带 `Max-Age` 或 `Expires` 的会话 cookie，签名中的签发与过期区间仍限制为 30 天。在受保护的 Host 配置中显式设置正整数 `cookieMaxAgeDays`，才会启用对应天数的持久存储；没有环境变量、命令行或请求覆盖入口。浏览器会话恢复可能保留会话 cookie，因此这不是撤销机制。cookie 在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；收到该 index 请求的监听器提供 TLS 时才带上 `Secure`，且只由该监听器自身的协议决定，`publicUrl` 声明与转发头都不参与判断。
 
-Host 持有的连接来源适配器可在消费启动令牌、发布 API Peer 或分派已认证请求之前拒绝 owner 准入。判定区分本产品沙箱、非本产品和未知来源；沙箱与未知结果返回中英 403 拒因。HTTP keep-alive 与 WebSocket 升级共享 socket 缓存，关闭时释放。适配器不是请求字段或配置绕过开关；具体平台识别必须由 Host 提供。
+Host 在根 Context 上跨 connection 插件重载保留 `connectionSources` 注册表，并将平台注册表注入 owner 准入，在消费启动令牌、发布 API Peer 或分派已认证请求之前查询。提供方必须在允许不可信进程执行之前，通过 `ctx.connectionSources.register(platform, lookup)` 登记同步判定器；登记归调用方 fiber，重复平台登记失败，撤销后新连接按未知来源拒绝。没有实现的平台返回非本产品；这不表示 Windows 沙箱已经受到拦截。判定区分本产品沙箱、非本产品和未知来源；沙箱与未知结果返回中英 403 拒因。HTTP keep-alive 与 WebSocket 升级共享 socket 缓存，关闭时释放。适配器不是请求字段或配置绕过开关；具体平台识别必须由 Host 提供。
 
 HTTPS cookie 名称与签名 audience 包含 `https:` scheme，因此即使 hostname 和 port 相同，HTTP cookie 也无法通过 TLS 监听器的认证。默认端口按监听器的 scheme 归一化。既有 HTTP cookie audience 保持不变。
 
