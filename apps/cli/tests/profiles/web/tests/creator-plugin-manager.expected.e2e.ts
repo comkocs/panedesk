@@ -40,7 +40,7 @@ it('configures MCP on a live profile, restores it on restart, and removes its to
       url: mcp.url, failOnStartupError: true },
   }] }]))
   const patch = join(root, 'test.patch.yml')
-  await writeFile(patch, JSON.stringify([{ insert: [{ id: 'creator-manager-observer',
+  await writeFile(patch, JSON.stringify([{ id: 'connection', config: { requireOwnerConfirmation: false } }, { insert: [{ id: 'creator-manager-observer',
     name: new URL('./fixtures/creator-plugin-manager.mjs', import.meta.url).href, config: { bundle },
   }] }]))
   const start = async () => {

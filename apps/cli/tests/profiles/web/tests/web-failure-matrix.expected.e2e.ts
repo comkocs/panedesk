@@ -36,7 +36,7 @@ function fixture() {
   const patch = join(home, 'cordis.patch.yml')
   const watcher = join(root, 'watcher.patch.yml')
   // Native delivery remains real; completed writes bypass Chokidar's 50 ms change suppression.
-  writeFileSync(watcher, JSON.stringify([{ id: 'hmr', disabled: false, config: {
+  writeFileSync(watcher, JSON.stringify([{ id: 'connection', config: { requireOwnerConfirmation: false } }, { id: 'hmr', disabled: false, config: {
     root: [], awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 20 },
   } }]) + '\n')
   writeFileSync(events, '')

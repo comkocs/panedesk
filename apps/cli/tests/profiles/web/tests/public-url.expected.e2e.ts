@@ -100,7 +100,7 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
     '',
   ].join('\n'))
   const patch = join(root, 'extra.yml')
-  writeFileSync(patch, `- insert:\n    - name: ${JSON.stringify(pathToFileURL(marker).href)}\n`)
+  writeFileSync(patch, `- id: connection\n  config:\n    requireOwnerConfirmation: false\n- insert:\n    - name: ${JSON.stringify(pathToFileURL(marker).href)}\n`)
   const child = spawnWeb(root, patch, interrupt, flags)
   const lines = createInterface({ input: child.stdout })
   const ready = Promise.withResolvers<RunningWeb>()
