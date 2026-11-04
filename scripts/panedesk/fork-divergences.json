@@ -15515,6 +15515,16 @@
       }
     },
     {
+      "id": "native-session-tmux-lifetime-fixture",
+      "description": "Keep the test-owned tmux server alive through native socket checks",
+      "origin": "Service-account native session fixture",
+      "reason": "Select an explicit POSIX shell for the isolated tmux pane rather than inheriting a service account's non-login shell. Verify the same server PID before and after sandbox connection attempts, retaining all unreachable-socket assertions and successful explicit server teardown. This fixture repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts"]
+      }
+    },
+    {
       "id": "worktree-native-admission-time-budget",
       "description": "Allow all native worktree admission commands to settle",
       "origin": "Native admission test lifecycle",

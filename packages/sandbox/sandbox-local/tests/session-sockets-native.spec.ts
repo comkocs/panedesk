@@ -66,16 +66,26 @@ for (const mode of ['read-only', 'workspace-write'] as const) {
       console.info(`${mode} ${name}: unmasked=0 masked=${isolated.status}`)
     }
     const tmuxSocket = join(sessions, 'tmux.sock')
-    const started = run(['tmux', '-S', tmuxSocket, '-f', '/dev/null', 'new-session', '-d', '-s', 'isolated-test', '-P', '-F', '#{pid}'])
+    // Service accounts may have a non-login shell; the test owns the pane lifetime.
+    const started = run(['tmux', '-S', tmuxSocket, '-f', '/dev/null',
+      'start-server', ';', 'set-option', '-g', 'default-shell', '/bin/sh', ';',
+      'new-session', '-d', '-s', 'isolated-test', '-P', '-F', '#{pid}'])
     expect(started.status, started.stderr).toBe(0)
     const serverPid = Number(started.stdout.trim())
     onTestFinished(() => { const stopped = run(['tmux', '-S', tmuxSocket, 'kill-server']); expect(stopped.status, `test server ${serverPid}: ${stopped.stderr}`).toBe(0) })
     expect(Number.isSafeInteger(serverPid) && serverPid > 0).toBe(true)
+    const assertServerAlive = () => {
+      const alive = run(['tmux', '-S', tmuxSocket, 'display-message', '-p', '-t', 'isolated-test', '#{pid}'])
+      expect(alive.status, `test server ${serverPid}: ${alive.stderr}`).toBe(0)
+      expect(alive.stdout.trim()).toBe(String(serverPid))
+    }
+    assertServerAlive()
     const command = ['tmux', '-S', tmuxSocket, 'send-keys', '-t', 'isolated-test', 'true', 'Enter']
     const control = run(['bwrap', '--ro-bind', '/', '/', '--', ...command])
     expect(control.status, control.stderr).toBe(0)
     const isolated = run(['bwrap', ...args, '--', ...command])
     expect(isolated.status, isolated.stderr).not.toBe(0)
+    assertServerAlive()
     console.info(`${mode} tmux: unmasked=0 masked=${isolated.status}`)
   })
 }
