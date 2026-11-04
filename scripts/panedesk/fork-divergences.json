@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "sandbox-owned-landlock-fixture",
+      "description": "Keep the Landlock fallback assertion independent of concurrent temporary directories",
+      "origin": "Local sandbox test isolation",
+      "reason": "Limit mocked directory enumeration to the fixture-owned ancestry and contents instead of caching foreign directory entries whose later stat calls can race with other workers. Preserve the exact confined argv and enforcement assertions without changing production policy. This test isolation change can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox-local/tests/local.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "sandbox-product-restricted-sid",
       "description": "Attach a capability-neutral product identity to both Windows sandbox token modes",
       "origin": "Sandbox connection-source identification",

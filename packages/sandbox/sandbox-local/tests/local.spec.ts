@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import { LAUNCHER_FAILURE_EXIT, launcherPath } from '@panedesk/node-addon-system/landlock-run'
@@ -233,18 +233,18 @@ describe('the platform chains', () => {
     const probeLandlock = vi.fn(() => 'full' as const)
     const launcher = fakeLauncher()
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
-    // Reuse each directory's first listing across validation, argv generation,
-    // and comparison: unrelated workers can change shared temp between them.
+    // Enumerate only the owned fixture's ancestry and contents. Caching directory
+    // entries alone cannot stabilize later stat calls on other workers' paths.
+    const home = realpathSync(process.env.PANEDESK_HOME!)
+    const readable = join(home, 'readable')
+    fs.mkdirSync(readable)
     const readDirectory = fs.readdirSync
-    const entries = new Map<string, ReturnType<typeof fs.readdirSync>>()
     const directories = vi.spyOn(fs, 'readdirSync').mockImplementation((...args) => {
-      const key = JSON.stringify(args)
-      let listing = entries.get(key)
-      if (!listing) {
-        listing = readDirectory(...args)
-        entries.set(key, listing)
-      }
-      return listing
+      const listing = readDirectory(...args)
+      return listing.filter((entry) => {
+        const path = join(String(args[0]), String(entry.name))
+        return path === home || home.startsWith(`${path}${sep}`) || path.startsWith(`${home}${sep}`)
+      })
     })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
