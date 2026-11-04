@@ -98,8 +98,10 @@ describe('profile dialects', () => {
   })
 
   it('landlock keeps an unrelated workspace writable when host inputs occupy shared temp', () => {
-    expect(landlockProfileArgs({ ...WW, protectedPaths: ['/tmp/active-host/plugin.js'] }))
-      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/ws'])
+    const workspace = mkdtempSync(join(tmpdir(), 'landlock-workspace-'))
+    tempDirs.push(workspace)
+    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace, protectedPaths: ['/tmp/active-host/plugin.js'] }))
+      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', workspace])
   })
 
   it('landlock grants only unrelated first-level children beside an active host input', () => {
@@ -118,7 +120,10 @@ describe('profile dialects', () => {
   })
 
   it('landlock workspace-write: adds the host /tmp and the workspace root', () => {
-    expect(landlockProfileArgs(WW)).toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', '/ws'])
+    const workspace = mkdtempSync(join(tmpdir(), 'landlock-workspace-'))
+    tempDirs.push(workspace)
+    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace }))
+      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', workspace])
   })
 
   it('seatbelt read-only: allow-default with every file write denied except the /dev/null literal', () => {
