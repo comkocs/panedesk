@@ -2,6 +2,7 @@ import { Context } from '@panedesk/cordis'
 import type { PeerScope, Principal } from '@panedesk/dsh-typert-protocol'
 import { describe, expect, it, vi } from 'vitest'
 import type { BrowserAuth } from '../src/browser-auth.ts'
+import { authAdmissionBody } from '../src/auth-locale.ts'
 import { HostConnectionService } from '../src/rpc-host.ts'
 
 async function mounted(): Promise<{
@@ -107,6 +108,7 @@ describe('Connection exact Fetch routes', () => {
 
     const refused = await shared.fetch(new Request('http://host/api/session.export'), guest)
     expect(refused.status).toBe(403)
+    expect(await refused.text()).toBe(authAdmissionBody(403))
     expect(route).not.toHaveBeenCalled()
     expect((await shared.fetch(new Request('http://host/api/session.export'), connection.browserPeer)).status).toBe(200)
 

@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { authAdmissionBody } from '@panedesk/dsh-client-connection'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const DSH_SOURCE_BIN = join(REPO_ROOT, 'apps/cli/src/bin.ts')
@@ -167,7 +168,7 @@ describe('panedesk web authentication through the real CLI', () => {
 
       expect(await describeSettings(port, `localhost:${String(port)}`)).toEqual({
         status: 401,
-        body: 'unauthorized',
+        body: authAdmissionBody(401),
       })
 
       const exchange = await fetch(first.launchUrl, { redirect: 'manual' })
