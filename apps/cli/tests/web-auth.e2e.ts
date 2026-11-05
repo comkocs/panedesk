@@ -18,6 +18,45 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const DSH_SOURCE_BIN = join(REPO_ROOT, 'apps/cli/src/bin.ts')
 const TSX_LOADER = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
 
+/**
+ * Relay one real controlling terminal for the CLI. A new browser is admitted
+ * only by an owner answer read from `/dev/tty`, never from redirected input.
+ */
+const OWNER_TERMINAL = `import os, pty, select, signal, sys
+
+def terminate(_signum, _frame):
+    raise SystemExit(0)
+
+pid, master = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], '--import', sys.argv[2], sys.argv[3], 'web', '--no-open', '--port', sys.argv[4]])
+signal.signal(signal.SIGTERM, terminate)
+try:
+    while True:
+        ready, _, _ = select.select([master, sys.stdin], [], [], 1)
+        if master in ready:
+            try:
+                data = os.read(master, 65536)
+            except OSError:
+                break
+            if not data:
+                break
+            sys.stdout.buffer.write(data)
+            sys.stdout.buffer.flush()
+        if sys.stdin in ready:
+            data = os.read(sys.stdin.fileno(), 1024)
+            if not data:
+                break
+            os.write(master, data)
+finally:
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    os.waitpid(pid, 0)
+    os.close(master)
+`
+
 interface RunningWeb {
   readonly child: ChildProcess
   readonly launchUrl: string
@@ -65,18 +104,18 @@ function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
   }
 }
 
-/** Start the public source CLI and wait for its authenticated readiness URL. */
+/** Start the public source CLI behind a real controlling terminal and wait for its readiness URL. */
 async function startWeb(root: string, dshHome: string, port: number): Promise<RunningWeb> {
-  const child = spawn(process.execPath, [
-    '--import', TSX_LOADER,
+  const child = spawn('python3', [
+    '-I', '-c', OWNER_TERMINAL,
+    process.execPath,
+    TSX_LOADER,
     DSH_SOURCE_BIN,
-    'web',
-    '--no-open',
-    '--port', String(port),
+    String(port),
   ], {
     cwd: root,
     env: cleanEnvironment(root, dshHome),
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   })
   let output = ''
   const launchUrl = await new Promise<string>((resolve, reject) => {
@@ -181,6 +220,12 @@ describe('panedesk web authentication through the real CLI', () => {
       expect(setCookie).not.toContain('Secure')
       const cookie = setCookie.split(';', 1)[0]!
 
+      // The launch exchange admits the browser only once the host terminal answers.
+      await expect.poll(() => first?.output().includes('[y/N]') ?? false, { timeout: 30_000 }).toBe(true)
+      const ownerInput = first?.child.stdin
+      if (ownerInput === undefined || ownerInput === null) throw new Error('owner terminal input closed before confirmation')
+      ownerInput.write('y\n')
+      await expect.poll(async () => (await describeSettings(port, firstUrl.host, cookie)).status, { timeout: 30_000 }).toBe(200)
       const authenticated = await describeSettings(port, firstUrl.host, cookie)
       expect(authenticated.status).toBe(200)
       const authenticatedBody: unknown = JSON.parse(authenticated.body)
