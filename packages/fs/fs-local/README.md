@@ -88,7 +88,7 @@ Content reads, edit pre-reads, and overwrite diff bases open once, inspect the o
 
 ### Directory-relative operations
 
-On Linux, canonical ancestors are opened one component at a time with `O_DIRECTORY | O_NOFOLLOW`; subsequent operations address a single entry through the retained directory descriptor. Reads, metadata probes, directory enumeration, parent creation, staging, and publication share this traversal layer. Each mutation retains its parent across the pre-read, publication, and post-write probe, and holds a separate staging-directory descriptor. A directory replaced by a link cannot redirect these operations. macOS and Windows retain path-based ancestor traversal; equivalent mutation confinement requires native directory-relative operations that this backend does not provide.
+On Linux, canonical ancestors are opened one component at a time with `O_DIRECTORY | O_NOFOLLOW`; subsequent operations address a single entry through the retained directory descriptor. Reads, metadata probes, directory enumeration, parent creation, staging, and publication share this traversal layer. Each mutation retains its parent across the pre-read, publication, and post-write probe, and holds a separate staging-directory descriptor. A directory replaced by a link cannot redirect these operations. Virtual Node filesystems that do not expose `O_DIRECTORY` retain their path-based operations instead of entering host descriptor traversal. macOS and Windows retain path-based ancestor traversal; equivalent mutation confinement requires native directory-relative operations that this backend does not provide.
 
 ### Write path
 

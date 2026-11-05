@@ -14,7 +14,7 @@ import { TextDecoder, promisify } from 'node:util'
 import { FsError, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
 import { openReadHandle } from './read-handle.ts'
-import { openDirectory, openDirectoryTarget } from './directory-handle.ts'
+import { openDirectory, openDirectoryTarget, usesDirectoryHandles } from './directory-handle.ts'
 import type { ReadHandle, ReadIdentity } from './read-handle.ts'
 
 /** Optional provider policy, evaluated on the opened object before reading content. */
@@ -272,7 +272,7 @@ async function probeStats<T extends Stats | BigIntStats>(
  */
 export async function probe(absolutePath: string, directoryAnchored = false): Promise<PathInfo | null> {
   const info = await probeStats(absolutePath, async (path) => {
-    if (process.platform !== 'linux') return stat(path, { bigint: true })
+    if (!usesDirectoryHandles) return stat(path, { bigint: true })
     const anchor = directoryAnchored ? undefined : await openDirectoryTarget(path)
     try {
       // O_PATH inspects sockets and unreadable entries without opening their contents.
@@ -333,7 +333,7 @@ function listingIoError(displayPath: string, error: unknown): FsError {
 
 async function resolveListedChildTarget(parent: LocalTarget, name: string): Promise<LocalTarget> {
   const destination = await readlink(join(parent.targetKey, name))
-  const parentPath = process.platform === 'linux' ? await readlink(parent.targetKey) : parent.targetKey
+  const parentPath = usesDirectoryHandles ? await readlink(parent.targetKey) : parent.targetKey
   const identity = await resolveLocalTarget(parentPath, destination)
   return { displayPath: localDisplayPath(parent.displayPath, name), targetKey: identity.targetKey }
 }
@@ -647,7 +647,7 @@ export async function writeFileAtomic(
   directoryAnchored = false,
 ): Promise<void> {
   throwIfAborted(signal, 'write')
-  if (directoryAnchored || (internals.platform ?? process.platform) !== 'linux') {
+  if (directoryAnchored || !usesDirectoryHandles || (internals.platform ?? process.platform) !== 'linux') {
     return writeAnchoredFile(absolutePath, content, mode, signal, internals, createIfAbsent)
   }
   const anchor = await openDirectoryTarget(absolutePath, true)
@@ -688,7 +688,7 @@ async function writeAnchoredFile(
   try {
     await mkdir(stagingDir, { mode: 0o700 })
     stagingCreated = true
-    if (platform === 'linux') {
+    if (platform === 'linux' && usesDirectoryHandles) {
       stagingHandle = await open(stagingDir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW)
       await stagingHandle.chmod(0o700)
       tempPath = `/proc/self/fd/${stagingHandle.fd}/${tempName}`

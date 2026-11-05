@@ -13,6 +13,9 @@ export interface DirectoryTarget {
   close(): Promise<void>
 }
 
+/** Linux host descriptors are unavailable in virtual Node filesystems without O_DIRECTORY. */
+export const usesDirectoryHandles = process.platform === 'linux' && typeof constants.O_DIRECTORY === 'number'
+
 const directoryFlags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW
 
 /**
@@ -20,10 +23,10 @@ const directoryFlags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_
  * @param path - Canonical absolute directory name.
  * @param create - Create missing components below root, or require existing directories when false.
  * @param root - Existing authorized directory; omission allows the whole filesystem.
- * @returns Owned descriptor path on Linux; other platforms retain their existing path backend.
+ * @returns Owned descriptor path on Linux hosts; virtual filesystems without O_DIRECTORY and other platforms retain paths.
  */
 export async function openDirectory(path: string, create = false, root = '/'): Promise<DirectoryTarget> {
-  if (process.platform !== 'linux') return { path, close: async () => {} }
+  if (!usesDirectoryHandles) return { path, close: async () => {} }
   const suffix = relative(root, path)
   if (!isAbsolute(path) || !isAbsolute(root) || path.split('/').includes('..')
     || suffix === '..' || suffix.startsWith('../') || isAbsolute(suffix)) {
@@ -79,7 +82,7 @@ export async function openDirectory(path: string, create = false, root = '/'): P
  * @returns Owned single-entry descriptor-relative target, or the existing non-Linux backend.
  */
 export async function openDirectoryTarget(path: string, createParents = false, root = '/'): Promise<DirectoryTarget> {
-  if (process.platform !== 'linux') return { path, close: async () => {} }
+  if (!usesDirectoryHandles) return { path, close: async () => {} }
   if (path === root) {
     const directory = await openDirectory(root)
     return { path: `${directory.path}/.`, close: () => directory.close() }
