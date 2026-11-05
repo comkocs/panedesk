@@ -88,7 +88,7 @@ export class SessionWriteLease {
     // Bounded retry: locking an inode a releasing creator just unlinked (or a
     // recreated path) re-opens the fresh file; steady state needs one pass.
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const handle = await open(path, 'w')
+      const handle = await open(path, 'w', 0o600)
       try {
         try {
           await tryLockExclusive(handle.fd)

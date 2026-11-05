@@ -1,6 +1,32 @@
 {
   "divergences": [
     {
+      "id": "authoritative-home-structural-review",
+      "description": "Validate mutable authoritative home trees without content baselines",
+      "origin": "Protected host input review",
+      "reason": "Define the ledger, sessions and session projection cache trees once beside protected roots. Omit their contents and additions from capture and review without content warnings, including captures through registered ancestor roots, retaining default content checks for every unlisted home input and all paths outside the exact home selection. Validate directory roots, ownership, write permissions, entry types and confined links on Linux and macOS; Windows retains only sandbox write exclusion. Preserve write grants, protected root registration, digest algorithms, durable record formats and existing assertions. Create POSIX session lock files with owner-only permissions independently of umask, without repairing existing unsafe files. Add focused regressions and paired documentation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/input-integrity-structure.ts",
+          "packages/boot/app-boot/src/input-integrity-locales.ts",
+          "packages/boot/app-boot/tests/input-integrity-authority.spec.ts",
+          "packages/boot/app-boot/tests/input-integrity-ancestor.spec.ts",
+          "packages/session/session-persistence-jsonl/src/lease.ts",
+          "packages/session/session-persistence-jsonl/tests/lease-permissions.spec.ts",
+          "packages/session/session-persistence-jsonl/README*",
+          "packages/boot/app-boot/README*",
+          "packages/sandbox/sandbox/src/roots.ts",
+          "packages/sandbox/sandbox/src/index.ts",
+          "packages/sandbox/sandbox/README*",
+          "docs/subsystems/boot.md",
+          "docs/subsystems/boot.zh.md",
+          "docs/subsystems/boot.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "linux-execve-budget-and-launch-cleanup",
       "description": "Bound Koffi argument conversion and reclaim empty launch resources",
       "origin": "Linux subprocess launch safety",

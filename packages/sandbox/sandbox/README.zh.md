@@ -57,7 +57,7 @@ kind: "package-reference"
 
 模式指明命令可以执行的文件操作；强制执行完整度报告后端对这些操作的管辖程度。
 
-`ownerMaterialDirectories` 归属规范化私密存储清单，`assertOwnerWorkspace` 拒绝位于该存储内的工作区及覆盖它的 Windows 写授权，`protectedWorkspaceBranches` 选择状态记录与所有者隔离共用的第一级排除分支。文件读器还比较文件身份，以拒绝硬链接别名。
+`ownerMaterialDirectories` 归属规范化私密存储清单，`assertOwnerWorkspace` 拒绝位于该存储内的工作区及覆盖它的 Windows 写授权，`protectedWorkspaceBranches` 选择状态记录与所有者隔离共用的第一级排除分支。文件读器还比较文件身份，以拒绝硬链接别名。`authoritativeHomeTrees` 为[宿主输入捕获与复核](../../../docs/subsystems/boot.zh.md#profile-input-paths)定义精确的可变 home 树，与原生写排除相互独立。
 
 | 模式 | 效果 |
 |---|---|

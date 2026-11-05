@@ -60,6 +60,17 @@ export function rootsOverlap(left: string, right: string): boolean {
 }
 
 const homeDiagnosticFiles = new Set(['run/kernel-boot.json', 'run/kernel-status.json', 'logs/host-errors.log'])
+const homeAuthorityTrees = ['ledger', 'sessions', 'storages/session_projcache/sessions'] as const
+
+/**
+ * List authoritative host trees whose mutable contents are not input baselines.
+ * Their native sandbox write exclusions remain unchanged.
+ * @param home - Canonical product-home directory.
+ * @returns Exact tree roots requiring structural checks on Linux and macOS.
+ */
+export function authoritativeHomeTrees(home: string): readonly string[] {
+  return homeAuthorityTrees.map(path => join(home, path))
+}
 
 /**
  * Identify diagnostic-only regular files omitted from a product-home input snapshot.

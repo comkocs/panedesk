@@ -4,8 +4,9 @@ import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readF
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
-import { isHomeDiagnosticFile, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
+import { authoritativeHomeTrees, isHomeDiagnosticFile, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 import { en, zh } from './input-integrity-locales.ts'
+import { checkAuthoritativeTree } from './input-integrity-structure.ts'
 
 /** Windows policy refuses workspace writes that include owner-state storage. */
 export class WorkspaceContainsStateError extends Error {
@@ -98,12 +99,13 @@ interface CapturePass {
   bytes: Map<string, { chunks?: readonly Buffer[]; blob: string }>
   previous?: CapturePass
   diagnostics: Map<string, string>
+  authorityRoots: Set<string>
 }
 
 function capturePass(): CapturePass {
   return {
     recordedAt: Date.now(), identities: new Map(), stamps: new Map(), nodes: new Map(),
-    directories: new Map(), bytes: new Map(), diagnostics: new Map(),
+    directories: new Map(), bytes: new Map(), diagnostics: new Map(), authorityRoots: new Set(),
   }
 }
 
@@ -127,10 +129,12 @@ function* unchangedEntry(pass: CapturePass, filename: string): Generator<void, b
   const bytes = pass.bytes.get(target)
   if (bytes !== undefined && (yield* contentDigest(filename)) !== bytes.blob) return false
   const names = pass.directories.get(target)
-  return names === undefined || JSON.stringify(readdirSync(target).sort()) === JSON.stringify(names)
+  return names === undefined || JSON.stringify(readdirSync(target).sort().filter(name => !pass.authorityRoots.has(join(target, name))))
+    === JSON.stringify(names.filter(name => !pass.authorityRoots.has(join(target, name))))
 }
 
 function* checkPass(pass: CapturePass): Generator<void, void> {
+  for (const root of pass.authorityRoots) yield* checkAuthoritativeTree(root)
   for (const [filename, home] of pass.diagnostics) {
     if (!isHomeDiagnosticFile(home, filename)) throw new Error(`Protected host diagnostic changed type while being read: ${filename}`)
   }
@@ -203,6 +207,8 @@ function* snapshot(
   blobs?: string, selected?: string, legacy = false, diagnosticHome?: string,
 ): Generator<void, InputSnapshot> {
   const { stamps } = pass
+  const authorityRoots = diagnosticHome === undefined ? [] : authoritativeHomeTrees(diagnosticHome)
+  for (const tree of authorityRoots) pass.authorityRoots.add(tree)
   const hash = createHash('sha256')
   const copies: { path: string; content?: string; blob?: string }[] = []
   const ancestors: { path: string; mode: number }[] = []
@@ -228,6 +234,7 @@ function* snapshot(
   const visited = new Set<string>()
   const walk = function* (filename: string, logicalFilename = filename): Generator<void, void> {
     yield
+    if (filename === logicalFilename && authorityRoots.includes(filename)) return
     if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return
     if (diagnosticHome !== undefined && filename === logicalFilename && isHomeDiagnosticFile(diagnosticHome, filename)) {
       pass.diagnostics.set(filename, diagnosticHome)
@@ -591,7 +598,7 @@ export class ProtectedInputIntegrity {
       this.record === undefined ? undefined : canonicalLocation(dirname(this.record)),
       this.record === undefined ? undefined : join(dirname(this.record), 'blobs'), selected,
       this.approved.has(path) && this.approved.get(path)?.ancestors === undefined,
-      path === this.home ? this.home : undefined)
+      this.home !== undefined && contains(path, this.home) ? this.home : undefined)
   }
 
   private readCopy(copy: { content?: string | null; blob?: string }): Buffer {

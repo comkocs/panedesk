@@ -57,7 +57,7 @@ Per-call policies can carry protected host inputs, excluded from confined write 
 
 The mode names the file effects a command may perform; enforcement completeness reports how fully the backend governs them.
 
-`ownerMaterialDirectories` owns canonical private-storage inventory, `assertOwnerWorkspace` rejects workspaces inside that storage and Windows write grants over it, and `protectedWorkspaceBranches` selects first-level exclusions shared by state records and owner isolation. Filesystem readers additionally compare file identity to reject hard-link aliases.
+`ownerMaterialDirectories` owns canonical private-storage inventory, `assertOwnerWorkspace` rejects workspaces inside that storage and Windows write grants over it, and `protectedWorkspaceBranches` selects first-level exclusions shared by state records and owner isolation. Filesystem readers additionally compare file identity to reject hard-link aliases. `authoritativeHomeTrees` defines the exact mutable home trees used by [host input capture and review](../../../docs/subsystems/boot.md#profile-input-paths), independently of native write exclusions.
 
 | Mode | Effect |
 |---|---|
