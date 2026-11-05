@@ -39,7 +39,9 @@ import {
   streamWholeText,
   writeFileAtomic,
 } from './fsio.ts'
-import type { FsIoInternals } from './fsio.ts'
+import type { AuthorizeRead, FsIoInternals } from './fsio.ts'
+export type { ReadIdentity } from './read-handle.ts'
+type SandboxExecutionPolicy = NonNullable<Parameters<FileSystem['readText']>[2]>
 
 /** Configuration for the local filesystem backend. */
 export interface Config {
@@ -172,20 +174,29 @@ export class LocalFileSystem extends FileSystem {
     return { version: info.version, type: info.type, size: info.size }
   }
 
-  override async readText(target: FsTarget, signal?: AbortSignal): Promise<string> {
-    return readWholeText({ displayPath: target.displayPath, targetKey: target.targetKey }, signal)
+  /** Local reads are unrestricted; enforcing providers return an opened-identity check. */
+  protected readAuthorization(_sandboxPolicy?: SandboxExecutionPolicy): AuthorizeRead | undefined {
+    return undefined
   }
 
-  override streamText(target: FsTarget, signal?: AbortSignal): Promise<AsyncIterable<string>> {
-    return Promise.resolve(streamWholeText({ displayPath: target.displayPath, targetKey: target.targetKey }, signal))
+  override async readText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<string> {
+    return readWholeText(target, signal, this.readAuthorization(sandboxPolicy))
   }
 
-  override async readBytes(target: FsTarget, signal: AbortSignal | undefined, maxBytes: number): Promise<Uint8Array> {
-    return readWholeBytes({ displayPath: target.displayPath, targetKey: target.targetKey }, signal, maxBytes, this.internals)
+  override streamText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<AsyncIterable<string>> {
+    return Promise.resolve(streamWholeText(target, signal, this.readAuthorization(sandboxPolicy)))
   }
 
-  override async readByteRange(target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal): Promise<Uint8Array> {
-    return readByteWindow({ displayPath: target.displayPath, targetKey: target.targetKey }, range, signal)
+  override async readBytes(
+    target: FsTarget, signal: AbortSignal | undefined, maxBytes: number, sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<Uint8Array> {
+    return readWholeBytes(target, signal, maxBytes, this.internals, this.readAuthorization(sandboxPolicy))
+  }
+
+  override async readByteRange(
+    target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<Uint8Array> {
+    return readByteWindow(target, range, signal, this.readAuthorization(sandboxPolicy))
   }
 
   override async listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]> {
@@ -204,6 +215,7 @@ export class LocalFileSystem extends FileSystem {
     content: string,
     expected?: FsWriteIntent,
     signal?: AbortSignal,
+    sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
     return this.withLock(target.targetKey, async () => {
       const existing = await probe(target.targetKey)
@@ -231,7 +243,7 @@ export class LocalFileSystem extends FileSystem {
       const diffable = existing !== null
         && Buffer.byteLength(content, 'utf8') < this.config.diffBasisMaxBytes
       const before = diffable
-        ? await readTextForDiff(target.targetKey, this.config.diffBasisMaxBytes, signal)
+        ? await readTextForDiff(target.targetKey, this.config.diffBasisMaxBytes, signal, this.readAuthorization(sandboxPolicy))
         : null
       await writeFileAtomic(
         target.targetKey,
@@ -259,6 +271,7 @@ export class LocalFileSystem extends FileSystem {
     edit: FsEditRequest,
     expected?: { version: FsVersion },
     signal?: AbortSignal,
+    sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
     return this.withLock(target.targetKey, async () => {
       const existing = await probe(target.targetKey)
@@ -274,7 +287,7 @@ export class LocalFileSystem extends FileSystem {
         throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
       }
 
-      const original = await readForEdit(target.targetKey, target.displayPath, signal)
+      const original = await readForEdit(target.targetKey, target.displayPath, signal, this.readAuthorization(sandboxPolicy))
       const edited = applyLiteralEdit(original.content, edit.oldString, edit.newString, edit.replaceAll, target.displayPath)
       const content = restoreLineEndings(edited.content, original.lineEndings)
       await writeFileAtomic(target.targetKey, content, existing.mode, signal, this.internals)

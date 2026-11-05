@@ -6,15 +6,11 @@
  * implementation's; this package adds per-call policy checks for mutations
  * and owner identity material reads. Full-access delegates without these checks.
  *
- * The fence is a policy check in TRUSTED code over a MODEL-CONTROLLED path,
- * NOT a kernel boundary — the operations are the seam's own (open, rename),
- * and only the target path is untrusted, so canonicalize-then-contain is the
- * complete answer to this surface. This is containment, not a security
- * boundary; kernel-grade isolation of untrusted CODE stays `ctx.shell`'s job
- * (`@panedesk/dsh-bash-sandbox`). The residual
- * TOCTOU (an ancestor symlink swapped between the containment re-check and the
- * syscall) is narrowed by re-canonicalizing immediately before delegating and
- * is accepted for this threat model.
+ * Content authorization checks the opened file's final name and identity;
+ * all bytes come from that same handle, including edit and overwrite pre-reads.
+ * Mutation containment remains path-based; its residual resolve-to-write race
+ * is separate from descriptor-bound read authorization. Process isolation
+ * remains the shell provider's responsibility.
  *
  * Per-call policy: `read-only` denies every mutation; `workspace-write` allows
  * a mutation only when the target canonicalizes under the policy's workspace
@@ -27,7 +23,7 @@
 
 import { Context } from '@panedesk/cordis'
 import { LocalFileSystem } from '@panedesk/dsh-fs-local'
-import type { Config as LocalConfig } from '@panedesk/dsh-fs-local'
+import type { Config as LocalConfig, ReadIdentity } from '@panedesk/dsh-fs-local'
 import { FsError } from '@panedesk/dsh-fs'
 import type { FsEditOutcome, FsEditRequest, FsTarget, FsVersion, FsWriteIntent, FsWriteOutcome } from '@panedesk/dsh-fs'
 import { canonicalPath, isOwnerMaterial, OWNER_MATERIAL_DENIED, writableRoots } from '@panedesk/dsh-sandbox'
@@ -60,11 +56,12 @@ export class SandboxedFileSystem extends LocalFileSystem {
     this.defaultMode = ctx.sandboxPolicy.defaultMode
   }
 
-  private readPolicy(policy?: SandboxExecutionPolicy): SandboxExecutionPolicy {
+  private readPolicy(policy?: SandboxExecutionPolicy) {
     const effective = policy ?? this.ctx.sandboxPolicy.resolve()
-    if (effective.mode === 'danger-full-access') return effective
+    if (effective.mode === 'danger-full-access') return effective as SandboxExecutionPolicy & { mode: 'danger-full-access' }
     return {
       ...effective,
+      mode: effective.mode,
       unreadablePaths: [...new Set([
         ...effective.unreadablePaths ?? [],
         ...this.ctx.sandboxPolicy.resolve({ mode: effective.mode }).unreadablePaths ?? [],
@@ -72,10 +69,22 @@ export class SandboxedFileSystem extends LocalFileSystem {
     }
   }
 
-  private async readableTarget(target: FsTarget, policy: SandboxExecutionPolicy): Promise<FsTarget> {
+  protected override readAuthorization(policy?: SandboxExecutionPolicy) {
+    const effective = this.readPolicy(policy)
+    if (effective.mode === 'danger-full-access') return undefined
+    return (identity: ReadIdentity): void => {
+      if (isOwnerMaterial(identity.path, effective.unreadablePaths, identity)) {
+        throw new FsError(OWNER_MATERIAL_DENIED, 'FS_SANDBOX_DENIED')
+      }
+    }
+  }
+
+  private async readableTarget(
+    target: FsTarget, policy: ReturnType<SandboxedFileSystem['readPolicy']>,
+  ): Promise<FsTarget> {
     if (policy.mode === 'danger-full-access') return target
     const fresh = await this.resolve(target.displayPath)
-    if (isOwnerMaterial(this.processPath(fresh), policy.unreadablePaths ?? [])) {
+    if (isOwnerMaterial(this.processPath(fresh), policy.unreadablePaths)) {
       throw new FsError(OWNER_MATERIAL_DENIED, 'FS_SANDBOX_DENIED')
     }
     return fresh
@@ -88,28 +97,28 @@ export class SandboxedFileSystem extends LocalFileSystem {
 
   /** @param sandboxPolicy - Per-call read policy; omission uses the provider default. */
   override async readText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<string> {
-    return super.readText(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal)
+    return super.readText(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal, sandboxPolicy)
   }
 
   /** @param sandboxPolicy - Per-call read policy; omission uses the provider default. */
   override async streamText(
     target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<AsyncIterable<string>> {
-    return super.streamText(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal)
+    return super.streamText(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal, sandboxPolicy)
   }
 
   /** @param sandboxPolicy - Per-call read policy; omission uses the provider default. */
   override async readBytes(
     target: FsTarget, signal: AbortSignal | undefined, maxBytes: number, sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<Uint8Array> {
-    return super.readBytes(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal, maxBytes)
+    return super.readBytes(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), signal, maxBytes, sandboxPolicy)
   }
 
   /** @param sandboxPolicy - Per-call read policy; omission uses the provider default. */
   override async readByteRange(
     target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<Uint8Array> {
-    return super.readByteRange(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), range, signal)
+    return super.readByteRange(await this.readableTarget(target, this.readPolicy(sandboxPolicy)), range, signal, sandboxPolicy)
   }
 
   /** @param sandboxPolicy - Per-call read policy; omission uses the provider default. */
@@ -117,7 +126,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     const policy = this.readPolicy(sandboxPolicy)
     const entries = await super.listDir(await this.readableTarget(target, policy), signal)
     if (policy.mode === 'danger-full-access') return entries
-    return entries.filter(entry => !isOwnerMaterial(this.processPath(entry.target), policy.unreadablePaths ?? []))
+    return entries.filter(entry => !isOwnerMaterial(this.processPath(entry.target), policy.unreadablePaths))
   }
 
   /** The deployment default mode — the capability fact the tool layer reads to advertise escalation. */
@@ -143,7 +152,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
-    return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal)
+    return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal, sandboxPolicy)
   }
 
   /**
@@ -164,7 +173,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
-    return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal)
+    return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal, sandboxPolicy)
   }
 
   /**
