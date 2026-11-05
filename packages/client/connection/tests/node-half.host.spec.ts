@@ -19,6 +19,7 @@ import {
   type HostConnectionHandle,
   type PeerScope,
 } from '../src/index.ts'
+import { authAdmissionBody } from '../src/auth-locale.ts'
 import { DEFAULT_MAX_REQUEST_BODY_BYTES } from '../src/http-bridge.ts'
 import { provideBrowserCredentials } from './browser-credentials.ts'
 
@@ -359,7 +360,7 @@ describe('connection node half', () => {
       host: 'harness.example', origin: 'http://harness.example', 'sec-fetch-site': 'same-origin',
     }), response)
     expect(state.status).toBe(403)
-    expect(state.body).toBe('forbidden')
+    expect(state.body).toBe(authAdmissionBody(403))
     await dispose()
   })
 
@@ -372,7 +373,7 @@ describe('connection node half', () => {
     for (const method of methods) {
       const denied = fakeResponse()
       await routes[0]!.handler(fakeRequest({ host: 'harness.example' }, `${API_PATH}/${method}`), denied.response)
-      expect([method, denied.state.status, denied.state.body]).toEqual([method, 401, 'unauthorized'])
+      expect([method, denied.state.status, denied.state.body]).toEqual([method, 401, authAdmissionBody(401)])
     }
 
     const cookie = browserCookie(connection, 'harness.example')
@@ -387,7 +388,7 @@ describe('connection node half', () => {
 
     const forged = fakeResponse()
     await routes[0]!.handler(fakeRequest({ host: 'localhost:3080' }), forged.response)
-    expect(forged.state).toMatchObject({ status: 401, body: 'unauthorized' })
+    expect(forged.state).toMatchObject({ status: 401, body: authAdmissionBody(401) })
     await dispose()
   })
 
@@ -534,7 +535,7 @@ describe('connection node half', () => {
 
     const denied = fakeResponse()
     await route.handler(fakePost({ host: 'other.example' }, '/api/goals/create', request), denied.response)
-    expect(denied.state).toMatchObject({ status: 403, body: 'forbidden' })
+    expect(denied.state).toMatchObject({ status: 403, body: authAdmissionBody(403) })
     expect(calls).toHaveLength(1)
 
     const unclaimed = fakeResponse()
@@ -628,11 +629,11 @@ describe('connection node half', () => {
 
     const denied = fakeResponse()
     await route.handler(fakePost({ host: 'other.example' }, '/rpc/goals/create', {}), denied.response)
-    expect(denied.state).toMatchObject({ status: 403, body: 'forbidden' })
+    expect(denied.state).toMatchObject({ status: 403, body: authAdmissionBody(403) })
 
     const unauthenticated = fakeResponse()
     await route.handler(fakePost({ host: 'harness.example' }, '/rpc/goals/create', {}), unauthenticated.response)
-    expect(unauthenticated.state).toMatchObject({ status: 401, body: 'unauthorized' })
+    expect(unauthenticated.state).toMatchObject({ status: 401, body: authAdmissionBody(401) })
 
     const methodMismatch = fakeResponse()
     await route.handler(fakePost(harnessHeaders, '/rpc/goals/create', {
@@ -775,7 +776,7 @@ describe('operator-scoped connect', () => {
 
       await route.handler(request, response.response)
 
-      expect(response.state).toEqual({ status: 401, body: 'unauthorized' })
+      expect(response.state).toEqual({ status: 401, headers: { 'content-type': 'text/plain; charset=utf-8' }, body: authAdmissionBody(401) })
       expect(response.response.writableEnded).toBe(true)
     } finally { await host.dispose() }
   })

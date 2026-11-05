@@ -1,5 +1,6 @@
 /** Host WebSocket owner for multiplexed Typert Remote streams. */
 
+import { authAdmissionBody } from '@panedesk/dsh-client-connection'
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { Deque } from '@panedesk/dsh-deque'
@@ -456,7 +457,7 @@ function rawText(data: RawData): string {
  */
 export function rejectRemoteStreamUpgrade(socket: Duplex, status: 401 | 403 | 409): void {
   const reason = status === 401 ? 'Unauthorized' : status === 403 ? 'Forbidden' : 'Conflict'
-  const body = reason.toLowerCase()
+  const body = status === 409 ? 'conflict' : authAdmissionBody(status)
   socket.end([
     `HTTP/1.1 ${String(status)} ${reason}`,
     'Connection: close',

@@ -4,10 +4,27 @@ export const authLocale = {
     confirm: 'Allow this browser to act as owner?',
     pending: 'Owner confirmation is required. Confirm in the host terminal and reload. Without a safe terminal, set requireOwnerConfirmation: false in protected host configuration only if you accept launch-link theft risk.',
     required: 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie.',
+    unauthorized: 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie.',
+    forbidden: 'This request is not trusted. Use the host loopback address, the listener bind address, or a configured trusted host.',
   },
   zh: {
     confirm: '允许此浏览器作为所有者操作吗？',
     pending: '需要所有者确认。请在宿主终端确认后刷新。没有安全终端时，仅在接受启动链接被盗风险的前提下，才可在受保护的宿主配置中设置 requireOwnerConfirmation: false。',
     required: '需要 Panedesk 身份认证。启动链接仅可使用一次，五分钟后失效；请重启宿主取得新链接。API 连接需要已认证所有者的 cookie。',
+    unauthorized: '需要 Panedesk 身份认证。启动链接仅可使用一次，五分钟后失效；请重启宿主取得新链接。API 连接需要已认证所有者的 cookie。',
+    forbidden: '此请求不受信任。请使用宿主回环地址、监听器绑定地址，或已配置的受信任主机。',
   },
 } as const
+
+/** HTTP status whose admission body is a bilingual refusal sentence. */
+export type AuthAdmissionStatus = 401 | 403
+
+/**
+ * Bilingual body for an authentication or trust refusal. Status stays on the response.
+ * @param status - 401 when unauthenticated, 403 when the request is not trusted.
+ * @returns English and Chinese sentences separated by ` / `, ending in a newline.
+ */
+export function authAdmissionBody(status: AuthAdmissionStatus): string {
+  const key = status === 401 ? 'unauthorized' : 'forbidden'
+  return `${authLocale.en[key]} / ${authLocale.zh[key]}\n`
+}

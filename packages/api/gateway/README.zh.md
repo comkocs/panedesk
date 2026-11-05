@@ -48,7 +48,7 @@ Host 组合可通过 `registerRemoteEvents()` 注册唯一的应用事件 source
 
 `requestOwnerEvent()` 把限定作用域的交互直接发送到 owner 答复流，不分发 Host 事件；没有活动答复流时返回 `next`。投递、取消和认证答复检查与转发的 waterfall 相同。`onOwnerReady()` 在经过认证的答复流消费开场帧后调度 Host 工作；若仍有已就绪的流，后来订阅的监听器会收到排队通知。释放订阅或 Gateway 会取消通知。监听器失败只记日志，不关闭流。
 
-已释放的 Peer 在事件流参与检查之前被拒绝。无论 principal 是否为 owner，`$events` 与 `$events/result` 都要求 `peer.interactions === 'answer'`；否则返回 `gateway/interactions-forbidden`。只有 owner Peer 接收并回答转发的 waterfall，回复必须来自持有该事件流的同一 Peer。`hasLiveClient()` 只计算未取消的 owner 回答流；非 owner 广播流、单独的 WebSocket 与已取消但尚未完成 iterator 清理的流均不计入。这一同步观察不保证后续投递成功或 Client Provider 已就绪。
+Connection 准入拒绝的升级返回 401 或 403，正文为成对的中英拒绝句；重复套接字返回 409，正文为 `conflict`。已释放的 Peer 在事件流参与检查之前被拒绝。无论 principal 是否为 owner，`$events` 与 `$events/result` 都要求 `peer.interactions === 'answer'`；否则返回 `gateway/interactions-forbidden`。只有 owner Peer 接收并回答转发的 waterfall，回复必须来自持有该事件流的同一 Peer。`hasLiveClient()` 只计算未取消的 owner 回答流；非 owner 广播流、单独的 WebSocket 与已取消但尚未完成 iterator 清理的流均不计入。这一同步观察不保证后续投递成功或 Client Provider 已就绪。
 
 <a id="client-service-clientremote-ctx-key-remote"></a>
 ## Client 服务：`ClientRemote`（ctx key：`remote`）

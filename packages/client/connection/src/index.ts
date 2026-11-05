@@ -10,6 +10,7 @@ import { API_PATH } from './api-path.ts'
 import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
+import { authAdmissionBody } from './auth-locale.ts'
 import { BrowserAuth } from './browser-auth.ts'
 import { confirmBrowserLogin } from './owner-confirmation.ts'
 import { HostConnectionService } from './rpc-host.ts'
@@ -41,6 +42,7 @@ export type {
 } from './rpc.ts'
 export type { PeerId, PeerScope, Principal, RemoteInvocation } from '@panedesk/dsh-typert-protocol'
 export { RpcId, transportError } from './rpc.ts'
+export { authAdmissionBody, type AuthAdmissionStatus } from './auth-locale.ts'
 export { Peer } from './peer.ts'
 export type { PeerOptions } from './peer.ts'
 export { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
@@ -160,8 +162,8 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
       handler: async (req, res) => {
         const admission = connection.admit(req)
         if ('rejection' in admission) {
-          res.writeHead(admission.rejection)
-          res.end(admission.rejection === 401 ? 'unauthorized' : 'forbidden')
+          res.writeHead(admission.rejection, { 'content-type': 'text/plain; charset=utf-8' })
+          res.end(authAdmissionBody(admission.rejection))
           return
         }
         await webCtx.waterfall('connection/request', req, res, () => bridge(req, res, fetchHandler, admission.peer, maxRequestBodyBytes))
