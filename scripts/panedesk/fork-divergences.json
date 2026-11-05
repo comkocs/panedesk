@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "protected-workspace-reader-ownership",
+      "description": "Select the matching durable reader before capturing workspace inputs",
+      "origin": "Protected host input capture review",
+      "reason": "Reuse a launch reader only when its canonical workspace and owner home identify the requested durable record. Preserve unrelated or memory-only readers for independent admission review instead of recapturing their baselines without home-tree classification. Keep the existing authoritative-tree selection, structural rejection, content digests, storage format and owner authorization channel unchanged. Add deterministic host-write, directory-link and root-type regressions, paired package documentation and the regenerated Cordis API catalog. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/profile-context.ts",
+          "packages/boot/app-boot/tests/input-integrity-workspace.spec.ts",
+          "packages/boot/app-boot/README*",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ]
+      }
+    },
+    {
       "id": "product-identity-eviction-iteration",
       "description": "Iterate the oldest retired identity without an impossible empty-value fallback",
       "origin": "Linux product identity coverage review",

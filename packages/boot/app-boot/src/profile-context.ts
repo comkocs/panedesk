@@ -20,7 +20,7 @@ export function grantProtectedWorkspace(context: ProfileContext, workspace: stri
   const records = context.inputIntegrities ??= new Map()
   let integrity = records.get(root)
   if (integrity === undefined) {
-    integrity = root === resolve(context.cwd) && context.inputIntegrity !== undefined
+    integrity = context.inputIntegrity?.ownsWorkspaceRecord(root, context.home) === true
       ? context.inputIntegrity : new ProtectedInputIntegrity(root, context.home)
     records.set(root, integrity)
   }

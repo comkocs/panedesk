@@ -10257,7 +10257,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
   },
   {
     name: 'ProtectedInputOwner',

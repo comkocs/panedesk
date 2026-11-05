@@ -537,6 +537,16 @@ export class ProtectedInputIntegrity {
     this.loadRecord(text)
   }
 
+  /**
+   * Match the workspace and owner storage before reusing this reader for a write grant.
+   * @param workspace Requested writable workspace, including canonical aliases.
+   * @param home Owner storage for the requested grant; memory-only readers never match.
+   * @returns Whether this reader owns the requested durable workspace record.
+   */
+  ownsWorkspaceRecord(workspace: string, home: string): boolean {
+    return this.root === canonicalLocation(resolve(workspace)) && this.home === canonicalLocation(home)
+  }
+
   private loadRecord(text: string): void {
     this.assertRecordLocation()
     const parsed: unknown = JSON.parse(text)
