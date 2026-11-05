@@ -1956,7 +1956,12 @@ it.each(([
   await ctx.plugin(RemoteAccess)
   await ctx.plugin(WorkspaceRegistry)
   await ctx.plugin(SessionController, { nativeOpen: false })
-  await ctx.plugin(SessionTitle, { fallbackMaxWords: 5, fallbackMaxBytes: 40, maxTitleBytes: 80 })
+  await ctx.plugin(SessionTitle, {
+    fallbackMaxWords: 5, fallbackMaxBytes: 40,
+    maxTitleBytes: name === 'seat_rename'
+      ? Math.max(80, Buffer.byteLength(target), Buffer.byteLength(join(workspace, 'seat-title-link', basename(target))))
+      : 80,
+  })
   await ctx.plugin(InstructionSubscriptions, { maxBytes: 65536, watch: false })
   let modelRequested = false
   let catalogAvailable = true
