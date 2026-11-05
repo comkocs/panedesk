@@ -15702,6 +15702,18 @@
           "README.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "windows-tcp-owner-mixed-ipv6-coverage",
+      "description": "Cover mixed IPv6 refusal in the Windows TCP owner lookup",
+      "origin": "Windows TCP owner coverage",
+      "reason": "Coverage admission requires 100 percent on this line's new tcp-owner.ts file. Line 31 is a refusal branch a legal mixed IPv6 address can reach, and only the test was missing. Add tests only; change no published artifact. These tests can be contributed upstream.",
+      "match": {
+        "type": "maintenance",
+        "paths": [
+          "packages/subprocess/win32-process/tests/tcp-owner-mixed-ipv6.spec.ts"
+        ]
+      }
     }
   ]
 }
