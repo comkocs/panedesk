@@ -22,6 +22,8 @@
 
 在 Windows 上，已启动且包含沙盒策略的 profile 会向 stderr 输出配置的缺省模式、缺省或显式来源，以及设置指引。`--json`、`--quiet`、`-q` 和配置 dump 会抑制该提示；其他平台不输出。目录授权及逐会话覆盖随后由[沙盒策略](../../packages/sandbox/sandbox-policy/README.zh.md)解析。
 
+在 POSIX 上，CLI 在加载 profile 或凭据前以 `--disable-sigusr1` 重执行，保留 PID、标准流、参数与环境。所有 profile 都禁用由信号触发的 Inspector 激活；受信任的显式 `--inspect` 启动仍可使用。不支持进程替换的运行时必须以 `--disable-sigusr1` 启动，否则启动会安全拒绝。Windows 没有 SIGUSR1；此标志不能证明 Windows 进程访问隔离。
+
 ## 应用参数
 
 启动器只解析自身的 flag，并将其后的所有内容交给已启动的 profile；注入该 profile 的任意应用插件都可以解析这份共享的不可变快照（[`dsh-cmdline`](../../packages/boot/cmdline/README.zh.md)）。启动器无法识别的第一个 token 标志着应用参数的开始：

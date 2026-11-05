@@ -1,6 +1,42 @@
 {
   "divergences": [
     {
+      "id": "host-signal-debugger-isolation",
+      "description": "Disable signal-triggered host debugging and scope Landlock signals",
+      "origin": "Host execution isolation",
+      "reason": "Re-execute POSIX CLI launches with signal debugging disabled before profile startup, pass the flag to Desktop hosts and installed POSIX launchers, and apply Landlock signal scoping on supported kernels without changing filesystem grants. Keep older-kernel limitations explicit and verify native signal denial and host cancellation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/src/bin.ts",
+          "apps/cli/src/signal-debugger.ts",
+          "apps/cli/tests/signal-debugger.spec.ts",
+          "apps/cli/tests/fixtures/signal-host.mjs",
+          "apps/cli/tests/profiles/headless/tests/profile-resolution.ts",
+          "apps/cli/README.md",
+          "apps/cli/README.zh.md",
+          "apps/cli/README.i18n.yaml",
+          "apps/desktop/cli/dsh",
+          "apps/desktop/src/host-process.ts",
+          "apps/desktop/tests/host-process.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "packages/sandbox/sandbox-local/tests/landlock-signal.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "native/system/packages/entry/src/main.c",
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/README.i18n.yaml",
+          "docs/subsystems/sandbox.md",
+          "docs/subsystems/sandbox.zh.md",
+          "docs/subsystems/sandbox.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "windows-web-owner-login-guidance",
       "description": "Document explicit Windows Web login consent and its revocation",
       "origin": "Owner authentication documentation",

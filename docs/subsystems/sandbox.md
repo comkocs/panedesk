@@ -38,6 +38,8 @@ Enforcement is a reported fact. `full` means the backend governs every file effe
 type SandboxEnforcement = 'full' | 'partial'
 ```
 
+Landlock signal isolation is separate from file-effect enforcement: ABI 6 or newer applies `LANDLOCK_SCOPE_SIGNAL`, while older kernels leave same-user signals unrestricted. Host cancellation remains available, and application launchers independently disable signal-triggered Inspector activation; see [platform profiles](../../packages/sandbox/sandbox-local/README.md#platform-profiles).
+
 ## Per-call policy
 
 The complete execution policy is resolved and carried per capability call. It includes `danger-full-access` so a consumer can resolve policy once before deciding whether to bypass confinement. Normal tool calls derive `workspaceRoot` from the calling session's immutable cwd; deployment configuration is the agentless fallback. The resolver preserves absolute execution-world spelling. Enforcing providers canonicalize the root where the files exist, so a cwd containing `symlink/..` identifies the directory where the paired subprocess provider actually runs.

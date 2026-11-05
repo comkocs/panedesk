@@ -73,6 +73,14 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
+  it('disables signal-triggered Inspector startup before the Host entry runs', async () => {
+    const runtime = projectWithHost(HTTP_HOST.replace('runtime: process.argv[2]',
+      "signalDebuggerDisabled: process.execArgv.includes('--disable-sigusr1'), runtime: process.argv[2]"))
+    const host = hostProcess(runtime)
+    const { url } = await host.start()
+    expect(await (await fetch(url)).json()).toMatchObject({ signalDebuggerDisabled: true })
+  })
+
   it('correlates task inspections and admission changes over private IPC', async () => {
     const host = hostProcess(projectWithHost())
     await expect(host.updateTasks('inspect')).rejects.toThrow('Host is unavailable')
