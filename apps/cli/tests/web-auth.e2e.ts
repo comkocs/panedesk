@@ -261,7 +261,7 @@ describe('panedesk web authentication through the real CLI', () => {
       expect((await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(200)
       expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(401)
 
-      const credentialMode = (await stat(join(dshHome, '.credentials.yaml'))).mode & 0o777
+      const credentialMode = (await stat(join(dshHome, 'private', '.credentials.yaml'))).mode & 0o777
       expect(credentialMode).toBe(0o600)
     } catch (error) {
       const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
