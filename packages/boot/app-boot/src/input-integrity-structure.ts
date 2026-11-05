@@ -15,6 +15,7 @@ function within(root: string, path: string): boolean {
 /**
  * Validate one mutable tree without capturing content or retaining a baseline.
  * Windows retains sandbox write exclusion without a structural check.
+ * A link-count mismatch receives one non-yielding fresh scan; unresolved mismatches reject.
  * @param root - Exact canonical-home tree spelling, never a resolved tree alias.
  * @returns Cooperative traversal; throws bilingual diagnostics on unsafe structure.
  */
@@ -33,41 +34,54 @@ export function* checkAuthoritativeTree(root: string): Generator<void, void> {
   const initial = stat(root)
   if (initial === undefined) return
   if (!initial.isDirectory() || realpathSync(root) !== root) reject(root)
-  const links = new Map<string, { paths: string[]; dev: bigint; ino: bigint }>()
-  const pending = [root]
-  for (const path of pending) {
-    const entry = stat(path)
-    if (entry === undefined) continue
-    if (entry.uid !== BigInt(uid) || (!entry.isSymbolicLink() && (entry.mode & 0o022n) !== 0n)) reject(path)
-    if (entry.isSymbolicLink()) {
-      // Link mode bits are not write permissions on POSIX; the target is checked in-tree.
-      let target: string
-      try { target = realpathSync(path) } catch (error) {
-        if (absent(error)) reject(path)
-        throw error
-      }
-      if (!within(root, target)) reject(path)
-    } else if (entry.isDirectory()) {
-      let names: string[]
-      try { names = readdirSync(path) } catch (error) {
-        if (absent(error)) continue
-        throw error
-      }
-      pending.push(...names.map(name => join(path, name)))
-    } else if (entry.isFile()) {
-      const key = `${entry.dev}:${entry.ino}`
-      const previous = links.get(key)
-      if (previous === undefined) links.set(key, { paths: [path], dev: entry.dev, ino: entry.ino })
-      else previous.paths.push(path)
-    } else reject(path)
-    yield
-  }
-  for (const { paths, dev, ino } of links.values()) {
-    const live = paths.map(path => ({ path, entry: stat(path) }))
-      .filter(value => value.entry?.dev === dev && value.entry.ino === ino)
-    for (const { path, entry } of live) {
-      if (entry !== undefined && entry.nlink !== BigInt(live.length)) reject(path)
+  const scan = function* (): Generator<void, string | undefined> {
+    const links = new Map<string, { paths: string[]; dev: bigint; ino: bigint }>()
+    const pending = [root]
+    for (const path of pending) {
+      const entry = stat(path)
+      if (entry === undefined) continue
+      if (entry.uid !== BigInt(uid) || (!entry.isSymbolicLink() && (entry.mode & 0o022n) !== 0n)) reject(path)
+      if (entry.isSymbolicLink()) {
+        // Link mode bits are not write permissions on POSIX; the target is checked in-tree.
+        let target: string
+        try { target = realpathSync(path) } catch (error) {
+          if (absent(error)) reject(path)
+          throw error
+        }
+        if (!within(root, target)) reject(path)
+      } else if (entry.isDirectory()) {
+        let names: string[]
+        try { names = readdirSync(path) } catch (error) {
+          if (absent(error)) continue
+          throw error
+        }
+        pending.push(...names.map(name => join(path, name)))
+      } else if (entry.isFile()) {
+        const key = `${entry.dev}:${entry.ino}`
+        const previous = links.get(key)
+        if (previous === undefined) links.set(key, { paths: [path], dev: entry.dev, ino: entry.ino })
+        else previous.paths.push(path)
+      } else reject(path)
+      yield
     }
+    for (const { paths, dev, ino } of links.values()) {
+      const live = paths.map(path => ({ path, entry: stat(path) }))
+        .filter(value => value.entry?.dev === dev && value.entry.ino === ino)
+      for (const { path, entry } of live) {
+        if (entry !== undefined && entry.nlink !== BigInt(live.length)) return path
+      }
+    }
+    return undefined
+  }
+  const mismatch = yield* scan()
+  if (mismatch !== undefined) {
+    // A no-clobber publisher can add its final name after directory enumeration.
+    // One fresh, non-yielding confirmation includes both names without waiting for
+    // cleanup. Persistent external links and an inconclusive confirmation fail closed.
+    const confirmation = scan()
+    let result = confirmation.next()
+    while (!result.done) result = confirmation.next()
+    if (result.value !== undefined) reject(result.value)
   }
   const final = stat(root)
   if (final !== undefined && (!final.isDirectory() || final.dev !== initial.dev || final.ino !== initial.ino

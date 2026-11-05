@@ -67,6 +67,8 @@
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-launch-environment": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "@types/js-yaml": "^4.0.9",
     "@types/semver": "^7.8.0"

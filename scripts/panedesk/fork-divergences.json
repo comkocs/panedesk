@@ -4,7 +4,7 @@
       "id": "authoritative-home-structural-review",
       "description": "Validate mutable authoritative home trees without content baselines",
       "origin": "Protected host input review",
-      "reason": "Define the ledger, sessions and session projection cache trees once beside protected roots. Omit their contents and additions from capture and review without content warnings, including captures through registered ancestor roots, retaining default content checks for every unlisted home input and all paths outside the exact home selection. Validate directory roots, ownership, write permissions, entry types and confined links on Linux and macOS; Windows retains only sandbox write exclusion. Preserve write grants, protected root registration, digest algorithms, durable record formats and existing assertions. Create POSIX session lock files with owner-only permissions independently of umask, without repairing existing unsafe files. Add focused regressions and paired documentation. These changes can be contributed upstream.",
+      "reason": "Define the ledger, sessions and session projection cache trees once beside protected roots. Omit their contents and additions from capture and review without content warnings, including captures through registered ancestor roots, retaining default content checks for every unlisted home input and all paths outside the exact home selection. Validate directory roots, ownership, write permissions, entry types and confined links on Linux and macOS; Windows retains only sandbox write exclusion. Preserve write grants, protected root registration, digest algorithms, durable record formats and existing assertions. Create POSIX session lock files with owner-only permissions independently of umask, without repairing existing unsafe files. Confirm a hard-link count mismatch with exactly one fresh non-yielding structural scan, preserving strict equality and rejection of persistent outside aliases while admitting in-tree no-clobber publication. Add fixed-round real JSONL publication regressions, their test-only workspace dependencies and lockfile entries, and paired documentation. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -13,6 +13,9 @@
           "packages/boot/app-boot/src/input-integrity-locales.ts",
           "packages/boot/app-boot/tests/input-integrity-authority.spec.ts",
           "packages/boot/app-boot/tests/input-integrity-ancestor.spec.ts",
+          "packages/boot/app-boot/tests/input-integrity-publication.spec.ts",
+          "packages/boot/app-boot/package.json",
+          "pnpm-lock.yaml",
           "packages/session/session-persistence-jsonl/src/lease.ts",
           "packages/session/session-persistence-jsonl/tests/lease-permissions.spec.ts",
           "packages/session/session-persistence-jsonl/README*",
