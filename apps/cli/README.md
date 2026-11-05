@@ -22,7 +22,7 @@ The invoking directory is the default workspace root. The `web`, `headless`, `sd
 
 On Windows, a booted profile with sandbox policy prints its configured default mode, default/explicit source, and settings guidance to stderr. `--json`, `--quiet`, `-q`, and configuration dumps suppress this notice; other platforms do not print it. Directory authorization and per-session overrides are resolved later by [sandbox policy](../../packages/sandbox/sandbox-policy/README.md).
 
-On POSIX, the CLI re-executes with `--disable-sigusr1` before loading a profile or credentials, preserving its PID, standard streams, arguments, and environment. Signal-triggered Inspector activation is disabled for every profile; explicit trusted `--inspect` startup remains available. A runtime without process replacement must be launched with `--disable-sigusr1` or startup fails closed. Windows has no SIGUSR1; this flag does not establish Windows process-access isolation.
+On POSIX, the CLI re-executes with `--disable-sigusr1` before loading a profile or credentials, preserving its PID, standard streams, arguments, and environment. Signal-triggered Inspector activation is disabled for every profile; explicit trusted `--inspect` startup remains available. IPC launchers must pass `--disable-sigusr1` explicitly: an unprotected IPC invocation fails before profile loading instead of replacing the process and losing its channel. A runtime without process replacement must also be launched with this flag or startup fails closed. Windows has no SIGUSR1; this flag does not establish Windows process-access isolation.
 
 ## App arguments
 

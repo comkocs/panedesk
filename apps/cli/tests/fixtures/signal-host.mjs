@@ -11,7 +11,16 @@ export function apply(ctx) {
     process.stdout.write(JSON.stringify({ inspector: url() !== undefined }) + '\n')
   })
   ctx.effect(() => () => input.close())
+  if (process.send !== undefined) {
+    const receive = (message) => {
+      process.send({ message, inspector: url() !== undefined, args: process.execArgv })
+    }
+    process.on('message', receive)
+    ctx.effect(() => () => process.off('message', receive))
+  }
   ctx.appReady.onReady(() => {
-    process.stdout.write(JSON.stringify({ ready: true, pid: process.pid, args: process.execArgv }) + '\n')
+    const ready = { ready: true, pid: process.pid, args: process.execArgv }
+    process.stdout.write(JSON.stringify(ready) + '\n')
+    process.send?.(ready)
   })
 }

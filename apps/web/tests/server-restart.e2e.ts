@@ -23,6 +23,7 @@ class RestartableServer {
     this.output = ''
     const ready = Promise.withResolvers<string>()
     const child = spawn(process.execPath, [
+      ...process.platform === 'win32' ? [] : ['--disable-sigusr1'],
       join(REPO_ROOT, 'apps/cli/lib/bin.js'), '--profile', 'web',
       '--patch', fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
       '--patch', fileURLToPath(new URL('./fixtures/restart-startup.overlay.yml', import.meta.url)),

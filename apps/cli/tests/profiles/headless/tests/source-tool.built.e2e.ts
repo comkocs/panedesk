@@ -72,7 +72,7 @@ describe.skipIf(!existsSync(join(repoRoot, 'apps/cli/lib/bin.js')))('dsh SOURCE 
       const records = result.stdout.split('\n').filter(line => line.startsWith('DSH_SOURCE_TOOL_RESULT '))
       expect(records, diagnostic).toHaveLength(1)
       const evidence = JSON.parse(records[0]!.slice('DSH_SOURCE_TOOL_RESULT '.length)) as SourceToolEvidence
-      expect(evidence.execArgv).toEqual(['--import', 'tsx/esm'])
+      expect(evidence.execArgv).toEqual(['--import', 'tsx/esm', ...process.platform === 'win32' ? [] : ['--disable-sigusr1']])
       expect(evidence.errors).toEqual([])
       for (const pkg of ['tools', 'agent-loop']) {
         expect(evidence.modules.filter(url => url.endsWith(`/packages/core/${pkg}/src/index.ts`))).toHaveLength(1)

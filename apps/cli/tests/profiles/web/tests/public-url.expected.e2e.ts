@@ -43,6 +43,7 @@ type StoppedWeb = Awaited<WebChild>
 /** Start one keyless Web process with an outer lifetime deadline. */
 function spawnWeb(root: string, patch: string, interrupt: string, flags: string[]) {
   return execa(process.execPath, [
+    ...process.platform === 'win32' ? [] : ['--disable-sigusr1'],
     dshBin,
     '--profile', 'web',
     '--patch', patch,
