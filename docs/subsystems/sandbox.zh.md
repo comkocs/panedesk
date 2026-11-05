@@ -38,7 +38,7 @@ type ConfinedSandboxMode = Exclude<SandboxMode, 'danger-full-access'>
 type SandboxEnforcement = 'full' | 'partial'
 ```
 
-Landlock 信号隔离独立于文件效果强制执行：ABI 6 及以上应用 `LANDLOCK_SCOPE_SIGNAL`，较旧内核不限制同用户信号。宿主仍可取消子进程，应用启动器另行禁用信号触发的 Inspector 激活；见[平台 profile](../../packages/sandbox/sandbox-local/README.zh.md#平台-profile)。
+Landlock 信号隔离独立于文件效果强制执行：ABI 6 及以上应用 `LANDLOCK_SCOPE_SIGNAL`，较旧内核不限制同用户信号。宿主仍可取消子进程，应用启动器另行禁用信号触发的 Inspector 激活；见[平台 profile](../../packages/sandbox/sandbox-local/README.zh.md#platform-profiles)。
 
 ## 逐调用策略
 
