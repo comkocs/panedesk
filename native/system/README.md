@@ -34,7 +34,7 @@ Importing any entry does not load an addon. A missing Landlock executable probes
 
 Linux x64/arm64 packages contain the static Landlock executable and separate glibc/musl `system.node` files. macOS x64/arm64 packages contain `system.node` only. Windows x64/arm64 packages contain only the private-file Win32 `system.node`; POSIX flock and Windows lock-file behavior are unchanged. Landlock additionally needs an enforcing Linux kernel. The [support matrix](docs/support-matrix.md) names builders and verification owners.
 
-On Landlock ABI 6 or newer, the launcher also applies `LANDLOCK_SCOPE_SIGNAL`: confined processes cannot signal processes outside their Landlock domain, while the host can still cancel its children. Older ABIs do not isolate same-user signals; `full`/`partial` describes filesystem enforcement only. Abstract Unix sockets are not scoped.
+On Landlock ABI 6 or newer, the launcher also applies `LANDLOCK_SCOPE_SIGNAL` and `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`: confined processes cannot signal processes outside their Landlock domain or connect to abstract UNIX sockets outside it, while the host can still cancel its children. Older ABIs omit both optional scopes without refusing startup and do not isolate same-user signals; `full`/`partial` describes filesystem enforcement only.
 
 ## Development
 

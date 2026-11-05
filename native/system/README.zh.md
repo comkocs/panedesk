@@ -34,7 +34,7 @@ kind: "package-library"
 
 Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Windows x64/arm64 包仅包含私有文件 Win32 `system.node`；POSIX flock 与 Windows 锁文件行为不变。Landlock 还需要支持强制执行的 Linux 内核。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
 
-在 Landlock ABI 6 及以上内核上，launcher 还会应用 `LANDLOCK_SCOPE_SIGNAL`：受限进程不能向其 Landlock 域之外的进程发送信号，宿主仍可取消自己的子进程。较旧 ABI 不隔离同用户信号；`full`/`partial` 只描述文件系统强制执行。抽象 Unix 套接字不受作用域限制。
+在 Landlock ABI 6 及以上内核上，launcher 还会应用 `LANDLOCK_SCOPE_SIGNAL` 与 `LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`：受限进程不能向其 Landlock 域之外的进程发送信号，也不能连接其域之外的抽象 UNIX 套接字，宿主仍可取消自己的子进程。较旧 ABI 省略这两项可选 scope、不因此拒起，且不隔离同用户信号；`full`/`partial` 只描述文件系统强制执行。
 
 ## Development
 
