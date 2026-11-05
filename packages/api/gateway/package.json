@@ -64,8 +64,7 @@
     "@panedesk/dsh-timeout": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "ws": "^8.21.3",
-    "@panedesk/dsh-typert-protocol": "workspace:*",
-    "@panedesk/dsh-client-connection": "workspace:*"
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"
@@ -81,6 +80,7 @@
     "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-cmdline": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
     "@panedesk/dsh-host-webserver": "workspace:*",
     "@panedesk/dsh-remote-mock": "workspace:*",
     "@panedesk/dsh-typert-registry": "workspace:*",
