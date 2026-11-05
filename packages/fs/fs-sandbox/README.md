@@ -63,7 +63,7 @@ This section explains the design decisions behind the sandbox backend and points
 
 ### Design concept
 
-The fence is a policy check in trusted code over a model-controlled path — not a kernel boundary. The operations are the seam's own (open, rename); only the target path is untrusted, so canonicalize-then-contain is the complete answer to this surface. Kernel-grade isolation of untrusted code stays `ctx.shell`'s job.
+Content authorization uses the [local backend's opened-file identity](../fs-local/README.md#opened-file-reads), not a path check followed by reopening. It compares the handle's final name and device/inode against the existing owner inventory, including hard-link aliases, before reading any bytes. Replacing the final name or an ancestor cannot redirect an authorized read. Edit pre-reads and overwrite diff bases use the same check. Mutation containment remains a separate path policy; kernel isolation of untrusted code stays `ctx.shell`'s job.
 
 ### Source map
 
@@ -122,7 +122,7 @@ A standing-policy change appends an owner-rendered superseding runtime-context s
 
 These limits define when the sandbox backend is a poor fit or needs special operational care. They are current package constraints, not a general sandbox comparison or a task backlog.
 
-- **A policy fence, not a kernel boundary** — the check is trusted code over a model-controlled path, so the residual resolve-to-syscall TOCTOU is narrowed (by the in-place re-canonicalization) but not eliminated; adversarial host processes are out of scope. Kernel-grade isolation of untrusted code stays `ctx.shell`'s.
+- **Mutation policy is not a kernel boundary** — writes retain a resolve-to-syscall race despite re-canonicalization. Content reads instead authorize and consume the same opened object. Kernel-grade isolation of untrusted code stays `ctx.shell`'s.
 - **Fence-vs-runner parity is derived from one owner** — the writable set comes from `writableRoots`, shared with the Seatbelt profile; a runner profile that defines its writable set elsewhere would drift.
 - **Requires `ctx.sandboxPolicy`** — tools use it to resolve each session policy and the backend uses it for agentless-call fallbacks; the backend does not confine without it composed.
 

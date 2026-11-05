@@ -82,6 +82,10 @@ The backend builds on three ideas:
 | [`src/fsio.ts`](src/fsio.ts) | Cordis-free raw I/O: probe, reads, atomic write, literal edit, line-ending handling |
 | [`src/win32.ts`](src/win32.ts) | Windows-specific DACL preservation for atomic replacement |
 
+### Opened-file reads
+
+Content reads, edit pre-reads, and overwrite diff bases open once, inspect the opened regular file, and read only that handle. POSIX opens use `O_NOFOLLOW`; Linux obtains the final name from `/proc/self/fd`, and macOS uses `F_GETPATH`. Windows opens with `FILE_FLAG_OPEN_REPARSE_POINT`, rejects reparse points and non-disk files, and obtains the volume/file identity and final name from the same handle. An enforcing provider checks that name and identity before any content read, including ancestor-link replacements. Stable links remain supported through normal target resolution. Handles close on completion, cancellation, failure, or early stream termination; this does not snapshot concurrent in-place writes.
+
 ### Write path
 
 Each write probes the target, enforces the optional guard (`createIfAbsent` or `replaceIfVersion`), captures a bounded `before` diff basis when both sides are small enough, stages the new content next to the target, fsyncs, and publishes atomically. Guarded creation uses a hard-link publication that never replaces a concurrent creator, rejecting it with `FS_NOT_OBSERVED` instead.

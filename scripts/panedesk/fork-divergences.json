@@ -1,6 +1,31 @@
 {
   "divergences": [
     {
+      "id": "descriptor-bound-file-reads",
+      "description": "Authorize file content using the opened handle identity",
+      "origin": "Filesystem read confidentiality",
+      "reason": "Bind restricted reads, edit pre-reads, and overwrite diff bases to one inspected descriptor across final-name and ancestor replacement. Preserve the owner inventory, normal links, cancellation, and bounded reads. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/src/index.ts",
+          "packages/fs/fs-local/src/read-handle.ts",
+          "packages/fs/fs-local/tests/fsio.spec.ts",
+          "packages/fs/fs-local/tests/read-handle.spec.ts",
+          "packages/fs/fs-local/README.md",
+          "packages/fs/fs-local/README.zh.md",
+          "packages/fs/fs-local/README.i18n.yaml",
+          "packages/fs/fs-sandbox/src/index.ts",
+          "packages/fs/fs-sandbox/tests/read-handle-race.spec.ts",
+          "packages/fs/fs-sandbox/README.md",
+          "packages/fs/fs-sandbox/README.zh.md",
+          "packages/fs/fs-sandbox/README.i18n.yaml",
+          "packages/sandbox/sandbox/src/owner-material.ts"
+        ]
+      }
+    },
+    {
       "id": "windows-web-owner-login-guidance",
       "description": "Document explicit Windows Web login consent and its revocation",
       "origin": "Owner authentication documentation",

@@ -6,13 +6,51 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { createReadStream, realpath as realpathCallback } from 'node:fs'
-import { chmod, link, lstat, mkdir, open, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
+import { realpath as realpathCallback } from 'node:fs'
+import { chmod, link, lstat, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
 import type { BigIntStats, Dirent, Stats } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { TextDecoder, promisify } from 'node:util'
 import { FsError, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
+import { openReadHandle } from './read-handle.ts'
+import type { ReadHandle, ReadIdentity } from './read-handle.ts'
+
+/** Optional provider policy, evaluated on the opened object before reading content. */
+export type AuthorizeRead = (identity: ReadIdentity) => void
+
+async function checkedReadHandle(target: LocalTarget, signal?: AbortSignal, authorize?: AuthorizeRead): Promise<ReadHandle> {
+  throwIfAborted(signal, 'read')
+  let handle: ReadHandle
+  try {
+    handle = await openReadHandle(target.targetKey, signal)
+  } catch (error) {
+    if (isENOENT(error)) throw new FsError(`cannot read "${target.displayPath}": not found`, 'FS_NOT_FOUND')
+    throw error
+  }
+  try {
+    authorize?.(handle.identity)
+    if (!handle.identity.regular) throw new FsError(`cannot read "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
+    throwIfAborted(signal, 'read')
+    return handle
+  } catch (error) {
+    await handle.close()
+    throw error
+  }
+}
+
+async function* readHandleChunks(handle: ReadHandle, signal?: AbortSignal, offset = 0, length = Infinity): AsyncIterable<Buffer> {
+  let position = offset
+  while (position - offset < length) {
+    throwIfAborted(signal, 'read')
+    const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, length - (position - offset)))
+    const bytes = await handle.read(buffer, 0, buffer.length, position)
+    throwIfAborted(signal, 'read')
+    if (bytes === 0) return
+    position += bytes
+    yield buffer.subarray(0, bytes)
+  }
+}
 
 const BINARY_SAMPLE_BYTES = 8192
 const realpath = promisify(realpathCallback.native)
@@ -53,22 +91,6 @@ function isPermissionError(error: unknown): boolean {
 
 function throwIfAborted(signal: AbortSignal | undefined, verb: string): void {
   if (signal?.aborted) throw new FsError(`${verb} aborted`, 'FS_ABORTED')
-}
-
-/**
- * `readFile` with the supplied signal, translating a mid-read `AbortError` into
- * the seam's structured `FsError('FS_ABORTED')` (Node rejects an aborted
- * `readFile` with a bare `AbortError`, which would otherwise escape the seam's
- * error taxonomy — the streaming/write paths translate it the same way).
- */
-async function readFileAbortable(absolutePath: string, verb: 'read' | 'edit', signal?: AbortSignal): Promise<Buffer> {
-  try {
-    return await readFile(absolutePath, signal ? { signal } : {})
-  } catch (error: unknown) {
-    /* v8 ignore next 2 -- a non-abort readFile rejection needs a permission/IO fault racing an open file. */
-    if (!isAbortError(error)) throw error
-    throw new FsError(`${verb} aborted`, 'FS_ABORTED')
-  }
 }
 
 /** Opaque version token from high-resolution identity and freshness metadata. */
@@ -368,30 +390,24 @@ function decodeUtf8Stream(
   }
 }
 
-async function statRegularFile(target: LocalTarget, verb: 'read', signal?: AbortSignal): Promise<Stats> {
-  throwIfAborted(signal, verb)
-  let info: Stats
-  try {
-    info = await stat(target.targetKey)
-  } catch (error: unknown) {
-    /* v8 ignore next 2 -- a non-ENOENT stat failure needs a permission/IO fault; only the not-found path is reachable in tests. */
-    if (!isENOENT(error)) throw error
-    throw new FsError(`cannot ${verb} "${target.displayPath}": not found`, 'FS_NOT_FOUND')
-  }
-  if (!info.isFile()) throw new FsError(`cannot ${verb} "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
-  return info
-}
-
 /**
  * Read a whole regular UTF-8 text file into a single decoded string. Rejects
  * non-regular files, invalid UTF-8, and NUL-byte binary samples.
  * @param target - the resolved file to read.
+ * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param signal - aborts the read (`FS_ABORTED`).
  * @returns the full decoded text, byte-for-byte (no normalization).
  */
-export async function readWholeText(target: LocalTarget, signal?: AbortSignal): Promise<string> {
-  await statRegularFile(target, 'read', signal)
-  const raw = await readFileAbortable(target.targetKey, 'read', signal)
+export async function readWholeText(target: LocalTarget, signal?: AbortSignal, authorize?: AuthorizeRead): Promise<string> {
+  const handle = await checkedReadHandle(target, signal, authorize)
+  let raw: Buffer
+  try {
+    const chunks: Buffer[] = []
+    for await (const chunk of readHandleChunks(handle, signal)) chunks.push(chunk)
+    raw = Buffer.concat(chunks)
+  } finally {
+    await handle.close()
+  }
   throwIfAborted(signal, 'read')
   if (raw.subarray(0, BINARY_SAMPLE_BYTES).includes(0)) {
     throw new FsError(`cannot read "${target.displayPath}": binary file`, 'FS_NOT_TEXT')
@@ -405,6 +421,7 @@ export async function readWholeText(target: LocalTarget, signal?: AbortSignal): 
  * oversized file before any content I/O, and the stream reads at most one byte
  * beyond the cap so a file growing after stat cannot cause unbounded buffering.
  * @param target - the resolved file to read.
+ * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param signal - aborts the read (`FS_ABORTED`).
  * @param maxBytes - inclusive byte cap on the complete content (`FS_TOO_LARGE`).
  * @param internals - test seam for a deterministic post-stat growth race.
@@ -415,20 +432,17 @@ export async function readWholeBytes(
   signal: AbortSignal | undefined,
   maxBytes: number,
   internals: FsIoInternals = {},
+  authorize?: AuthorizeRead,
 ): Promise<Uint8Array> {
-  const info = await statRegularFile(target, 'read', signal)
-  if (info.size > maxBytes) {
-    throw new FsError(`cannot read "${target.displayPath}": ${info.size} bytes exceeds the ${maxBytes}-byte limit`, 'FS_TOO_LARGE')
-  }
-  await internals.inspectReadBytesAfterStat?.(target)
-  const stream = createReadStream(target.targetKey, {
-    end: maxBytes,
-    ...signal ? { signal } : {},
-  })
+  const handle = await checkedReadHandle(target, signal, authorize)
   const chunks: Buffer[] = []
   let bytes = 0
   try {
-    for await (const chunk of stream as AsyncIterable<Buffer>) {
+    if (handle.identity.size > maxBytes) {
+      throw new FsError(`cannot read "${target.displayPath}": ${handle.identity.size} bytes exceeds the ${maxBytes}-byte limit`, 'FS_TOO_LARGE')
+    }
+    await internals.inspectReadBytesAfterStat?.(target)
+    for await (const chunk of readHandleChunks(handle, signal, 0, maxBytes + 1)) {
       bytes += chunk.length
       if (bytes > maxBytes) {
         throw new FsError(`cannot read "${target.displayPath}": content exceeds the ${maxBytes}-byte limit`, 'FS_TOO_LARGE')
@@ -436,9 +450,10 @@ export async function readWholeBytes(
       chunks.push(chunk)
     }
   } catch (error: unknown) {
-    /* v8 ignore next 2 -- a mid-stream abort needs cancellation racing an active read; pre-abort is deterministic. */
     if (isAbortError(error)) throw new FsError('read aborted', 'FS_ABORTED')
     throw error
+  } finally {
+    await handle.close()
   }
   return Buffer.concat(chunks, bytes)
 }
@@ -449,6 +464,7 @@ export async function readWholeBytes(
  * `offset` and closes after `length` bytes, so no more than the window is ever
  * buffered whatever the file's size; a window at or past the end is empty.
  * @param target - the resolved file to read.
+ * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param range - `offset`, the 0-based first byte, and `length`, the largest byte count.
  * @param signal - aborts the read (`FS_ABORTED`).
  * @returns the window's bytes, at most `length` long.
@@ -457,26 +473,22 @@ export async function readByteWindow(
   target: LocalTarget,
   range: { offset: number; length: number },
   signal?: AbortSignal,
+  authorize?: AuthorizeRead,
 ): Promise<Uint8Array> {
-  await statRegularFile(target, 'read', signal)
-  if (range.length === 0) return new Uint8Array(0)
-  const stream = createReadStream(target.targetKey, {
-    start: range.offset,
-    end: range.offset + range.length - 1,
-    ...signal ? { signal } : {},
-  })
+  const handle = await checkedReadHandle(target, signal, authorize)
   const chunks: Buffer[] = []
   let bytes = 0
   try {
-    for await (const chunk of stream as AsyncIterable<Buffer>) {
+    for await (const chunk of readHandleChunks(handle, signal, range.offset, range.length)) {
       chunks.push(chunk)
       bytes += chunk.length
     }
   } catch (error: unknown) {
     /* v8 ignore next 2 -- a mid-stream abort needs cancellation racing an active read; pre-abort is deterministic. */
     if (isAbortError(error)) throw new FsError('read aborted', 'FS_ABORTED')
-    /* v8 ignore next -- any other stream failure needs an I/O fault after a successful stat. */
     throw error
+  } finally {
+    await handle.close()
   }
   return Buffer.concat(chunks, bytes)
 }
@@ -486,12 +498,13 @@ export async function readByteWindow(
  * semantics as {@link readWholeText} (regular-file check, binary/NUL rejection,
  * cross-chunk UTF-8 decoding), but never holds the whole file in memory.
  * @param target - the resolved file to stream.
+ * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param signal - aborts the stream, including between chunks (`FS_ABORTED`).
  * @returns decoded text chunks in file order; chunk boundaries carry no meaning.
  */
-export async function* streamWholeText(target: LocalTarget, signal?: AbortSignal): AsyncIterable<string> {
-  await statRegularFile(target, 'read', signal)
-  const stream = createReadStream(target.targetKey, signal ? { signal } : {})
+export async function* streamWholeText(target: LocalTarget, signal?: AbortSignal, authorize?: AuthorizeRead): AsyncIterable<string> {
+  const handle = await checkedReadHandle(target, signal, authorize)
+  const stream = readHandleChunks(handle, signal)
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let sampledBytes = 0
 
@@ -505,15 +518,16 @@ export async function* streamWholeText(target: LocalTarget, signal?: AbortSignal
   }
 
   try {
-    for await (const chunk of stream as AsyncIterable<Buffer>) {
+    for await (const chunk of stream) {
       scanBinarySample(chunk)
       yield decodeUtf8Stream(decoder, chunk, 'read', target.displayPath)
     }
     yield decodeUtf8Stream(decoder, undefined, 'read', target.displayPath)
   } catch (error: unknown) {
-    /* v8 ignore next 4 -- mid-stream errors need an abort/IO fault racing the loop; pre-abort is caught by throwIfAborted. */
     if (isAbortError(error)) throw new FsError('read aborted', 'FS_ABORTED')
     throw error
+  } finally {
+    await handle.close()
   }
 }
 
@@ -719,6 +733,7 @@ function countOccurrences(content: string, needle: string): number {
  * content plus the original line-ending style for write-back.
  * @param absolutePath - the file to read (typically a target key).
  * @param displayPath - the caller-facing path used in error messages.
+ * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param signal - aborts the read (`FS_ABORTED`).
  * @returns the LF-normalized content and the detected style to restore on write-back.
  */
@@ -726,9 +741,18 @@ export async function readForEdit(
   absolutePath: string,
   displayPath: string,
   signal?: AbortSignal,
+  authorize?: AuthorizeRead,
 ): Promise<{ content: string; lineEndings: LineEndings }> {
   throwIfAborted(signal, 'edit')
-  const buffer = await readFileAbortable(absolutePath, 'edit', signal)
+  const handle = await checkedReadHandle({ displayPath, targetKey: FsTargetKey(absolutePath) }, signal, authorize)
+  let buffer: Buffer
+  try {
+    const chunks: Buffer[] = []
+    for await (const chunk of readHandleChunks(handle, signal)) chunks.push(chunk)
+    buffer = Buffer.concat(chunks)
+  } finally {
+    await handle.close()
+  }
   throwIfAborted(signal, 'edit')
   if (buffer.includes(0)) throw new FsError(`cannot edit "${displayPath}": binary file`, 'FS_NOT_TEXT')
   const raw = decodeUtf8(buffer, 'edit', displayPath)
@@ -743,6 +767,7 @@ export async function readForEdit(
  * size changes cannot make this helper buffer more than `maxBytes`.
  * @param absolutePath - the file to read (typically a target key).
  * @param maxBytes - exclusive upper bound for bytes held as the contextual-diff basis.
+ * @param authorize - Optional opened-object policy; refusals propagate instead of returning a null basis.
  * @param signal - aborts the read (`FS_ABORTED`); cancellation propagates, unlike I/O failure.
  * @returns the LF-normalized text, or null for a non-regular, at/above-limit, binary, non-UTF-8,
  * descriptor-size-changed, or unreadable file.
@@ -751,18 +776,18 @@ export async function readTextForDiff(
   absolutePath: string,
   maxBytes: number,
   signal?: AbortSignal,
+  authorize?: AuthorizeRead,
 ): Promise<string | null> {
   throwIfAborted(signal, 'read')
   try {
-    const handle = await open(absolutePath, 'r')
+    const handle = await checkedReadHandle({ displayPath: absolutePath, targetKey: FsTargetKey(absolutePath) }, signal, authorize)
     let buffer: Buffer
     let total = 0
     let openedSize = 0
     try {
       throwIfAborted(signal, 'read')
-      const info = await handle.stat()
+      const info = handle.identity
       throwIfAborted(signal, 'read')
-      if (!info.isFile()) return null
       if (info.size >= maxBytes) return null
       openedSize = info.size
       // One extra byte detects growth after stat without retaining per-read backing buffers.
@@ -770,7 +795,7 @@ export async function readTextForDiff(
       while (total < buffer.length) {
         throwIfAborted(signal, 'read')
         const length = Math.min(buffer.length - total, DIFF_BASIS_READ_CHUNK_BYTES)
-        const { bytesRead } = await handle.read(buffer, total, length, null)
+        const bytesRead = await handle.read(buffer, total, length, total)
         if (bytesRead === 0) break
         total += bytesRead
       }
@@ -790,8 +815,11 @@ export async function readTextForDiff(
       return null
     }
   } catch (error: unknown) {
-    // Cancellation is the caller's intent and still propagates.
-    if (error instanceof FsError) throw error
+    // Policy refusals and cancellation must not become successful overwrite presentations.
+    if (error instanceof FsError) {
+      if (error.code === 'FS_NOT_FOUND' || error.code === 'FS_NOT_REGULAR_FILE') return null
+      throw error
+    }
     // A descriptor-phase errno — deleted or made unreadable after the caller's
     // preflight, or a faulted read — costs only the optional basis: a committed
     // write must not fail for a presentation-only pre-read.

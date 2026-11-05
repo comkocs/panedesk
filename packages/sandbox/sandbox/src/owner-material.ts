@@ -47,11 +47,16 @@ export function assertOwnerWorkspace(workspace: string, owners: readonly string[
  * Match protected files by canonical path or inode, including hard-link aliases.
  * @param path - Candidate host path.
  * @param roots - Current owner-material files and directories.
+ * @param openedIdentity - Kernel identity of an already-open file; its final path is used without reopening. Omit for path inspection.
  * @returns Whether the candidate names protected material.
  */
-export function isOwnerMaterial(path: string, roots: readonly string[]): boolean {
-  const candidate = canonicalPath(path)
-  const identity = existsSync(candidate) ? statSync(candidate) : undefined
+export function isOwnerMaterial(
+  path: string,
+  roots: readonly string[],
+  openedIdentity?: { dev: bigint; ino: bigint },
+): boolean {
+  const candidate = openedIdentity === undefined ? canonicalPath(path) : resolve(path)
+  const identity = openedIdentity ?? (existsSync(candidate) ? statSync(candidate, { bigint: true }) : undefined)
   return roots.some((root) => {
     const canonical = canonicalPath(root)
     const suffix = relative(canonical, candidate)
@@ -62,7 +67,7 @@ export function isOwnerMaterial(path: string, roots: readonly string[]): boolean
       const resolved = canonicalPath(entry)
       if (visited.has(resolved)) return false
       visited.add(resolved)
-      const protectedIdentity = statSync(resolved)
+      const protectedIdentity = statSync(resolved, { bigint: true })
       if (identity.dev === protectedIdentity.dev && identity.ino === protectedIdentity.ino) return true
       return protectedIdentity.isDirectory()
         && readdirSync(resolved).some(child => matchesIdentity(join(resolved, child)))
