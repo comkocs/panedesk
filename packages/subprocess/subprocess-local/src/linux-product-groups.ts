@@ -55,13 +55,14 @@ export class LinuxProductGroups {
   private remember(identity: bigint): void {
     this.retired.add(identity)
     if (this.retired.size <= 4096) return
-    const oldest = this.retired.values().next().value
-    if (oldest === undefined) return
-    for (const bit of this.identityBits(oldest)) {
-      const byte = bit >>> 3
-      this.evicted.writeUInt8(this.evicted.readUInt8(byte) | (1 << (bit & 7)), byte)
+    for (const oldest of this.retired) {
+      for (const bit of this.identityBits(oldest)) {
+        const byte = bit >>> 3
+        this.evicted.writeUInt8(this.evicted.readUInt8(byte) | (1 << (bit & 7)), byte)
+      }
+      this.retired.delete(oldest)
+      break
     }
-    this.retired.delete(oldest)
   }
 
   /**

@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "product-identity-eviction-iteration",
+      "description": "Iterate the oldest retired identity without an impossible empty-value fallback",
+      "origin": "Linux product identity coverage review",
+      "reason": "Evict the first bigint from the native retired identity Set only after its size exceeds 4096, using one iteration followed by a break instead of an unreachable undefined-value return. Preserve insertion-order eviction, deny-only filter bits, identity bounds and connection classifications. These changes can be contributed upstream.",
+      "match": {
+        "type": "maintenance",
+        "paths": [
+          "packages/subprocess/subprocess-local/src/linux-product-groups.ts"
+        ]
+      }
+    },
+    {
       "id": "authoritative-home-structural-review",
       "description": "Validate mutable authoritative home trees without content baselines",
       "origin": "Protected host input review",
