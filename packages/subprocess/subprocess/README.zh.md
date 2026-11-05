@@ -85,7 +85,7 @@ const output = handle.collected.stdout?.readFrom(0)
 
 ### 可能出错的地方
 
-共享分配辅助函数计入 pathname、argv、envp 和两张带终止槽的指针表。调用方传入与原生调用方式对应的运行时堆大小；参见 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)。
+共享分配辅助函数计入 pathname、argv、envp 和两张带终止槽的指针表。调用方传入与原生调用方式对应的运行时堆大小；`readSyncHeapSize` 在同步堆大小缺失或不是正数时直接拒绝，不采用任何默认值。参见 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)。
 
 无法解析可执行文件时，服务会明确报出稳定的错误。从未启动成功的 spawn 会让 `done` reject；从未运行过的进程没有任何缓冲输出。提供方无法证明所选范围为空时，`waitForExit()` 也会 reject；提供方 fallback 可能无法拥有逃离其进程组或已观察会话的后代。当传输拥有自己的 spawn（SDK 客户端、MCP）时，请绕开本服务并直接导入 `scrubbedParentEnv`，让环境策略保持单一来源。
 
@@ -109,6 +109,7 @@ const output = handle.collected.stdout?.readFrom(0)
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：抽象 `SubprocessRuntime`、`ctx.subprocess` 注册、共享的 `scrubbedParentEnv` 清除 |
 | [`src/types.ts`](src/types.ts) | 词汇：spawn spec、stdio 模式、句柄、读取器、结果、`DSH_*` 命名空间 |
+| [`src/execve-budget.ts`](src/execve-budget.ts) | 共享的 execve 分配计量与同步堆读取 |
 
 ### 数据模型与流程
 

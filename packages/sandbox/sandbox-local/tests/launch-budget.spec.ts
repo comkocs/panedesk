@@ -2,9 +2,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, it, onTestFinished } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { en, zh } from '../src/launch-budget-locales.ts'
 import { landlockProfileArgs } from '../src/profiles.ts'
+
+afterEach(() => {
+  vi.doUnmock('koffi')
+  vi.resetModules()
+})
 
 it('names the crowded ancestor and entry count in both refusal languages', () => {
   const root = mkdtempSync(join(tmpdir(), 'launch-budget-'))
@@ -38,4 +43,12 @@ it.skipIf(process.platform !== 'linux')('refuses 32000 real sibling entries befo
     { mode: 'read-only', workspaceRoot: root, unreadablePaths: [owner] },
     { file: '/synthetic/landlock-run', argv: ['/bin/true'] },
   )).toThrow(`${en.crowdedAncestor(root, 32_001)} / ${zh.crowdedAncestor(root, 32_001)}`)
+})
+
+it('refuses Landlock grants when the synchronous heap is missing', async () => {
+  vi.resetModules()
+  vi.doMock('koffi', () => ({ default: { config: () => ({}) } }))
+  const { landlockProfileArgs: profile } = await import('../src/profiles.ts')
+  expect(() => profile({ mode: 'read-only', workspaceRoot: '/workspace' })).toThrow('execve argument budget unavailable')
+  expect(() => profile({ mode: 'read-only', workspaceRoot: '/workspace' })).toThrow('参数预算不可用')
 })

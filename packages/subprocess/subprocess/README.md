@@ -85,7 +85,7 @@ Children never inherit the harness's ambient secrets: credential-shaped names an
 
 ### What can go wrong
 
-The shared allocation helpers count pathname, argv, envp, and both terminated pointer tables. Callers supply the runtime heap size matching the native call mode; see [execve allocation limits](../../../docs/subsystems/subprocess.md).
+The shared allocation helpers count pathname, argv, envp, and both terminated pointer tables. Callers supply the runtime heap size matching the native call mode, and `readSyncHeapSize` refuses a missing or non-positive synchronous heap instead of assuming a default; see [execve allocation limits](../../../docs/subsystems/subprocess.md).
 
 An executable that cannot be resolved fails loudly with a stable error. A spawn that never starts rejects `done`; there is no buffered output for a process that never ran. `waitForExit()` also rejects when the provider cannot prove its selected range is empty, and a provider fallback may not own descendants that escape its process group or observed session. When a transport owns its own spawn (the SDK client, MCP), route around the service and import `scrubbedParentEnv` directly so environment policy stays single-sourced.
 
@@ -109,6 +109,7 @@ The seam is built on one separation: the service owns process coordinates and li
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: abstract `SubprocessRuntime`, `ctx.subprocess` registration, the shared `scrubbedParentEnv` scrub |
 | [`src/types.ts`](src/types.ts) | Vocabulary: spawn spec, stdio modes, handles, readers, outcomes, `DSH_*` namespace |
+| [`src/execve-budget.ts`](src/execve-budget.ts) | Shared execve allocation accounting and the synchronous heap read |
 
 ### Data model and flow
 

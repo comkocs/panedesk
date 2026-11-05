@@ -124,6 +124,23 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
     expect(nativeFcntl).not.toHaveBeenCalled()
   })
 
+  it('refuses a missing synchronous heap before any native call', async () => {
+    const nativeExecve = vi.fn(() => -1)
+    const nativeFcntl = vi.fn(() => 0)
+    vi.doMock('@panedesk/dsh-lazy-require', () => ({
+      createLazyRequire: () => () => ({
+        errno: () => 2,
+        config: () => ({}),
+        load: () => ({ func: (declaration: string) => declaration.includes('execve') ? nativeExecve : nativeFcntl }),
+      }),
+    }))
+    const { loadLinuxExecve } = await import('../src/linux-execve.ts')
+    expect(() => loadLinuxExecve()('/bin/true', ['true'], {})).toThrow('execve argument budget unavailable')
+    expect(() => loadLinuxExecve()('/bin/true', ['true'], {})).toThrow('参数预算不可用')
+    expect(nativeExecve).not.toHaveBeenCalled()
+    expect(nativeFcntl).not.toHaveBeenCalled()
+  })
+
   it('reports failure to read descriptor flags before replacing the process', async () => {
     const nativeExecve = vi.fn()
     const nativeFcntl = vi.fn(() => -1)

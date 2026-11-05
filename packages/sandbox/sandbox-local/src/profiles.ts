@@ -10,7 +10,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertOwnerWorkspace, assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, protectedWorkspaceBranches, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { sessionEnvironmentArgs, sessionSocketDirectories } from './session-sockets.ts'
-import { assertExecveArgumentBudget, execveArgumentBudget, execveArgumentBytes, execveStringBytes } from '@panedesk/dsh-subprocess'
+import { assertExecveArgumentBudget, execveArgumentBudget, execveArgumentBytes, execveStringBytes, readSyncHeapSize } from '@panedesk/dsh-subprocess'
 import koffi from 'koffi'
 import { en, zh } from './launch-budget-locales.ts'
 
@@ -145,7 +145,7 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
  * @returns launcher grant arguments before the trailing separator and command argv.
  */
 export function landlockProfileArgs(policy: SandboxPolicy, launch = { file: '', argv: [] as readonly string[] }): string[] {
-  const heapSize = koffi.config().sync_heap_size!
+  const heapSize = readSyncHeapSize(koffi.config())
   const budget = execveArgumentBudget(heapSize)
   assertExecveArgumentBudget(launch.file, [launch.file, '--', ...launch.argv], [], heapSize)
   const owners = ownerDirectories(policy).map(canonicalPath)
