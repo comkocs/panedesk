@@ -51,6 +51,7 @@ const DUPLICATE_SAFE_PACKAGES: readonly string[] = [
  * prominent heading in the pull request description.
  */
 const SAFE_HOST_DEPENDENCY_EXPORTS = {
+  '@panedesk/dsh-client-connection': ['authAdmissionBody'],
   '@panedesk/dsh-credentials': ['credentialKey'],
   '@panedesk/dsh-deque': ['Deque'],
   '@panedesk/dsh-llm': ['callConfigEquals'],
