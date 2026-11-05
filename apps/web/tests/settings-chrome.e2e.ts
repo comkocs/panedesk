@@ -14,7 +14,8 @@ import type { Browser, Locator, Page, Request } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed, onTestFinished } from 'vitest'
 import { basename, join } from 'node:path'
-import { SessionId } from '@panedesk/dsh-session'
+import { SessionId, type Session } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-permission-presets'
 import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold,
@@ -263,7 +264,7 @@ describe('web e2e: settings modal and General preferences', () => {
 
   it('stores Permission as the default for future sessions without changing an existing session', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-permission'))
-    const existing = scaffold.ctx.sessions.create(SessionId('settings-permission-before'))
+    const existing = await createPermissionSession(scaffold, SessionId('settings-permission-before'))
     expect(existing.snapshotEvents().find(event => event.type === 'permission/preset')?.data)
       .toEqual({ preset: 'workspace-write' })
 
@@ -283,7 +284,7 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(existing.snapshotEvents().find(event => event.type === 'permission/preset')?.data)
       .toEqual({ preset: 'workspace-write' })
 
-    const created = scaffold.ctx.sessions.create(SessionId('settings-permission-after'))
+    const created = await createPermissionSession(scaffold, SessionId('settings-permission-after'))
     expect(created.snapshotEvents().map(event => [event.type, event.data])).toEqual([
       ['permission/preset', { preset: 'read-only' }],
       ['sandbox/mode', { mode: 'read-only' }],
@@ -300,7 +301,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await dialog.getByRole('button', { name: '完全权限' }).waitFor({ timeout: 10_000 })
     const confirmedDocument = await readFile(join(scaffold.harnessHome, 'profiles', 'scaffold', 'cordis.patch.yml'), 'utf8')
     expect(confirmedDocument).toContain('defaultPreset: danger-full-access')
-    const confirmed = scaffold.ctx.sessions.create(SessionId('settings-permission-confirmed'))
+    const confirmed = await createPermissionSession(scaffold, SessionId('settings-permission-confirmed'))
     expect(confirmed.snapshotEvents().map(event => [event.type, event.data])).toEqual([
       ['permission/preset', { preset: 'danger-full-access' }],
       ['sandbox/mode', { mode: 'danger-full-access' }],
@@ -309,6 +310,12 @@ describe('web e2e: settings modal and General preferences', () => {
     await page.keyboard.press('Escape')
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
+
+  async function createPermissionSession(host: WebScaffold, id: SessionId): Promise<Session> {
+    const session = host.ctx.sessions.create(id)
+    await host.ctx.permissionPresets.initialize(session)
+    return session
+  }
 
   async function selectTheme(cube: Locator, preference: 'light' | 'dark' | 'system'): Promise<void> {
     // Optimistic UI and a file value from an earlier gesture do not prove this write finished.
