@@ -13,8 +13,12 @@ export interface DirectoryTarget {
   close(): Promise<void>
 }
 
-/** Linux host descriptors are unavailable in virtual Node filesystems without O_DIRECTORY. */
-export const usesDirectoryHandles = process.platform === 'linux' && typeof constants.O_DIRECTORY === 'number'
+/** Only the deployed Worker's explicit process title exempts Linux from host directory traversal. */
+export const usesDirectoryHandles = process.platform === 'linux' && process.title !== 'dsh-webworker'
+
+if (usesDirectoryHandles && typeof constants.O_DIRECTORY !== 'number') {
+  throw new FsError('Linux filesystem requires O_DIRECTORY; refusing to fall back to path-based operations. Use a runtime with directory-handle support.', 'FS_IO_ERROR')
+}
 
 const directoryFlags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW
 
@@ -23,7 +27,7 @@ const directoryFlags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_
  * @param path - Canonical absolute directory name.
  * @param create - Create missing components below root, or require existing directories when false.
  * @param root - Existing authorized directory; omission allows the whole filesystem.
- * @returns Owned descriptor path on Linux hosts; virtual filesystems without O_DIRECTORY and other platforms retain paths.
+ * @returns Owned descriptor path on Linux hosts; the identified Worker and other platforms retain paths.
  */
 export async function openDirectory(path: string, create = false, root = '/'): Promise<DirectoryTarget> {
   if (!usesDirectoryHandles) return { path, close: async () => {} }
