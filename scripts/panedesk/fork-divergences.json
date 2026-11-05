@@ -15714,6 +15714,18 @@
           "packages/subprocess/win32-process/tests/tcp-owner-mixed-ipv6.spec.ts"
         ]
       }
+    },
+    {
+      "id": "protected-input-refusal-built-bin-smoke",
+      "description": "Run the protected-input refusal CLI check in the built-bin smoke gate",
+      "origin": "Built CLI smoke coverage",
+      "reason": "The protected-input refusal end-to-end check launches the built CLI through resolveExampleLaunch and asserts a refused protected input exits nonzero with bilingual recovery instructions. No continuous-integration gate named it, so the default unit includes and the expected-output lane never ran it. Add the file to the built-bin smoke named list, beside the other built CLI checks, without changing the gate command, environment, or existing entries. This registration can be contributed upstream.",
+      "match": {
+        "type": "maintenance",
+        "paths": [
+          "scripts/run-gates.ts"
+        ]
+      }
     }
   ]
 }

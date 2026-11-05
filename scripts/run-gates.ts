@@ -899,6 +899,9 @@ function builtBinSmokeGate(needs: string[] = ['build']): Gate {
     'apps/cli/tests/profiles/headless/tests/keyless-smoke.e2e.ts',
     'apps/cli/tests/profiles/headless/tests/source-tool.built.e2e.ts',
     'apps/cli/tests/built-bin.e2e.ts',
+    // Launches the built CLI through resolveExampleLaunch and asserts a refused
+    // protected input exits nonzero with bilingual recovery text.
+    'apps/cli/tests/protected-input-refusal.e2e.ts',
     'apps/desktop/tests/acl-skill.built.e2e.ts',
     'packages/host/directory-picker-native/tests/built-worker.e2e.ts',
     'packages/sdk/server/tests/built-scope-carrier.e2e.ts',
