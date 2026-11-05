@@ -84,7 +84,7 @@ Selection is by platform first, probes second: each platform has a runner chain 
 
 The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds a writable workspace bind and, when it does not overlap protected inputs, an ephemeral `/tmp`. The [historical private-PID note](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.
 
-The `@panedesk/node-addon-system/landlock-run` API supplies the platform launcher, functional probe, and grant vocabulary; this provider maps mode to grants only, keeping path resolution and probe parsing with the versioned binary.
+The `@panedesk/node-addon-system/landlock-run` API supplies the platform launcher, functional probe, and grant vocabulary; this provider maps mode to grants only, keeping path resolution and probe parsing with the versioned binary. On ABI 6 or newer, `LANDLOCK_SCOPE_SIGNAL` prevents confined processes from signalling outside their Landlock domain without preventing host-to-child cancellation. Older ABIs retain same-user signal access; detached sessions do not isolate signals. The [CLI](../../../apps/cli/README.md) independently disables signal-triggered Inspector activation. Abstract Unix sockets and PID visibility remain unisolated.
 
 The Seatbelt profile is allow-default with `(deny file-write*)` plus write allow-lists derived from `writableRoots` after excluding protected-root overlaps; every root is canonicalized because Seatbelt matches resolved paths (`/tmp` IS `/private/tmp`).
 

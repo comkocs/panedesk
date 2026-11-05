@@ -84,7 +84,7 @@ kind: "package-reference"
 
 bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；`workspace-write` 另加可写工作区绑定挂载，并在不与保护输入重叠时增加临时的 `/tmp`。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
 
-`@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。
+`@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。在 ABI 6 及以上内核上，`LANDLOCK_SCOPE_SIGNAL` 阻止受限进程向其 Landlock 域外发送信号，但不阻止宿主取消子进程。较旧 ABI 仍允许同用户信号访问；独立会话并不隔离信号。[CLI](../../../apps/cli/README.zh.md) 另行禁用信号触发的 Inspector 激活。抽象 Unix 套接字与 PID 可见性仍不隔离。
 
 Seatbelt profile 默认允许，带 `(deny file-write*)` 与从 `writableRoots` 排除保护根重叠后得到的写入 allow-list；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。
 
