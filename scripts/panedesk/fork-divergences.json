@@ -12565,7 +12565,7 @@
       "id": "product-rename-snapshots",
       "description": "Upstream files under snapshots whose only divergence from the baseline is the replayable product rename.",
       "origin": "Panedesk product rename sweep since the upstream import",
-      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces these files byte for byte. The divergence is the product identity rename, carries no product logic, and is not planned for upstream contribution.",
+      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces these files byte for byte, except snapshots/session/missing-sandbox-runner/session.v4.jsonl, whose compared generation records the Linux execve runner failure rather than the product identity rename. Every other file here diverges only by the product identity rename, carries no product logic, and is not planned for upstream contribution.",
       "match": {
         "type": "rename-replay",
         "paths": [
@@ -15864,6 +15864,49 @@
           "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.md",
           "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md",
           "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.i18n.yaml"
+        ]
+      }
+    },
+    {
+      "id": "missing-sandbox-runner-execve-enoent",
+      "description": "Linux missing-sandbox-runner snapshot records the execve ENOENT text",
+      "origin": "Linux execve startup diagnostics",
+      "reason": "The compared v4 fixture now records the Linux execve ENOENT runner failure instead of the Node spawn ENOENT form. The required snapshot lane runs on Linux; macOS and Windows still produce the spawn form and are not required lanes. The older v2 and v3 generations are not compared and stay unchanged. This expectation update can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "snapshots/session/missing-sandbox-runner/session.v4.jsonl"
+        ]
+      }
+    },
+    {
+      "id": "explicit-worker-filesystem-and-linux-directory-capability",
+      "description": "Refuse Linux hosts without directory handles and identify the deployed virtual filesystem explicitly",
+      "origin": "Linux host filesystem capability review",
+      "reason": "Use the deployed Worker's existing process title to select virtual path operations for metadata, listing, and atomic publication. Refuse other Linux processes missing O_DIRECTORY with FS_IO_ERROR before filesystem operations instead of silently falling back to paths. Preserve Linux directory anchoring, writable roots, protected input registrations, and existing macOS and Windows behavior. Verify the built host package retains parent and staging directory anchors and refuses a simulated non-Worker host without O_DIRECTORY, and include that test in built-bin smoke. Update the virtual filesystem regression and paired package documentation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/directory-handle.ts",
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/tests/virtual-directory.spec.ts",
+          "packages/fs/fs-local/tests/built-directory-handle.e2e.ts",
+          "packages/fs/fs-local/README.md",
+          "packages/fs/fs-local/README.zh.md",
+          "packages/fs/fs-local/README.i18n.yaml",
+          "scripts/run-gates.ts"
+        ]
+      }
+    },
+    {
+      "id": "seat-rename-admission-title-byte-budget",
+      "description": "Size the seat rename admission title budget for complete fixture paths",
+      "origin": "Path-independent protected-input admission fixture",
+      "reason": "For the seat_rename admission cell only, derive the accepted title byte budget from the protected patch path and its workspace alias. Preserve the full original path assertions, successful rename and persistence checks, protected-input byte checks, and executed admission registration. Keep every other cell and all production title limits unchanged. This test fixture repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
         ]
       }
     }
