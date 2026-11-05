@@ -621,16 +621,19 @@ describe('panedesk web keyless CLI smoke', () => {
       messages?: { role?: string; content?: { type?: string; text?: string }[] }[]
       tools?: { name?: string }[]
     }
-    let resolveProviderRequest!: (request: PtcModeProviderRequest) => void
-    const providerRequest = new Promise<PtcModeProviderRequest>((resolve) => {
-      resolveProviderRequest = resolve
+    let resolveProviderRequests!: (requests: PtcModeProviderRequest[]) => void
+    const requests: PtcModeProviderRequest[] = []
+    const providerRequests = new Promise<PtcModeProviderRequest[]>((resolve) => {
+      resolveProviderRequests = resolve
     })
     const provider = createServer((request, response) => {
       let body = ''
       request.setEncoding('utf8')
       request.on('data', (chunk: string) => { body += chunk })
       request.on('end', () => {
-        resolveProviderRequest(JSON.parse(body) as PtcModeProviderRequest)
+        const parsed = JSON.parse(body) as PtcModeProviderRequest
+        if (parsed.tools?.some(tool => tool.name === 'run_code') === true) requests.push(parsed)
+        if (requests.length === 1) resolveProviderRequests(requests)
         response.writeHead(200, { 'content-type': 'text/event-stream' })
         response.end(messagesResponse('done'))
       })
@@ -667,14 +670,16 @@ describe('panedesk web keyless CLI smoke', () => {
         content: [{ type: 'text', text: 'go' }],
       } })
       const captured = await Promise.race([
-        providerRequest,
+        providerRequests,
         new Promise<never>((_resolve, reject) => {
           setTimeout(() => { reject(new Error('provider request not received in 10s')) }, 10_000).unref()
         }),
       ])
-      expect(captured.tools?.map(tool => tool.name)).toEqual(['run_code'])
-      expect(captured.system).toContain('## Writing code for run_code')
-      expect(captured.system).toContain('declare const tools')
+      const main = captured[0]
+      if (main === undefined) throw new Error('provider request not received in 10s')
+      expect(main.tools?.map(tool => tool.name)).toEqual(['run_code'])
+      expect(main.system).toContain('## Writing code for run_code')
+      expect(main.system).toContain('declare const tools')
     } finally {
       const closed = child.exitCode === null
         ? new Promise<void>((resolveClose) => { child.once('close', () => { resolveClose() }) })

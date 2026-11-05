@@ -557,6 +557,18 @@
       }
     },
     {
+      "id": "web-ptc-smoke-main-request",
+      "description": "Assert the PTC wire tools from the request that carries run_code",
+      "origin": "Web keyless smoke request ordering",
+      "reason": "The keyless PTC smoke collects every mock-provider request and asserts the one whose tools include run_code. A parallel session-title request can arrive first and carries no tools, so taking the first request is an ordering race. The three assertions on tool names and the SDK prompt section are unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/web/tests/smoke-real.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "web-regressions-private-credentials-and-owner-cookies",
       "description": "Align non-authentication Web regressions with protected credentials and owner cookies",
       "origin": "Web regression fixture compatibility",
