@@ -56,11 +56,12 @@ export class SandboxedFileSystem extends LocalFileSystem {
     this.defaultMode = ctx.sandboxPolicy.defaultMode
   }
 
-  private readPolicy(policy?: SandboxExecutionPolicy): SandboxExecutionPolicy {
+  private readPolicy(policy?: SandboxExecutionPolicy) {
     const effective = policy ?? this.ctx.sandboxPolicy.resolve()
-    if (effective.mode === 'danger-full-access') return effective
+    if (effective.mode === 'danger-full-access') return effective as SandboxExecutionPolicy & { mode: 'danger-full-access' }
     return {
       ...effective,
+      mode: effective.mode,
       unreadablePaths: [...new Set([
         ...effective.unreadablePaths ?? [],
         ...this.ctx.sandboxPolicy.resolve({ mode: effective.mode }).unreadablePaths ?? [],
@@ -72,16 +73,18 @@ export class SandboxedFileSystem extends LocalFileSystem {
     const effective = this.readPolicy(policy)
     if (effective.mode === 'danger-full-access') return undefined
     return (identity: ReadIdentity): void => {
-      if (isOwnerMaterial(identity.path, effective.unreadablePaths ?? [], identity)) {
+      if (isOwnerMaterial(identity.path, effective.unreadablePaths, identity)) {
         throw new FsError(OWNER_MATERIAL_DENIED, 'FS_SANDBOX_DENIED')
       }
     }
   }
 
-  private async readableTarget(target: FsTarget, policy: SandboxExecutionPolicy): Promise<FsTarget> {
+  private async readableTarget(
+    target: FsTarget, policy: ReturnType<SandboxedFileSystem['readPolicy']>,
+  ): Promise<FsTarget> {
     if (policy.mode === 'danger-full-access') return target
     const fresh = await this.resolve(target.displayPath)
-    if (isOwnerMaterial(this.processPath(fresh), policy.unreadablePaths ?? [])) {
+    if (isOwnerMaterial(this.processPath(fresh), policy.unreadablePaths)) {
       throw new FsError(OWNER_MATERIAL_DENIED, 'FS_SANDBOX_DENIED')
     }
     return fresh
@@ -123,7 +126,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     const policy = this.readPolicy(sandboxPolicy)
     const entries = await super.listDir(await this.readableTarget(target, policy), signal)
     if (policy.mode === 'danger-full-access') return entries
-    return entries.filter(entry => !isOwnerMaterial(this.processPath(entry.target), policy.unreadablePaths ?? []))
+    return entries.filter(entry => !isOwnerMaterial(this.processPath(entry.target), policy.unreadablePaths))
   }
 
   /** The deployment default mode — the capability fact the tool layer reads to advertise escalation. */
