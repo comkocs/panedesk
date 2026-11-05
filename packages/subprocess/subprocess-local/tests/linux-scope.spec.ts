@@ -1072,12 +1072,13 @@ describe('Linux scope establishment and quiescence', () => {
 
   it('signals the group and direct process before the exact synchronous scope kill on host exit', () => {
     const events: string[] = []
-    const { result } = launch(async () => missingUnit(), {
+    const { result, requestPath } = launch(async () => missingUnit(), {
       spawnSync: vi.fn(() => { events.push('scope'); return { status: 0 } }) as never,
     })
     vi.spyOn(process, 'kill').mockImplementation((pid) => { events.push(pid < 0 ? 'group' : 'direct'); return true })
     result.owner.terminateForHostExit()
     expect(events).toEqual(['group', 'direct', 'scope'])
+    expect(existsSync(linuxLaunchFilesFromLocator(requestPath).directory)).toBe(false)
     result.owner.cleanup?.()
   })
 })

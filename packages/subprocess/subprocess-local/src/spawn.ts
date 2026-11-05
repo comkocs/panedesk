@@ -58,7 +58,7 @@ export interface SpawnInternals {
   /** Process spawner (defaults to `node:child_process` `spawn`). */
   spawn?: SpawnProcess
   /** Directory for spill files (defaults to the OS temp dir). */
-  spillDir?: string
+  spillDir?: string | (() => string)
   /** Receives spill open/write failures; the runtime supplies its plugin logger, bare callers get a stderr line. */
   onSpillFailure?: SpillFailureReporter
   /** Windows tree-termination runner (defaults to `taskkill /PID <pid> /T /F`). */

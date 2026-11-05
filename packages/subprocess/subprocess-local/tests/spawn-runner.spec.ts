@@ -159,11 +159,11 @@ describe('closed runner protocol', () => {
     expect(result).toEqual({
       type: 'error',
       error: {
-        name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', syscall: 'spawn tool', path: 'tool',
+        name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', errno: -2, syscall: 'spawn tool', path: 'tool',
       },
     })
     expect(deserializeRunnerError(result!.error)).toMatchObject({
-      name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', syscall: 'spawn tool', path: 'tool',
+      name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', errno: -2, syscall: 'spawn tool', path: 'tool',
     })
     cleanupLinuxLaunchFiles(files)
     expect(existsSync(files.directory)).toBe(false)
@@ -379,7 +379,7 @@ describe('runner launch inputs', () => {
       code: 'ENOENT', errno: -2, syscall: 'spawn tool', path: 'tool', spawnargs: ['arg'],
     })
     expect(serializeRunnerError(detailed)).toEqual({
-      name: 'Error', message: 'detailed', code: 'ENOENT', syscall: 'spawn tool', path: 'tool',
+      name: 'Error', message: 'detailed', code: 'ENOENT', errno: -2, syscall: 'spawn tool', path: 'tool',
     })
     const minimal = deserializeRunnerError({ name: 'Error', message: 'minimal' })
     expect(minimal).toMatchObject({ name: 'Error', message: 'minimal' })
@@ -466,6 +466,18 @@ describe('runner launch inputs', () => {
 })
 
 describe('Linux one-shot exec bootstrap', () => {
+  it('keeps original syscall, errno and actionable text after execve failure', async () => {
+    const files = track(createLinuxLaunchFiles({ cwd: '/work', env: {} }))
+    const message = 'EFAULT: bad address, execve target'
+    const execve = vi.fn((): never => {
+      throw Object.assign(new Error(message), { code: 'EFAULT', errno: -14, syscall: 'execve', path: '/target' })
+    })
+    await runSpawnRunner(files.requestPath, ['--', '/target'], hostArgument(new FakeRunnerHost()), internals({ execve }))
+    expect(readLinuxStartupError(files.startupErrorPath)).toEqual({
+      type: 'error', error: { name: 'Error', message, code: 'EFAULT', errno: -14, syscall: 'execve', path: '/target' },
+    })
+  })
+
   it('uses final cwd/env PATH while preserving the original argv', async () => {
     const files = track(createLinuxLaunchFiles({
       cwd: '/final/work',

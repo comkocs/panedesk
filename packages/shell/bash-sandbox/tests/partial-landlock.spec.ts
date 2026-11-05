@@ -112,7 +112,10 @@ describe('partial Landlock runner-failure classification', () => {
     const task = (await start(bash, bash.resolve({ command: 'true' })))
     await task.done
     expect(task.status).toBe('killed')
-    expect(task.readOutput().delta).toContain(`subprocess failed before reporting an outcome: Error: spawn ${runner}`)
+    const detail = kind === 'unexecutable' ? 'EACCES: permission denied' : 'ENOENT: no such file or directory'
+    expect(task.readOutput().delta).toContain(process.platform === 'linux'
+      ? `subprocess failed before reporting an outcome: Error: ${detail}, execve '${runner}'`
+      : `subprocess failed before reporting an outcome: Error: spawn ${runner}`)
     expect(task.sandbox).toEqual({
       mode: 'read-only',
       denied: false,
@@ -139,14 +142,15 @@ describe('partial Landlock runner-failure classification', () => {
       const error = await run(bash, bash.resolve(request)).catch((value: unknown) => value)
       expect(error).toMatchObject({ name: 'SandboxUnavailableError', code: SANDBOX_UNAVAILABLE })
       expect(error).toBeInstanceOf(Error)
-      // Empirically, Darwin and Linux Node 24 preserve the passed bare/relative
-      // argv[0] in this spawn error rather than resolving it to an absolute path.
-      expect((error as Error).message).toContain(`spawn ${runner} ENOENT`)
+      const diagnostic = process.platform === 'linux' && form === 'relative'
+        ? `ENOENT: no such file or directory, execve '${runner}'`
+        : `spawn ${runner} ENOENT`
+      expect((error as Error).message).toContain(diagnostic)
 
       const task = (await start(bash, bash.resolve(request)))
       await task.done
       expect(task.status).toBe('killed')
-      expect(task.readOutput().delta).toContain(`subprocess failed before reporting an outcome: Error: spawn ${runner} ENOENT`)
+      expect(task.readOutput().delta).toContain(`subprocess failed before reporting an outcome: Error: ${diagnostic}`)
       expect(task.sandbox).toEqual({
         mode: 'read-only',
         denied: false,

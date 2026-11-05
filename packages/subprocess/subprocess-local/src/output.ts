@@ -20,7 +20,7 @@ export interface SpillOptions {
   /** Whole-stream byte cap beyond which an incomplete spill is discarded. */
   maxBytes: number
   /** Private directory receiving the spill file. */
-  dir: string
+  dir: string | (() => string)
   /** Owner-side report of a spill open or write failure. */
   onFailure: SpillFailureReporter
 }
@@ -32,8 +32,8 @@ let defaultSpillDir: string | undefined
  * The default spill location: a private (0700) per-process directory under
  * the OS tmpdir, created lazily. Predictable world-readable paths would let
  * other local users read command output or pre-create symlinks. The directory
- * is created once per process and never recreated: when an external
- * temporary-file cleaner removes it while empty, the next spill open fails and
+ * is shared while it contains output; empty owned directories are removed after
+ * collection. When an external temporary-file cleaner removes it, the next spill open fails and
  * the collector degrades to its in-memory tail. At a JavaScript-observable
  * process exit the directory is removed only when it holds no completed spill
  * file (spill files are retained as full-output recovery artifacts until an
@@ -88,24 +88,23 @@ export function logSpillFailure(logger: { error(message: string, ...detail: unkn
 /** Inputs a managed native process needs before its output streams are bound. */
 export interface ManagedProcessBinding {
   /** Directory receiving spill files. */
-  spillDir: string
+  spillDir: string | (() => string)
   /** Receives a spill open or write failure. */
   onSpillFailure: SpillFailureReporter
 }
 
 /**
- * Prepare fallible output storage before starting a managed native process.
- * This is the explicit resolve step for spill inputs: the spill directory
- * defaults to the private per-process directory, and the failure reporter
- * defaults to a stderr line when the caller has no logger.
+ * Resolve output storage without creating an empty directory for commands that never spill.
+ * The default private per-process directory is created on first overflow;
+ * allocation failures follow the collector's existing spill-failure reporting.
  * @param internals - optional caller-owned spill directory and failure reporter.
- * @returns binding inputs whose spill directory is ready for use.
+ * @returns binding inputs with an explicit directory or a lazy default-directory resolver.
  */
 export function prepareManagedProcessBinding(
-  internals: { spillDir?: string; onSpillFailure?: SpillFailureReporter } = {},
+  internals: { spillDir?: string | (() => string); onSpillFailure?: SpillFailureReporter } = {},
 ): ManagedProcessBinding {
   return {
-    spillDir: internals.spillDir ?? privateSpillDir(),
+    spillDir: internals.spillDir ?? privateSpillDir,
     onSpillFailure: internals.onSpillFailure ?? reportSpillFailureToStderr,
   }
 }
@@ -202,7 +201,7 @@ export class OutputCollector {
         // planted entry included) never lets discardSpill unlink a path this
         // process did not create.
         const file = join(
-          spill.dir,
+          typeof spill.dir === 'function' ? spill.dir() : spill.dir,
           `dsh-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
         )
         const fd = openSync(file, 'wx', 0o600)
@@ -287,7 +286,10 @@ export class OutputCollector {
    * never point at a still-open file.
    */
   seal(): void {
-    if (this.spillFd === undefined) return
+    if (this.spillFd === undefined) {
+      this.removeEmptySpillDirectory()
+      return
+    }
     try {
       closeSync(this.spillFd)
     } catch {
@@ -296,6 +298,17 @@ export class OutputCollector {
       this.spillFile = undefined
     }
     this.spillFd = undefined
+    this.removeEmptySpillDirectory()
+  }
+
+  private removeEmptySpillDirectory(): void {
+    if (this.spill?.dir !== privateSpillDir || defaultSpillDir === undefined) return
+    try {
+      rmdirSync(defaultSpillDir)
+      defaultSpillDir = undefined
+    } catch (_directoryStillContainsOutput) {
+      // Completed spill files remain recoverable; never remove caller-owned directories.
+    }
   }
 
   /**

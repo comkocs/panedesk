@@ -274,9 +274,12 @@ class LinuxScopeStartup {
   constructor(readonly files: LinuxLaunchFiles, private readonly kind: 'subprocess' | 'terminal') {}
 
   cleanup(): void {
-    this.releaseProductGroup?.()
-    this.releaseProductGroup = undefined
-    cleanupLinuxLaunchFiles(this.files)
+    try {
+      this.releaseProductGroup?.()
+      this.releaseProductGroup = undefined
+    } finally {
+      cleanupLinuxLaunchFiles(this.files)
+    }
   }
 
   resolveOutcome(outcome: SubprocessOutcome): SubprocessOutcome {
@@ -360,7 +363,10 @@ class SystemdScopeOwner implements BoundProcessOwner {
   }
 
   terminateForHostExit(): void {
-    if (this.stopped) return
+    if (this.stopped) {
+      cleanupLinuxLaunchFiles(this.startup.files)
+      return
+    }
     try {
       if (this.direct.running()) this.direct.signal('SIGKILL')
     } catch { /* Continue with the native owner. */ }
@@ -374,6 +380,9 @@ class SystemdScopeOwner implements BoundProcessOwner {
       ], { env: managerEnvironment(), stdio: 'ignore', timeout: SYSTEMCTL_TIMEOUT_MS })
     } catch {
       // Host exit cannot report one range; the runtime continues with the rest.
+    } finally {
+      // Do not release product attribution before confirmed range exit; only retire private launch files.
+      cleanupLinuxLaunchFiles(this.startup.files)
     }
   }
 

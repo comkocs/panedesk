@@ -26,6 +26,7 @@ export interface SerializedRunnerError {
   name: string
   message: string
   code?: string
+  errno?: number
   syscall?: string
   path?: string
 }
@@ -77,11 +78,12 @@ function isSerializedRunnerError(value: unknown): value is SerializedRunnerError
   if (!isRecord(value) || !hasExactKeys(
     value,
     ['name', 'message'],
-    ['code', 'syscall', 'path'],
+    ['code', 'errno', 'syscall', 'path'],
   )) return false
   return typeof value.name === 'string'
     && typeof value.message === 'string'
     && (value.code === undefined || typeof value.code === 'string')
+    && (value.errno === undefined || (typeof value.errno === 'number' && Number.isSafeInteger(value.errno)))
     && (value.syscall === undefined || typeof value.syscall === 'string')
     && (value.path === undefined || typeof value.path === 'string')
 }
@@ -233,6 +235,7 @@ export function serializeRunnerError(error: unknown): SerializedRunnerError {
     name: source.name,
     message: source.message,
     ...typeof node.code === 'string' ? { code: node.code } : {},
+    ...typeof node.errno === 'number' && Number.isSafeInteger(node.errno) ? { errno: node.errno } : {},
     ...typeof node.syscall === 'string' ? { syscall: node.syscall } : {},
     ...typeof node.path === 'string' ? { path: node.path } : {},
   }
@@ -248,6 +251,7 @@ export function deserializeRunnerError(serialized: SerializedRunnerError): Error
   error.name = serialized.name
   return Object.assign(error, {
     ...serialized.code === undefined ? {} : { code: serialized.code },
+    ...serialized.errno === undefined ? {} : { errno: serialized.errno },
     ...serialized.syscall === undefined ? {} : { syscall: serialized.syscall },
     ...serialized.path === undefined ? {} : { path: serialized.path },
   })

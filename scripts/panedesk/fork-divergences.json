@@ -1,6 +1,44 @@
 {
   "divergences": [
     {
+      "id": "linux-execve-budget-and-launch-cleanup",
+      "description": "Bound Koffi argument conversion and reclaim empty launch resources",
+      "origin": "Linux subprocess launch safety",
+      "reason": "Account for aligned UTF-8 strings, terminators and pointer tables before every Koffi execve call; reject long-string slow conversion and unsafe aggregate allocations with actionable bilingual errors. Diagnose crowded Landlock ancestors without changing grant transport or allowing unconfined execution. Preserve native syscall and errno through startup reporting, allocate default output spill storage only on overflow, reclaim empty owned directories, and retire launch-handshake files on observable host exit without prematurely releasing product identities. Add regression coverage and paired subsystem documentation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/subprocess/subprocess/src/execve-budget*.ts",
+          "packages/subprocess/subprocess/src/index.ts",
+          "packages/subprocess/subprocess/tests/execve-budget.spec.ts",
+          "packages/subprocess/subprocess-local/src/linux-execve.ts",
+          "packages/subprocess/subprocess-local/src/linux-scope.ts",
+          "packages/subprocess/subprocess-local/src/output.ts",
+          "packages/subprocess/subprocess-local/src/runner-protocol.ts",
+          "packages/subprocess/subprocess-local/src/spawn-runner.ts",
+          "packages/subprocess/subprocess-local/src/spawn.ts",
+          "packages/subprocess/subprocess-local/tests/launch-resource-regression.spec.ts",
+          "packages/subprocess/subprocess-local/tests/linux-execve.spec.ts",
+          "packages/subprocess/subprocess-local/tests/linux-scope.spec.ts",
+          "packages/subprocess/subprocess-local/tests/native-containment.spec.ts",
+          "packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts",
+          "packages/sandbox/sandbox/src/diagnostics.ts",
+          "packages/sandbox/sandbox/tests/diagnostics.spec.ts",
+          "packages/shell/bash-sandbox/tests/partial-landlock.spec.ts",
+          "packages/sandbox/sandbox-local/src/index.ts",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/src/launch-budget-locales.ts",
+          "packages/sandbox/sandbox-local/tests/launch-budget.spec.ts",
+          "packages/sandbox/sandbox-local/package.json",
+          "packages/sandbox/sandbox-local/tsconfig.json",
+          "pnpm-lock.yaml",
+          "docs/subsystems/subprocess.md",
+          "docs/subsystems/subprocess.zh.md",
+          "docs/subsystems/subprocess.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "linux-delegated-host-prerequisites",
       "description": "Document delegated Linux host startup and required namespace regression behavior",
       "origin": "Owner authentication isolation",

@@ -352,7 +352,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
         () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
-      : this.runnerArgv(selected.runner, policy)
+      : this.runnerArgv(selected.runner, policy, argv)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
       ...selected.runner === 'bwrap' || selected.runner === 'landlock' || selected.runner === 'windows-acl' ? { productSandbox: true as const } : {},
@@ -483,14 +483,15 @@ export class LocalSandboxProvider extends SandboxProvider {
   }
 
   /** The selected rung's runner invocation (program + profile arguments) for one policy. */
-  private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy): string[] {
+  private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy, argv: readonly string[] = []): string[] {
     switch (runner) {
       case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy), '--', this.landlockLauncher(), ...scopeOnlyArgs()]
       case 'landlock': {
         if (hasHostSessionSockets()) {
           this.ctx.logger.warn('Landlock-only sandbox processes may connect to host tmux, screen or session bus sockets and run host commands; use separate user accounts. / 仅用 Landlock 的沙箱仍可能连接宿主 tmux、screen 或会话总线并执行宿主命令；建议分用户运行。')
         }
-        return [this.landlockLauncher(), ...landlockProfileArgs(policy)]
+        const file = this.landlockLauncher()
+        return [file, ...landlockProfileArgs(policy, { file, argv })]
       }
       case 'seatbelt': return [this.seatbeltExec(), ...seatbeltProfileArgs(policy)]
       case 'windows-acl': return this.windowsAclRunnerArgv(policy)

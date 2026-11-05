@@ -192,7 +192,7 @@ describe.skipIf(literalArgv === undefined)('Linux user-systemd native containmen
     }
   })
 
-  it('preserves Node-shaped ENOENT and EACCES spawn failures without replay', async () => {
+  it('preserves lookup ENOENT and native execve EACCES failures without replay', async () => {
     const missingArgv = [`missing-native-target-${Date.now()}`, 'literal arg']
     const expectedMissing = await directSpawnFailure(missingArgv)
     const missing = spec(missingArgv)
@@ -214,9 +214,10 @@ describe.skipIf(literalArgv === undefined)('Linux user-systemd native containmen
     const deniedHandle = bindManagedProcess(denied, launchLinuxScope(denied, targetEnvironment(denied), scopeOptions))
     await expect(deniedHandle.done).rejects.toMatchObject({
       name: expectedDenied.name,
-      message: expectedDenied.message,
+      message: `EACCES: permission denied, execve '${deniedPath}'`,
       code: expectedDenied.code,
-      syscall: expectedDenied.syscall,
+      errno: -13,
+      syscall: 'execve',
       path: expectedDenied.path,
     })
   })

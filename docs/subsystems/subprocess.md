@@ -10,6 +10,8 @@ Source: [`packages/subprocess/subprocess/src/types.ts`](../../packages/subproces
 
 One provider's spawn working directories, executable paths, ordinary processes, and terminal sessions inhabit the same path and process namespace as the mounted filesystem provider. `resolveExecutable(command, env?, signal?)` verifies absolute executable paths or resolves bare names through the provider's scrubbed `PATH` plus deliberate overrides.
 
+Linux's Koffi `execve` binding rejects a command before native calls when its pathname, arguments, and environment exceed a conservative 2 MiB synchronous-heap budget minus a 64 KiB reserve. Accounting includes NUL-terminated UTF-8 strings, terminated 8-byte pointer tables, and 16-byte allocation alignment; each string is limited to 4,086 UTF-8 bytes to avoid Koffi's slow conversion path. Rejection preserves `E2BIG`, `errno`, `syscall`, and bilingual remediation; other native startup failures retain their original diagnostics. Reduce arguments or environment values before retrying. Landlock profile generation also reports the crowded private-path ancestor and its entry count when sibling grants exceed the budget; remove expired temporary entries or relocate the workspace and private paths, never run unconfined instead.
+
 ## Managed environment namespace and captured output
 
 `DSH_*` variables are Harness-owned child-process facts; implementations discard ambient `DSH_*` names before the caller's explicit `env` merges, so a current fact arrives only as a deliberate string entry, while an explicit `undefined` tombstone removes an ordinary ambient value. Each collected stream reports its truncation and spill-recovery state through `CollectedOutput`.
@@ -35,6 +37,8 @@ interface CollectedOutput {
   spillPath?: string
 }
 ```
+
+Default private spill storage is allocated only on output overflow. Empty owned directories are reclaimed after collection; completed spill files remain available for full-output recovery. Linux launch-handshake files are removed after managed-range settlement and on JavaScript-observable host exit, without retiring a live product identity prematurely. Forced host termination such as `SIGKILL` cannot execute JavaScript cleanup.
 
 ## Node-shaped stdio dispositions
 

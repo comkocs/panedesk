@@ -38,6 +38,7 @@
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-util-values": "workspace:*",
     "@panedesk/node-addon-system": "workspace:~",

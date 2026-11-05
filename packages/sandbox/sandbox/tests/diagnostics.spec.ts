@@ -67,6 +67,9 @@ describe('isRunnerSpawnFailure', () => {
     const spawnError = (syscall: string, path?: string) =>
       Object.assign(new Error('spawn failed'), { code: 'ENOENT', syscall, path })
 
+    expect(isRunnerSpawnFailure(spawnError('execve', runner), runner, process.cwd())).toBe(true)
+    expect(isRunnerSpawnFailure(spawnError('execve'), runner, process.cwd())).toBe(false)
+    expect(isRunnerSpawnFailure(spawnError('execve', 'other-runner'), runner, process.cwd())).toBe(false)
     expect(isRunnerSpawnFailure(spawnError('spawn', runner), runner, process.cwd())).toBe(true)
     expect(isRunnerSpawnFailure(spawnError(`spawn ${runner}`, runner), runner, process.cwd())).toBe(true)
     expect(isRunnerSpawnFailure(spawnError(`spawn ${runner}`), runner, process.cwd())).toBe(true)

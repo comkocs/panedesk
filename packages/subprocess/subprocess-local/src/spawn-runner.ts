@@ -99,9 +99,10 @@ function asSpawnError(
 ): SerializedRunnerError {
   const serialized = serializeRunnerError(error)
   if (!(error instanceof Win32Error)) {
-    return serialized.code === undefined
+    return serialized.code === undefined || serialized.syscall !== undefined
       ? serialized
-      : nodeSpawnError(`spawn ${program}`, serialized.code, program)
+      : { ...nodeSpawnError(`spawn ${program}`, serialized.code, program),
+        ...serialized.errno === undefined ? {} : { errno: serialized.errno } }
   }
   const code = WINDOWS_SPAWN_ERROR_CODES.get(error.win32Code) ?? 'UNKNOWN'
   if (NODE_SPAWN_DETAIL_CODES.has(code)) {

@@ -10,6 +10,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertOwnerWorkspace, assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, protectedWorkspaceBranches, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { sessionEnvironmentArgs, sessionSocketDirectories } from './session-sockets.ts'
+import { assertExecveArgumentBudget, execveArgumentBytes, execveStringBytes, EXECVE_ARGUMENT_BUDGET, EXECVE_STRING_BYTE_LIMIT } from '@panedesk/dsh-subprocess'
+import { en, zh } from './launch-budget-locales.ts'
 
 /** Test containment after callers have canonicalized both paths. */
 function contains(root: string, path: string): boolean {
@@ -138,20 +140,42 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
 /**
  * Build the Landlock launcher grants for one file-effect policy.
  * @param policy - file-effect policy to express as Landlock allow-list grants.
+ * @param launch - Known launcher and trailing command; the subprocess provider checks the final environment separately.
  * @returns launcher grant arguments before the trailing separator and command argv.
  */
-export function landlockProfileArgs(policy: SandboxPolicy): string[] {
+export function landlockProfileArgs(policy: SandboxPolicy, launch = { file: '', argv: [] as readonly string[] }): string[] {
+  assertExecveArgumentBudget(launch.file, [launch.file, '--', ...launch.argv], [])
   const owners = ownerDirectories(policy).map(canonicalPath)
-  const readOnly: string[] = []
+  const readOnly = new Set<string>()
+  let grantBytes = execveArgumentBytes(launch.file, [launch.file, '--', ...launch.argv], [])
+  let crowded = { path: '/', count: 0 }
+  const refuse = (): never => {
+    throw new SandboxUnavailableError(policy.mode,
+      `${en.crowdedAncestor(crowded.path, crowded.count)} / ${zh.crowdedAncestor(crowded.path, crowded.count)}`)
+  }
+  const available = (path: string): boolean => {
+    try { statSync(path); return true } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw error
+      // Omission never grants a missing or inaccessible root's parent.
+      return false
+    }
+  }
   const visit = (path: string): void => {
     try {
       const canonical = canonicalPath(path)
       if (owners.some(owner => contains(owner, canonical))) return
       if (!owners.some(owner => contains(canonical, owner))) {
-        readOnly.push(canonical)
+        if (readOnly.has(canonical) || !available(canonical)) return
+        // Each --ro pair contributes two pointers and two separately aligned strings.
+        grantBytes += 16 + execveStringBytes('--ro') + execveStringBytes(canonical)
+        if (grantBytes > EXECVE_ARGUMENT_BUDGET || Buffer.byteLength(canonical) > EXECVE_STRING_BYTE_LIMIT) refuse()
+        readOnly.add(canonical)
         return
       }
-      for (const entry of readdirSync(canonical, { withFileTypes: true })) {
+      const entries = readdirSync(canonical, { withFileTypes: true })
+      if (entries.length > crowded.count) crowded = { path: canonical, count: entries.length }
+      for (const entry of entries) {
         // Symlink targets receive their own grants; granting aliases can reopen a private ancestor.
         if (!entry.isSymbolicLink()) visit(join(canonical, entry.name))
       }
@@ -162,6 +186,7 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
     }
   }
   try { visit('/') } catch (error) {
+    if (error instanceof SandboxUnavailableError) throw error
     throw new SandboxUnavailableError(policy.mode,
       'Cannot enumerate readable siblings of the private directory. / 无法枚举私密目录的可读兄弟项。'
       + (error instanceof Error ? ` ${error.name}` : ''))
@@ -182,15 +207,9 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
     }
     assertUnprotectedRoots(readWrite, excluded)
   }
-  const available = (path: string): boolean => {
-    try { statSync(path); return true } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
-      if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw error
-      // Older launchers reject these roots; omission never grants their parent.
-      return false
-    }
-  }
-  return landlockGrantArgs({ readOnly: [...new Set(readOnly)].filter(available), readWrite: readWrite.filter(available) })
+  const args = landlockGrantArgs({ readOnly: [...readOnly], readWrite: readWrite.filter(available) })
+  if (execveArgumentBytes(launch.file, [launch.file, ...args, '--', ...launch.argv], []) > EXECVE_ARGUMENT_BUDGET) refuse()
+  return args
 }
 
 /** Quote one path as an SBPL string literal. */

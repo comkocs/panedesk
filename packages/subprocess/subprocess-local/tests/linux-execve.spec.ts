@@ -60,6 +60,37 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
     expect((failure as Error).message).toContain("ENOENT: no such file or directory, execve '/missing/tool'")
   })
 
+  it('rejects the first argument over the aligned heap budget before any native call', async () => {
+    const nativeExecve = vi.fn(() => -1)
+    const nativeFcntl = vi.fn(() => 0)
+    vi.doMock('@panedesk/dsh-lazy-require', () => ({
+      createLazyRequire: () => () => ({
+        errno: () => 2,
+        load: () => ({ func: (declaration: string) => declaration.includes('execve') ? nativeExecve : nativeFcntl }),
+      }),
+    }))
+    const { loadLinuxExecve } = await import('../src/linux-execve.ts')
+    const argv = Array.from({ length: 84_649 }, () => 'x')
+    expect(() => loadLinuxExecve()('/bin/true', argv, {})).toThrow('ENOENT')
+    expect(nativeExecve).toHaveBeenCalledOnce()
+    nativeExecve.mockClear()
+    nativeFcntl.mockClear()
+    argv.push('x')
+    expect(() => loadLinuxExecve()('/bin/true', argv, {})).toThrow('execve argument budget exceeded')
+    expect(nativeExecve).not.toHaveBeenCalled()
+    expect(nativeFcntl).not.toHaveBeenCalled()
+  })
+
+  it('rejects a single string that would enter the Koffi slow conversion path', async () => {
+    const native = vi.fn(() => -1)
+    vi.doMock('@panedesk/dsh-lazy-require', () => ({
+      createLazyRequire: () => () => ({ errno: () => 2, load: () => ({ func: () => native }) }),
+    }))
+    const { loadLinuxExecve } = await import('../src/linux-execve.ts')
+    expect(() => loadLinuxExecve()('/bin/true', ['x'.repeat(4087)], {})).toThrow('execve argument budget exceeded')
+    expect(native).not.toHaveBeenCalled()
+  })
+
   it('reports failure to read descriptor flags before replacing the process', async () => {
     const nativeExecve = vi.fn()
     const nativeFcntl = vi.fn(() => -1)

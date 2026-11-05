@@ -13980,6 +13980,9 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot

@@ -17,7 +17,7 @@ function isUsableWorkdir(path: string): boolean {
 }
 
 /**
- * Attribute only Node ENOENT/EACCES failures whose error path equals argv[0]
+ * Attribute only spawn/execve ENOENT/EACCES failures whose error path equals argv[0]
  * after independently ruling out the caller-owned cwd. A supplied error path
  * must exactly identify the runner; without one, the syscall must. With a
  * usable cwd, these codes describe resolution or execute permission for that
@@ -43,7 +43,7 @@ export function isRunnerSpawnFailure(
   const exactSyscall = `spawn ${runnerProgram}`
   if (path === undefined) return syscall === exactSyscall
   if (typeof path !== 'string' || path.length === 0 || path !== runnerProgram) return false
-  return syscall === 'spawn' || syscall === exactSyscall
+  return syscall === 'spawn' || syscall === 'execve' || syscall === exactSyscall
 }
 
 /** Fatal runner evidence retained for infrastructure-error detail. */
