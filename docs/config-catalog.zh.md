@@ -457,7 +457,7 @@ export type Config = LocalConfig
 ## `@panedesk/dsh-client-connection`
 
 - `inject`: `credentials`
-- `source`: [`packages/client/connection/src/index.ts:101`](../packages/client/connection/src/index.ts)
+- `source`: [`packages/client/connection/src/index.ts:102`](../packages/client/connection/src/index.ts)
 
 ```ts config-catalog
 /** Browser authentication, request limits, and connection recovery configuration. */
@@ -1564,7 +1564,7 @@ export interface Config {
 
 ## `@panedesk/dsh-fs-local`
 
-- `source`: [`packages/fs/fs-local/src/index.ts:45`](../packages/fs/fs-local/src/index.ts)
+- `source`: [`packages/fs/fs-local/src/index.ts:47`](../packages/fs/fs-local/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the local filesystem backend. */
@@ -1587,7 +1587,7 @@ export interface Config {
 
 - `inject`: `sandboxPolicy`
 - `refs`: [`LocalConfig`](#panedeskdsh-fs-local)
-- `source`: [`packages/fs/fs-sandbox/src/index.ts:44`](../packages/fs/fs-sandbox/src/index.ts)
+- `source`: [`packages/fs/fs-sandbox/src/index.ts:40`](../packages/fs/fs-sandbox/src/index.ts)
 
 ```ts config-catalog
 /**

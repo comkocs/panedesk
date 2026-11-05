@@ -405,6 +405,7 @@ describe('readTextForDiff', () => {
         async open(...args: Parameters<typeof actual.open>) {
           const handle = await actual.open(...args)
           return {
+            fd: handle.fd,
             close: handle.close.bind(handle),
             read: handle.read.bind(handle),
             async stat(...statArgs: Parameters<typeof handle.stat>) {
@@ -437,6 +438,7 @@ describe('readTextForDiff', () => {
         async open(...args: Parameters<typeof actual.open>) {
           const handle = await actual.open(...args)
           return {
+            fd: handle.fd,
             close: handle.close.bind(handle),
             read: handle.read.bind(handle),
             async stat(...statArgs: Parameters<typeof handle.stat>) {
@@ -473,6 +475,7 @@ describe('readTextForDiff', () => {
         async open(...args: Parameters<typeof actual.open>) {
           const handle = await actual.open(...args)
           return {
+            fd: handle.fd,
             close: handle.close.bind(handle),
             read: handle.read.bind(handle),
             async stat(...statArgs: Parameters<typeof handle.stat>) {
@@ -558,6 +561,7 @@ describe('readTextForDiff', () => {
             await release.promise
           }
           return {
+            fd: handle.fd,
             close: handle.close.bind(handle),
             read: handle.read.bind(handle),
             async stat(...statArgs: Parameters<typeof handle.stat>) {
@@ -607,6 +611,7 @@ describe('readTextForDiff', () => {
         async open(...args: Parameters<typeof actual.open>) {
           const handle = await actual.open(...args)
           return {
+            fd: handle.fd,
             stat: handle.stat.bind(handle),
             close: handle.close.bind(handle),
             async read(buffer: Buffer, offset: number, length: number, position: number | null) {

@@ -34,6 +34,8 @@ kind: "package-library"
 
 Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Windows x64/arm64 包仅包含私有文件 Win32 `system.node`；POSIX flock 与 Windows 锁文件行为不变。Landlock 还需要支持强制执行的 Linux 内核。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
 
+在 Landlock ABI 6 及以上内核上，launcher 还会应用 `LANDLOCK_SCOPE_SIGNAL`：受限进程不能向其 Landlock 域之外的进程发送信号，宿主仍可取消自己的子进程。较旧 ABI 不隔离同用户信号；`full`/`partial` 只描述文件系统强制执行。抽象 Unix 套接字不受作用域限制。
+
 ## Development
 
 在本目录运行 `pnpm build:ts` 构建入口、`pnpm build:native` 构建当前宿主声明的原生产物、`pnpm build:test-oracle` 构建独立的 flock 系统调用 fixture（测试前置数据）。随后用 `pnpm test` 验证入口、锁、打包及可用的内核行为。Linux 完整构建需要 musl-gcc；macOS 使用 cc。Windows 要求匹配架构的 MSVC 开发环境、`node.exe` 同级 `include/node` 下的 Node 开发头文件及同级匹配的 `node.lib`。Windows 编译与真实 ACL 验收必须在 Windows 执行，Linux 测试不能证明这些结果。根目录 `pnpm run build:native-system` 只构建源码测试所需的当前宿主 addon。

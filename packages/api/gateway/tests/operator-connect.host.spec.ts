@@ -32,6 +32,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 import { z } from 'zod'
 import { parseRemoteStreamServerMessage, type RemoteStreamServerMessage } from '../src/stream-protocol.ts'
+import { authAdmissionBody } from '@panedesk/dsh-client-connection'
 import { RemoteStreamMuxServer } from '../src/stream-server.ts'
 import OperatorConnectFixture from './operator-connect-fixture.ts'
 
@@ -193,7 +194,7 @@ describe('operator connect through Loader composition', () => {
     const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
       version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
     })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
-    expect(await rpc(host, forged, endpoint, args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(await rpc(host, forged, endpoint, args)).toEqual({ status: 401, body: authAdmissionBody(401) })
     expect(host.fixture.calls.size).toBe(0)
     expect(host.fixture.effects.size).toBe(0)
     await success(host, cookie, 'fixture/identity', { label: 'legitimate-owner' })
@@ -228,7 +229,7 @@ describe('operator connect through Loader composition', () => {
       version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
     })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
     const args = { spec: 'synthetic-owner-bundle', options: { enabled: false } }
-    expect(await rpc(host, forged, 'pluginManager/installBundle', args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(await rpc(host, forged, 'pluginManager/installBundle', args)).toEqual({ status: 401, body: authAdmissionBody(401) })
     expect(install).not.toHaveBeenCalled()
     expect(await readFile(manifestPath, 'utf8')).toBe(beforeManifest)
     expect(await readFile(patchPath, 'utf8')).toBe(beforePatch)
@@ -257,7 +258,7 @@ describe('operator connect through Loader composition', () => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     const args = { workspace: host.workspace }
     expect(await rpc(host, forged, 'permissionPresets/authorizeWorkspaceWrite', args))
-      .toEqual({ status: 401, body: 'unauthorized' })
+      .toEqual({ status: 401, body: authAdmissionBody(401) })
     expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
     expect(changes).toEqual([])
     await success(host, cookie, 'permissionPresets/authorizeWorkspaceWrite', args)
@@ -402,7 +403,7 @@ describe('operator connect through Loader composition', () => {
     const forged = `${pageCookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
       version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
     })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
-    expect(await rpc(host, forged, '$events/result', args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(await rpc(host, forged, '$events/result', args)).toEqual({ status: 401, body: authAdmissionBody(401) })
     expect(settled).not.toHaveBeenCalled()
     for (const cookie of [passiveCookie, otherCookie]) {
       expect(await rpc(host, cookie, '$events/result', args)).toMatchObject({

@@ -13,6 +13,7 @@ import { clientRequestSchema } from './rpc-schema.ts'
 import { bridge } from './http-bridge.ts'
 import { isRemoteAuthority, isTrustedApiRequest } from './api-request-trust.ts'
 import { API_PATH } from './api-path.ts'
+import { authAdmissionBody } from './auth-locale.ts'
 import type { BrowserAuth } from './browser-auth.ts'
 import { Peer } from './peer.ts'
 import type {
@@ -182,8 +183,8 @@ export class HostConnectionService extends Service implements HostConnectionHand
    */
   authorizeConnect(request: ConnectionIndexRequest, response: ConnectionIndexResponse): void {
     if (!this.isTrusted(request) || this.disposed) {
-      response.writeHead(this.disposed ? 401 : 403)
-      response.end(this.disposed ? 'unauthorized' : 'forbidden')
+      response.writeHead(this.disposed ? 401 : 403, { 'content-type': 'text/plain; charset=utf-8' })
+      response.end(authAdmissionBody(this.disposed ? 401 : 403))
       return
     }
     this.browserAuth.authorizeConnect(request, response,
@@ -230,7 +231,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
         if (route?.methods.has(request.method) === true) {
           // Exact routes bypass Gateway access checks, so only the owner reaches them.
           // oxlint-disable-next-line typescript/no-unnecessary-condition -- other packages merge non-owner kinds into PrincipalMap.
-          if (peer.principal.kind !== 'owner') return Promise.resolve(new Response('forbidden', { status: 403 }))
+          if (peer.principal.kind !== 'owner') return Promise.resolve(new Response(authAdmissionBody(403), { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } }))
           return route.fetch(request)
         }
         const endpoint = endpointFromPath(channel, pathname)
@@ -275,8 +276,8 @@ export class HostConnectionService extends Service implements HostConnectionHand
       handler: async (req, res) => {
         const admission = this.admit(req)
         if ('rejection' in admission) {
-          res.writeHead(admission.rejection)
-          res.end(admission.reason ?? (admission.rejection === 401 ? 'unauthorized' : 'forbidden'))
+          res.writeHead(admission.rejection, { 'content-type': 'text/plain; charset=utf-8' })
+          res.end(admission.reason ?? authAdmissionBody(admission.rejection))
           return
         }
         await bridge(req, res, fetchHandler, admission.peer)

@@ -76,7 +76,7 @@ export async function withDefaultWeb(
       },
     })
     test.signal.throwIfAborted()
-    const args = ['--no-experimental-strip-types', ...launch.args]
+    const args = ['--no-experimental-strip-types', ...process.platform === 'win32' ? [] : ['--disable-sigusr1'], ...launch.args]
     const child = spawn(launch.command, args, {
       cwd: root,
       env: { ...process.env, ...launch.env },

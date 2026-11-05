@@ -82,6 +82,8 @@ The tray renderer enlarges the whale by 20% around the tile center while preserv
 
 ## Key technical decisions
 
+The Desktop Host starts with `--disable-sigusr1` before its entry module executes; the installed POSIX CLI launcher passes the same flag. Explicit development Inspector arguments remain available. Windows has no SIGUSR1; disabling this signal is not a substitute for Windows restricted-token process access checks.
+
 The original artwork lives in `resources/icon.png` and `resources/icon.svg`; platform adaptations retain the whale and gradients in `resources/icon-windows.*` and `resources/icon-macos.*`. Export each platform SVG as a transparent 1024×1024 PNG. Electron-builder generates the multi-size ICO for the Windows application, installer, and uninstaller ([Windows icon requirements](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction)). The installation pages use matching artwork in both themes; the uninstaller's welcome and finish pages share `installer/assets/uninstaller-sidebar.png`, converted to a 164×314 BMP during preparation.
 
 Shortcut overrides are stored in `app.getPath('userData')/keybindings.json`, separately from `PANEDESK_HOME`. The main process validates and serializes changes before publishing accepted bindings. Failed reads retain the last accepted bindings and block edits, including Restore All; unreadable and future-version files remain unchanged. Development can isolate these preferences with `DSH_DESKTOP_USER_DATA_DIR`; the launcher prints its resolved path. See the [shortcut service](../../packages/client/shortcuts/README.md) for format and conflict semantics.

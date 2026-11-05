@@ -1,10 +1,13 @@
 import { once } from 'node:events'
 import { createServer, type Server } from 'node:http'
+import { PassThrough } from 'node:stream'
 import { Context } from '@panedesk/cordis'
+import { authAdmissionBody } from '@panedesk/dsh-client-connection'
 import { remoteErrorOf, type PeerId, type PeerScope } from '@panedesk/dsh-typert-protocol'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 import {
+  rejectRemoteStreamUpgrade,
   RemoteStreamMuxServer,
   type RemoteStreamFailureMapper,
   type RemoteStreamOpener,
@@ -24,6 +27,23 @@ afterEach(async () => {
     await entry.mux.close().catch(() => undefined)
     await closeHttp(entry.http)
   }))
+})
+
+describe('Remote stream upgrade refusal', () => {
+  it('matches Connection admission bodies and their UTF-8 content lengths', () => {
+    for (const status of [401, 403] as const) {
+      const socket = new PassThrough()
+      rejectRemoteStreamUpgrade(socket, status)
+      const response: unknown = socket.read()
+      expect(Buffer.isBuffer(response)).toBe(true)
+      if (!Buffer.isBuffer(response)) throw new Error('upgrade refusal did not write a response')
+      const body = authAdmissionBody(status)
+      const text = response.toString('utf8')
+      expect(text.slice(text.indexOf('\r\n\r\n') + 4)).toBe(body)
+      expect(text).toContain(`\r\nContent-Length: ${String(Buffer.byteLength(body))}\r\n`)
+      socket.destroy()
+    }
+  })
 })
 
 describe('Remote stream mux server carrier lifecycle', () => {

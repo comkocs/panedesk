@@ -370,6 +370,28 @@ const fileOf = (fd: number, syscall: string): OpenFile => {
   return file
 }
 
+type ReadlinkOptions = BufferEncoding | 'buffer' | { encoding?: BufferEncoding | 'buffer' | null } | null
+
+/**
+ * Inspect a virtual `/proc/self/fd/<fd>` link owned by this bridge's descriptor table.
+ * @param path - Descriptor link; ordinary VFS entries are not symbolic links.
+ * @param options - Result encoding; absent or null selects UTF-8, `buffer` selects bytes.
+ * @returns The opened entry's current name, including Linux's deleted-name suffix.
+ * @throws ENOENT for unknown or closed descriptors and missing paths; EINVAL for non-links.
+ */
+export function readlinkSync(path: PathArg, options?: ReadlinkOptions): string | Buffer {
+  const target = asPath(path)
+  const match = /^\/proc\/self\/fd\/(0|[1-9]\d*)$/u.exec(target)
+  const opened = match === null ? undefined : openFiles.get(Number(match[1]))
+  if (opened === undefined) {
+    const code = match === null && vfs().existsSync(target) ? 'EINVAL' : 'ENOENT'
+    throw Object.assign(new Error(`${code}: readlink '${target}'`), { code, syscall: 'readlink', path: target })
+  }
+  const name = opened.file.finalName()
+  const encoding = typeof options === 'string' ? options : options?.encoding
+  return encoding === 'buffer' ? Buffer.from(name) : Buffer.from(name).toString(encoding ?? 'utf8')
+}
+
 /**
  * Read from a descriptor.
  * @param fd - descriptor.
@@ -414,7 +436,8 @@ export function writeSync(fd: number, data: string | Uint8Array): number {
  * @param fd - descriptor.
  */
 export function closeSync(fd: number): void {
-  if (!openFiles.delete(fd)) fileOf(fd, 'close')
+  fileOf(fd, 'close').file.close()
+  openFiles.delete(fd)
 }
 
 /**
@@ -854,6 +877,7 @@ export const promises = {
   stat: async (path: PathArg, options?: VfsStatOptions): Promise<VfsStats | VfsBigIntStats> => statSync(path, options),
   lstat: async (path: PathArg, options?: VfsStatOptions): Promise<VfsStats | VfsBigIntStats> => lstatSync(path, options),
   realpath: async (path: PathArg): Promise<string> => realpathSync(path),
+  readlink: async (path: PathArg, options?: ReadlinkOptions): Promise<string | Buffer> => readlinkSync(path, options),
   rm: async (path: PathArg, options?: { recursive?: boolean; force?: boolean }): Promise<void> => { rmSync(path, options) },
   unlink: async (path: PathArg): Promise<void> => { unlinkSync(path) },
   rename: async (from: PathArg, to: PathArg): Promise<void> => { renameSync(from, to) },
@@ -902,7 +926,7 @@ type OwnSignature =
   | 'readFileSync' | 'writeFileSync' | 'appendFileSync' | 'statSync' | 'lstatSync' | 'realpathSync' | 'realpath'
   | 'readdirSync' | 'mkdirSync' | 'mkdtempSync' | 'rmSync' | 'opendirSync'
   | 'openSync' | 'readSync' | 'writeSync' | 'stat' | 'lstat' | 'watch' | 'watchFile' | 'unwatchFile'
-  | 'createReadStream' | 'createWriteStream'
+  | 'createReadStream' | 'createWriteStream' | 'readlinkSync'
 
 /**
  * The `node:fs` declarations this module stands in for. Every other member is
@@ -917,7 +941,7 @@ export default {
   constants, promises, Dirent, FSWatcher, StatWatcher, ReadStream, WriteStream,
   readFileSync, writeFileSync, appendFileSync, existsSync, statSync, stat, lstatSync, lstat, realpathSync, realpath, chmodSync,
   readdirSync, mkdirSync, mkdtempSync, rmSync, rmdirSync, unlinkSync, renameSync, accessSync, opendirSync,
-  openHandleSync, linkSync,
+  openHandleSync, linkSync, readlinkSync,
   openSync, readSync, writeSync, closeSync, watch, watchFile, unwatchFile,
   createReadStream, createWriteStream,
 } satisfies NodeFace

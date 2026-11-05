@@ -86,11 +86,12 @@ Windows ACL 隔离也返回 `productSandbox: true`。消费者必须保留该事
 
 选择按平台优先、探测其次：每个平台都有 runner 链（`linux`：`bwrap` 再 Landlock；`darwin`：Seatbelt；`win32`：ACL 受限令牌 runner）。唯一候选直接选择、不探测；竞争候选按链序各执行一次功能探测，首个可用结论在提供方生命周期内缓存。没有链的平台、或链上所有探测都失败时，平台不可用，`confine()` 会拒绝执行。
 
+<a id="platform-profiles"></a>
 ### 平台 profile
 
 bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；两种模式均使用私有临时 `/tmp`，`workspace-write` 另加可写工作区绑定挂载。会话遮挡位于工作区挂载之后：`/run/screen`、`/run/user/<uid>`、常规 tmux/X11 目录与规范化的 `TMUX_TMPDIR`/`XDG_RUNTIME_DIR` 覆盖值均不能暴露宿主会话套接字。会话目录遮挡优先于重叠工作区，会隐藏其内容；项目工作区应位于宿主会话目录之外。位于 `/tmp` 下的工作区会显式重新挂载，因此存于该工作区内的任意套接字不属于常规会话目录遮挡范围。会话指向环境变量被清除；`XDG_RUNTIME_DIR` 指向私有运行时目录，临时变量指向 `/tmp`。内置 bwrap runner 在自身命名空间内执行原生启动器，应用可选抽象 UNIX scope；Landlock-only 在 ABI 6 及以上应用相同 scope，但不声称隔离具名套接字路径。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
 
-`@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。兄弟项授权枚举按 Koffi 当前同步堆计算 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)，拒绝时点名拥挤的祖先目录；子进程提供方在执行前再次计入完整环境检查。
+`@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。兄弟项授权枚举按 Koffi 当前同步堆计算 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)，拒绝时点名拥挤的祖先目录；子进程提供方在执行前再次计入完整环境检查。在 ABI 6 及以上内核上，`LANDLOCK_SCOPE_SIGNAL` 阻止受限进程向其 Landlock 域外发送信号，但不阻止宿主取消子进程。较旧 ABI 仍允许同用户信号访问；独立会话并不隔离信号。[CLI](../../../apps/cli/README.zh.md) 另行禁用信号触发的 Inspector 激活。仅使用 Landlock 时仍不隔离 PID 可见性。
 
 Seatbelt profile 默认允许，带 `(deny file-write*)` 与从 `writableRoots` 排除保护根重叠后得到的写入 allow-list；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。
 

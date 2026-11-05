@@ -292,7 +292,10 @@ export function testProfileResolution(mode: ExampleMode): void {
       expect(evidence.sourceLeafExplicitCjs).toBe(realpathSync.native(join(sourceDevLeaf, 'index.cjs')))
       expect(evidence.sourceLeafCjs).not.toBe(evidence.sourceLeafExplicitCjs)
       expect(evidence.scheduler).toBe(true)
-      expect(evidence.execArgv).toEqual(mode === 'src' ? launch.args.slice(0, 2) : [])
+      expect(evidence.execArgv).toEqual([
+        ...(mode === 'src' ? launch.args.slice(0, 2) : []),
+        ...(process.platform === 'win32' ? [] : ['--disable-sigusr1']),
+      ])
       for (const name of ['tools', 'agent-loop']) {
         const selected = mode === 'src' ? 'src/index.ts' : 'lib/index.js'
         const other = mode === 'src' ? 'lib' : 'src'

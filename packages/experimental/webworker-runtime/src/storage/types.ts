@@ -135,6 +135,13 @@ export interface VfsOpenFile {
   /** Whether each write targets the current end of the opened file. */
   readonly append: boolean
   /**
+   * Inspect the opened directory entry, without resolving its original path again.
+   * @returns Its current canonical name, with ` (deleted)` after unlink or replacement.
+   */
+  finalName(): string
+  /** Release this descriptor's reference to its directory-entry name; repeated calls are inert. */
+  close(): void
+  /**
    * Read bytes from the opened file identity.
    * @param position - Absolute byte offset.
    * @param length - Maximum byte count.

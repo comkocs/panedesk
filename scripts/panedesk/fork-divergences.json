@@ -15742,6 +15742,85 @@
           "scripts/run-gates.ts"
         ]
       }
+    },
+    {
+      "id": "descriptor-bound-file-reads",
+      "description": "Authorize file content using the opened handle identity",
+      "origin": "Filesystem read confidentiality",
+      "reason": "Bind restricted reads, edit pre-reads, and overwrite diff bases to one inspected descriptor across final-name and ancestor replacement. Preserve the owner inventory, normal links, cancellation, and bounded reads. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/src/index.ts",
+          "packages/fs/fs-local/src/read-handle.ts",
+          "packages/experimental/webworker-runtime/src/storage/types.ts",
+          "packages/experimental/webworker-runtime/src/storage/memory.ts",
+          "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/fs.ts",
+          "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/fs/promises.ts",
+          "packages/experimental/webworker-runtime/README.md",
+          "packages/experimental/webworker-runtime/README.zh.md",
+          "packages/experimental/webworker-runtime/README.i18n.yaml",
+          "packages/fs/fs-local/tests/fsio.spec.ts",
+          "packages/fs/fs-local/tests/read-handle.spec.ts",
+          "packages/fs/fs-local/README.md",
+          "packages/fs/fs-local/README.zh.md",
+          "packages/fs/fs-local/README.i18n.yaml",
+          "packages/fs/fs-sandbox/src/index.ts",
+          "packages/fs/fs-sandbox/tests/read-handle-race.spec.ts",
+          "packages/fs/fs-sandbox/README.md",
+          "packages/fs/fs-sandbox/README.zh.md",
+          "packages/fs/fs-sandbox/README.i18n.yaml",
+          "packages/sandbox/sandbox/src/owner-material.ts"
+        ]
+      }
+    },
+    {
+      "id": "host-signal-debugger-isolation",
+      "description": "Disable signal-triggered host debugging and scope Landlock signals",
+      "origin": "Host execution isolation",
+      "reason": "Re-execute POSIX CLI launches with signal debugging disabled before profile startup, require IPC launchers to pass the flag explicitly rather than lose their channel during process replacement, pass the flag to Desktop hosts and installed POSIX launchers, and apply Landlock signal scoping on supported kernels without changing filesystem grants. Keep older-kernel limitations explicit and verify IPC messaging, native signal denial and host cancellation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/src/bin.ts",
+          "apps/cli/src/signal-debugger.ts",
+          "apps/cli/tests/signal-debugger.spec.ts",
+          "apps/cli/tests/fixtures/signal-host.mjs",
+          "apps/cli/tests/profiles/headless/tests/profile-resolution.ts",
+          "apps/cli/tests/profiles/headless/tests/source-tool.built.e2e.ts",
+          "apps/cli/tests/profiles/web/tests/creator-plugin-manager.expected.e2e.ts",
+          "apps/cli/tests/profiles/web/tests/default-web-process.ts",
+          "apps/cli/tests/profiles/web/tests/public-url.expected.e2e.ts",
+          "apps/web/tests/server-restart.e2e.ts",
+          "apps/cli/README.md",
+          "apps/cli/README.zh.md",
+          "apps/cli/README.i18n.yaml",
+          "apps/desktop/cli/dsh",
+          "apps/desktop/src/host-process.ts",
+          "apps/desktop/tests/host-process.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "packages/sandbox/sandbox-local/tests/landlock-signal.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "native/system/packages/entry/src/main.c",
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/README.i18n.yaml",
+          "docs/subsystems/sandbox.md",
+          "docs/subsystems/sandbox.zh.md",
+          "docs/subsystems/sandbox.i18n.yaml",
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.i18n.yaml"
+        ]
+      }
     }
   ]
 }

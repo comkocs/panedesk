@@ -82,6 +82,11 @@ Chokidar 通过 OS 事件观察单个文件或目录的直接子项，不使用�
 | [`src/fsio.ts`](src/fsio.ts) | 不依赖 Cordis 的原始 I/O：探测、读取、原子写入、字面量编辑、行尾处理 |
 | [`src/win32.ts`](src/win32.ts) | 原子替换的 Windows 专属 DACL 保留 |
 
+<a id="opened-file-reads"></a>
+### 已打开文件的读取
+
+内容读取、编辑预读与覆盖差异基础只打开一次，检查已打开的普通文件，并只通过该句柄读取。POSIX 打开使用 `O_NOFOLLOW`；Linux 从 `/proc/self/fd` 获取最终路径，macOS 使用 `F_GETPATH`。Windows 使用 `FILE_FLAG_OPEN_REPARSE_POINT` 打开，拒绝重解析点和非磁盘文件，并从同一句柄获取卷与文件身份及最终路径。强制策略提供方在读取任何内容前检查该路径和身份，包括中间目录链接替换。稳定链接仍通过正常目标解析受支持。句柄在完成、取消、失败或提前终止流时关闭；这不对并发原地写入提供快照。
+
 ### 写入路径
 
 每次写入先探测目标、执行可选防护（`createIfAbsent` 或 `replaceIfVersion`）、在两侧都足够小时捕获有界的 `before` diff 基础、把新内容暂存到目标旁、fsync，然后原子发布。带防护的创建使用绝不替换并发创建者的硬链接发布，并以 `FS_NOT_OBSERVED` 拒绝它。

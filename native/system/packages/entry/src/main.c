@@ -21,8 +21,8 @@
  * allow-list). `--probe` builds a maximal ruleset and reports whether the
  * running kernel actually enforces it — the executor's functional probe.
  *
- * `--scope-only` adds only abstract UNIX socket isolation where ABI >= 6;
- * older kernels execute without this optional scope or filesystem rules.
+ * `--scope-only` adds abstract UNIX socket and signal isolation where ABI >= 6;
+ * older kernels execute without these optional scopes or filesystem rules.
  *
  * Filesystem fail-closed: if the ruleset cannot be created or is NOT enforced by the
  * kernel, the launcher exits non-zero WITHOUT exec'ing the command. A partial
@@ -66,6 +66,8 @@ struct landlock_ruleset_attr {
 };
 
 #define LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET (UINT64_C(1) << 0) /* ABI 6 */
+#define LANDLOCK_SCOPE_SIGNAL (UINT64_C(1) << 1)
+#define SIGNAL_SCOPE_ABI 6L
 
 struct landlock_path_beneath_attr {
   uint64_t allowed_access;
@@ -96,8 +98,8 @@ struct landlock_path_beneath_attr {
 #define LL_ABI1_MASK (LL_FS_REFER - 1) /* bits 0..12: every ABI-1 access, nothing newer */
 
 /*
- * Newest ABI this build knows; the negotiation below scales the actual
- * ruleset down to what the running kernel supports.
+ * Newest filesystem ABI this build handles; signal scoping is negotiated
+ * independently and does not change the full/partial file-effect report.
  */
 #define MAX_ABI 5L
 
@@ -255,9 +257,11 @@ static int restrict_self(const struct cli *cli, int *partial) {
 
   struct landlock_ruleset_attr attr = {
     .handled_access_fs = handled,
-    .scoped = abi >= 6 ? LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET : 0,
+    .scoped = abi >= SIGNAL_SCOPE_ABI ? (LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET | LANDLOCK_SCOPE_SIGNAL) : 0,
   };
-  int ruleset_fd = (int)syscall(__NR_landlock_create_ruleset, &attr, sizeof attr, 0);
+  /* Older kernels receive the original filesystem-only UAPI structure. */
+  size_t attr_size = abi >= SIGNAL_SCOPE_ABI ? sizeof attr : sizeof attr.handled_access_fs;
+  int ruleset_fd = (int)syscall(__NR_landlock_create_ruleset, &attr, attr_size, 0);
   if (ruleset_fd < 0) return fail("landlock ruleset error", strerror(errno));
 
   const uint64_t read_side = LL_FS_EXECUTE | LL_FS_READ_FILE | LL_FS_READ_DIR;
