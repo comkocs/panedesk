@@ -1562,7 +1562,7 @@ export interface Config {
 
 ## `@panedesk/dsh-fs-local`
 
-- `source`: [`packages/fs/fs-local/src/index.ts:47`](../packages/fs/fs-local/src/index.ts)
+- `source`: [`packages/fs/fs-local/src/index.ts:48`](../packages/fs/fs-local/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the local filesystem backend. */

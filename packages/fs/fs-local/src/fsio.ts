@@ -6,14 +6,15 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { realpath as realpathCallback } from 'node:fs'
-import { chmod, link, lstat, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
+import { constants, realpath as realpathCallback } from 'node:fs'
+import { chmod, link, lstat, mkdir, open, readdir, readlink, rename, rm, stat } from 'node:fs/promises'
 import type { BigIntStats, Dirent, Stats } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { TextDecoder, promisify } from 'node:util'
 import { FsError, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
 import { openReadHandle } from './read-handle.ts'
+import { openDirectory, openDirectoryTarget } from './directory-handle.ts'
 import type { ReadHandle, ReadIdentity } from './read-handle.ts'
 
 /** Optional provider policy, evaluated on the opened object before reading content. */
@@ -23,7 +24,7 @@ async function checkedReadHandle(target: LocalTarget, signal?: AbortSignal, auth
   throwIfAborted(signal, 'read')
   let handle: ReadHandle
   try {
-    handle = await openReadHandle(target.targetKey, signal)
+    handle = await openReadHandle(target.targetKey, signal, !target.directoryAnchored)
   } catch (error) {
     if (isENOENT(error)) throw new FsError(`cannot read "${target.displayPath}": not found`, 'FS_NOT_FOUND')
     throw error
@@ -131,6 +132,8 @@ export interface LocalTarget {
   displayPath: string
   /** Realpath identity — used as the stable target key and the I/O path. */
   targetKey: FsTargetKey
+  /** Internal operation already owns the directory represented by targetKey. */
+  directoryAnchored?: boolean
 }
 
 /** Result of probing a path: null when it does not exist. */
@@ -263,11 +266,30 @@ async function probeStats<T extends Stats | BigIntStats>(
 
 /**
  * Probe a path for its version, mode, type, and size. Null if absent.
- * @param absolutePath - the path to stat (typically a target key; symlinks are followed).
+ * @param absolutePath - Canonical target key; replaced final links are rejected on Linux.
+ * @param directoryAnchored - True when the caller retains the parent; false opens canonical ancestors.
  * @returns the metadata, or null when the path — or a parent segment — does not exist.
  */
-export async function probe(absolutePath: string): Promise<PathInfo | null> {
-  const info = await probeStats(absolutePath, path => stat(path, { bigint: true }))
+export async function probe(absolutePath: string, directoryAnchored = false): Promise<PathInfo | null> {
+  const info = await probeStats(absolutePath, async (path) => {
+    if (process.platform !== 'linux') return stat(path, { bigint: true })
+    const anchor = directoryAnchored ? undefined : await openDirectoryTarget(path)
+    try {
+      // O_PATH inspects sockets and unreadable entries without opening their contents.
+      const handle = await open(anchor?.path ?? path, 0x200000 | constants.O_NOFOLLOW)
+      try {
+        const metadata = await handle.stat({ bigint: true })
+        if (metadata.isSymbolicLink()) {
+          if (directoryAnchored) throw Object.assign(new Error('Entry is not a regular file'), { code: 'ENOENT' })
+          // Preserve absent-target metadata for dangling links without following a live replacement.
+          const destination = await readlink(anchor?.path ?? path)
+          await realpath(resolve(dirname(path), destination))
+          throw Object.assign(new Error('Cannot follow a replaced file'), { code: 'ELOOP' })
+        }
+        return await stat(`/proc/self/fd/${handle.fd}`, { bigint: true })
+      } finally { await handle.close() }
+    } finally { await anchor?.close() }
+  })
   if (!info) return null
   return {
     version: versionOf(info),
@@ -283,7 +305,11 @@ export async function probe(absolutePath: string): Promise<PathInfo | null> {
  * @returns path-entry metadata, or null when the entry is absent.
  */
 export async function probeNoFollow(absolutePath: string): Promise<PathLinkInfo | null> {
-  const info = await probeStats(absolutePath, path => lstat(path, { bigint: true }))
+  const info = await probeStats(absolutePath, async (path) => {
+    const resolved = await resolveLocalTarget(dirname(path), dirname(path))
+    const anchor = await openDirectoryTarget(join(resolved.targetKey, basename(path)))
+    try { return await lstat(anchor.path, { bigint: true }) } finally { await anchor.close() }
+  })
   if (!info) return null
   return {
     version: versionOf(info),
@@ -306,7 +332,9 @@ function listingIoError(displayPath: string, error: unknown): FsError {
 }
 
 async function resolveListedChildTarget(parent: LocalTarget, name: string): Promise<LocalTarget> {
-  const identity = await resolveLocalTarget(parent.targetKey, name)
+  const destination = await readlink(join(parent.targetKey, name))
+  const parentPath = process.platform === 'linux' ? await readlink(parent.targetKey) : parent.targetKey
+  const identity = await resolveLocalTarget(parentPath, destination)
   return { displayPath: localDisplayPath(parent.displayPath, name), targetKey: identity.targetKey }
 }
 
@@ -329,34 +357,43 @@ export async function listDirectory(target: LocalTarget, signal?: AbortSignal): 
   if (!info) throw new FsError(`cannot list "${target.displayPath}": not found`, 'FS_NOT_FOUND')
   if (info.type !== 'directory') throw new FsError(`cannot list "${target.displayPath}": not a directory`, 'FS_NOT_DIRECTORY')
 
-  let entries: Dirent[]
-  try {
-    entries = await readdir(target.targetKey, { withFileTypes: true, encoding: 'utf8' })
-  } catch (error: unknown) {
-    /* v8 ignore next -- requires permission/kernel failure from readdir after a successful directory stat. */
+  const directory = await openDirectory(target.targetKey).catch((error: unknown) => {
     throw listingIoError(target.displayPath, error)
-  }
-  throwIfAborted(signal, 'list')
-
-  const result: LocalDirEntry[] = []
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    throwIfAborted(signal, 'list')
+  })
+  try {
+    let entries: Dirent[]
     try {
-      const childTarget = await resolveListedChildTarget(target, entry.name)
-      const childInfo = await probe(childTarget.targetKey)
-      result.push({
-        name: entry.name,
-        type: childInfo?.type ?? 'other',
-        target: childTarget,
-        ...(childInfo ? { version: childInfo.version } : {}),
-        ...(childInfo?.type === 'file' ? { size: childInfo.size } : {}),
-      })
+      entries = await readdir(directory.path, { withFileTypes: true, encoding: 'utf8' })
     } catch (error: unknown) {
-      throw listingIoError(localDisplayPath(target.displayPath, entry.name), error)
+    /* v8 ignore next -- requires permission/kernel failure from readdir after a successful directory stat. */
+      throw listingIoError(target.displayPath, error)
     }
     throwIfAborted(signal, 'list')
-  }
-  return result
+
+    const result: LocalDirEntry[] = []
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      throwIfAborted(signal, 'list')
+      try {
+        const childPath = join(directory.path, entry.name)
+        const childTarget = entry.isSymbolicLink()
+          ? await resolveListedChildTarget({ ...target, targetKey: FsTargetKey(directory.path) }, entry.name)
+          : { displayPath: localDisplayPath(target.displayPath, entry.name), targetKey: FsTargetKey(join(target.targetKey, entry.name)) }
+        const unresolvedLink = entry.isSymbolicLink() && childTarget.targetKey === join(target.targetKey, entry.name)
+        const childInfo = unresolvedLink ? null : entry.isSymbolicLink() ? await probe(childTarget.targetKey) : await probe(childPath, true)
+        result.push({
+          name: entry.name,
+          type: childInfo?.type ?? 'other',
+          target: childTarget,
+          ...(childInfo ? { version: childInfo.version } : {}),
+          ...(childInfo?.type === 'file' ? { size: childInfo.size } : {}),
+        })
+      } catch (error: unknown) {
+        throw listingIoError(localDisplayPath(target.displayPath, entry.name), error)
+      }
+      throwIfAborted(signal, 'list')
+    }
+    return result
+  } finally { await directory.close() }
 }
 
 // --- Reading ---
@@ -598,6 +635,7 @@ async function throwGuardedCreateFailure(
  * @param createIfAbsent - when provided, publish with a hard-link no-replace
  * primitive; a concurrent creator's file is preserved and this write is
  * rejected with `FS_NOT_OBSERVED` using the supplied display path.
+ * @param directoryAnchored - True for an operation-owned parent; false acquires a parent on Linux.
  */
 export async function writeFileAtomic(
   absolutePath: string,
@@ -606,8 +644,28 @@ export async function writeFileAtomic(
   signal: AbortSignal | undefined,
   internals: FsIoInternals = {},
   createIfAbsent?: { displayPath: string },
+  directoryAnchored = false,
 ): Promise<void> {
   throwIfAborted(signal, 'write')
+  if (directoryAnchored || (internals.platform ?? process.platform) !== 'linux') {
+    return writeAnchoredFile(absolutePath, content, mode, signal, internals, createIfAbsent)
+  }
+  const anchor = await openDirectoryTarget(absolutePath, true)
+  try {
+    await writeAnchoredFile(anchor.path, content, mode, signal, internals, createIfAbsent)
+  } finally {
+    await anchor.close()
+  }
+}
+
+async function writeAnchoredFile(
+  absolutePath: string,
+  content: string,
+  mode: number | undefined,
+  signal: AbortSignal | undefined,
+  internals: FsIoInternals,
+  createIfAbsent?: { displayPath: string },
+): Promise<void> {
   const directory = dirname(absolutePath)
   await mkdir(directory, { recursive: true })
 
@@ -615,7 +673,7 @@ export async function writeFileAtomic(
   const stagingDirName = internals.tempDirName?.(absolutePath) ?? `.${basename(absolutePath)}.${process.pid}.${randomUUID()}.tmpdir`
   const stagingDir = join(directory, stagingDirName)
   const tempName = internals.tempName?.(absolutePath) ?? `${basename(absolutePath)}.tmp`
-  const tempPath = join(stagingDir, tempName)
+  let tempPath = join(stagingDir, tempName)
   const platform = internals.platform ?? process.platform
   const copyFileDacl = internals.copyFileDacl ?? copyFileDaclWin32
   const replaceFile = internals.replaceFile ?? replaceFileWin32
@@ -626,10 +684,17 @@ export async function writeFileAtomic(
     ?? (path => rm(path, { recursive: true, force: true }))
   let handle: Awaited<ReturnType<typeof open>> | undefined
   let stagingCreated = false
+  let stagingHandle: Awaited<ReturnType<typeof open>> | undefined
   try {
     await mkdir(stagingDir, { mode: 0o700 })
     stagingCreated = true
-    await chmod(stagingDir, 0o700)
+    if (platform === 'linux') {
+      stagingHandle = await open(stagingDir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW)
+      await stagingHandle.chmod(0o700)
+      tempPath = `/proc/self/fd/${stagingHandle.fd}/${tempName}`
+    } else {
+      await chmod(stagingDir, 0o700)
+    }
 
     handle = await open(tempPath, 'wx', 0o600)
     await handle.chmod(0o600)
@@ -679,7 +744,9 @@ export async function writeFileAtomic(
       }
     }
     if (!stagingCreated) throw failure
-    return removeStagingDirOrThrow(stagingDir, failure, removeStagingDir)
+    return await removeStagingDirOrThrow(stagingDir, failure, removeStagingDir)
+  } finally {
+    await stagingHandle?.close()
   }
 }
 
@@ -735,6 +802,7 @@ function countOccurrences(content: string, needle: string): number {
  * @param displayPath - the caller-facing path used in error messages.
  * @param authorize - Optional opened-object policy; omission leaves reads unrestricted.
  * @param signal - aborts the read (`FS_ABORTED`).
+ * @param directoryAnchored - True for an operation-owned parent; false acquires canonical ancestors on Linux.
  * @returns the LF-normalized content and the detected style to restore on write-back.
  */
 export async function readForEdit(
@@ -742,9 +810,10 @@ export async function readForEdit(
   displayPath: string,
   signal?: AbortSignal,
   authorize?: AuthorizeRead,
+  directoryAnchored = false,
 ): Promise<{ content: string; lineEndings: LineEndings }> {
   throwIfAborted(signal, 'edit')
-  const handle = await checkedReadHandle({ displayPath, targetKey: FsTargetKey(absolutePath) }, signal, authorize)
+  const handle = await checkedReadHandle({ displayPath, targetKey: FsTargetKey(absolutePath), directoryAnchored }, signal, authorize)
   let buffer: Buffer
   try {
     const chunks: Buffer[] = []
@@ -769,6 +838,7 @@ export async function readForEdit(
  * @param maxBytes - exclusive upper bound for bytes held as the contextual-diff basis.
  * @param authorize - Optional opened-object policy; refusals propagate instead of returning a null basis.
  * @param signal - aborts the read (`FS_ABORTED`); cancellation propagates, unlike I/O failure.
+ * @param directoryAnchored - True for an operation-owned parent; false acquires canonical ancestors on Linux.
  * @returns the LF-normalized text, or null for a non-regular, at/above-limit, binary, non-UTF-8,
  * descriptor-size-changed, or unreadable file.
  */
@@ -777,10 +847,13 @@ export async function readTextForDiff(
   maxBytes: number,
   signal?: AbortSignal,
   authorize?: AuthorizeRead,
+  directoryAnchored = false,
 ): Promise<string | null> {
   throwIfAborted(signal, 'read')
   try {
-    const handle = await checkedReadHandle({ displayPath: absolutePath, targetKey: FsTargetKey(absolutePath) }, signal, authorize)
+    const handle = await checkedReadHandle(
+      { displayPath: absolutePath, targetKey: FsTargetKey(absolutePath), directoryAnchored }, signal, authorize,
+    )
     let buffer: Buffer
     let total = 0
     let openedSize = 0

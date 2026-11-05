@@ -1,6 +1,27 @@
 {
   "divergences": [
     {
+      "id": "host-directory-handle-operations",
+      "description": "Anchor Linux host filesystem operations to retained directory descriptors",
+      "origin": "Host filesystem ancestor replacement review",
+      "reason": "Traverse canonical directories one component at a time without following replaced links, retain the mutation parent across pre-read and publication, and retain a separate staging directory. Share traversal with opened-file reads, metadata and directory listing without changing writable roots or protected input registrations. Preserve existing macOS and Windows backends and document their native directory-relative gap. Add deterministic replacement checks and a 1024-attempt write race. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/directory-handle.ts",
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/src/index.ts",
+          "packages/fs/fs-local/src/read-handle.ts",
+          "packages/fs/fs-local/README*",
+          "packages/fs/fs-sandbox/src/index.ts",
+          "packages/fs/fs-sandbox/tests/directory-handle-race.spec.ts",
+          "packages/fs/fs-sandbox/README*",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md"
+        ]
+      }
+    },
+    {
       "id": "protected-workspace-reader-ownership",
       "description": "Select the matching durable reader before capturing workspace inputs",
       "origin": "Protected host input capture review",

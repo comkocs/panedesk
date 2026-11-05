@@ -3,6 +3,7 @@ import { constants } from 'node:fs'
 import { open, readlink } from 'node:fs/promises'
 import { toNamespacedPath } from 'node:path'
 import { FsError } from '@panedesk/dsh-fs'
+import { openDirectoryTarget } from './directory-handle.ts'
 
 /** Identity and final name obtained from the opened file, before any content read. */
 export interface ReadIdentity {
@@ -39,11 +40,18 @@ export interface ReadHandle {
  * Open without following the final component and inspect the same object used for reads.
  * @param path - Previously resolved filename; ancestor replacements are detected by final-name authorization.
  * @param signal - Optional cancellation checked before descriptor inspection.
+ * @param anchorParents - Bind canonical ancestors on Linux; false accepts an already anchored path or legacy direct caller.
  * @returns Owned handle with kernel-derived identity; no content has been read.
  */
-export async function openReadHandle(path: string, signal?: AbortSignal): Promise<ReadHandle> {
+export async function openReadHandle(path: string, signal?: AbortSignal, anchorParents = false): Promise<ReadHandle> {
   if (process.platform === 'win32') return openWindowsReadHandle(path)
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+  const parent = anchorParents ? await openDirectoryTarget(path) : undefined
+  let handle: Awaited<ReturnType<typeof open>>
+  try {
+    handle = await open(parent?.path ?? path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+  } finally {
+    await parent?.close()
+  }
   try {
     if (signal?.aborted) throw new FsError('read aborted', 'FS_ABORTED')
     const info = await handle.stat({ bigint: true })

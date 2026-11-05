@@ -8,8 +8,8 @@
  *
  * Content authorization checks the opened file's final name and identity;
  * all bytes come from that same handle, including edit and overwrite pre-reads.
- * Mutation containment remains path-based; its residual resolve-to-write race
- * is separate from descriptor-bound read authorization. Process isolation
+ * Linux mutations retain a directory descriptor below an existing writable root;
+ * other platforms retain their path-based mutation backend. Process isolation
  * remains the shell provider's responsibility.
  *
  * Per-call policy: `read-only` denies every mutation; `workspace-write` allows
@@ -132,6 +132,15 @@ export class SandboxedFileSystem extends LocalFileSystem {
   /** The deployment default mode — the capability fact the tool layer reads to advertise escalation. */
   override get sandboxMode(): SandboxMode {
     return this.defaultMode
+  }
+
+  protected override async writeRoot(target: FsTarget, sandboxPolicy?: SandboxExecutionPolicy): Promise<string> {
+    const policy = sandboxPolicy ?? this.ctx.sandboxPolicy.resolve()
+    if (policy.mode === 'danger-full-access') return '/'
+    for (const root of writableRoots(policy)) {
+      if (await isPathUnder(target.targetKey, root)) return canonicalPath(root)
+    }
+    throw new FsError(`cannot write "${target.displayPath}": file access denied under workspace-write mode`, 'FS_SANDBOX_DENIED')
   }
 
   /**

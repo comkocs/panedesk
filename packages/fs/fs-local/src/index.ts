@@ -40,6 +40,7 @@ import {
   writeFileAtomic,
 } from './fsio.ts'
 import type { AuthorizeRead, FsIoInternals } from './fsio.ts'
+import { openDirectoryTarget } from './directory-handle.ts'
 export type { ReadIdentity } from './read-handle.ts'
 type SandboxExecutionPolicy = NonNullable<Parameters<FileSystem['readText']>[2]>
 
@@ -210,6 +211,16 @@ export class LocalFileSystem extends FileSystem {
     }))
   }
 
+  /**
+   * Select the existing authorized root before a mutation opens its parent.
+   * @param target - Canonical mutation target.
+   * @param policy - Per-call sandbox policy; omission uses the provider default.
+   * @returns Root directory; the unrestricted local provider permits the filesystem root.
+   */
+  protected writeRoot(_target: FsTarget, _policy?: SandboxExecutionPolicy): Promise<string> {
+    return Promise.resolve('/')
+  }
+
   override async writeText(
     target: FsTarget,
     content: string,
@@ -218,51 +229,55 @@ export class LocalFileSystem extends FileSystem {
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
     return this.withLock(target.targetKey, async () => {
-      const existing = await probe(target.targetKey)
-      if (existing && existing.type !== 'file') {
-        throw new FsError(`cannot write "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
-      }
-
-      if (expected?.kind === 'replaceIfVersion') {
-        // Stale guard: the file must still exist at the version the owner observed.
-        if (!existing) throw new FsError(`cannot write "${target.displayPath}": file no longer exists`, 'FS_STALE_VERSION')
-        if (existing.version !== expected.version) {
-          throw new FsError(`cannot write "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
+      const anchor = await openDirectoryTarget(target.targetKey, true, await this.writeRoot(target, sandboxPolicy))
+      try {
+        const existing = await probe(anchor.path, true)
+        if (existing && existing.type !== 'file') {
+          throw new FsError(`cannot write "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
         }
-      } else if (expected?.kind === 'createIfAbsent' && existing) {
-        // createIfAbsent onto an existing file: a blind overwrite — require a read first.
-        throw new FsError(`cannot overwrite existing "${target.displayPath}" without reading it first`, 'FS_NOT_OBSERVED')
-      }
-      // No expectation means an unconditional but still atomic write.
 
-      // Capture an optional contextual-diff basis before the write. The bounded
-      // reader checks the opened file itself, so an external replacement after
-      // `probe()` cannot turn this best-effort presentation read into an
-      // unbounded allocation. Either side at/above the configured limit yields
-      // `before: null`; consumers retain their whole-file fallback.
-      const diffable = existing !== null
+        if (expected?.kind === 'replaceIfVersion') {
+        // Stale guard: the file must still exist at the version the owner observed.
+          if (!existing) throw new FsError(`cannot write "${target.displayPath}": file no longer exists`, 'FS_STALE_VERSION')
+          if (existing.version !== expected.version) {
+            throw new FsError(`cannot write "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
+          }
+        } else if (expected?.kind === 'createIfAbsent' && existing) {
+        // createIfAbsent onto an existing file: a blind overwrite — require a read first.
+          throw new FsError(`cannot overwrite existing "${target.displayPath}" without reading it first`, 'FS_NOT_OBSERVED')
+        }
+        // No expectation means an unconditional but still atomic write.
+
+        // Capture an optional contextual-diff basis before the write. The bounded
+        // reader checks the opened file itself, so an external replacement after
+        // `probe()` cannot turn this best-effort presentation read into an
+        // unbounded allocation. Either side at/above the configured limit yields
+        // `before: null`; consumers retain their whole-file fallback.
+        const diffable = existing !== null
         && Buffer.byteLength(content, 'utf8') < this.config.diffBasisMaxBytes
-      const before = diffable
-        ? await readTextForDiff(target.targetKey, this.config.diffBasisMaxBytes, signal, this.readAuthorization(sandboxPolicy))
-        : null
-      await writeFileAtomic(
-        target.targetKey,
-        content,
-        existing?.mode,
-        signal,
-        this.internals,
-        expected?.kind === 'createIfAbsent' ? { displayPath: target.displayPath } : undefined,
-      )
-      const after = await probe(target.targetKey)
-      return {
-        operation: existing ? 'update' : 'create',
-        version: this.versionAfterWrite(after, target),
-        before,
-        // LF-normalized to share the diff basis with `before` (also LF): a CRLF
-        // overwrite must not read as every line changed. Line-ending restoration
-        // is a storage detail the applied-hunk diff ignores.
-        after: normalizeLineEndings(content),
-      }
+        const before = diffable
+          ? await readTextForDiff(anchor.path, this.config.diffBasisMaxBytes, signal, this.readAuthorization(sandboxPolicy), true)
+          : null
+        await writeFileAtomic(
+          anchor.path,
+          content,
+          existing?.mode,
+          signal,
+          this.internals,
+          expected?.kind === 'createIfAbsent' ? { displayPath: target.displayPath } : undefined,
+          true,
+        )
+        const after = await probe(anchor.path, true)
+        return {
+          operation: existing ? 'update' : 'create',
+          version: this.versionAfterWrite(after, target),
+          before,
+          // LF-normalized to share the diff basis with `before` (also LF): a CRLF
+          // overwrite must not read as every line changed. Line-ending restoration
+          // is a storage detail the applied-hunk diff ignores.
+          after: normalizeLineEndings(content),
+        }
+      } finally { await anchor.close() }
     })
   }
 
@@ -274,32 +289,41 @@ export class LocalFileSystem extends FileSystem {
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
     return this.withLock(target.targetKey, async () => {
-      const existing = await probe(target.targetKey)
-      // Stale guard before literal matching: an edit based on an old read reports
-      // FS_STALE_VERSION, not FS_EDIT_NOT_FOUND/FS_AMBIGUOUS_EDIT against newer content.
-      // Missing targets use the same stale code on guarded and unconditional edit paths.
-      if (!existing) throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
-      if (existing.type !== 'file') throw new FsError(`cannot edit "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
-      // expected === undefined: unconditional edit of the current content — no
-      // version guard. Still inside the per-target lock, so the read→match→write
-      // window is serialized and atomic.
-      if (expected && existing.version !== expected.version) {
-        throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
-      }
+      const root = await this.writeRoot(target, sandboxPolicy)
+      const anchor = await openDirectoryTarget(target.targetKey, false, root).catch((error: unknown) => {
+        if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+          throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
+        }
+        throw error
+      })
+      try {
+        const existing = await probe(anchor.path, true)
+        // Stale guard before literal matching: an edit based on an old read reports
+        // FS_STALE_VERSION, not FS_EDIT_NOT_FOUND/FS_AMBIGUOUS_EDIT against newer content.
+        // Missing targets use the same stale code on guarded and unconditional edit paths.
+        if (!existing) throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
+        if (existing.type !== 'file') throw new FsError(`cannot edit "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
+        // expected === undefined: unconditional edit of the current content — no
+        // version guard. Still inside the per-target lock, so the read→match→write
+        // window is serialized and atomic.
+        if (expected && existing.version !== expected.version) {
+          throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
+        }
 
-      const original = await readForEdit(target.targetKey, target.displayPath, signal, this.readAuthorization(sandboxPolicy))
-      const edited = applyLiteralEdit(original.content, edit.oldString, edit.newString, edit.replaceAll, target.displayPath)
-      const content = restoreLineEndings(edited.content, original.lineEndings)
-      await writeFileAtomic(target.targetKey, content, existing.mode, signal, this.internals)
+        const original = await readForEdit(anchor.path, target.displayPath, signal, this.readAuthorization(sandboxPolicy), true)
+        const edited = applyLiteralEdit(original.content, edit.oldString, edit.newString, edit.replaceAll, target.displayPath)
+        const content = restoreLineEndings(edited.content, original.lineEndings)
+        await writeFileAtomic(anchor.path, content, existing.mode, signal, this.internals, undefined, true)
 
-      const after = await probe(target.targetKey)
-      return {
-        version: this.versionAfterWrite(after, target),
-        // The LF-normalized before/after text (the applied-hunk diff basis);
-        // line-ending restoration is a storage detail the diff ignores.
-        before: original.content,
-        after: edited.content,
-      }
+        const after = await probe(anchor.path, true)
+        return {
+          version: this.versionAfterWrite(after, target),
+          // The LF-normalized before/after text (the applied-hunk diff basis);
+          // line-ending restoration is a storage detail the diff ignores.
+          before: original.content,
+          after: edited.content,
+        }
+      } finally { await anchor.close() }
     })
   }
 
