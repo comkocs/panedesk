@@ -22,7 +22,7 @@
 
 在 Windows 上，已启动且包含沙盒策略的 profile 会向 stderr 输出配置的缺省模式、缺省或显式来源，以及设置指引。`--json`、`--quiet`、`-q` 和配置 dump 会抑制该提示；其他平台不输出。目录授权及逐会话覆盖随后由[沙盒策略](../../packages/sandbox/sandbox-policy/README.zh.md)解析。
 
-在 POSIX 上，CLI 在加载 profile 或凭据前以 `--disable-sigusr1` 重执行，保留 PID、标准流、参数与环境。所有 profile 都禁用由信号触发的 Inspector 激活；受信任的显式 `--inspect` 启动仍可使用。IPC 启动器必须显式传入 `--disable-sigusr1`：未受保护的 IPC 调用会在加载 profile 前报错，而不是替换进程并丢失通道。不支持进程替换的运行时也必须以此标志启动，否则启动会安全拒绝。Windows 没有 SIGUSR1；此标志不能证明 Windows 进程访问隔离。
+在 POSIX 上，CLI 在加载 profile 或凭据前以 `--disable-sigusr1` 重执行，保留 PID、标准流、参数与环境。所有 profile 都禁用由信号触发的 Inspector 激活；受信任的显式 `--inspect` 启动仍可使用。IPC 启动器必须在 Node 命令行传入 `--disable-sigusr1`；CLI 只读 `process.execArgv`，不认 `NODE_OPTIONS`。未受保护的 IPC 调用会在加载 profile 前报错，而不是替换进程并丢失通道。不支持进程替换的运行时也必须以此标志启动，否则启动会安全拒绝。Windows 没有 SIGUSR1；此标志不能证明 Windows 进程访问隔离。
 
 ## 应用参数
 

@@ -32,6 +32,8 @@ Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录
 
 owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedesk 沙盒与首次写确认约束；安装前请确认其写能力。其 profile 配置仍受保护，受限模型不能直接修改；插件管理变更须经认证的 owner 批准。
 
+在 Linux 与 macOS 上，以 IPC 通道起 CLI 的自写启动器必须在 Node 命令行带上 `--disable-sigusr1`；经 `NODE_OPTIONS` 传入不算，缺少该开关会在读取 profile 与凭据前退出，而不再重启。终端、shell、systemd、pnpm 脚本与 SDK 管道启动不用改。详见 [IPC 启动升级说明](docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md)。
+
 Web 模式下，owner 的登录 cookie 存在系统浏览器的配置目录里。沙箱内的进程读得到，模型可以把它回放给本机网关、冒充 owner。这是已知限制，后续更新处理。
 
 首次写授权时的受保护输入捕获在宿主主线程上同步进行。规模大时，捕获期间新的 Web 连接会被关闭，新建 agent 的输入复核可能卡住约 25–31 秒。这是已知限制，后续更新处理。

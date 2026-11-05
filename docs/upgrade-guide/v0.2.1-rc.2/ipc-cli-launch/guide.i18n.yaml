@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.md
+/:
+  en: 9c4a20c854fd9dc1
+  zh: 42ae81baed3e8036
+/ipc-cli-launch-requires-disable-sigusr1:
+  en: 636f42901b79b05e
+  zh: 5b78360a2b20068b
+/ipc-cli-launch-requires-disable-sigusr1/change:
+  en: ecb29bb283413ad7
+  zh: c5b946b00bb2df10
+/ipc-cli-launch-requires-disable-sigusr1/migration:
+  en: 73f4b6c3e44c7865
+  zh: 8617c74f143e2360

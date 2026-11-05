@@ -69,7 +69,13 @@
           "native/system/README.i18n.yaml",
           "docs/subsystems/sandbox.md",
           "docs/subsystems/sandbox.zh.md",
-          "docs/subsystems/sandbox.i18n.yaml"
+          "docs/subsystems/sandbox.i18n.yaml",
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.i18n.yaml"
         ]
       }
     },

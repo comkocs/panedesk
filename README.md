@@ -32,6 +32,8 @@ For a legacy Windows workspace grant without an authorization record, close its 
 
 Owner-installed MCP servers and providers run with their own capabilities, outside Panedesk sandbox enforcement and first-write confirmation. Review their write capabilities before installing them. Their profile configuration remains protected from confined model writes, and plugin management changes require authenticated owner approval.
 
+On Linux and macOS, a custom launcher that starts the CLI with an IPC channel must pass `--disable-sigusr1` on the Node command line; `NODE_OPTIONS` does not count, and a missing flag exits before profile and credential loading instead of restarting. Terminal, shell, systemd, pnpm-script, and SDK pipe launches are unchanged. See the [IPC launch upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.md).
+
 In Web mode the owner's login cookie is stored in the system browser's configuration directory. A process inside the sandbox can read it, and a model can replay it to the local gateway to impersonate the owner. This is a known limitation and will be addressed in a later update.
 
 The protected-input capture for the first write authorization runs synchronously on the host's main thread. While a large capture is in progress, new Web connections are closed and input rechecks for newly created agents can stall for about 25–31 seconds. This is a known limitation and will be addressed in a later update.
