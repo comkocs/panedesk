@@ -82,6 +82,8 @@ Linux ordinary and terminal cancellation preserves the observed termination sign
 
 ### What can go wrong
 
+Linux checks the [execve allocation limit](../../../docs/subsystems/subprocess.md) using Koffi's current synchronous heap before each native invocation, including Landlock launches. Oversized totals fail closed; long individual strings remain subject to the kernel's own limits.
+
 An executable that cannot be resolved fails loud with a stable error. `done` rejects when spawn or provider failure prevents a direct outcome, and that rejection does not prove whether target execution began. `waitForExit()` rejects if the selected owner can no longer prove its range empty, and cleanup still attempts termination. A read past the retained tail is `lossy` and points at the spill file when one exists. A fallback process group or observed terminal session can miss a descendant that escapes before observation — see the limitations below.
 
 -----

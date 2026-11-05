@@ -15,7 +15,7 @@ import type { SubprocessHandle, SubprocessSpawnSpec, SubprocessIdentity } from '
 import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from './types.ts'
 
 export { DSH_ENV_PREFIX } from './types.ts'
-export { assertExecveArgumentBudget, execveArgumentBytes, execveStringBytes, EXECVE_ARGUMENT_BUDGET, EXECVE_STRING_BYTE_LIMIT } from './execve-budget.ts'
+export { assertExecveArgumentBudget, execveArgumentBudget, execveArgumentBytes, execveStringBytes } from './execve-budget.ts'
 export type { SubprocessIdentity } from './types.ts'
 export { readProcessIdentity, sameProcessIdentity } from './process-identity.ts'
 export type {

@@ -18,7 +18,7 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
     const load = vi.fn(() => ({ func }))
     const errno = vi.fn(() => 2)
     vi.doMock('@panedesk/dsh-lazy-require', () => ({
-      createLazyRequire: () => () => ({ errno, load }),
+      createLazyRequire: () => () => ({ errno, load, config: () => ({ sync_heap_size: 2 * 1024 * 1024 }) }),
     }))
 
     const { loadLinuxExecve } = await import('../src/linux-execve.ts')
@@ -66,6 +66,7 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
     vi.doMock('@panedesk/dsh-lazy-require', () => ({
       createLazyRequire: () => () => ({
         errno: () => 2,
+        config: () => ({ sync_heap_size: 2 * 1024 * 1024 }),
         load: () => ({ func: (declaration: string) => declaration.includes('execve') ? nativeExecve : nativeFcntl }),
       }),
     }))
@@ -81,14 +82,46 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
     expect(nativeFcntl).not.toHaveBeenCalled()
   })
 
-  it('rejects a single string that would enter the Koffi slow conversion path', async () => {
-    const native = vi.fn(() => -1)
+  it('accepts a long single string while preserving the native execve result', async () => {
+    const nativeExecve = vi.fn(() => -1)
+    const nativeFcntl = vi.fn(() => 0)
     vi.doMock('@panedesk/dsh-lazy-require', () => ({
-      createLazyRequire: () => () => ({ errno: () => 2, load: () => ({ func: () => native }) }),
+      createLazyRequire: () => () => ({
+        errno: () => 2,
+        config: () => ({ sync_heap_size: 2 * 1024 * 1024, async_heap_size: 128 * 1024 }),
+        load: () => ({ func: (declaration: string) => declaration.includes('execve') ? nativeExecve : nativeFcntl }),
+      }),
     }))
     const { loadLinuxExecve } = await import('../src/linux-execve.ts')
-    expect(() => loadLinuxExecve()('/bin/true', ['x'.repeat(4087)], {})).toThrow('execve argument budget exceeded')
-    expect(native).not.toHaveBeenCalled()
+    const argument = 'x'.repeat(72_000)
+    const value = 'y'.repeat(8193)
+    expect(() => loadLinuxExecve()('/bin/true', [argument], { LONG: value })).toThrow('ENOENT')
+    expect(nativeExecve).toHaveBeenCalledExactlyOnceWith('/bin/true', [argument, null], [`LONG=${value}`, null])
+  })
+
+  it('reads the synchronous heap size at each native invocation', async () => {
+    const nativeExecve = vi.fn(() => -1)
+    const nativeFcntl = vi.fn(() => 0)
+    const config = vi.fn(() => ({ sync_heap_size: 256 * 1024, async_heap_size: 128 * 1024 }))
+    vi.doMock('@panedesk/dsh-lazy-require', () => ({
+      createLazyRequire: () => () => ({
+        errno: () => 2, config,
+        load: () => ({ func: (declaration: string) => declaration.includes('execve') ? nativeExecve : nativeFcntl }),
+      }),
+    }))
+    const { loadLinuxExecve } = await import('../src/linux-execve.ts')
+    const execve = loadLinuxExecve()
+    const argv = Array.from({ length: 5000 }, () => 'x')
+    expect(() => execve('/bin/true', argv, {})).toThrow('ENOENT')
+    expect(config).toHaveBeenCalledOnce()
+    expect(nativeExecve).toHaveBeenCalledOnce()
+    config.mockReturnValue({ sync_heap_size: 128 * 1024, async_heap_size: 256 * 1024 })
+    nativeExecve.mockClear()
+    nativeFcntl.mockClear()
+    expect(() => execve('/bin/true', argv, {})).toThrow('execve argument budget exceeded')
+    expect(config).toHaveBeenCalledTimes(2)
+    expect(nativeExecve).not.toHaveBeenCalled()
+    expect(nativeFcntl).not.toHaveBeenCalled()
   })
 
   it('reports failure to read descriptor flags before replacing the process', async () => {
@@ -99,7 +132,7 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
       : nativeFcntl)
     const errno = vi.fn(() => 9)
     vi.doMock('@panedesk/dsh-lazy-require', () => ({
-      createLazyRequire: () => () => ({ errno, load: () => ({ func }) }),
+      createLazyRequire: () => () => ({ errno, load: () => ({ func }), config: () => ({ sync_heap_size: 2 * 1024 * 1024 }) }),
     }))
 
     const { loadLinuxExecve } = await import('../src/linux-execve.ts')
@@ -123,7 +156,7 @@ describe.skipIf(process.platform !== 'linux')('Linux libc execve binding', () =>
       : nativeFcntl)
     const errno = vi.fn(() => 5)
     vi.doMock('@panedesk/dsh-lazy-require', () => ({
-      createLazyRequire: () => () => ({ errno, load: () => ({ func }) }),
+      createLazyRequire: () => () => ({ errno, load: () => ({ func }), config: () => ({ sync_heap_size: 2 * 1024 * 1024 }) }),
     }))
 
     const { loadLinuxExecve } = await import('../src/linux-execve.ts')

@@ -85,6 +85,8 @@ Children never inherit the harness's ambient secrets: credential-shaped names an
 
 ### What can go wrong
 
+The shared allocation helpers count pathname, argv, envp, and both terminated pointer tables. Callers supply the runtime heap size matching the native call mode; see [execve allocation limits](../../../docs/subsystems/subprocess.md).
+
 An executable that cannot be resolved fails loudly with a stable error. A spawn that never starts rejects `done`; there is no buffered output for a process that never ran. `waitForExit()` also rejects when the provider cannot prove its selected range is empty, and a provider fallback may not own descendants that escape its process group or observed session. When a transport owns its own spawn (the SDK client, MCP), route around the service and import `scrubbedParentEnv` directly so environment policy stays single-sourced.
 
 -----

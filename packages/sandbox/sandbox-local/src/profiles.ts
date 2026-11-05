@@ -10,7 +10,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertOwnerWorkspace, assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, protectedWorkspaceBranches, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { sessionEnvironmentArgs, sessionSocketDirectories } from './session-sockets.ts'
-import { assertExecveArgumentBudget, execveArgumentBytes, execveStringBytes, EXECVE_ARGUMENT_BUDGET, EXECVE_STRING_BYTE_LIMIT } from '@panedesk/dsh-subprocess'
+import { assertExecveArgumentBudget, execveArgumentBudget, execveArgumentBytes, execveStringBytes } from '@panedesk/dsh-subprocess'
+import koffi from 'koffi'
 import { en, zh } from './launch-budget-locales.ts'
 
 /** Test containment after callers have canonicalized both paths. */
@@ -144,7 +145,9 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
  * @returns launcher grant arguments before the trailing separator and command argv.
  */
 export function landlockProfileArgs(policy: SandboxPolicy, launch = { file: '', argv: [] as readonly string[] }): string[] {
-  assertExecveArgumentBudget(launch.file, [launch.file, '--', ...launch.argv], [])
+  const heapSize = koffi.config().sync_heap_size!
+  const budget = execveArgumentBudget(heapSize)
+  assertExecveArgumentBudget(launch.file, [launch.file, '--', ...launch.argv], [], heapSize)
   const owners = ownerDirectories(policy).map(canonicalPath)
   const readOnly = new Set<string>()
   let grantBytes = execveArgumentBytes(launch.file, [launch.file, '--', ...launch.argv], [])
@@ -169,7 +172,7 @@ export function landlockProfileArgs(policy: SandboxPolicy, launch = { file: '', 
         if (readOnly.has(canonical) || !available(canonical)) return
         // Each --ro pair contributes two pointers and two separately aligned strings.
         grantBytes += 16 + execveStringBytes('--ro') + execveStringBytes(canonical)
-        if (grantBytes > EXECVE_ARGUMENT_BUDGET || Buffer.byteLength(canonical) > EXECVE_STRING_BYTE_LIMIT) refuse()
+        if (grantBytes > budget) refuse()
         readOnly.add(canonical)
         return
       }
@@ -208,7 +211,7 @@ export function landlockProfileArgs(policy: SandboxPolicy, launch = { file: '', 
     assertUnprotectedRoots(readWrite, excluded)
   }
   const args = landlockGrantArgs({ readOnly: [...readOnly], readWrite: readWrite.filter(available) })
-  if (execveArgumentBytes(launch.file, [launch.file, ...args, '--', ...launch.argv], []) > EXECVE_ARGUMENT_BUDGET) refuse()
+  if (execveArgumentBytes(launch.file, [launch.file, ...args, '--', ...launch.argv], []) > budget) refuse()
   return args
 }
 

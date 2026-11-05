@@ -10853,18 +10853,12 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
-      '@panedesk/dsh-client-connection':
-        specifier: workspace:*
-        version: link:../../client/connection
-      '@panedesk/dsh-subprocess':
-        specifier: workspace:*
-        version: link:../../subprocess/subprocess
-      '@panedesk/dsh-subprocess-local':
-        specifier: workspace:*
-        version: link:../../subprocess/subprocess-local
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
       '@panedesk/dsh-ptc-runtime':
         specifier: workspace:*
         version: link:../../ptc-runtime/ptc-runtime
@@ -10883,6 +10877,12 @@ importers:
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
+      '@panedesk/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
       '@panedesk/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout
@@ -13980,9 +13980,6 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
-      '@panedesk/dsh-subprocess':
-        specifier: workspace:*
-        version: link:../../subprocess/subprocess
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
@@ -13995,6 +13992,9 @@ importers:
       '@panedesk/dsh-sandbox-windows-acl':
         specifier: workspace:*
         version: link:../sandbox-windows-acl
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
@@ -14004,6 +14004,9 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      koffi:
+        specifier: 3.1.1
+        version: 3.1.1
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~

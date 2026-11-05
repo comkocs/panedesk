@@ -59,7 +59,7 @@ export function loadLinuxExecve(): LinuxExecve {
   ) as NativeFcntl
   cachedExecve = (file, argv, env, control) => {
     const envp = Object.entries(env).map(([key, value]) => `${key}=${value}`)
-    assertExecveArgumentBudget(file, argv, envp)
+    assertExecveArgumentBudget(file, argv, envp, koffi.config().sync_heap_size!)
     const descriptors = control === 'pipe'
       ? [...STANDARD_FILE_DESCRIPTORS, SUBPROCESS_CONTROL_FD]
       : STANDARD_FILE_DESCRIPTORS

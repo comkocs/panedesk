@@ -35,6 +35,7 @@
     "@panedesk/dsh-session": "workspace:*"
   },
   "dependencies": {
+    "koffi": "3.1.1",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",

@@ -82,6 +82,8 @@ Linux 普通进程和终端进程即使在 bootstrap 消费启动请求前被取
 
 ### 可能出错的地方
 
+Linux 在每次原生调用前用 Koffi 当前同步堆检查 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)，包括 Landlock 启动。总量超限即拒绝执行；单个长字符串仍受内核自身限制。
+
 无法解析的可执行文件会明确报出稳定错误。当 spawn 或提供方故障使 direct outcome 无法产生时，`done` 会 reject；该 rejection 不能证明 target 是否已经开始执行。若所选 owner 无法再证明其范围为空，`waitForExit()` 会 reject，清理仍会尝试终止。越过保留尾部的读取是 `lossy` 的，并在 spill 文件存在时指向它。fallback 进程组或已观察终端 session 可能遗漏在观察前逃逸的后代——见下文限制。
 
 -----

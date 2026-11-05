@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
+import { en, zh } from '../src/launch-budget-locales.ts'
 import { landlockProfileArgs } from '../src/profiles.ts'
 
 it('names the crowded ancestor and entry count in both refusal languages', () => {
@@ -23,4 +24,18 @@ it('names the crowded ancestor and entry count in both refusal languages', () =>
   expect(message).toContain(`祖先目录 ${JSON.stringify(root)} 含 8001 项`)
   expect(message).toContain('Remove expired temporary entries')
   expect(message).toContain('将工作区与私密路径移出拥挤目录')
+})
+
+it.skipIf(process.platform !== 'linux')('refuses 32000 real sibling entries before native launch and names their ancestor', () => {
+  const root = mkdtempSync(join(tmpdir(), 'launch-scale-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const owner = join(root, 'private')
+  mkdirSync(owner)
+  for (let index = 0; index < 32_000; index++) {
+    writeFileSync(join(root, `${index}-${'s'.repeat(64)}`), '')
+  }
+  expect(() => landlockProfileArgs(
+    { mode: 'read-only', workspaceRoot: root, unreadablePaths: [owner] },
+    { file: '/synthetic/landlock-run', argv: ['/bin/true'] },
+  )).toThrow(`${en.crowdedAncestor(root, 32_001)} / ${zh.crowdedAncestor(root, 32_001)}`)
 })
