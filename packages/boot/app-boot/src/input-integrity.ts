@@ -443,7 +443,7 @@ export class ProtectedInputIntegrity {
   private granted: boolean
   private revision: string | undefined
   private verifying = false
-  private grant: { promise: Promise<void>; pending: boolean } | undefined
+  private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
 
@@ -559,7 +559,8 @@ export class ProtectedInputIntegrity {
   }
 
   private refreshRecord(): void {
-    if (this.record === undefined || this.verifying || !this.stateTrusted()) return
+    if (this.record === undefined || this.verifying || this.grant?.pending === true
+      || this.grant?.failed === true || !this.stateTrusted()) return
     if (this.revision !== undefined) this.assertRecordLocation()
     let text: string
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
@@ -640,18 +641,22 @@ export class ProtectedInputIntegrity {
   }
 
   /**
-   * Capture owner inputs before publishing write access; existing grants never reset trust.
+   * Capture owner inputs after explicit owner consent, replacing any existing baseline before write access is published.
    * @param protectedPaths Native write exclusions; omission requires state outside the workspace.
    * @returns Shared pending capture; a failed capture denies consumers until a later explicit grant retries it.
    */
   grantWrite(protectedPaths: readonly string[] = []): Promise<void> {
     this.assertRecordLocation(protectedPaths)
     if (this.grant?.pending === true) return this.grant.promise
+    this.grant = undefined
     this.refreshRecord()
-    if (this.granted) return Promise.resolve()
+    if (this.verifying) throw new Error('Protected host input verification is already pending')
+    this.verifiedPass = undefined
+    this.approved.clear()
     const grant = { promise: this.captureGrant().catch((cause: unknown) => {
+      grant.failed = true
       throw new Error(`${en.captureFailed} / ${zh.captureFailed} ${String(cause)}`, { cause })
-    }), pending: true }
+    }), pending: true, failed: false }
     grant.promise = grant.promise.finally(() => { grant.pending = false })
     this.grant = grant
     return grant.promise

@@ -35,6 +35,45 @@ it('does not publish workspace trust until asynchronous capture completes', asyn
   expect(f.integrity.covers(f.path)).toBe(true)
 })
 
+it('discards an existing baseline and blocks consumers until explicit recapture settles', async () => {
+  const f = fixture()
+  await f.integrity.grantWrite()
+  writeFileSync(f.path, 'export const value = 2')
+  const owner = { blocked() {}, confirm: async () => false }
+  expect(await f.integrity.verify(owner)).toBe(false)
+  const pending = f.integrity.grantWrite()
+  expect(f.integrity.covers(f.path)).toBe(false)
+  let settled = false
+  const waiting = f.integrity.waitForCapture().then(() => { settled = true })
+  expect(settled).toBe(false)
+  await pending
+  await waiting
+  expect(await f.integrity.verify(owner)).toBe(true)
+  expect(f.integrity.readTrusted(f.path)?.toString()).toBe('export const value = 2')
+})
+
+it('does not reload a competing record while explicit recapture is pending', async () => {
+  const f = fixture()
+  await f.integrity.grantWrite()
+  const other = new ProtectedInputIntegrity(f.workspace, f.home)
+  writeFileSync(f.path, 'export const value = 2')
+  const pending = f.integrity.grantWrite()
+  const rejection = expect(pending).rejects.toThrow('changed in another host')
+  const recordDirectory = join(f.home, 'windows-workspace-write', 'protected-inputs')
+  const name = fs.readdirSync(recordDirectory).find(name => name.endsWith('.json'))!
+  const recordPath = join(recordDirectory, name)
+  writeFileSync(recordPath, readFileSync(recordPath, 'utf8') + '\n')
+  expect(other.covers(f.path)).toBe(true)
+  expect(f.integrity.covers(f.path)).toBe(false)
+  expect(() => f.integrity.readTrusted(f.path)).toThrow('has no approved copy')
+  await rejection
+  await expect(f.integrity.waitForCapture()).rejects.toThrow('changed in another host')
+  expect(f.integrity.covers(f.path)).toBe(false)
+  expect(() => f.integrity.readTrusted(f.path)).toThrow('has no approved copy')
+  await f.integrity.grantWrite()
+  expect(f.integrity.readTrusted(f.path)?.toString()).toBe('export const value = 2')
+})
+
 it('shares one capture between simultaneous workspace grants', async () => {
   const f = fixture()
   const read = vi.spyOn(fs, 'openSync')

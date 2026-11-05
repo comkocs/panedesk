@@ -321,6 +321,47 @@ it('reuses unchanged input bytes through host authorization and new-agent review
   expect(read.mock.calls.filter(([path, flags]) => path === first && flags === 'r')).toHaveLength(0)
 })
 
+it.each(['allowed-once', 'rejected'] as const)('recaptures changed inputs only after authenticated workspace reauthorization: %s', async (outcome) => {
+  const root = mkdtempSync(join(tmpdir(), 'owner-recapture-'))
+  const workspace = join(root, 'workspace')
+  const home = join(root, 'state')
+  mkdirSync(workspace)
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const path = join(workspace, 'patch.yml')
+  writeFileSync(path, 'approved')
+  const f = await fixture(workspace)
+  const integrity = new ProtectedInputIntegrity(workspace, home)
+  const profile: ProfileContext = {
+    name: 'recapture', cwd: workspace, dir: workspace, home, patchPath: path,
+    installAnchor: path, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    inputIntegrity: integrity,
+  }
+  await grantProtectedWorkspace(profile, workspace, [])
+  profile.runInputReview = async () => {}
+  f.ctx.provide('profileContext', profile)
+  writeFileSync(path, 'owner edit')
+  const owner = { blocked: vi.fn(), confirm: vi.fn(async () => false) }
+  expect(await integrity.verify(owner)).toBe(false)
+  const forged = vi.fn(async (): Promise<ApprovalOutcome> => 'allowed-once')
+  f.ctx.on('approval/request', forged, { prepend: true })
+  f.agent.session.append('turn/start', { turn: 1 })
+  const commit = vi.fn(async () => { expect(await integrity.verify(owner)).toBe(true) })
+  const pending = f.ctx.approval.request({ agent: f.agent, toolName: 'recapture',
+    purpose: { type: 'workspace-write', workspace } }, { check() {}, commit, rollback: async () => {} })
+  const frame = await f.events.next()
+  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected owner reauthorization')
+  expect(await integrity.verify(owner)).toBe(false)
+  expect(forged).not.toHaveBeenCalled()
+  const automation = new Peer(f.ctx, { principal: { kind: 'owner' }, interactions: 'none' })
+  onTestFinished(() => automation.dispose())
+  expect((await f.reply(frame.value.eventId, 'allowed-once', automation)).result.ok).toBe(false)
+  expect(await integrity.verify(owner)).toBe(false)
+  expect((await f.reply(frame.value.eventId, outcome)).result.ok).toBe(true)
+  expect(await pending).toBe(outcome)
+  expect(await integrity.verify(owner)).toBe(outcome === 'allowed-once')
+  expect(commit).toHaveBeenCalledTimes(outcome === 'allowed-once' ? 1 : 0)
+})
+
 it('retains bilingual capture recovery instructions in consent audit and new-agent denial', async () => {
   const root = mkdtempSync(join(tmpdir(), 'owner-capture-failure-'))
   const workspace = join(root, 'workspace')
