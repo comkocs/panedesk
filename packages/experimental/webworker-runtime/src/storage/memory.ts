@@ -27,6 +27,13 @@ interface FileNode {
   paths: string | Set<string> | undefined
 }
 
+/** An opened directory entry follows rename but never another hard link or replacement. */
+interface OpenedName {
+  path: string
+  deleted: boolean
+  references: number
+}
+
 /** One lazy archive's registration and its single in-flight fetch. */
 interface DeferredArchiveState {
   readonly name: string
@@ -217,6 +224,7 @@ export interface MemoryVfsOptions {
  */
 export class MemoryVfs implements Vfs {
   private readonly files = new Map<string, FileNode>()
+  private readonly openedNames = new Map<string, OpenedName>()
   /** Files a lazy archive supplies on their first asynchronous read. */
   private readonly deferred = new Map<string, DeferredFile>()
   private readonly directories = new Set<string>([SEP])
@@ -517,7 +525,10 @@ export class MemoryVfs implements Vfs {
   private setFile(path: string, node: FileNode): void {
     const previous = this.files.get(path)
     if (previous === node) return
-    if (previous !== undefined) this.removeFilePath(previous, path)
+    if (previous !== undefined) {
+      this.detachOpenedName(path)
+      this.removeFilePath(previous, path)
+    }
     this.files.set(path, node)
     this.addFilePath(node, path)
   }
@@ -527,8 +538,28 @@ export class MemoryVfs implements Vfs {
     const node = this.files.get(path)
     if (node === undefined) return undefined
     this.files.delete(path)
+    this.detachOpenedName(path)
     this.removeFilePath(node, path)
     return node
+  }
+
+  /** Unlinked descriptors retain their entry name without adopting a replacement. */
+  private detachOpenedName(path: string): void {
+    const name = this.openedNames.get(path)
+    if (name === undefined) return
+    name.deleted = true
+    this.openedNames.delete(path)
+  }
+
+  /** Move the opened entry together with its node, leaving overwritten descriptors detached. */
+  private moveFile(source: string, destination: string, node: FileNode): void {
+    const name = this.openedNames.get(source)
+    this.deleteFile(source)
+    this.setFile(destination, node)
+    if (name === undefined) return
+    name.path = destination
+    name.deleted = false
+    this.openedNames.set(destination, name)
   }
 
   /** Publish one linked name after a content or metadata write. */
@@ -822,7 +853,11 @@ export class MemoryVfs implements Vfs {
         : current('fstat').stat(),
       sync: async (): Promise<void> => { current('fsync'); await this.flush() },
       datasync: async (): Promise<void> => { current('fdatasync'); await this.flush() },
-      close: async (): Promise<void> => { closed = true },
+      close: async (): Promise<void> => {
+        if (closed) return
+        closed = true
+        file.close()
+      },
     }
   }
 
@@ -848,7 +883,24 @@ export class MemoryVfs implements Vfs {
     }
     const node = this.files.get(target)
     if (node === undefined) fail('ENOENT', 'open', target)
+    let name = this.openedNames.get(target)
+    if (name === undefined) {
+      name = { path: target, deleted: false, references: 0 }
+      this.openedNames.set(target, name)
+    }
+    const openedName = name
+    openedName.references++
+    let closed = false
     return {
+      finalName: () => `${openedName.path}${openedName.deleted ? ' (deleted)' : ''}`,
+      close: () => {
+        if (closed) return
+        closed = true
+        openedName.references--
+        if (openedName.references === 0 && this.openedNames.get(openedName.path) === openedName) {
+          this.openedNames.delete(openedName.path)
+        }
+      },
       readable: access.readable,
       writable: access.writable,
       append: access.append,
@@ -917,8 +969,7 @@ export class MemoryVfs implements Vfs {
       if (this.directories.has(destination)) fail('EISDIR', 'rename', destination)
       if (!this.directories.has(dirname(destination))) fail('ENOENT', 'rename', destination)
       if (this.files.get(destination) === node) return
-      this.deleteFile(source)
-      this.setFile(destination, node)
+      this.moveFile(source, destination, node)
       this.forgetIdentity(source)
       this.forgetIdentity(destination)
       this.touchDirectory(dirname(source))
@@ -944,9 +995,8 @@ export class MemoryVfs implements Vfs {
     const movedFiles: Array<{ path: string; bytes: Uint8Array; mode: number }> = []
     for (const [candidate, value] of [...this.files]) {
       if (!candidate.startsWith(prefix)) continue
-      this.deleteFile(candidate)
       const target = join(destination, candidate.slice(prefix.length))
-      this.setFile(target, value)
+      this.moveFile(candidate, target, value)
       movedFiles.push({ path: target, bytes: value.bytes, mode: value.mode })
     }
     const movedDirectories: Array<{ path: string; mode: number }> = []
