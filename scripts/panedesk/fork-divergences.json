@@ -7188,6 +7188,18 @@
       }
     },
     {
+      "id": "web-auth-owner-confirmation-restart",
+      "description": "Cover host-terminal owner confirmation and both restart modes in the Web auth end-to-end test",
+      "origin": "Web auth owner restart semantics coverage",
+      "reason": "The test additionally exercises host-terminal owner confirmation and both restart modes: by default, a previously confirmed cookie is rejected after restart and a fresh launch link requires terminal confirmation before access succeeds; when protected host configuration sets requireOwnerConfirmation to false, the launch-link exchange requires no terminal confirmation and the same cookie remains valid after restart; the credential mode check follows the private credentials location. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/web-auth.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "product-rename-apps-desktop",
       "description": "Upstream files under apps/desktop whose only divergence from the baseline is the replayable product rename.",
       "origin": "Panedesk product rename sweep since the upstream import",
