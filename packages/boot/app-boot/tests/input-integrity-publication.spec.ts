@@ -58,7 +58,9 @@ it('accepts link-before-unlink publication interleaved with 3000 reviews of all 
   expect(refusals).toBe(0)
 })
 
-it('accepts 3000 real session publications while reviewing all three authoritative trees', async () => {
+// Alone this case takes about 2.4s; CI fork-pool contention with coverage
+// instrumentation exceeds the 5s default (5006ms ci-unit, 5014ms ci-coverage).
+it('accepts 3000 real session publications while reviewing all three authoritative trees', { timeout: 15_000 }, async () => {
   const { roots } = fixture()
   const ctx = new Context()
   onTestFinished(async () => { try { await ctx.fiber.dispose() } finally { vi.restoreAllMocks() } })
