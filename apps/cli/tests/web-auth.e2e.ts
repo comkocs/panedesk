@@ -2,7 +2,7 @@
 
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
-import { stat } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { request as httpRequest } from 'node:http'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
@@ -192,7 +192,7 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
 }
 
 describe('panedesk web authentication through the real CLI', () => {
-  it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
+  it('rejects a forged loopback Host and requires fresh owner confirmation after restart', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-real-cli-'))
     const dshHome = join(root, '.panedesk')
     const port = await freePort()
@@ -240,10 +240,71 @@ describe('panedesk web authentication through the real CLI', () => {
       second = await startWeb(root, dshHome, port)
       const secondUrl = new URL(second.launchUrl)
       expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
-      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
+      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(401)
+
+      const secondExchange = await fetch(second.launchUrl, { redirect: 'manual' })
+      expect(secondExchange.status).toBe(303)
+      expect(secondExchange.headers.get('location')).toBe('./')
+      const secondSetCookie = secondExchange.headers.get('set-cookie')
+      if (secondSetCookie === null) throw new Error('restarted CLI token exchange omitted Set-Cookie')
+      expect(secondSetCookie).toContain('HttpOnly')
+      expect(secondSetCookie).toContain('SameSite=Strict')
+      expect(secondSetCookie).not.toContain('Secure')
+      const secondCookie = secondSetCookie.split(';', 1)[0]!
+      expect(secondCookie).not.toBe(cookie)
+      expect((await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(401)
+      await expect.poll(() => second?.output().includes('[y/N]') ?? false).toBe(true)
+      const secondOwnerInput = second.child.stdin
+      if (secondOwnerInput === undefined || secondOwnerInput === null) throw new Error('owner terminal input closed before reconfirmation')
+      secondOwnerInput.write('y\n')
+      await expect.poll(async () => (await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(200)
+      expect((await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(200)
+      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(401)
 
       const credentialMode = (await stat(join(dshHome, '.credentials.yaml'))).mode & 0o777
       expect(credentialMode).toBe(0o600)
+    } catch (error) {
+      const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
+      throw new Error(`${error instanceof Error ? error.message : String(error)}\n${redact(evidence)}`, { cause: error })
+    } finally {
+      if (second !== undefined) await stopWeb(second)
+      if (first !== undefined) await stopWeb(first)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves the browser cookie across restart when protected host configuration disables owner confirmation', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-unconfirmed-'))
+    const dshHome = join(root, '.panedesk')
+    const port = await freePort()
+    let first: RunningWeb | undefined
+    let second: RunningWeb | undefined
+    try {
+      await mkdir(dshHome)
+      await writeFile(join(dshHome, 'cordis.patch.yml'),
+        '- id: connection\n  config:\n    requireOwnerConfirmation: false\n')
+      first = await startWeb(root, dshHome, port)
+      const firstUrl = new URL(first.launchUrl)
+      const exchange = await fetch(first.launchUrl, { redirect: 'manual' })
+      expect(exchange.status).toBe(303)
+      expect(exchange.headers.get('location')).toBe('./')
+      const setCookie = exchange.headers.get('set-cookie')
+      if (setCookie === null) throw new Error('unconfirmed CLI token exchange omitted Set-Cookie')
+      expect(setCookie).toContain('HttpOnly')
+      expect(setCookie).toContain('SameSite=Strict')
+      expect(setCookie).not.toContain('Secure')
+      const cookie = setCookie.split(';', 1)[0]!
+      expect((await describeSettings(port, firstUrl.host, cookie)).status).toBe(200)
+      expect(first.output()).not.toContain('[y/N]')
+
+      await stopWeb(first)
+      expect(first.output()).not.toContain('[y/N]')
+      first = undefined
+      second = await startWeb(root, dshHome, port)
+      const secondUrl = new URL(second.launchUrl)
+      expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
+      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
+      expect(second.output()).not.toContain('[y/N]')
     } catch (error) {
       const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
       throw new Error(`${error instanceof Error ? error.message : String(error)}\n${redact(evidence)}`, { cause: error })
