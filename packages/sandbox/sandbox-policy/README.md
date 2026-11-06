@@ -66,7 +66,7 @@ Opening a workspace with effective root write permissions but no product record 
 
 `writeDenialHint(mode)` supplies bilingual read-only reasons and owner preauthorization guidance for settled read-only denials under the implicit Windows default. Filesystem and command tools retain it in their ordinary results; other platforms, explicit deployment modes, and wider settled modes receive no replacement hint.
 
-Owner revocation and reauthorization advance a canonical-workspace generation before asynchronous work. Consent commits, native materialization and rollback retain that identity: stale operations reject, and old rollback cannot revoke a newer grant. Generations are process-local and do not alter stored records. Once writable argv has been issued, execution completion is unproven; immediate owner reauthorization is refused rather than assuming native ACL revocation drained those capabilities.
+Direct consent and revocation take effect in record-lock order: direct consent reads the current generation under the lock, and revocation advances it there. Owner reauthorization starts a new generation before capture. Capture results, native materialization and writable argv retain their starting generation through publication; stale work rejects. Rollback rechecks its original generation under the lock and cannot revoke a newer grant. Generations are process-local and do not alter stored records. Once writable argv has been issued, execution completion is unproven; immediate owner reauthorization is refused rather than assuming native ACL revocation drained those capabilities.
 
 ### Protected host inputs
 

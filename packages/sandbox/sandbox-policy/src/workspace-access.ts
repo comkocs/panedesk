@@ -75,7 +75,7 @@ export class WorkspaceWriteAccess {
       if (!(error instanceof Error)) throw error
       return
     }
-    await this.revoke(workspace, revokeAcl)
+    await this.revokeCurrent(workspace, revokeAcl, current)
   }
 
   /**
@@ -289,12 +289,12 @@ export class WorkspaceWriteAccess {
    * @param workspace - Existing absolute workspace directory.
    * @param source - Human confirmation or settings preauthorization.
    * @param signal - Cancellation before consent commits; prior consent is preserved on withdrawal.
-   * @param current - Owner generation guard acquired before capture; omission starts a new generation.
+   * @param current - Guard acquired before external capture; direct consent reads the generation under the record lock.
    * @returns The atomically committed authorization.
    */
   async authorize(workspace: string, source: WorkspaceWriteRecord['source'], signal?: AbortSignal,
-    current: () => void = this.beginGrant(workspace)): Promise<WorkspaceWriteRecord> {
-    current()
+    current?: () => void): Promise<WorkspaceWriteRecord> {
+    current?.()
     const canonical = this.canonical(workspace)
     assertWindowsStateTrusted(this.directory, canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
@@ -304,14 +304,19 @@ export class WorkspaceWriteAccess {
       this.assertUnprotected(canonical)
       assertWindowsStateTrusted(path, canonical)
       if (this.revocationPending(path)) throw new WorkspaceWriteRuleError('Workspace revocation is incomplete; retry revocation before authorizing')
-      current()
+      if (current === undefined && this.issued.has(canonical)) {
+        throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing')
+      }
+      // Direct consent carries no earlier capture; queued work keeps its supplied guard.
+      const commitCurrent = current ?? this.checkpoint(canonical)
+      commitCurrent()
       const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }
       const temporary = `${path}.${randomUUID()}.tmp`
       try {
         await writeFile(temporary, `${JSON.stringify(record)}\n`, { mode: 0o600, flag: 'wx' })
         let delay = 20
         for (let retries = 0;; retries++) {
-          current()
+          commitCurrent()
           signal?.throwIfAborted()
           try { renameSync(temporary, path); break } catch (error) {
             if (process.platform !== 'win32' || !(error instanceof Error) || !('code' in error)
@@ -321,7 +326,7 @@ export class WorkspaceWriteAccess {
           delay = Math.min(delay * 2, 200)
         }
       } finally { await rm(temporary, { force: true }) }
-      current()
+      commitCurrent()
       return record
     }, signal === undefined ? {} : { signal })
   }
@@ -334,13 +339,22 @@ export class WorkspaceWriteAccess {
    * @returns After the native capability (if the directory exists), record, and marker are removed.
    */
   async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void> {
-    this.advance(workspace)
+    await this.revokeCurrent(workspace, revokeAcl)
+  }
+
+  private async revokeCurrent(workspace: string, revokeAcl: (workspace: string) => void, current?: () => void): Promise<void> {
     const recorded = this.list().some(record => record.workspace === workspace) || this.pendingRevocations().includes(workspace)
     const canonical = recorded ? workspace : this.canonical(workspace)
     this.revocationTargetExists(canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.identityPath(canonical)
     await withFileLock(path, async () => {
+      // A rollback may have waited behind a newer owner grant.
+      try { current?.() } catch (error) {
+        if (!(error instanceof Error)) throw error
+        return
+      }
+      this.advance(canonical)
       await writeFileAtomic(`${path}.revoking`, `${JSON.stringify({ workspace: canonical })}\n`, { mode: 0o600 })
       if (this.revocationTargetExists(canonical)) revokeAcl(canonical)
       await rm(path, { force: true })

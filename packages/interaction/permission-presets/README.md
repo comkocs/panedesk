@@ -65,7 +65,7 @@ The owner-only `workspaceWriteAccess`, `authorizeWorkspaceWrite`, and `revokeWor
 
 With a profile context, granting workspace write access asynchronously captures registered protected host inputs before publishing any preset or permission facts. Callers await `set()` and `initialize()` when they return capture completion; Auto admission remains synchronous. Agent creation awaits session initialization and rejects if capture fails. Session capture uses the session working directory, or the sandbox policy's workspace root when no directory is recorded. Trusted configuration copies and plugin identities persist across restarts outside that writable root, or on Linux and macOS beneath its protected first-level state directory; capture failure refuses the grant. Full access does not acquire this protection. See [app-boot](../../boot/app-boot/README.md#profiles) for input coverage and loading restrictions.
 
-Settings reauthorization starts a new workspace generation before capture; revocation invalidates older work immediately. Late capture completion cannot publish consent or overwrite a newer grant. Previously issued writable argv without execution-completion proof prevents immediate reauthorization, even when native revocation succeeds.
+Settings reauthorization starts a new workspace generation before capture; revocation invalidates older work when it acquires the workspace record lock. Late capture completion cannot publish consent or overwrite a newer grant. Previously issued writable argv without execution-completion proof prevents immediate reauthorization, even when native revocation succeeds.
 
 ### Session defaults
 

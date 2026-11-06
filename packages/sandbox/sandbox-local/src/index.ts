@@ -364,7 +364,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     const resolvedPolicy = policy
     const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
-        () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
+        () => { current(); return this.runnerArgv(selected.runner, resolvedPolicy) }, signal)
       : this.runnerArgv(selected.runner, policy, argv)
     publish()
     return Promise.resolve<ConfinedArgv>({
