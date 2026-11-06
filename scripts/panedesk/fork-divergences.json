@@ -15959,6 +15959,21 @@
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
         ]
       }
+    },
+    {
+      "id": "windows-handle-new-file-destination-staging",
+      "description": "Create new files through the Windows handle backend with destination-inherited staging and no-replace publication",
+      "origin": "Windows handle backend new-file creation",
+      "reason": "Stage a new file exclusively in its destination directory with no supplied security descriptor so Windows inherits permissions and integrity labels. Flush before handle-relative no-replace hard-link publication, and do not fall back to path writes. Leave the handle backend disabled by default. An abnormal process exit or a failed cleanup may leave one staging file under that directory's ordinary inherited permissions; cleanup is best-effort only. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/tests/windows-native-new-file.spec.ts",
+          "packages/fs/fs-local/README.md",
+          "packages/fs/fs-local/README.zh.md",
+          "packages/fs/fs-local/README.i18n.yaml"
+        ]
+      }
     }
   ]
 }
