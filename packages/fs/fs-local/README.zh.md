@@ -96,7 +96,7 @@ Chokidar 通过 OS 事件观察单个文件或目录的直接子项，不使用�
 
 内部 `DirectoryCapability` 还提供单段 `walk` 与 `stage`；`OwnedStage` 拥有文件 I/O、同步、元数据准备、发布、丢弃与关闭。子目录及暂存对象保留父级所有者。兼容入口 `openDirectory` 与 `openDirectoryTarget` 的 `path` 仅保留原始展示身份，调用者通过方法执行 I/O。旧后端独立暂存明确不可用；既有提供方写事务及其描述符相对原语不变。
 
-Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径。写模块实现自有暂存、部分写入、先同步后发布、不覆盖的相对硬链接与句柄 disposition 清理。原生暂存仍在创建对象前拒绝，因为调用者专属私有安全描述符与目标目录继承能力尚不可用；替身测试不代表原生验收。覆盖与编辑准备仍不可用。目录创建和删除使用相对原生句柄；缺省旧后端行为不变。
+Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径。写模块实现自有暂存、部分写入、先同步后发布、不覆盖的相对硬链接与句柄 disposition 清理。原生暂存仍在创建对象前拒绝，因为调用者专属私有安全描述符与目标目录继承能力尚不可用；替身测试不代表原生验收。覆盖与编辑准备仍不可用。Worker 绑定 `OpenProcessToken`、`GetTokenInformation`、`CreatePrivateObjectSecurityEx` 与 `DestroyPrivateObjectSecurity`，但导出可用不代表 DACL、所有者／组或继承等价。尚未接线的覆盖原语仅使用带 POSIX 与 replace-if-exists 标志的 Native `FileRenameInformationEx`；访问拒绝报告文件被占用，不重试 Win32 改名或 `ReplaceFileW`。安全与元数据准备受支持之前，暂存流程不能调用它。目录创建和删除使用相对原生句柄；缺省旧后端行为不变。
 
 ### 写入路径
 

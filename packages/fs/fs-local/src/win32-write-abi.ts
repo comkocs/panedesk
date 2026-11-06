@@ -2,6 +2,7 @@
 import koffi from 'koffi'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
+import { createWindowsSecurityBindings } from './win32-write-security.ts'
 import type { HandleMetadata, HandleReply, WindowsNativeContext } from './win32-handle-types.ts'
 
 /** Security descriptors must be constructed for the actual caller and destination, never a default DACL. */
@@ -21,6 +22,8 @@ export interface WindowsWriteApi {
   write(token: number, bytes: Uint8Array, position: bigint): number
   flush(token: number): void
   link(token: number, parent: number, name: string): void
+  /** Requires completed replacement metadata preparation; does not perform that preparation. */
+  replace(token: number, parent: number, name: string): void
   disposition(token: number): void
   openRemoval(parent: number, name: string, type: 'file' | 'empty-directory'): number
   close(token: number): void
@@ -42,18 +45,21 @@ export function windowsWriteFailure(domain: 'NTSTATUS' | 'Win32', code: number, 
     : permission ? 'FS_PERMISSION_DENIED' : reparse ? 'FS_SANDBOX_DENIED' : missing ? 'FS_NOT_FOUND' : 'FS_IO_ERROR')
 }
 
-/** Bind only kernel32 and ntdll on the worker; HANDLEs never become Node descriptors.
+/** Bind kernel32, ntdll and the four security synthesis exports on the owning worker.
  * @param context - Existing read owner's validated native handle table.
  * @returns Relative mutation primitives; security() refuses until its separate capability is available.
  */
 export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWriteApi {
   if (process.platform !== 'win32' || process.arch !== 'x64') refuseWindowsWrite()
+  createWindowsSecurityBindings()
   const kernel = koffi.load('kernel32.dll')
   const native = koffi.load('ntdll.dll')
   const unicode = koffi.struct({ Length: 'uint16_t', MaximumLength: 'uint16_t', Buffer: 'void *' })
   const attributes = koffi.struct({ Length: 'uint32_t', RootDirectory: 'void *', ObjectName: 'void *', Attributes: 'uint32_t', SecurityDescriptor: 'void *', SecurityQualityOfService: 'void *' })
   const linkInfo = koffi.struct({ ReplaceIfExists: 'uint8_t', RootDirectory: 'void *', FileNameLength: 'uint32_t', FileName: 'uint16_t' })
-  if (koffi.sizeof(unicode) !== 16 || koffi.sizeof(attributes) !== 48 || koffi.offsetof(linkInfo, 'FileName') !== 20) {
+  const renameInfo = koffi.struct({ Flags: 'uint32_t', RootDirectory: 'void *', FileNameLength: 'uint32_t', FileName: 'uint16_t' })
+  if (koffi.sizeof(unicode) !== 16 || koffi.sizeof(attributes) !== 48 || koffi.offsetof(linkInfo, 'FileName') !== 20
+    || koffi.offsetof(renameInfo, 'FileName') !== 20) {
     throw new FsError('Unsupported mutation ABI / 不支持该句柄写入布局', 'FS_IO_ERROR')
   }
   const create = native.func('int32_t __stdcall NtCreateFile(_Out_ void **, uint32_t, void *, void *, const int64_t *, uint32_t, uint32_t, uint32_t, uint32_t, void *, uint32_t)') as (out: [object | null], access: number, attributes: Buffer, iosb: Buffer, size: null, flags: number, share: number, disposition: number, options: number, ea: null, length: number) => number
@@ -158,6 +164,25 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
       const iosb = Buffer.alloc(16)
       const handle = context.get(token)
       complete(set(handle, iosb, buffer, buffer.length, 11), handle, iosb, 'NtSetInformationFile(FileLinkInformation)')
+    },
+    replace(token, parent, raw) {
+      available()
+      const name = Buffer.from(checkWindowsComponent(raw), 'utf16le')
+      if (inspect(parent).type !== 'directory') throw new FsError('Publication parent is not a directory', 'FS_NOT_DIRECTORY')
+      const buffer = Buffer.alloc(Math.max(koffi.sizeof(renameInfo), 20 + name.length))
+      // FILE_RENAME_REPLACE_IF_EXISTS | FILE_RENAME_POSIX_SEMANTICS; never ignore readonly.
+      koffi.encode(buffer, renameInfo, { Flags: 3, RootDirectory: context.get(parent), FileNameLength: name.length, FileName: 0 })
+      name.copy(buffer, 20)
+      const iosb = Buffer.alloc(16)
+      const handle = context.get(token)
+      try {
+        complete(set(handle, iosb, buffer, buffer.length, 65), handle, iosb, 'NtSetInformationFile(FileRenameInformationEx)')
+      } catch (error) {
+        if (error instanceof FsError && error.code === 'FS_PERMISSION_DENIED') {
+          throw new FsError('File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试', 'FS_PERMISSION_DENIED', { cause: error })
+        }
+        throw error
+      }
     },
     disposition(token) {
       const handle = context.get(token); const iosb = Buffer.alloc(16); const buffer = Buffer.from([1])
