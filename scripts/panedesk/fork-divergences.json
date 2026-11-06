@@ -1,6 +1,30 @@
 {
   "divergences": [
     {
+      "id": "owner-record-operation-review",
+      "description": "Review owner records once per operation with indexed copies and isolated stall supervision",
+      "origin": "Restart input review responsiveness",
+      "reason": "Authenticate each durable owner record once during startup consistency review, index descendant copies and recheck record locations and generations. Run launch-reader review in a terminable child process supervised by host progress, print a bilingual startup banner before review and report completed work without a total-duration limit. Read the default thirty-second stall interval only from protected owner configuration. Preserve baseline JSON, digest and admission decisions. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/input-integrity-locales.ts",
+          "packages/boot/app-boot/src/input-review-thread.ts",
+          "packages/boot/app-boot/src/input-review-worker.ts",
+          "packages/boot/app-boot/tests/input-integrity-owner-view.spec.ts",
+          "packages/boot/app-boot/tests/input-integrity-review.spec.ts",
+          "packages/boot/app-boot/tests/input-review-watchdog.spec.ts",
+          "packages/boot/app-boot/package.json",
+          "packages/boot/app-boot/tsdown.config.ts",
+          "packages/boot/app-boot/README*",
+          "apps/cli/src/profile-boot.ts",
+          "apps/cli/tests/input-review-startup.spec.ts",
+          "apps/cli/tests/input-review-process.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "workspace-trust-admission-reuse",
       "description": "Separate ordinary workspace trust admission from authenticated owner reauthorization",
       "origin": "Workspace input trust lifecycle review",
