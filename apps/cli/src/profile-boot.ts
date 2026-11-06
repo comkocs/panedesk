@@ -40,6 +40,7 @@ import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@pan
 import { provideCmdline, type AppReady } from '@panedesk/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 import { windowsConsoleNotice, windowsPermissionNotice } from './windows-permission-notice.ts'
+import { showInputReviewWebRefusal } from './input-review-web-refusal.ts'
 
 /** Plugin commands may call a running host without booting an engine in their profile. */
 export { callHostSdk as requestRunningHost } from '@panedesk/dsh-host-admin'
@@ -304,9 +305,19 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     if (failures.length > 1) throw new AggregateError(failures, 'panedesk: profile cleanup failed')
   })()
   try {
-    const inputIntegrity = await ProtectedInputIntegrity.openOwnerRecordsAsync(process.cwd(), resolveDshHome(), (message) => {
-      process.stderr.write(`${message}\n`)
-    })
+    let inputIntegrity: ProtectedInputIntegrity
+    try {
+      inputIntegrity = await ProtectedInputIntegrity.openOwnerRecordsAsync(process.cwd(), resolveDshHome(), (message) => {
+        process.stderr.write(`${message}\n`)
+      })
+    } catch (error) {
+      if (options.profile === 'web') {
+        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+        await dispose()
+        await showInputReviewWebRefusal(error, options.args)
+      }
+      throw error
+    }
     const composed = await composeProfile(
       options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, inputIntegrity,
     )

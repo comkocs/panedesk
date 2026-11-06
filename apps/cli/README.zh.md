@@ -24,6 +24,8 @@
 
 在 POSIX 上，CLI 在加载 profile 或凭据前以 `--disable-sigusr1` 重执行，保留 PID、标准流、参数与环境。所有 profile 都禁用由信号触发的 Inspector 激活；受信任的显式 `--inspect` 启动仍可使用。IPC 启动器必须在 Node 命令行传入 `--disable-sigusr1`；CLI 只读 `process.execArgv`，不认 `NODE_OPTIONS`。未受保护的 IPC 调用会在加载 profile 前报错，而不是替换进程并丢失通道。不支持进程替换的运行时也必须以此标志启动，否则启动会安全拒绝。Windows 没有 SIGUSR1；此标志不能证明 Windows 进程访问隔离。
 
+初始受保护输入复核拒绝 Web 启动时，不挂载任何 profile 插件。仅回环可达、不提供 API 的页面在指定的 `--port`（缺省 3080）显示中英拒因；详细输入路径仅留在 stderr。页面返回 HTTP 503，不授予工作区访问权，并保持拒绝态，直到 SIGINT 或 SIGTERM 将其关闭并以退出码 1 结束。远程绑定或 TLS 选项不会将此诊断页面暴露到远端。其他 profile 保持非零退出行为。
+
 ## 应用参数
 
 启动器只解析自身的 flag，并将其后的所有内容交给已启动的 profile；注入该 profile 的任意应用插件都可以解析这份共享的不可变快照（[`dsh-cmdline`](../../packages/boot/cmdline/README.zh.md)）。启动器无法识别的第一个 token 标志着应用参数的开始：

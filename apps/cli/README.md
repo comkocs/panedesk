@@ -24,6 +24,8 @@ On Windows, a booted profile with sandbox policy prints its configured default m
 
 On POSIX, the CLI re-executes with `--disable-sigusr1` before loading a profile or credentials, preserving its PID, standard streams, arguments, and environment. Signal-triggered Inspector activation is disabled for every profile; explicit trusted `--inspect` startup remains available. IPC launchers must pass `--disable-sigusr1` on the Node command line; `NODE_OPTIONS` is not recognized because the CLI reads `process.execArgv` only. An unprotected IPC invocation fails before profile loading instead of replacing the process and losing its channel. A runtime without process replacement must also be launched with this flag or startup fails closed. Windows has no SIGUSR1; this flag does not establish Windows process-access isolation.
 
+If the initial protected-input review refuses a Web launch, no profile plugins mount. A loopback-only, API-free page at the requested `--port` (3080 by default) displays an English and Chinese refusal; detailed input paths remain on stderr. This page returns HTTP 503, grants no workspace access, and stays in the refused state until SIGINT or SIGTERM closes it with exit code 1. A remote bind or TLS option does not expose this diagnostic page remotely. Other profiles retain their nonzero-exit behavior.
+
 ## App arguments
 
 The launcher parses only its own flags and hands everything after them to the booted profile, where any injected app plugin may parse the shared immutable snapshot ([`dsh-cmdline`](../../packages/boot/cmdline/README.md)). The first token the launcher does not recognize starts the app's arguments:

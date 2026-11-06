@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "web-startup-input-review-refusal",
+      "description": "Show bilingual protected-input refusal before Web profile composition",
+      "origin": "Web restart input review acceptance",
+      "reason": "Keep an initial owner-record review refusal visible in an API-free loopback page without mounting profile plugins or exposing protected paths. Preserve review algorithms, protected configuration and workspace write decisions; close the refused listener on termination and exit nonzero. Pin a real built Web host restart and browser rendering against a changed persisted input copy. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/src/profile-boot.ts",
+          "apps/cli/src/input-review-web-refusal.ts",
+          "apps/cli/README*",
+          "apps/web/tests/input-review-refusal.spec.ts",
+          "apps/cli/tests/fixtures/input-review-baseline.mjs"
+        ]
+      }
+    },
+    {
       "id": "startup-agent-review-readiness",
       "description": "Keep synchronous startup agent review outside readiness-blocked HMR transactions",
       "origin": "Startup seed session rename deadlock review",
