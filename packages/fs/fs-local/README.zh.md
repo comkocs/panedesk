@@ -94,6 +94,10 @@ Chokidar 通过 OS 事件观察单个文件或目录的直接子项，不使用�
 
 在 Linux 上，规范化祖先目录通过 `O_DIRECTORY | O_NOFOLLOW` 逐段打开；后续操作经保留的目录描述符访问单个条目。读取、元数据探测、目录枚举、父目录创建、暂存与发布共用此遍历层。每次变更在预读、发布与写后探测期间保留父目录，并持有独立的暂存目录描述符。将目录替换为链接不能重定向这些操作。部署中的 Worker 以 `process.title === 'dsh-webworker'` 明确标识其虚拟文件系统，并保留路径操作。其他 Linux 进程若缺少 `O_DIRECTORY`，会在加载本后端时、执行文件操作前以 `FS_IO_ERROR` 拒绝；绝不退回路径操作，必须使用支持目录句柄的运行时。macOS 与缺省 Windows 后端仍按路径遍历祖先。实验 Windows 后端保留所有祖先且不共享删除权限，相对目录 HANDLE 打开子项，并在操作拥有的 Worker 上执行同步原生调用。最终名称仅用于身份授权，绝不据此重新打开。目标能力暴露探测、读取、写入与关闭操作，而非 I/O 路径；旧适配器内部保留既有 Linux 描述符路径与发布机制。实验写能力要求通过验收的全句柄暂存、安全继承、元数据保留、发布及清理实现；普通改名不能替代覆盖元数据保证。
 
+内部 `DirectoryCapability` 还提供单段 `walk` 与 `stage`；`OwnedStage` 拥有文件 I/O、同步、元数据准备、发布、丢弃与关闭。子目录及暂存对象保留父级所有者。兼容入口 `openDirectory` 与 `openDirectoryTarget` 的 `path` 仅保留原始展示身份，调用者通过方法执行 I/O。旧后端独立暂存明确不可用；既有提供方写事务及其描述符相对原语不变。
+
+Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径；这里尚未提供写模块。实现必须保证先安全后内容、无损偏移、先同步后发布、遵守提交点的取消及等待完成的清理；模块存在本身不代表原生验收通过。
+
 ### 写入路径
 
 每次写入先探测目标、执行可选防护（`createIfAbsent` 或 `replaceIfVersion`）、在两侧都足够小时捕获有界的 `before` diff 基础、把新内容暂存到目标旁、fsync，然后原子发布。带防护的创建使用绝不替换并发创建者的硬链接发布，并以 `FS_NOT_OBSERVED` 拒绝它。

@@ -3,7 +3,7 @@ import { constants } from 'node:fs'
 import { open, readlink } from 'node:fs/promises'
 import { toNamespacedPath } from 'node:path'
 import { FsError } from '@panedesk/dsh-fs'
-import { openDirectoryTarget } from './directory-handle.ts'
+import { retainDirectoryTarget as openDirectoryTarget } from './directory-linux.ts'
 
 /** Identity and final name obtained from the opened file, before any content read. */
 export interface ReadIdentity {

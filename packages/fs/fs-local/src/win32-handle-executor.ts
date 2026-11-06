@@ -2,6 +2,10 @@
 import { FsError } from '@panedesk/dsh-fs'
 import type { HandleExecutor, HandleReply, HandleRequest } from './win32-handle-types.ts'
 
+const filesystemCodes = ['FS_NOT_FOUND', 'FS_NOT_DIRECTORY', 'FS_NOT_TEXT', 'FS_NOT_REGULAR_FILE',
+  'FS_TOO_LARGE', 'FS_PERMISSION_DENIED', 'FS_SANDBOX_DENIED', 'FS_IO_ERROR', 'FS_STALE_VERSION',
+  'FS_NOT_OBSERVED', 'FS_AMBIGUOUS_EDIT', 'FS_EDIT_NOT_FOUND', 'FS_ABORTED'] as const
+
 /** Create an operation-owned executor; shutdown waits for all queued calls and worker exit.
  * @returns A private serialized channel with no native handles exposed.
  */
@@ -27,7 +31,7 @@ export function createHandleExecutor(): HandleExecutor {
         const { code } = message.error
         waiter.reject(code === 'ENOENT'
           ? Object.assign(new Error(message.error.message), { code })
-          : new FsError(message.error.message, code === 'FS_SANDBOX_DENIED' ? code : code === 'FS_PERMISSION_DENIED' ? code : 'FS_IO_ERROR'))
+          : new FsError(message.error.message, filesystemCodes.find(candidate => candidate === code) ?? 'FS_IO_ERROR'))
       } else if (message.reply) waiter.resolve(message.reply)
       else waiter.reject(new FsError('Invalid handle worker reply', 'FS_IO_ERROR'))
     })

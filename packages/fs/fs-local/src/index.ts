@@ -232,7 +232,7 @@ export class LocalFileSystem extends FileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
-    this.backend.assertWritable()
+    await this.backend.assertWritable()
     return this.withLock(target.targetKey, async () => {
       const root = await this.writeRoot(target, sandboxPolicy)
       const anchor = await this.backend.openTarget(target.targetKey, true, root === '/' ? { kind: 'filesystem' } : { kind: 'authorized-directory', displayPath: root }, signal)
@@ -292,7 +292,7 @@ export class LocalFileSystem extends FileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
-    this.backend.assertWritable()
+    await this.backend.assertWritable()
     return this.withLock(target.targetKey, async () => {
       const root = await this.writeRoot(target, sandboxPolicy)
       const anchor = await this.backend.openTarget(target.targetKey, false, root === '/' ? { kind: 'filesystem' } : { kind: 'authorized-directory', displayPath: root }, signal).catch((error: unknown) => {

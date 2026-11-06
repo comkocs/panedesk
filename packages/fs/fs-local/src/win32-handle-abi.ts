@@ -2,7 +2,7 @@
 import koffi from 'koffi'
 import { FsError, FsVersion } from '@panedesk/dsh-fs'
 import { checkWindowsComponent } from './directory-win32.ts'
-import type { HandleMetadata, HandleReply, HandleRequest } from './win32-handle-types.ts'
+import type { HandleMetadata, HandleReply, HandleReadRequest, WindowsNativeContext } from './win32-handle-types.ts'
 
 /** Win32 FILE_INFO_BY_HANDLE_CLASS; not Native FILE_INFORMATION_CLASS. */
 export const win32InformationClass = { basic: 0, standard: 1, attributeTag: 9, id: 18 } as const
@@ -12,7 +12,7 @@ export const nativeInformationClass = { directory: 1 } as const
 /** Construct bindings only inside a supported Windows worker.
  * @returns Synchronous dispatcher owning every successful native open.
  */
-export function createNativeHandleApi(): (request: HandleRequest) => HandleReply {
+export function createNativeHandleApi(): ((request: HandleReadRequest) => HandleReply) & { context: WindowsNativeContext } {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
     throw new FsError('Windows handle backend requires Windows x64 / 句柄后端仅支持 Windows x64', 'FS_IO_ERROR')
   }
@@ -94,7 +94,7 @@ export function createNativeHandleApi(): (request: HandleRequest) => HandleReply
       type: directory ? 'directory' : 'file', size: Number(size), attributes: flags, reparseTag: tag.readUInt32LE(4),
     }
   }
-  const own = (handle: object): HandleReply => {
+  const own = (handle: object): Extract<HandleReply, { kind: 'opened' }> => {
     const token = ++sequence
     handles.set(token, handle)
     try { return { kind: 'opened', token, metadata: inspect(handle) } } catch (error) {
@@ -113,7 +113,12 @@ export function createNativeHandleApi(): (request: HandleRequest) => HandleReply
     throw new FsError(`Unexpected pending native operation (${iosb.readUInt32LE(0)}); backend disabled`, 'FS_IO_ERROR')
   }
 
-  return (request) => {
+  const release = (token: number): void => {
+    const handle = get(token)
+    handles.delete(token)
+    if (!close(handle)) throw winFailure('CloseHandle')
+  }
+  const dispatch = (request: HandleReadRequest): HandleReply => {
     if (poisoned && request.kind !== 'close' && request.kind !== 'shutdown') throw new FsError('Native capability is unavailable', 'FS_IO_ERROR')
     switch (request.kind) {
       case 'root': {
@@ -210,4 +215,5 @@ export function createNativeHandleApi(): (request: HandleRequest) => HandleReply
       }
     }
   }
+  return Object.assign(dispatch, { context: { get, adopt: own, inspect, release } })
 }

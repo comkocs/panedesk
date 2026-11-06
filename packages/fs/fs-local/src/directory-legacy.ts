@@ -14,7 +14,9 @@ import { TextDecoder, promisify } from 'node:util'
 import { FsError, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
 import { openReadHandle } from './read-handle.ts'
-import { openDirectory, openDirectoryTarget, usesDirectoryHandles } from './directory-handle.ts'
+import { retainDirectory as openDirectory, retainDirectoryTarget as openDirectoryTarget, usesDirectoryHandles } from './directory-linux.ts'
+import type { DirectoryTarget } from './directory-linux.ts'
+import type { DirectoryCapability } from './directory-handle.ts'
 import type { ReadHandle, ReadIdentity } from './read-handle.ts'
 
 /** Optional provider policy, evaluated on the opened object before reading content. */
@@ -940,6 +942,58 @@ export function applyLiteralEdit(
 
 export { normalizeLineEndings, restoreLineEndings }
 
+function checkLegacyComponent(name: string): string {
+  if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\0')
+    || (process.platform === 'win32' && /[\\:]/u.test(name))) {
+    throw new FsError('Invalid directory component', 'FS_SANDBOX_DENIED')
+  }
+  return name
+}
+
+/** Adapt an already retained POSIX/legacy anchor without exposing its I/O name.
+ * @param anchor - Adapter-private descriptor path and its owner.
+ * @param displayPath - Business identity, never used to reopen the retained object.
+ * @returns Operations whose children keep their parent alive until close.
+ */
+export function legacyCapability(anchor: DirectoryTarget, displayPath: string): DirectoryCapability {
+  let owners = 1
+  let closed = false
+  const release = async () => { if (--owners === 0) await anchor.close() }
+  const active = () => { if (closed) throw new FsError('Directory capability is closed', 'FS_IO_ERROR') }
+  return {
+    async walk(raw, options, signal) {
+      active()
+      throwIfAborted(signal, 'walk')
+      const name = checkLegacyComponent(raw)
+      const child = join(anchor.path, name)
+      if (options.create) {
+        try { await mkdir(child) } catch (error) { if (!isEEXIST(error)) throw error }
+      }
+      const handle = usesDirectoryHandles
+        ? await open(child, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW) : undefined
+      if (!handle && !(await stat(child)).isDirectory()) throw new FsError('Not a directory', 'FS_NOT_DIRECTORY')
+      owners++
+      return legacyCapability({ path: handle ? `/proc/self/fd/${handle.fd}/.` : child,
+        async close() { try { await handle?.close() } finally { await release() } } }, join(displayPath, name))
+    },
+    stage(raw, _policy, signal) {
+      active()
+      throwIfAborted(signal, 'stage')
+      checkLegacyComponent(raw)
+      return Promise.reject(new FsError('Independent legacy staging is not ready / 独立旧后端暂存能力尚未就绪', 'FS_IO_ERROR'))
+    },
+    probe: () => { active(); return probe(anchor.path, true) },
+    openRead: (signal) => { active(); return openReadHandle(anchor.path, signal) },
+    readForEdit: (name, signal, authorize) => { active(); return readForEdit(anchor.path, name, signal, authorize, true) },
+    readTextForDiff: (limit, signal, authorize) => { active(); return readTextForDiff(anchor.path, limit, signal, authorize, true) },
+    write: (content, mode, signal, internals, createIfAbsent) => {
+      active(); return writeFileAtomic(anchor.path, content, mode, signal, internals, createIfAbsent, true)
+    },
+    remove: () => { active(); return rm(anchor.path) },
+    async close() { if (!closed) { closed = true; await release() } },
+  }
+}
+
 /** Preserve the existing POSIX descriptor and legacy path behavior behind capabilities.
  * @returns A backend whose retained I/O names never leave this adapter.
  */
@@ -950,16 +1004,7 @@ export function legacyBackend(): import('./directory-handle.ts').DirectoryBacken
     assertWritable() {},
     async openTarget(path, createParents, root) {
       const anchor = await openDirectoryTarget(path, createParents, root.kind === 'filesystem' ? '/' : root.displayPath)
-      return {
-        probe: () => probe(anchor.path, true),
-        openRead: signal => openReadHandle(anchor.path, signal),
-        readForEdit: (displayPath, signal, authorize) => readForEdit(anchor.path, displayPath, signal, authorize, true),
-        readTextForDiff: (limit, signal, authorize) => readTextForDiff(anchor.path, limit, signal, authorize, true),
-        write: (content, mode, signal, internals, createIfAbsent) =>
-          writeFileAtomic(anchor.path, content, mode, signal, internals, createIfAbsent, true),
-        remove: () => rm(anchor.path),
-        close: () => anchor.close(),
-      }
+      return legacyCapability(anchor, path)
     },
   }
 }

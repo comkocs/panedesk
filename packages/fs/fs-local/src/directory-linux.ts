@@ -4,6 +4,37 @@ import { lstat, mkdir, open } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative } from 'node:path'
 import { FsError } from '@panedesk/dsh-fs'
+import type { DirectoryCapability } from './directory-handle.ts'
+
+/** Compatibility name is display-only; operations use the enclosed retained capability. */
+export interface DisplayDirectoryTarget extends DirectoryCapability {
+  path: string
+}
+
+/** Retain a directory without exporting the descriptor-derived I/O name.
+ * @param path - Canonical business/display identity.
+ * @param create - Whether missing descendants may be created.
+ * @param root - Existing authorized root; omission permits the filesystem root.
+ * @returns Owned capability with a display-only compatibility name.
+ */
+export async function openDirectory(path: string, create = false, root = '/'): Promise<DisplayDirectoryTarget> {
+  const { legacyCapability } = await import('./directory-legacy.ts')
+  const anchor = await retainDirectory(path, create, root)
+  return { path, ...legacyCapability({ path: usesDirectoryHandles ? `${anchor.path}/.` : anchor.path,
+    close: () => anchor.close() }, path) }
+}
+
+/** Retain a target's parent without giving callers an I/O pathname.
+ * @param path - Canonical business/display identity.
+ * @param createParents - Whether missing parents may be created.
+ * @param root - Existing authorized root; omission permits the filesystem root.
+ * @returns Owned target operations and its unchanged display name.
+ */
+export async function openDirectoryTarget(path: string, createParents = false, root = '/'): Promise<DisplayDirectoryTarget> {
+  const { legacyBackend } = await import('./directory-legacy.ts')
+  return { path, ...await legacyBackend().openTarget(path, createParents,
+    root === '/' ? { kind: 'filesystem' } : { kind: 'authorized-directory', displayPath: root }) }
+}
 
 /** An operation-owned pathname relative to a retained directory descriptor. */
 export interface DirectoryTarget {
@@ -29,7 +60,7 @@ const directoryFlags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_
  * @param root - Existing authorized directory; omission allows the whole filesystem.
  * @returns Owned descriptor path on Linux hosts; the identified Worker and other platforms retain paths.
  */
-export async function openDirectory(path: string, create = false, root = '/'): Promise<DirectoryTarget> {
+export async function retainDirectory(path: string, create = false, root = '/'): Promise<DirectoryTarget> {
   if (!usesDirectoryHandles) return { path, close: async () => {} }
   const suffix = relative(root, path)
   if (!isAbsolute(path) || !isAbsolute(root) || path.split('/').includes('..')
@@ -85,12 +116,12 @@ export async function openDirectory(path: string, create = false, root = '/'): P
  * @param root - Existing authorized root; omission allows the whole filesystem.
  * @returns Owned single-entry descriptor-relative target, or the existing non-Linux backend.
  */
-export async function openDirectoryTarget(path: string, createParents = false, root = '/'): Promise<DirectoryTarget> {
+export async function retainDirectoryTarget(path: string, createParents = false, root = '/'): Promise<DirectoryTarget> {
   if (!usesDirectoryHandles) return { path, close: async () => {} }
   if (path === root) {
-    const directory = await openDirectory(root)
+    const directory = await retainDirectory(root)
     return { path: `${directory.path}/.`, close: () => directory.close() }
   }
-  const parent = await openDirectory(dirname(path), createParents, root)
+  const parent = await retainDirectory(dirname(path), createParents, root)
   return { path: `${parent.path}/${basename(path)}`, close: () => parent.close() }
 }

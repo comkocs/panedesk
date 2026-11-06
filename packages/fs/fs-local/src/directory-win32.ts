@@ -6,6 +6,8 @@ import type { LocalDirEntry, LocalTarget, PathInfo } from './fsio.ts'
 import type { ReadHandle } from './read-handle.ts'
 import type { HandleExecutor, HandleMetadata, HandleReply } from './win32-handle-types.ts'
 import { createHandleExecutor } from './win32-handle-executor.ts'
+import { loadWindowsWriteModule } from './win32-write-loader.ts'
+import type { WindowsWriteModule } from './win32-handle-types.ts'
 
 /** Reject names whose Win32 interpretation can escape a single relative component.
  * @param raw - A user-supplied or enumerated component, without normalization.
@@ -104,7 +106,15 @@ export class WindowsDirectoryBackend implements DirectoryBackend {
   readonly choice = 'windows-handles'
   constructor(private readonly executor: () => HandleExecutor = createHandleExecutor) {}
 
-  assertWritable(): never { return refuseWindowsWrite() }
+  private writeModule: Promise<WindowsWriteModule | null> | undefined
+
+  private loadWrites(): Promise<WindowsWriteModule | null> {
+    return this.writeModule ??= loadWindowsWriteModule()
+  }
+
+  async assertWritable(): Promise<void> {
+    if (!await this.loadWrites()) refuseWindowsWrite()
+  }
 
   async resolve(cwd: string, path: string, signal?: AbortSignal): Promise<LocalTarget> {
     const parsed = pathParts(cwd, path)
@@ -130,7 +140,7 @@ export class WindowsDirectoryBackend implements DirectoryBackend {
   }
 
   async openTarget(path: string, createParents: boolean, root: RootRequest, signal?: AbortSignal): Promise<DirectoryCapability> {
-    if (createParents) this.assertWritable()
+    if (createParents) await this.assertWritable()
     const parsed = pathParts('', path)
     const authorized = root.kind === 'filesystem' ? parsed.root : pathParts('', root.displayPath).path
     const suffix = win32.relative(authorized, parsed.path)
@@ -145,56 +155,111 @@ export class WindowsDirectoryBackend implements DirectoryBackend {
       let parent = opened(await executor.execute({ kind: 'root', path: parsed.root }))
       if (safeMetadata(parent.metadata).type !== 'directory') throw new FsError('Volume root is not a directory', 'FS_IO_ERROR')
       const self = root.kind === 'authorized-directory' && suffix === ''
-      for (const name of self ? parsed.names : parsed.names.slice(0, -1)) {
+      const authorizedDepth = pathParts('', authorized).names.length
+      const ancestors = self ? parsed.names : parsed.names.slice(0, -1)
+      for (const [depth, name] of ancestors.entries()) {
         aborted(signal)
-        parent = opened(await executor.execute({ kind: 'open', parent: parent.token, name, directory: true, content: false }))
+        parent = opened(await executor.execute(createParents && depth >= authorizedDepth
+          ? { kind: 'create-directory', parent: parent.token, name }
+          : { kind: 'open', parent: parent.token, name, directory: true, content: false }))
         if (safeMetadata(parent.metadata).type !== 'directory') throw new FsError('Parent is not a directory', 'FS_NOT_DIRECTORY')
       }
-      const parentToken = parent.token
-      const name = self ? undefined : parsed.names.at(-1)
-      const get = async (content: boolean) => {
-        if (closed) throw new FsError('Directory capability is closed', 'FS_IO_ERROR')
-        aborted(signal)
-        const result = name === undefined ? parent : opened(await executor.execute({ kind: 'open', parent: parentToken, name, directory: false, content }))
-        safeMetadata(result.metadata)
-        return result
-      }
-      return {
-        async probe() {
-          try {
-            const result = await get(false)
-            try { return result.metadata } finally { if (name !== undefined) await executor.execute({ kind: 'close', token: result.token }) }
-          } catch (error) {
-            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null
-            throw error
-          }
-        },
-        async openRead(readSignal) {
-          aborted(readSignal)
-          const result = await get(true)
-          let readClosed: Promise<void> | undefined
-          return {
-            identity: result.metadata.identity,
-            async read(buffer, offset, length, position) {
-              aborted(readSignal)
-              if (readClosed || !Number.isSafeInteger(position) || position < 0 || !Number.isSafeInteger(length)
+      const loadWrites = () => this.loadWrites()
+      let owners = 0
+      const capability = (parent: Extract<HandleReply, { kind: 'opened' }>, name?: string): DirectoryCapability => {
+        owners++
+        let released = false
+        const parentToken = parent.token
+        const get = async (content: boolean, directory = false) => {
+          if (closed || released) throw new FsError('Directory capability is closed', 'FS_IO_ERROR')
+          aborted(signal)
+          const result = name === undefined ? parent : opened(await executor.execute({ kind: 'open', parent: parentToken, name, directory, content }))
+          safeMetadata(result.metadata)
+          return result
+        }
+        let extension: Promise<import('./win32-handle-types.ts').WindowsWriteExtension> | undefined
+        const writes = () => {
+          if (closed || released) throw new FsError('Directory capability is closed', 'FS_IO_ERROR')
+          return extension ??= loadWrites().then((module) => {
+            if (!module) return refuseWindowsWrite()
+            return module.createWindowsWriteExtension({ parent: parentToken, entry: name === undefined ? { kind: 'self' } : { kind: 'child', name },
+              execute: request => executor.execute(request), openRead: signal => target.openRead(signal), probe: () => target.probe() })
+          })
+        }
+        const target: DirectoryCapability = {
+          async walk(raw, options, walkSignal) {
+            const childName = checkWindowsComponent(raw)
+            aborted(walkSignal)
+            if (options.create && !await loadWrites()) refuseWindowsWrite()
+            const directory = await get(false, true)
+            if (directory.metadata.type !== 'directory') throw new FsError('Not a directory', 'FS_NOT_DIRECTORY')
+            const child = opened(await executor.execute(options.create
+              ? { kind: 'create-directory', parent: directory.token, name: childName }
+              : { kind: 'open', parent: directory.token, name: childName, directory: true, content: false }))
+            if (safeMetadata(child.metadata).type !== 'directory') throw new FsError('Not a directory', 'FS_NOT_DIRECTORY')
+            return capability(child)
+          },
+          async stage(raw, policy, stageSignal) {
+            const childName = checkWindowsComponent(raw)
+            aborted(stageSignal)
+            const extension = await writes()
+            const directory = await get(false, true)
+            if (directory.metadata.type !== 'directory') throw new FsError('Not a directory', 'FS_NOT_DIRECTORY')
+            const stage = await extension.stage(directory.token, childName, policy, stageSignal)
+            owners++
+            let stageClosed: Promise<void> | undefined
+            return { ...stage, file: stage.file, prepareMetadata: () => stage.prepareMetadata(),
+              publish: (...args) => stage.publish(...args), discard: () => stage.discard(),
+              close: () => stageClosed ??= (async () => {
+                try { await stage.close() } finally { if (--owners === 0) await close() }
+              })() }
+          },
+          async probe() {
+            try {
+              const result = await get(false)
+              try { return result.metadata } finally { if (name !== undefined) await executor.execute({ kind: 'close', token: result.token }) }
+            } catch (error) {
+              if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null
+              throw error
+            }
+          },
+          async openRead(readSignal) {
+            aborted(readSignal)
+            const result = await get(true)
+            owners++
+            let readClosed: Promise<void> | undefined
+            return {
+              identity: result.metadata.identity,
+              async read(buffer, offset, length, position) {
+                aborted(readSignal)
+                if (readClosed || !Number.isSafeInteger(position) || position < 0 || !Number.isSafeInteger(length)
                 || length < 0 || offset < 0 || offset + length > buffer.length) throw new FsError('Invalid handle read range', 'FS_IO_ERROR')
-              const reply = await executor.execute({ kind: 'read', token: result.token, position: BigInt(position), length })
-              if (reply.kind !== 'bytes' || reply.bytes.length > length) throw new FsError('Invalid native read result', 'FS_IO_ERROR')
-              buffer.set(reply.bytes, offset)
-              return reply.bytes.length
-            },
-            close() {
-              return readClosed ??= (async () => { if (name !== undefined) await executor.execute({ kind: 'close', token: result.token }) })()
-            },
-          }
-        },
-        readForEdit: () => Promise.resolve().then(refuseWindowsWrite),
-        readTextForDiff: () => Promise.resolve().then(refuseWindowsWrite),
-        write: () => Promise.resolve().then(refuseWindowsWrite),
-        remove: () => Promise.resolve().then(refuseWindowsWrite),
-        close,
+                const reply = await executor.execute({ kind: 'read', token: result.token, position: BigInt(position), length })
+                if (reply.kind !== 'bytes' || reply.bytes.length > length) throw new FsError('Invalid native read result', 'FS_IO_ERROR')
+                buffer.set(reply.bytes, offset)
+                return reply.bytes.length
+              },
+              close() {
+                return readClosed ??= (async () => {
+                  try { if (name !== undefined) await executor.execute({ kind: 'close', token: result.token }) }
+                  finally { if (--owners === 0) await close() }
+                })()
+              },
+            }
+          },
+          readForEdit: async (...args) => (await writes()).readForEdit(...args),
+          readTextForDiff: async (...args) => (await writes()).readTextForDiff(...args),
+          write: async (...args) => (await writes()).write(...args),
+          remove: async () => (await writes()).remove(),
+          async close() {
+            if (released) return
+            released = true
+            if (--owners === 0) await close()
+          },
+        }
+        return target
       }
+      return capability(parent, self ? undefined : parsed.names.at(-1))
     } catch (error) { await close(); throw error }
   }
 
