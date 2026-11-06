@@ -1,7 +1,8 @@
 /** Product-home authorization records; one atomic file per canonical workspace avoids lost sibling updates. */
-import { createHash } from 'node:crypto'
-import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync } from 'node:fs'
+import { rm, writeFile } from 'node:fs/promises'
+import { setTimeout as wait } from 'node:timers/promises'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { z } from 'zod'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
@@ -23,16 +24,71 @@ export type WorkspaceWriteRecord = z.infer<typeof recordSchema>
 /** Home-scoped durable grants shared by every profile. Invalid or unreadable records fail closed. */
 export class WorkspaceWriteAccess {
   private readonly directory: string
+  private readonly epochs = new Map<string, AbortController>()
+  private readonly issued = new Set<string>()
+
+  /** Capture the current process-local generation before asynchronous work.
+   * @param workspace Canonical workspace or an alias.
+   * @returns A guard that rejects after an owner transition.
+   */
+  checkpoint(workspace: string): () => void {
+    const root = canonicalPath(workspace)
+    let epoch = this.epochs.get(root)
+    if (epoch === undefined) { epoch = new AbortController(); this.epochs.set(root, epoch) }
+    const { signal } = epoch
+    return () => { signal.throwIfAborted() }
+  }
+
+  private advance(workspace: string): void {
+    const root = canonicalPath(workspace)
+    this.epochs.get(root)?.abort(new Error('Workspace write generation was revoked or replaced'))
+    this.epochs.set(root, new AbortController())
+    this.invalidateInputs(root)
+  }
+
+  /** Invalidate earlier work before capturing a new owner grant.
+   * @param workspace Existing workspace selected by the owner.
+   * @returns The new generation's submission guard.
+   */
+  beginGrant(workspace: string): () => void {
+    this.advance(workspace)
+    if (this.issued.has(canonicalPath(workspace))) {
+      throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing')
+    }
+    return this.checkpoint(workspace)
+  }
+
+  /** Record a capability that can outlive its argv publisher.
+   * @param workspace Workspace whose executions cannot yet be proven drained.
+   */
+  issuedCapability(workspace: string): void {
+    this.issued.add(canonicalPath(workspace))
+  }
+
+  /** Roll back only the generation that committed the failed approval.
+   * @param workspace Workspace being rolled back.
+   * @param current Guard captured before authorization.
+   * @param revokeAcl Native revocation for the same generation.
+   */
+  async rollback(workspace: string, current: () => void, revokeAcl: (workspace: string) => void): Promise<void> {
+    try { current() } catch (error) {
+      if (!(error instanceof Error)) throw error
+      return
+    }
+    await this.revokeCurrent(workspace, revokeAcl, current)
+  }
 
   /**
    * @param home - Resolved product home, never the current workspace.
    * @param protectedPaths - Live host inputs; omitted for record-only inventory and revocation consumers.
    * @param profileDirectory - Current protected profile, used for actionable workspace diagnostics.
    * @param ownerDirectories - Live private-storage inventory; omission is for record-only consumers.
+   * @param invalidateInputs - Revoke pending profile captures and reviews before an owner transition.
    */
   constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [],
     private readonly profileDirectory: () => string | undefined = () => undefined,
-    private readonly ownerDirectories: () => readonly string[] = () => []) {
+    private readonly ownerDirectories: () => readonly string[] = () => [],
+    private readonly invalidateInputs: (workspace: string) => void = () => {}) {
     this.directory = join(home, 'windows-workspace-write')
   }
 
@@ -168,15 +224,19 @@ export class WorkspaceWriteAccess {
    */
   async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T> {
     const canonical = this.canonical(workspace)
+    const current = this.checkpoint(canonical)
     assertWindowsStateTrusted(this.directory, canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.identityPath(canonical)
     return withFileLock(path, async () => {
+      current()
       signal?.throwIfAborted()
       assertWindowsStateTrusted(path, canonical)
       if (!this.isAuthorized(canonical)) throw new Error('Workspace write authorization is absent or revoked')
       this.assertUnprotected(canonical)
-      return operation()
+      const result = await operation()
+      current()
+      return result
     }, signal === undefined ? {} : { signal })
   }
 
@@ -229,9 +289,12 @@ export class WorkspaceWriteAccess {
    * @param workspace - Existing absolute workspace directory.
    * @param source - Human confirmation or settings preauthorization.
    * @param signal - Cancellation before consent commits; prior consent is preserved on withdrawal.
+   * @param current - Guard acquired before external capture; direct consent reads the generation under the record lock.
    * @returns The atomically committed authorization.
    */
-  async authorize(workspace: string, source: WorkspaceWriteRecord['source'], signal?: AbortSignal): Promise<WorkspaceWriteRecord> {
+  async authorize(workspace: string, source: WorkspaceWriteRecord['source'], signal?: AbortSignal,
+    current?: () => void): Promise<WorkspaceWriteRecord> {
+    current?.()
     const canonical = this.canonical(workspace)
     assertWindowsStateTrusted(this.directory, canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
@@ -241,14 +304,29 @@ export class WorkspaceWriteAccess {
       this.assertUnprotected(canonical)
       assertWindowsStateTrusted(path, canonical)
       if (this.revocationPending(path)) throw new WorkspaceWriteRuleError('Workspace revocation is incomplete; retry revocation before authorizing')
-      const previous = this.find(canonical)
-      const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }
-      await writeFileAtomic(path, `${JSON.stringify(record)}\n`, { mode: 0o600 })
-      if (signal?.aborted) {
-        if (previous === undefined) await rm(path, { force: true })
-        else await writeFileAtomic(path, `${JSON.stringify(previous)}\n`, { mode: 0o600 })
-        signal.throwIfAborted()
+      if (current === undefined && this.issued.has(canonical)) {
+        throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing')
       }
+      // Direct consent carries no earlier capture; queued work keeps its supplied guard.
+      const commitCurrent = current ?? this.checkpoint(canonical)
+      commitCurrent()
+      const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }
+      const temporary = `${path}.${randomUUID()}.tmp`
+      try {
+        await writeFile(temporary, `${JSON.stringify(record)}\n`, { mode: 0o600, flag: 'wx' })
+        let delay = 20
+        for (let retries = 0;; retries++) {
+          commitCurrent()
+          signal?.throwIfAborted()
+          try { renameSync(temporary, path); break } catch (error) {
+            if (process.platform !== 'win32' || !(error instanceof Error) || !('code' in error)
+              || !['EACCES', 'EBUSY', 'EPERM'].includes(String(error.code)) || retries >= 8) throw error
+          }
+          await wait(delay)
+          delay = Math.min(delay * 2, 200)
+        }
+      } finally { await rm(temporary, { force: true }) }
+      commitCurrent()
       return record
     }, signal === undefined ? {} : { signal })
   }
@@ -261,12 +339,22 @@ export class WorkspaceWriteAccess {
    * @returns After the native capability (if the directory exists), record, and marker are removed.
    */
   async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void> {
+    await this.revokeCurrent(workspace, revokeAcl)
+  }
+
+  private async revokeCurrent(workspace: string, revokeAcl: (workspace: string) => void, current?: () => void): Promise<void> {
     const recorded = this.list().some(record => record.workspace === workspace) || this.pendingRevocations().includes(workspace)
     const canonical = recorded ? workspace : this.canonical(workspace)
     this.revocationTargetExists(canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.identityPath(canonical)
     await withFileLock(path, async () => {
+      // A rollback may have waited behind a newer owner grant.
+      try { current?.() } catch (error) {
+        if (!(error instanceof Error)) throw error
+        return
+      }
+      this.advance(canonical)
       await writeFileAtomic(`${path}.revoking`, `${JSON.stringify({ workspace: canonical })}\n`, { mode: 0o600 })
       if (this.revocationTargetExists(canonical)) revokeAcl(canonical)
       await rm(path, { force: true })

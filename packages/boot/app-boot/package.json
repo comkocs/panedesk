@@ -31,6 +31,7 @@
   "files": [
     "lib/index.js",
     "lib/worker/profile-resolution-bootstrap.js",
+    "lib/worker/input-review.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",

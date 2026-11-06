@@ -1,5 +1,5 @@
 /** Launcher-owned profile locations and composition inputs. */
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { ProtectedInputIntegrity } from './input-integrity.ts'
 import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
@@ -9,25 +9,49 @@ import type { ProfileContext } from './profile-context-types.ts'
 export type { ProfileContext, ProfilePnpmInvocation } from './profile-context-types.ts'
 
 /**
- * Establish host input trust before the caller publishes workspace write access.
+ * Ensure existing host input trust, capturing only the first grant before write access is published.
  * @param context Launcher-owned profile and record inventory.
  * @param workspace Actual sandbox write root, not necessarily the launch directory.
  * @param paths Current protected input spellings, including Loader links.
- * @returns Completion of durable capture; rejection must prevent publication of write access.
+ * @param signal Cancels this request without cancelling other waiters; omission waits until admission settles.
+ * @returns Completion of durable capture or review; rejection must prevent publication of write access.
  */
-export function grantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): Promise<void> {
-  const root = resolve(workspace)
+export function grantProtectedWorkspace(
+  context: ProfileContext, workspace: string, paths: readonly string[], signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted()
+  return workspaceReader(context, workspace, paths).ensureWrite([...context.protectedInputPaths?.() ?? [], ...paths], signal)
+}
+
+/**
+ * Replace a baseline only after the calling host has authenticated explicit owner consent.
+ * @param context Launcher-owned profile and reader inventory.
+ * @param workspace Owner-selected writable directory.
+ * @param paths Current native write exclusions.
+ * @returns Capture completion; callers must not publish write access before it succeeds.
+ */
+export function regrantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): Promise<void> {
+  return workspaceReader(context, workspace, paths).grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
+}
+
+function workspaceReader(context: ProfileContext, workspace: string, paths: readonly string[]): ProtectedInputIntegrity {
+  const root = ProtectedInputIntegrity.workspacePath(workspace)
+  const key = ProtectedInputIntegrity.workspaceKey(root, context.home)
+  const slots = context.workspaceInputReaders ??= new Map()
   const records = context.inputIntegrities ??= new Map()
-  let integrity = records.get(root)
+  let integrity = slots.get(key)
   if (integrity === undefined) {
-    integrity = context.inputIntegrity?.ownsWorkspaceRecord(root, context.home) === true
-      ? context.inputIntegrity : new ProtectedInputIntegrity(root, context.home)
-    records.set(root, integrity)
+    const existing = records.get(root)
+    integrity = existing?.ownsWorkspaceRecord(root, context.home) === true ? existing
+      : context.inputIntegrity?.ownsWorkspaceRecord(root, context.home) === true ? context.inputIntegrity
+        : new ProtectedInputIntegrity(root, context.home)
+    slots.set(key, integrity)
   }
+  records.set(root, integrity)
   for (const path of [context.dir, join(context.dir, 'package.json'), context.patchPath, join(context.home, PROFILE_PATCH_FILENAME),
     ...context.bundleInputPaths ?? [], ...context.overlayPaths ?? [],
     ...context.protectedInputPaths?.() ?? [], ...paths]) integrity.observe(path)
-  return integrity.grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
+  return integrity
 }
 
 /**

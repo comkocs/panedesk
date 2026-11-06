@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { grantProtectedWorkspace, ProtectedInputReviewError } from '@panedesk/dsh-app-boot'
+import { regrantProtectedWorkspace, ProtectedInputReviewError } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -172,7 +172,7 @@ export class ApprovalService extends Service {
       let running = false
       let requested = false
       let ownerReady = false
-      const review = async (): Promise<boolean> => {
+      const review = async (allowConfirmation = true): Promise<boolean> => {
         const agents = scope.agents.roots()
         if (agents.length === 0) return true
         const records = new Set([...(profile.inputIntegrities?.values() ?? []),
@@ -188,7 +188,7 @@ export class ApprovalService extends Service {
                 return child === '' || (!isAbsolute(child) && child !== '..' && !child.startsWith(`..${sep}`))
               }) ?? agents[0]
               if (agent === undefined) return false
-              if (!ownerReady && this.effectivePolicy(agent.session) !== 'never') return false
+              if ((!allowConfirmation || !ownerReady) && this.effectivePolicy(agent.session) !== 'never') return false
               const allowed = await this.requestProtectedInput(agent, { type: 'protected-input', ...change }) === 'allowed-once'
               if (allowed) approved.add(change.path)
               return active() && allowed
@@ -208,14 +208,18 @@ export class ApprovalService extends Service {
       }
       let reviews = Promise.resolve(true)
       const runReview = (): Promise<boolean> => {
+        const startup = profile.inputReviewReady === false
         const operation = reviews.then(async () => {
           if (lifetime.signal.aborted) return false
+          // Reloads cannot apply before readiness, and may hold their queue while awaiting Loader settlement.
+          if (startup) return review(false)
           if (profile.runInputReview === undefined) return review()
           let accepted = false
           await profile.runInputReview(async () => { accepted = await review() })
           return accepted
         })
         reviews = operation.catch(() => false)
+        if (startup) profile.startupInputReview = reviews
         return operation
       }
       const schedule = (): void => {
@@ -312,7 +316,7 @@ export class ApprovalService extends Service {
    */
   async request(
     req: ApprovalRequest,
-    authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> },
+    authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> },
   ): Promise<ApprovalOutcome> {
     const session = req.agent.session
     if (!hasOpenTurn(session)) {
@@ -351,8 +355,12 @@ export class ApprovalService extends Service {
         if (refusal !== undefined) decision = this.refusal(refusal)
         else {
           authorizing = true
+          authorization?.begin?.()
           const profile = this.ctx.get('profileContext')
-          if (profile !== undefined) await grantProtectedWorkspace(profile, req.purpose.workspace, [])
+          const sandbox = this.ctx.get('sandbox')
+          if (profile !== undefined && sandbox?.supportsWorkspaceWriteAccess === true
+            && sandbox.hasWorkspaceWriteGrant?.(req.purpose.workspace) === true) throw new ProtectedInputReviewError()
+          if (profile !== undefined) await regrantProtectedWorkspace(profile, req.purpose.workspace, [])
           req.signal?.throwIfAborted()
           timeout?.signal.throwIfAborted()
           await authorization?.commit()

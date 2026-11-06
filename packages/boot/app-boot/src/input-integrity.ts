@@ -2,7 +2,9 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { userInfo } from 'node:os'
 import { setImmediate } from 'node:timers/promises'
+import { runInputReviewThread, type InputReviewProgress } from './input-review-thread.ts'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 import { authoritativeHomeTrees, isHomeDiagnosticFile, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 import { en, zh } from './input-integrity-locales.ts'
@@ -37,6 +39,19 @@ export interface ProtectedInputOwner {
   confirm(change: ProtectedInputChange): Promise<boolean>
   /** Report a blocked candidate even when no interactive owner is available. */
   blocked(change: ProtectedInputChange): void
+}
+
+/** Structured-cloned reader data exchanged only with the host-owned review isolate. */
+export interface InputReviewState {
+  workspace: string
+  home?: string
+  revision?: string
+  stamp?: string
+  approved: [string, InputSnapshot][]
+  observed: string[]
+  granted: boolean
+  owners: InputReviewState[]
+  verifiedPass?: { pass: CapturePass; roots: ReadonlySet<string> }
 }
 
 interface InputSnapshot {
@@ -188,12 +203,13 @@ function finishSync<T>(operation: Generator<void, T>): T {
   return next.value
 }
 
-async function finishAsync<T>(operation: Generator<void, T>): Promise<T> {
+async function finishAsync<T>(operation: Generator<void, T>, progress?: () => void): Promise<T> {
   await setImmediate()
   let deadline = performance.now() + 8
   let next = operation.next()
   while (!next.done) {
     if (performance.now() >= deadline) {
+      progress?.()
       await setImmediate()
       deadline = performance.now() + 8
     }
@@ -445,14 +461,48 @@ export class ProtectedInputIntegrity {
   private readonly observed = new Set<string>()
   private readonly root: string
   private readonly workspace: string
-  private readonly record: string | undefined
-  private readonly home: string | undefined
+  private record: string | undefined
+  private home: string | undefined
+  private workspaceIdentity: string
   private granted: boolean
   private revision: string | undefined
   private verifying = false
   private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
+  private admission: { promise: Promise<void>; enrolling: boolean; roots: number } | undefined
+  private rootsVersion = 0
+  private generation = 0
+  private reviewCommit: ((prepared: object) => Promise<string | undefined>) | undefined
+
+  /** Revoke pending captures and reviews without changing the durable record format.
+   * @param workspace Canonical workspace whose owner authority changed.
+   */
+  invalidateWorkspace(workspace: string): void {
+    for (const record of this.ownerRecords) record.invalidateWorkspace(workspace)
+    if (canonicalLocation(workspace) !== this.root) return
+    this.generation++
+    this.admission = undefined
+    this.grant = undefined
+    this.verifiedPass = undefined
+  }
+
+  private checkpoint(): () => void {
+    const generation = this.generation
+    const roots = this.rootsVersion
+    return () => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+      if (roots !== this.rootsVersion) throw new Error('Protected host input registered during capture')
+    }
+  }
+
+  /** Delegate isolated baseline commits to the supervising host, which owns revocation.
+   * @param commit Host commit request; the isolate never renames a trusted baseline itself.
+   */
+  setReviewCommit(commit: (prepared: object) => Promise<string | undefined>): void {
+    this.reviewCommit = commit
+    for (const record of this.ownerRecords) record.setReviewCommit(commit)
+  }
 
   private stateTrusted(): boolean {
     if (this.record === undefined || process.platform !== 'win32') return true
@@ -465,6 +515,29 @@ export class ProtectedInputIntegrity {
     return true
   }
   private readonly ownerRecords: ProtectedInputIntegrity[] = []
+  private recordView = false
+  private loadedStamp: string | undefined
+  private isolatedReview = false
+  private reviewProgress: (message: string) => void = () => {}
+  private reviewUnit: (() => void) | undefined
+
+  /** Install worker-local completed-work reporting; no timer heartbeat counts as progress.
+   * @param progress Called only after generator work advances.
+   */
+  setReviewProgress(progress: () => void): void {
+    this.reviewUnit = progress
+    for (const record of this.ownerRecords) record.setReviewProgress(progress)
+  }
+  private readonly fileIndex = new Map<string, Map<string, { content?: string; blob?: string }>>()
+
+  private indexCopies(): void {
+    this.fileIndex.clear()
+    for (const [root, value] of this.approved) {
+      const index = new Map<string, { content?: string; blob?: string }>()
+      for (const file of value.files ?? []) if (!index.has(file.path)) index.set(file.path, file)
+      this.fileIndex.set(root, index)
+    }
+  }
 
   /**
    * Open every granted workspace for an owner before parsing any launch input.
@@ -472,7 +545,7 @@ export class ProtectedInputIntegrity {
    * @param home Owner state root containing the durable workspace records.
    * @returns A reader that rejects inconsistent overlapping records instead of reading current files.
    */
-  static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity {
+  static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity {
     const reader = new ProtectedInputIntegrity(workspace, home)
     if (!reader.stateTrusted()) return reader
     const directory = join(resolve(home), 'windows-workspace-write', 'protected-inputs')
@@ -484,32 +557,149 @@ export class ProtectedInputIntegrity {
     for (const name of names.sort()) {
       if (!name.endsWith('.json')) continue
       const filename = join(directory, name)
-      const parsed: unknown = JSON.parse(readFileSync(filename, 'utf8'))
+      if (filename === reader.record) continue
+      const before = treeStamp(filename)
+      const text = readFileSync(filename, 'utf8')
+      const parsed: unknown = JSON.parse(text)
       if (typeof parsed !== 'object' || parsed === null || !('workspace' in parsed)
         || typeof parsed.workspace !== 'string' || !isAbsolute(parsed.workspace)) {
         throw new Error('Invalid protected workspace record')
       }
-      const record = new ProtectedInputIntegrity(parsed.workspace, home)
-      if (record.record !== filename || !record.granted) throw new Error('Invalid protected workspace record location')
+      const record = new ProtectedInputIntegrity(parsed.workspace)
+      record.home = canonicalLocation(home)
+      record.workspaceIdentity = ProtectedInputIntegrity.workspaceKey(parsed.workspace, home)
+      record.record = filename
+      const expected = join(directory, `${createHash('sha256').update(record.root).digest('hex')}.json`)
+      if (expected !== filename) throw new Error('Invalid protected workspace record location')
+      record.loadRecord(text)
+      record.loadedStamp = before
+      if (!record.granted) throw new Error('Invalid protected workspace record location')
       if (record.root !== reader.root) reader.ownerRecords.push(record)
     }
     const records = [reader, ...reader.ownerRecords]
-    const paths = new Set(records.flatMap(record => [...record.approved].flatMap(([path, value]) => [
-      ...value.kind === 'file' || value.content !== null ? [path] : [],
-      ...value.files?.map(file => file.path) ?? [],
-    ])))
-    for (const path of paths) {
-      let approved: Buffer | undefined
-      let found = false
-      for (const record of records.filter(record => record.covers(path))) {
-        const bytes = record.readTrusted(path)
-        if (found && (approved === undefined ? bytes !== undefined : bytes === undefined || !approved.equals(bytes))) {
-          throw new Error(`Conflicting protected host input records: ${path}`)
+    const boundaries = records.map((record) => {
+      record.assertRecordLocation()
+      record.recordView = true
+      return record.loadedStamp
+    })
+    try {
+      const paths = new Set(records.flatMap(record => [...record.approved].flatMap(([path, value]) => [
+        ...value.kind === 'file' || value.content !== null ? [path] : [],
+        ...value.files?.map(file => file.path) ?? [],
+      ])))
+      let completed = 0
+      progress?.({ completed, total: paths.size })
+      for (const path of paths) {
+        let approved: Buffer | undefined
+        let found = false
+        for (const record of records.filter(record => record.covers(path))) {
+          const bytes = record.readTrusted(path)
+          if (found && (approved === undefined ? bytes !== undefined : bytes === undefined || !approved.equals(bytes))) {
+            throw new Error(`Conflicting protected host input records: ${path}`)
+          }
+          approved = bytes
+          found = true
         }
-        approved = bytes
-        found = true
+        completed++
+        if (completed % 64 === 0 || completed === paths.size) progress?.({ completed, total: paths.size })
       }
+      for (const [index, record] of records.entries()) {
+        record.assertRecordLocation()
+        if (record.record !== undefined && treeStamp(record.record) !== boundaries[index]) {
+          throw new Error('Protected workspace record changed during owner review')
+        }
+      }
+    } finally {
+      for (const record of records) record.recordView = false
     }
+    return reader
+  }
+
+  /** Open owner records off-thread with a progress-based, independently scheduled watchdog.
+   * @param workspace Launch workspace; no write access is granted.
+   * @param home Protected owner storage; only its review configuration changes the stall interval.
+   * @param progress Bilingual progress sink; omitted suppresses display, never supervision.
+   * @returns A reader retaining the reviewed record generation, not a cross-process cache.
+   */
+  static async openOwnerRecordsAsync(
+    workspace: string, home: string, progress: (message: string) => void = () => {},
+  ): Promise<ProtectedInputIntegrity> {
+    progress(`${en.starting} / ${zh.starting}`)
+    const report = (value: InputReviewProgress): void => {
+      progress(`${en.reviewProgress(value.completed, value.total)} / ${zh.reviewProgress(value.completed, value.total)}`)
+    }
+    const result = await runInputReviewThread({ kind: 'open', workspace, home }, report, () => Promise.resolve(false))
+    const reader = ProtectedInputIntegrity.fromReviewState(result)
+    reader.isolatedReview = true
+    reader.reviewProgress = progress
+    return reader
+  }
+
+  /** Export operation-local state for the owned isolate; never persists checked stamps.
+   * @returns Structured-cloneable reader state.
+   */
+  exportReviewState(): InputReviewState {
+    return { workspace: this.workspace, ...this.home === undefined ? {} : { home: this.home },
+      ...this.revision === undefined ? {} : { revision: this.revision },
+      ...this.loadedStamp === undefined ? {} : { stamp: this.loadedStamp },
+      approved: [...this.approved], observed: [...this.observed], granted: this.granted,
+      owners: this.ownerRecords.map(record => record.exportReviewState()),
+      ...this.verifiedPass === undefined ? {} : { verifiedPass: this.verifiedPass } }
+  }
+
+  /** Restore host-owned worker output after validating its durable snapshot fields.
+   * @param value Structured-cloned worker state; invalid messages fail closed.
+   * @returns Reader for the exact reviewed generation, without rereading the durable record.
+   */
+  static fromReviewState(value: unknown): ProtectedInputIntegrity {
+    if (typeof value !== 'object' || value === null || !('workspace' in value) || typeof value.workspace !== 'string'
+      || !('approved' in value) || !Array.isArray(value.approved) || !('observed' in value) || !Array.isArray(value.observed)
+      || !('granted' in value) || typeof value.granted !== 'boolean' || !('owners' in value) || !Array.isArray(value.owners)
+      || 'home' in value && typeof value.home !== 'string' || 'revision' in value && typeof value.revision !== 'string'
+      || 'stamp' in value && typeof value.stamp !== 'string') throw new Error('Invalid protected input worker state')
+    const reader = new ProtectedInputIntegrity(value.workspace)
+    if ('home' in value && typeof value.home === 'string') {
+      reader.home = value.home
+      reader.workspaceIdentity = ProtectedInputIntegrity.workspaceKey(value.workspace, value.home)
+      reader.record = join(resolve(value.home), 'windows-workspace-write', 'protected-inputs', `${createHash('sha256').update(reader.root).digest('hex')}.json`)
+    }
+    reader.assertRecordLocation()
+    for (const item of value.approved) {
+      if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== 'string' || !contains(reader.root, item[0])) {
+        throw new Error('Invalid protected input worker snapshot')
+      }
+      const path = item[0]
+      const snapshot = parseSnapshot(item[1])
+      if (snapshot.files?.some(file => !isAbsolute(file.path) || !contains(path, file.path)) === true) {
+        throw new Error('Invalid protected input copy path')
+      }
+      reader.approved.set(item[0], snapshot)
+    }
+    for (const path of value.observed) {
+      if (typeof path !== 'string') throw new Error('Invalid protected input worker path')
+      reader.observed.add(path)
+    }
+    reader.granted = value.granted
+    reader.revision = 'revision' in value && typeof value.revision === 'string' ? value.revision : undefined
+    reader.loadedStamp = 'stamp' in value && typeof value.stamp === 'string' ? value.stamp : undefined
+    for (const owner of value.owners) reader.ownerRecords.push(ProtectedInputIntegrity.fromReviewState(owner))
+    if ('verifiedPass' in value) {
+      const checked = value.verifiedPass
+      if (typeof checked !== 'object' || checked === null || !('pass' in checked) || typeof checked.pass !== 'object'
+        || checked.pass === null || !('roots' in checked) || !(checked.roots instanceof Set)
+        || !('stamps' in checked.pass) || !(checked.pass.stamps instanceof Map)
+        || !('identities' in checked.pass) || !(checked.pass.identities instanceof Map)
+        || !('nodes' in checked.pass) || !(checked.pass.nodes instanceof Map)
+        || !('directories' in checked.pass) || !(checked.pass.directories instanceof Map)
+        || !('bytes' in checked.pass) || !(checked.pass.bytes instanceof Map)
+        || !('diagnostics' in checked.pass) || !(checked.pass.diagnostics instanceof Map)
+        || !('authorityRoots' in checked.pass) || !(checked.pass.authorityRoots instanceof Set)
+        || !('recordedAt' in checked.pass) || typeof checked.pass.recordedAt !== 'number') {
+        throw new Error('Invalid protected input worker checked pass')
+      }
+      reader.verifiedPass = checked as { pass: CapturePass; roots: ReadonlySet<string> }
+    }
+    reader.indexCopies()
     return reader
   }
 
@@ -520,6 +710,7 @@ export class ProtectedInputIntegrity {
   constructor(workspace: string, home?: string) {
     this.workspace = resolve(workspace)
     this.root = canonicalLocation(this.workspace)
+    this.workspaceIdentity = ProtectedInputIntegrity.workspaceKey(workspace, home)
     this.granted = home === undefined
     if (home === undefined) return
     this.home = canonicalLocation(home)
@@ -530,6 +721,7 @@ export class ProtectedInputIntegrity {
       return
     }
     let text: string
+    this.loadedStamp = treeStamp(this.record)
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
       if (missing(error)) return
       throw error
@@ -544,10 +736,32 @@ export class ProtectedInputIntegrity {
    * @returns Whether this reader owns the requested durable workspace record.
    */
   ownsWorkspaceRecord(workspace: string, home: string): boolean {
-    return this.root === canonicalLocation(resolve(workspace)) && this.home === canonicalLocation(home)
+    return this.home !== undefined && this.workspaceIdentity === ProtectedInputIntegrity.workspaceKey(workspace, home)
   }
 
-  private loadRecord(text: string): void {
+  /**
+   * Identify a host-owned reader without merging owner domains or replaced workspace objects.
+   * @param workspace Writable directory; canonical aliases share a slot.
+   * @param home Durable owner storage; omission identifies a memory-only reader.
+   * @returns Process-local identity; baseline revisions and observed roots remain reader-owned.
+   */
+  static workspaceKey(workspace: string, home?: string): string {
+    const root = canonicalLocation(resolve(workspace))
+    const owner = userInfo()
+    return JSON.stringify([process.platform, owner.uid, owner.username, home === undefined ? null : canonicalLocation(home),
+      root, identity(root, true), 'protected-input-v1'])
+  }
+
+  /**
+   * Resolve the path index used by existing confinement consumers.
+   * @param workspace Writable directory spelling.
+   * @returns Canonical path, including a missing final component.
+   */
+  static workspacePath(workspace: string): string {
+    return canonicalLocation(resolve(workspace))
+  }
+
+  private loadRecord(text: string, revision = createHash('sha256').update(text).digest('hex')): void {
     this.assertRecordLocation()
     const parsed: unknown = JSON.parse(text)
     if (typeof parsed !== 'object' || parsed === null || !('version' in parsed) || parsed.version !== 1
@@ -571,21 +785,25 @@ export class ProtectedInputIntegrity {
       this.approved.set(path, value)
       this.observed.add(path)
     }
-    this.revision = createHash('sha256').update(text).digest('hex')
+    this.indexCopies()
+    this.revision = revision
     this.granted = true
   }
 
   private refreshRecord(): void {
+    if (this.recordView) return
     if (this.record === undefined || this.verifying || this.grant?.pending === true
       || this.grant?.failed === true || !this.stateTrusted()) return
     if (this.revision !== undefined) this.assertRecordLocation()
     let text: string
+    this.loadedStamp = treeStamp(this.record)
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
       if (!missing(error)) throw error
       if (this.revision !== undefined) throw new Error('Protected workspace record disappeared')
       return
     }
-    if (createHash('sha256').update(text).digest('hex') !== this.revision) this.loadRecord(text)
+    const revision = createHash('sha256').update(text).digest('hex')
+    if (revision !== this.revision) this.loadRecord(text, revision)
   }
 
   private inputPath(filename: string): string {
@@ -648,6 +866,7 @@ export class ProtectedInputIntegrity {
     if (!contains(this.root, path)) return
     // Only mutable record storage is excluded; its ancestors also contain host inputs.
     if (this.isRecordStorage(path)) return
+    if (!this.observed.has(path)) this.rootsVersion++
     this.observed.add(path)
     if (this.record === undefined && !this.approved.has(path)) {
       const pass = capturePass()
@@ -655,6 +874,72 @@ export class ProtectedInputIntegrity {
       finishSync(checkPass(pass))
       this.approved.set(path, value)
     }
+  }
+
+  /**
+   * Capture a first grant or verify existing trust without accepting changed inputs.
+   * @param protectedPaths Current native write exclusions.
+   * @param signal Cancels only this waiter; omission waits for the shared operation to settle.
+   * @returns Admission completion, shared only before scanning. Failed captures require explicit owner reauthorization.
+   */
+  ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void> {
+    const generation = this.generation
+    const current = (): void => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+    }
+    this.assertRecordLocation(protectedPaths)
+    const admit = (): Promise<void> => {
+      current()
+      if (this.isolatedReview) {
+        return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
+          if (!accepted) throw new ProtectedInputReviewError()
+          if (!this.granted && this.grant === undefined) return this.grantWrite(protectedPaths)
+        })
+      }
+      this.refreshRecord()
+      if (!this.granted && this.grant === undefined) return this.grantWrite(protectedPaths)
+      return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
+        if (!accepted) throw new ProtectedInputReviewError()
+      })
+    }
+    signal?.throwIfAborted()
+    let batch = this.admission
+    if (batch === undefined || !batch.enrolling || batch.roots !== this.rootsVersion) {
+      const previous = batch?.promise ?? Promise.resolve()
+      // Install the first-capture barrier synchronously, before confinement can wait on it.
+      if (batch === undefined && !this.isolatedReview) this.refreshRecord()
+      const capture = batch === undefined && !this.isolatedReview && !this.granted && this.grant === undefined
+        ? this.grantWrite(protectedPaths) : undefined
+      const next = { promise: Promise.resolve(), enrolling: true, roots: this.rootsVersion }
+      const start = (): Promise<void> => {
+        current()
+        next.enrolling = false
+        return capture ?? admit()
+      }
+      next.promise = previous.then(start, start)
+      this.admission = batch = next
+      const settled = (): void => {
+        if (this.admission === next) this.admission = undefined
+      }
+      void next.promise.then(settled, settled)
+    }
+    const operation = batch.promise.then(() => { current() })
+    if (signal === undefined) return operation
+    return new Promise<void>((resolve, reject) => {
+      const abort = (): void => {
+        const reason: unknown = signal.reason
+        reject(reason instanceof Error ? reason : new Error(String(reason), { cause: reason }))
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      void operation.then(() => {
+        signal.removeEventListener('abort', abort)
+        if (signal.aborted) abort()
+        else resolve()
+      }, (error: unknown) => {
+        signal.removeEventListener('abort', abort)
+        reject(error instanceof Error ? error : new Error(String(error), { cause: error }))
+      })
+    })
   }
 
   /**
@@ -669,6 +954,7 @@ export class ProtectedInputIntegrity {
     this.refreshRecord()
     if (this.verifying) throw new Error('Protected host input verification is already pending')
     this.verifiedPass = undefined
+    this.fileIndex.clear()
     this.approved.clear()
     const grant = { promise: this.captureGrant().catch((cause: unknown) => {
       grant.failed = true
@@ -686,17 +972,25 @@ export class ProtectedInputIntegrity {
   }
 
   private async captureGrant(): Promise<void> {
+    const generation = this.generation
     if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
     const pass = capturePass()
     const candidates = new Map<string, InputSnapshot>()
     for (const path of this.observed) candidates.set(path, await finishAsync(this.capture(path, undefined, pass)))
     await finishAsync(checkPass(pass))
     this.assertCapturedRoots(candidates)
+    if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
     const previous = new Map(this.approved)
     for (const [path, value] of candidates) this.approved.set(path, value)
-    try { this.persist() } catch (error) {
-      this.approved.clear()
-      for (const [path, value] of previous) this.approved.set(path, value)
+    const current = (): void => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+      this.assertCapturedRoots(candidates)
+    }
+    try { await this.persist(current); current() } catch (error) {
+      if (generation === this.generation) {
+        this.approved.clear()
+        for (const [path, value] of previous) this.approved.set(path, value)
+      }
       throw error
     }
     this.granted = true
@@ -761,7 +1055,13 @@ export class ProtectedInputIntegrity {
         else throw new Error(`Protected host input is not a configuration file: ${path}`)
       } else if ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)) {
         if (value.files === undefined) throw new Error(`Protected host input has no approved copy: ${path}`)
-        const file = value.files.find(file => file.path === path)
+        let index = this.fileIndex.get(root)
+        if (index === undefined) {
+          index = new Map()
+          for (const file of value.files) if (!index.has(file.path)) index.set(file.path, file)
+          this.fileIndex.set(root, index)
+        }
+        const file = index.get(path)
         copies.push(file === undefined ? undefined : this.readCopy(file))
       }
     }
@@ -822,7 +1122,8 @@ export class ProtectedInputIntegrity {
     return bytes
   }
 
-  private persist(): void {
+  private async persist(current: () => void): Promise<void> {
+    current()
     if (this.record === undefined) return
     this.assertRecordLocation()
     mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
@@ -831,11 +1132,11 @@ export class ProtectedInputIntegrity {
     mkdirSync(lock, { mode: 0o700 })
     const temporary = `${this.record}.${randomUUID()}.new`
     try {
-      let current: string | undefined
-      try { current = readFileSync(this.record, 'utf8') } catch (error) {
+      let stored: string | undefined
+      try { stored = readFileSync(this.record, 'utf8') } catch (error) {
         if (!missing(error)) throw error
       }
-      if ((current === undefined ? undefined : createHash('sha256').update(current).digest('hex')) !== this.revision) {
+      if ((stored === undefined ? undefined : createHash('sha256').update(stored).digest('hex')) !== this.revision) {
         throw new Error('Protected workspace record changed in another host; reopen it before granting trust')
       }
       const descriptor = openSync(temporary, 'wx', 0o600)
@@ -863,8 +1164,16 @@ export class ProtectedInputIntegrity {
         }
         append(']}\n')
       } finally { closeSync(descriptor) }
-      renameSync(temporary, this.record)
-      this.revision = revision.digest('hex')
+      const nextRevision = revision.digest('hex')
+      current()
+      if (this.reviewCommit === undefined) {
+        renameSync(temporary, this.record)
+        this.revision = nextRevision
+      } else {
+        this.revision = await this.reviewCommit({ workspace: this.root, record: this.record, temporary,
+          previous: this.revision, revision: nextRevision })
+        current()
+      }
     } finally {
       try { unlinkSync(temporary) } catch (error) {
         if (!missing(error)) throw error
@@ -879,8 +1188,79 @@ export class ProtectedInputIntegrity {
    * @returns Whether every input still matches its approved identity and bytes; ungranted workspaces need no approval.
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
+    const current = this.checkpoint()
     await this.waitForCapture()
+    current()
     if (this.verifying) throw new Error('Protected host input verification is already pending')
+    if (this.isolatedReview && this.home !== undefined) {
+      this.verifying = true
+      try {
+        let completed = -1
+        const records = [this, ...this.ownerRecords]
+        const guards = records.map(record => ({ record, current: record.checkpoint(), revision: record.revision }))
+        const assertCurrent = (): void => { current(); for (const guard of guards) guard.current() }
+        const commit = (value: unknown): string => {
+          assertCurrent()
+          if (typeof value !== 'object' || value === null || !('record' in value) || typeof value.record !== 'string'
+            || !('workspace' in value) || typeof value.workspace !== 'string'
+            || !('temporary' in value) || typeof value.temporary !== 'string'
+            || !('previous' in value) || !('revision' in value) || typeof value.revision !== 'string'
+            || !/^[a-f0-9]{64}$/u.test(value.revision)) throw new Error('Invalid protected input commit request')
+          const guard = guards.find(candidate => candidate.record.record === value.record && candidate.record.root === value.workspace)
+          if (guard === undefined || value.previous !== guard.revision
+            || !value.temporary.startsWith(`${value.record}.`)
+            || !/^[a-f0-9-]{36}\.new$/u.test(value.temporary.slice(value.record.length + 1))) {
+            throw new Error('Protected input commit does not match the reviewed generation')
+          }
+          guard.record.assertRecordLocation()
+          assertCurrent()
+          // The worker retains the record lock; only this host can perform the final rename.
+          renameSync(value.temporary, value.record)
+          guard.revision = value.revision
+          return value.revision
+        }
+        const result = await runInputReviewThread({ kind: 'verify', workspace: this.workspace, home: this.home, state: this.exportReviewState() }, (value) => {
+          if (value.completed <= completed) return
+          completed = value.completed
+          this.reviewProgress(`${en.reviewProgress(completed, value.total)} / ${zh.reviewProgress(completed, value.total)}`)
+        }, async (value) => {
+          if (typeof value !== 'object' || value === null || !('path' in value) || typeof value.path !== 'string'
+            || !('previous' in value) || typeof value.previous !== 'string' || !('current' in value) || typeof value.current !== 'string') {
+            throw new Error('Invalid protected input worker confirmation')
+          }
+          const change = { path: value.path, previous: value.previous, current: value.current }
+          owner.blocked(change)
+          const accepted = await owner.confirm(change)
+          assertCurrent()
+          return accepted
+        }, commit)
+        assertCurrent()
+        if (typeof result !== 'object' || result === null || !('accepted' in result) || typeof result.accepted !== 'boolean'
+          || !('state' in result)) throw new Error('Invalid protected input worker result')
+        const updated = ProtectedInputIntegrity.fromReviewState(result.state)
+        if (updated.workspaceIdentity !== this.workspaceIdentity) throw new Error('Protected input worker changed workspace')
+        if (result.accepted) {
+          const assertObserved = (before: ProtectedInputIntegrity, after: ProtectedInputIntegrity): void => {
+            if ([...before.observed].some(path => !after.observed.has(path))) throw new Error('Protected host input registered during capture')
+            for (const owner of before.ownerRecords) {
+              const reviewed = after.ownerRecords.find(record => record.workspaceIdentity === owner.workspaceIdentity)
+              if (reviewed === undefined) throw new Error('Protected host input owner missing during capture')
+              assertObserved(owner, reviewed)
+            }
+          }
+          assertObserved(this, updated)
+          this.granted = updated.granted
+          this.approved.clear()
+          for (const [path, value] of updated.approved) this.approved.set(path, value)
+          this.revision = updated.revision
+          this.loadedStamp = updated.loadedStamp
+          this.verifiedPass = updated.verifiedPass
+          this.ownerRecords.splice(0, this.ownerRecords.length, ...updated.ownerRecords)
+          this.indexCopies()
+        }
+        return result.accepted
+      } finally { this.verifying = false }
+    }
     this.refreshRecord()
     if (this.stateFailure !== undefined) return false
     this.verifying = true
@@ -891,9 +1271,11 @@ export class ProtectedInputIntegrity {
   }
 
   private async verifyCandidate(owner: ProtectedInputOwner): Promise<boolean> {
+    const generation = this.generation
+    const current = this.checkpoint()
     const cached = this.verifiedPass
-    if (cached !== undefined && await finishAsync(reusablePass(cached.pass))
-      && [...this.observed].every(path => cached.roots.has(path))) return true
+    if (cached !== undefined && await finishAsync(reusablePass(cached.pass), this.reviewUnit)
+      && [...this.observed].every(path => cached.roots.has(path))) { current(); return true }
     this.verifiedPass = undefined
     const changes: ProtectedInputChange[] = []
     const candidates = new Map<string, InputSnapshot>()
@@ -901,12 +1283,13 @@ export class ProtectedInputIntegrity {
     if (cached !== undefined) captured.previous = cached.pass
     for (const path of this.observed) {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
-      const value = await finishAsync(this.capture(path, undefined, captured))
+      const value = await finishAsync(this.capture(path, undefined, captured), this.reviewUnit)
+      this.reviewUnit?.()
       candidates.set(path, value)
       const approved = this.approved.get(path)
       if (approved === undefined || !matches(approved, value)) changes.push({ path, previous, current: value.digest })
     }
-    await finishAsync(checkPass(captured))
+    await finishAsync(checkPass(captured), this.reviewUnit)
     for (const change of changes) {
       owner.blocked(change)
       if (!await owner.confirm(change)) return false
@@ -915,23 +1298,32 @@ export class ProtectedInputIntegrity {
     const checked = capturePass()
     checked.previous = captured
     for (const [path, candidate] of candidates) {
-      const current = await finishAsync(this.capture(path, undefined, checked))
+      const current = await finishAsync(this.capture(path, undefined, checked), this.reviewUnit)
+      this.reviewUnit?.()
       if (!matches(candidate, current) || !matches(current, candidate)) {
         owner.blocked({ path, previous: candidate.digest, current: current.digest })
         return false
       }
     }
-    await finishAsync(checkPass(checked))
+    await finishAsync(checkPass(checked), this.reviewUnit)
     this.assertCapturedRoots(candidates)
+    current()
     const previous = new Map(this.approved)
+    this.fileIndex.clear()
     for (const [path, candidate] of candidates) this.approved.set(path, candidate)
     const tightened = [...candidates].some(([path, candidate]) => {
       const before = previous.get(path)
       return before !== undefined && !matches(candidate, before)
     })
-    try { if (changes.length > 0 || tightened) this.persist() } catch (error) {
-      this.approved.clear()
-      for (const [path, value] of previous) this.approved.set(path, value)
+    try {
+      current()
+      if (changes.length > 0 || tightened) await this.persist(current)
+      current()
+    } catch (error) {
+      if (generation === this.generation) {
+        this.approved.clear()
+        for (const [path, value] of previous) this.approved.set(path, value)
+      }
       throw error
     }
     delete checked.previous

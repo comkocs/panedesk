@@ -281,11 +281,15 @@ export class LocalSandboxProvider extends SandboxProvider {
   private readonly workspaceGrants = new Map<string, AclWriteGrant>()
   private readonly workspaceProtectedPaths = new Map<string, Set<string>>()
   private readonly tempCapabilities = new Map<string, AclTempCapability>()
-  private readonly workspaceAccess: WorkspaceWriteAccess
+  private readonly fallbackWorkspaceAccess: WorkspaceWriteAccess
+
+  private get workspaceAccess(): WorkspaceWriteAccess {
+    return this.ctx.get('sandboxPolicy')?.workspaceAccess ?? this.fallbackWorkspaceAccess
+  }
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
-    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome())
+    this.fallbackWorkspaceAccess = new WorkspaceWriteAccess(resolveDshHome())
     // The schema (static Config) defaults every field — the casts record
     // those runtime facts. An empty runnerCommand means "not configured":
     // use the platform chain.
@@ -334,9 +338,18 @@ export class LocalSandboxProvider extends SandboxProvider {
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
     policy = this.protectedPolicy(policy)
+    const current = this.workspaceAccess.checkpoint(policy.workspaceRoot)
+    const publish = (): void => {
+      if (policy.mode !== 'workspace-write') return
+      current()
+      signal?.throwIfAborted()
+      this.workspaceAccess.issuedCapability(policy.workspaceRoot)
+    }
     if (policy.mode === 'workspace-write') await this.waitForInputCapture(policy.workspaceRoot, signal)
+    current()
     if (this.runnerCommand !== undefined) {
       const protectedInputs = this.coveredInputs(policy, 'bwrap')
+      publish()
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
         productSandbox: true,
@@ -351,8 +364,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     const resolvedPolicy = policy
     const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
-        () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
+        () => { current(); return this.runnerArgv(selected.runner, resolvedPolicy) }, signal)
       : this.runnerArgv(selected.runner, policy, argv)
+    publish()
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
       ...selected.runner === 'bwrap' || selected.runner === 'landlock' || selected.runner === 'windows-acl' ? { productSandbox: true as const } : {},
@@ -458,13 +472,15 @@ export class LocalSandboxProvider extends SandboxProvider {
     if (policy.mode !== 'workspace-write' || sessionId === undefined) {
       throw new Error('Workspace write materialization requires an approved session policy')
     }
+    const current = this.workspaceAccess.checkpoint(policy.workspaceRoot)
     await this.waitForInputCapture(policy.workspaceRoot, signal)
+    current()
     const workspace = canonicalPath(policy.workspaceRoot)
     assertOwnerWorkspace(workspace, resolveOwnerMaterialPaths(this.ctx), true)
     const protectedPaths = [
       ...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
     ]
-    const materialize = (): void => { this.materializeAclGrant(sessionId, workspace, protectedPaths) }
+    const materialize = (): void => { current(); this.materializeAclGrant(sessionId, workspace, protectedPaths); current() }
     if (policy.requiresWorkspaceAuthorization) {
       await this.workspaceAccess.withAuthorization(workspace, materialize, signal)
     } else {
