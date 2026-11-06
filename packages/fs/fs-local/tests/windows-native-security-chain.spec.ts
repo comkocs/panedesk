@@ -38,7 +38,7 @@ function fixture(kind = 'inherited') {
     : inherited)
   if (kind === 'explicit') previous[previous.readUInt32LE(16) + 9] = 0
   if (kind === 'protected') previous.writeUInt16LE(0x9404, 2)
-  if (kind === 'owner') syntheticSid(102).copy(previous, previous.readUInt32LE(4))
+  if (kind === 'owner' || kind === 'elevated-owner') syntheticSid(102).copy(previous, previous.readUInt32LE(4))
   const events: string[] = []
   const handles = new Map<number, Buffer>([[1, Buffer.alloc(8)]])
   const policies = new Map<object, Buffer>()
@@ -63,7 +63,7 @@ function fixture(kind = 'inherited') {
   bind('GetTokenInformation', (_token: object, information: number, buffer: Buffer | null, _length: number, needed: [number]) => {
     needed[0] = 16 + user.length
     if (!buffer) return 0
-    const sid = kind === 'owner' && information === 4 ? syntheticSid(102) : user
+    const sid = kind === 'elevated-owner' && information === 4 ? syntheticSid(102) : user
     sid.copy(buffer, 16); koffi.encode(buffer, 'void *', koffi.as(buffer.subarray(16), 'void *')); return 1
   })
   bind('GetCurrentProcess', () => root)
@@ -134,6 +134,29 @@ it('replaces an entirely inherited file in its own directory and leaves readable
     expect(f.target()).toBe('new')
     expect(f.events).toContain('rename')
     expect(f.events).not.toContain('synthesis')
+    expect(f.events).not.toContain('set-security')
+    expect(f.handles.size).toBe(1)
+    expect(f.tokens()).toBe(0)
+    expect(native.paths).toEqual([])
+    expect(native.declarations.some(value =>
+      /ReplaceFileW|MoveFile|SetFileInformationByHandle|CreatePrivateObjectSecurityEx|DestroyPrivateObjectSecurity/.test(value),
+    )).toBe(false)
+  } finally { await f.handler.close() }
+})
+
+it('replaces an inherited file owned by the elevated token default owner rather than its user', async () => {
+  const f = fixture('elevated-owner')
+  try {
+    const stage = await f.handler.execute({ kind: 'stage', parent: 1, name: 'entry', policy: { kind: 'replace', observed: metadata('C:\\synthetic\\entry') } })
+    if (stage.kind !== 'staged') throw new Error('Missing stage')
+    await f.handler.execute({ kind: 'write', token: stage.token, bytes: Buffer.from('new'), position: 0n })
+    await f.handler.execute({ kind: 'flush', token: stage.token })
+    await f.handler.execute({ kind: 'prepare-metadata', token: stage.token })
+    await f.handler.execute({ kind: 'publish', token: stage.token, request: { kind: 'replace', observed: metadata('C:\\synthetic\\entry'), metadataProfile: 'replacement' } })
+    expect(Buffer.from(f.api.read(3, 0n, 3)).toString()).toBe('new')
+    await f.handler.execute({ kind: 'stage-close', token: stage.token })
+    expect(f.target()).toBe('new')
+    expect(f.events).toContain('rename')
     expect(f.events).not.toContain('set-security')
     expect(f.handles.size).toBe(1)
     expect(f.tokens()).toBe(0)

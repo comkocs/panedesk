@@ -27,7 +27,7 @@ export interface SecurityPreparationApi {
   query(token: number): Buffer
 }
 
-/** Admit only inherited permissions owned by the current process user.
+/** Admit only inherited permissions whose owner matches the process token's default owner.
  * @param api - Native descriptor and process-token queries, never path operations.
  * @param old - Retained file whose owner, DACL and integrity label must be observable.
  */
@@ -44,21 +44,20 @@ export function checkReplacementSecurity(api: SecurityPreparationApi, old: numbe
     if (dacl.length === 0 || dacl.some(ace => !(ace.readUInt8(1) & 0x10))
       || (previous.sacl && securityAces(previous.sacl).some(ace => ace.readUInt8(0) === 17 && !(ace.readUInt8(1) & 0x10)))) refuseSecurity()
     if (!api.bindings.openProcessToken(api.process(), 8, token) || !token[0]) refuseSecurity()
-    // The token's default owner must also match: it owns the file created without a descriptor.
-    for (const information of [1, 4]) {
-      const needed: [number] = [0]
-      if (api.bindings.getTokenInformation(token[0], information, null, 0, needed) || needed[0] < 16 || needed[0] > 65536) refuseSecurity()
-      const buffer = Buffer.alloc(needed[0])
-      if (!api.bindings.getTokenInformation(token[0], information, buffer, buffer.length, needed)
-        || needed[0] < 16 || needed[0] > buffer.length) refuseSecurity()
-      const pointer = koffi.decode(buffer, 'void *') as object | null
-      if (!pointer) refuseSecurity()
-      const address = koffi.address(pointer); const base = koffi.address(buffer)
-      if (address < base || address + 8n > base + BigInt(needed[0])) refuseSecurity()
-      const offset = Number(address - base); const count = buffer.readUInt8(offset + 1)
-      if (buffer[offset] !== 1 || count > 15 || offset + 8 + count * 4 > needed[0]) refuseSecurity()
-      if (!previous.owner.equals(buffer.subarray(offset, offset + 8 + count * 4))) refuseSecurity()
-    }
+    // The token's default owner owns the file created without a descriptor, even when its user differs.
+    const information = 4
+    const needed: [number] = [0]
+    if (api.bindings.getTokenInformation(token[0], information, null, 0, needed) || needed[0] < 16 || needed[0] > 65536) refuseSecurity()
+    const buffer = Buffer.alloc(needed[0])
+    if (!api.bindings.getTokenInformation(token[0], information, buffer, buffer.length, needed)
+      || needed[0] < 16 || needed[0] > buffer.length) refuseSecurity()
+    const pointer = koffi.decode(buffer, 'void *') as object | null
+    if (!pointer) refuseSecurity()
+    const address = koffi.address(pointer); const base = koffi.address(buffer)
+    if (address < base || address + 8n > base + BigInt(needed[0])) refuseSecurity()
+    const offset = Number(address - base); const count = buffer.readUInt8(offset + 1)
+    if (buffer[offset] !== 1 || count > 15 || offset + 8 + count * 4 > needed[0]) refuseSecurity()
+    if (!previous.owner.equals(buffer.subarray(offset, offset + 8 + count * 4))) refuseSecurity()
   } catch (cause) { primary = cause; refuseSecurity(cause) } finally {
     if (token[0]) {
       try { api.close(token[0]) } catch (cause) { refuseSecurity(primary ? new AggregateError([primary, cause]) : cause) }
