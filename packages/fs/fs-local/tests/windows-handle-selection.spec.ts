@@ -9,6 +9,7 @@ import { WindowsDirectoryBackend } from '../src/directory-win32.ts'
 import { createHandleExecutor } from '../src/win32-handle-executor.ts'
 
 vi.mock('../src/win32-handle-executor.ts', () => ({ createHandleExecutor: vi.fn() }))
+vi.mock('../src/win32-write-loader.ts', () => ({ loadWindowsWriteModule: async () => null }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()

@@ -1,4 +1,6 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+
+vi.mock('../src/win32-write-loader.ts', () => ({ loadWindowsWriteModule: async () => null }))
 import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

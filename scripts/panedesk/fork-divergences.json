@@ -4,13 +4,15 @@
       "id": "windows-directory-handle-read-backend",
       "description": "Add an opt-in fail-closed Windows directory-handle read backend",
       "origin": "Host filesystem directory-relative capability review",
-      "reason": "Route provider operations through an instance-owned backend and retained target capabilities. Preserve Linux descriptor traversal and default legacy Windows behavior. Add experimental Windows x64 local NTFS root and relative opens, metadata, enumeration and same-handle reads on a dedicated worker with fixed-width Koffi bindings. Reject reparse points and unsupported operations without path fallback; keep Windows mutations unavailable without the fixed package-owned write module and keep watching unavailable. Define walk and owned-stage operations, shared mutation messages and native handle ownership access for that optional module, automatically included in builds when present. Keep compatibility path fields display-only and descriptor I/O adapter-private, preserving the existing provider write transaction. Keep configuration disabled by default and selected only through existing protected profile inputs. Add deterministic substitute checks and paired package documentation; native ABI, filesystem and packaged-worker acceptance remains required. These changes can be contributed upstream.",
+      "reason": "Route provider operations through an instance-owned backend and retained target capabilities. Preserve Linux descriptor traversal and default legacy Windows behavior. Add experimental Windows x64 local NTFS root and relative opens, metadata, enumeration and same-handle reads on a dedicated worker with fixed-width Koffi bindings. Reject reparse points and unsupported operations without path fallback; keep Windows mutations unavailable without the fixed package-owned write module and keep watching unavailable. Supply worker-local WriteFile/FlushFileBuffers and relative NtCreateFile/NtSetInformationFile primitives, owned secure-before-write staging, partial-write handling, no-replace links, disposition deletion and settled cleanup. Native staging refuses before creation until caller-specific private security and destination inheritance are available; replacement remains unavailable. Substitute tests cover ordering, ownership, cancellation and failure cleanup without asserting native acceptance. Define walk and owned-stage operations, shared mutation messages and native handle ownership access for that optional module, automatically included in builds when present. Keep compatibility path fields display-only and descriptor I/O adapter-private, preserving the existing provider write transaction. Keep configuration disabled by default and selected only through existing protected profile inputs. Add deterministic substitute checks and paired package documentation; native ABI, filesystem and packaged-worker acceptance remains required. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/fs/fs-local/src/directory-*.ts",
           "packages/fs/fs-local/src/win32-handle-*.ts",
-          "packages/fs/fs-local/src/win32-write-loader.ts",
+          "packages/fs/fs-local/src/win32-write-*.ts",
+          "packages/fs/fs-local/src/win32-stage.ts",
+          "packages/fs/fs-local/src/win32.ts",
           "packages/fs/fs-local/src/read-handle.ts",
           "packages/fs/fs-local/tests/directory-capability-extension.spec.ts",
           "packages/fs/fs-local/src/fsio.ts",
