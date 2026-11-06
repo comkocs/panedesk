@@ -270,6 +270,8 @@ class Hmr extends Service {
   runExclusive<T>(operation: () => Promise<T>): Promise<T> {
     if (this.executing.getStore()) return Promise.reject(new Error('HMR transactions cannot be nested'))
     const task = this.operations.then(async () => {
+      const startupReview = this.ownerContext.get('profileContext')?.startupInputReview
+      if (startupReview !== undefined) await startupReview
       if (this.closing) throw new Error('HMR is disposed')
       return this.executing.run(true, operation)
     })
@@ -306,7 +308,9 @@ class Hmr extends Service {
 
   private runReload(operation: () => Promise<void>): Promise<void> {
     return this.runExclusive(async () => {
-      if (await this.applicationReady && await this.verifyInputs()) await operation()
+      if (!await this.applicationReady) return
+      await this.ownerContext.get('profileContext')?.startupInputReview
+      if (await this.verifyInputs()) await operation()
     })
   }
 
@@ -407,6 +411,7 @@ class Hmr extends Service {
       if (ready === undefined) throw new Error('Profile HMR requires application readiness')
       const started = Promise.withResolvers<boolean>()
       this.applicationReady = started.promise
+      profile.inputReviewReady = false
       const unsubscribe = ready.onReady(() => {
         // Plugins started with the application are recorded; modules loaded later are compared by modification time.
         try {
@@ -419,7 +424,9 @@ class Hmr extends Service {
           // Without a first record, modules are compared by modification time against this HMR instance’s creation time.
           this.ctx.logger.warn(error)
         }
+        profile.inputReviewReady = true
         started.resolve(true)
+        profile.requestInputReview?.()
       })
       yield () => { unsubscribe(); started.resolve(false); return Promise.resolve() }
       const manifestPath = join(profile.dir, 'package.json')
@@ -450,7 +457,10 @@ class Hmr extends Service {
       profile.runInputReview = runInputReview
       yield () => {
         if (profile.reloadProtectedInputs === reloadProtectedInputs) delete profile.reloadProtectedInputs
-        if (profile.runInputReview === runInputReview) delete profile.runInputReview
+        if (profile.runInputReview === runInputReview) {
+          delete profile.runInputReview
+          delete profile.inputReviewReady
+        }
         return Promise.resolve()
       }
       for (const filename of patchFiles) await this.watchConfig(filename, () => refresh(false))
@@ -487,6 +497,7 @@ class Hmr extends Service {
     const dispatch = this.ctx.debounce(() => {
       void this.runExclusive(async () => {
         if (!await this.applicationReady) return
+        await this.ownerContext.get('profileContext')?.startupInputReview
         const batch = [...changed]
         changed.clear()
         if (!await this.verifyInputs()) return

@@ -172,7 +172,7 @@ export class ApprovalService extends Service {
       let running = false
       let requested = false
       let ownerReady = false
-      const review = async (): Promise<boolean> => {
+      const review = async (allowConfirmation = true): Promise<boolean> => {
         const agents = scope.agents.roots()
         if (agents.length === 0) return true
         const records = new Set([...(profile.inputIntegrities?.values() ?? []),
@@ -188,7 +188,7 @@ export class ApprovalService extends Service {
                 return child === '' || (!isAbsolute(child) && child !== '..' && !child.startsWith(`..${sep}`))
               }) ?? agents[0]
               if (agent === undefined) return false
-              if (!ownerReady && this.effectivePolicy(agent.session) !== 'never') return false
+              if ((!allowConfirmation || !ownerReady) && this.effectivePolicy(agent.session) !== 'never') return false
               const allowed = await this.requestProtectedInput(agent, { type: 'protected-input', ...change }) === 'allowed-once'
               if (allowed) approved.add(change.path)
               return active() && allowed
@@ -208,14 +208,18 @@ export class ApprovalService extends Service {
       }
       let reviews = Promise.resolve(true)
       const runReview = (): Promise<boolean> => {
+        const startup = profile.inputReviewReady === false
         const operation = reviews.then(async () => {
           if (lifetime.signal.aborted) return false
+          // Reloads cannot apply before readiness, and may hold their queue while awaiting Loader settlement.
+          if (startup) return review(false)
           if (profile.runInputReview === undefined) return review()
           let accepted = false
           await profile.runInputReview(async () => { accepted = await review() })
           return accepted
         })
         reviews = operation.catch(() => false)
+        if (startup) profile.startupInputReview = reviews
         return operation
       }
       const schedule = (): void => {

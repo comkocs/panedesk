@@ -26,6 +26,10 @@ export interface ProfileContext {
   requestInputReview?: () => void
   /** Reload approved inputs through the active HMR transaction queue when available. */
   reloadProtectedInputs?: () => Promise<void>
+  /** Whether HMR has observed application readiness; absent when HMR does not own review scheduling. */
+  inputReviewReady?: boolean
+  /** Startup reviews already admitted outside HMR; reloads await their settlement before mutating inputs. */
+  startupInputReview?: Promise<boolean>
   /** Serialize owner review with the active configuration transaction. */
   runInputReview?: (operation: () => Promise<void>) => Promise<void>
   /** Packaged applications supply their bundled runtime instead of a PATH executable. */
