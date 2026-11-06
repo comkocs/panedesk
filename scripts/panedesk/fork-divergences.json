@@ -15909,6 +15909,19 @@
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
         ]
       }
+    },
+    {
+      "id": "windows-cli-signal-debugger",
+      "description": "Disable signal-triggered debugging for the installed Windows CLI launcher",
+      "origin": "Installed Windows CLI launcher review",
+      "reason": "Pass --disable-sigusr1 before the script path in the installed Windows CLI launcher, beside --expose-internals, matching the installed POSIX launcher. Same-user processes can otherwise open a debug port through process._debugProcess when Electron runs as Node. Keep every other launch argument, ELECTRON_RUN_AS_NODE, and Electron fuses unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/cli/dsh.cmd",
+          "apps/desktop/tests/cli-launcher.spec.ts"
+        ]
+      }
     }
   ]
 }
