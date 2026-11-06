@@ -58,7 +58,7 @@ it('secures the empty staging file before writing bytes and completes short writ
   const f = await fixture()
   try {
     await f.extension.write('hello', undefined, undefined, {}, { displayPath: 'file' })
-    expect(state.calls.slice(0, 8)).toEqual(['security', 'private-directory', 'empty-file', 'secure', 'write:5', 'write:3', 'write:1', 'flush'])
+    expect(state.calls).toEqual(['empty-file', 'write:5', 'write:3', 'write:1', 'flush', 'link', 'disposition', 'close:11'])
     expect(state.calls.filter(call => call === 'link')).toHaveLength(1)
     expect(state.live.size).toBe(0)
   } finally { await f.handler.close() }
@@ -68,18 +68,26 @@ it('publishes an empty file only after security and flush', async () => {
   const f = await fixture()
   try {
     await f.extension.write('', undefined, undefined, {}, { displayPath: 'file' })
-    expect(state.calls.slice(0, 6)).toEqual(['security', 'private-directory', 'empty-file', 'secure', 'flush', 'link'])
+    expect(state.calls).toEqual(['empty-file', 'flush', 'link', 'disposition', 'close:11'])
   } finally { await f.handler.close() }
 })
 
-it.each(['security', 'secure', 'flush'])('refuses %s failure without publication and releases ownership', async (failure) => {
+it.each(['create', 'write', 'flush'])('refuses %s failure without publication and releases ownership', async (failure) => {
+  const bindings = await import('../src/win32-write-abi.ts')
+  const api = bindings.createWindowsWriteApi(context)
+  if (failure === 'create') api.createFile = () => { state.calls.push('create-failed'); throw new FsError('create refused', 'FS_IO_ERROR') }
+  if (failure === 'write') api.write = () => { state.calls.push('write-failed'); throw new FsError('write refused', 'FS_IO_ERROR') }
+  const factory = vi.spyOn(bindings, 'createWindowsWriteApi').mockReturnValueOnce(api)
   const f = await fixture(); state.fail = failure
   try {
     await expect(f.extension.write('hello', undefined, undefined, {}, { displayPath: 'file' })).rejects.toThrow('refused')
     expect(state.calls.includes('link')).toBe(false)
     if (failure !== 'flush') expect(state.calls.some(call => call.startsWith('write:'))).toBe(false)
     expect(state.live.size).toBe(0)
-  } finally { await f.handler.close() }
+    expect(state.calls).toEqual(failure === 'create' ? ['create-failed'] : failure === 'write'
+      ? ['empty-file', 'write-failed', 'disposition', 'close:11']
+      : ['empty-file', 'write:5', 'write:3', 'write:1', 'flush', 'disposition', 'close:11'])
+  } finally { factory.mockRestore(); await f.handler.close() }
 })
 
 it('refuses zero progress without flush or publication', async () => {
@@ -132,7 +140,7 @@ it('discards uncommitted stages exactly once and rejects use after close', async
   const f = await fixture(); const stage = await f.stage()
   await Promise.all([stage.close(), stage.close()]); await f.handler.close()
   await expect(stage.file.write(Buffer.from('x'), 0, 1, 0n)).rejects.toMatchObject({ code: 'FS_IO_ERROR' })
-  expect(state.calls.filter(call => call.startsWith('close:'))).toEqual(['close:12', 'close:11'])
+  expect(state.calls.filter(call => call.startsWith('close:'))).toEqual(['close:11'])
   expect(state.live.size).toBe(0)
 })
 

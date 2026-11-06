@@ -1,4 +1,4 @@
-/** Worker-owned stages bind private names, content and publication to the same retained handles. */
+/** Worker-owned stages inherit in the destination directory and publish through retained handles. */
 import { randomUUID } from 'node:crypto'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
@@ -6,7 +6,6 @@ import type { HandleReply, HandleWriteRequest, WindowsWriteHandler } from './win
 import type { ReplacementPreparation, WindowsWriteApi } from './win32-write-abi.ts'
 
 type Stage = {
-  directory: number | undefined
   file: number
   parent: number
   name: string
@@ -15,7 +14,7 @@ type Stage = {
 }
 
 /** One synchronous owner processes mutation messages; shutdown discards all uncommitted stages.
- * @param api - Worker-local native operations with mandatory security preparation.
+ * @param api - Worker-local native operations; replacement requires captured security and metadata.
  * @returns Dispatcher with private stage tokens independent of native file tokens.
  */
 export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
@@ -31,14 +30,11 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
     const stage = get(token)
     stages.delete(token)
     const errors: unknown[] = []
-    for (const handle of [stage.file, stage.directory]) {
-      if (handle === undefined) continue
-      // A rename moved the staging name itself: disposition would delete the published file.
-      if (!(handle === stage.file && stage.replacement && stage.phase === 'committed')) {
-        try { api.disposition(handle) } catch (error) { errors.push(error) }
-      }
-      try { api.close(handle) } catch (error) { errors.push(error) }
+    // A rename moved the staging name itself: disposition would delete the published file.
+    if (!(stage.replacement && stage.phase === 'committed')) {
+      try { api.disposition(stage.file) } catch (error) { errors.push(error) }
     }
+    try { api.close(stage.file) } catch (error) { errors.push(error) }
     try { stage.replacement?.close() } catch (error) { errors.push(error) }
     if (errors.length && stage.phase !== 'committed') throw new AggregateError(errors, 'Stage cleanup failed / 暂存清理失败')
   }
@@ -49,27 +45,18 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
       case 'stage': {
         const name = checkWindowsComponent(request.name)
         const replacement = request.policy.kind === 'replace' ? api.prepareReplacement(request.parent, name, request.policy.observed) : undefined
-        let directory: number | undefined
         let file: number | undefined
         try {
-          if (replacement) {
-            // A null descriptor lets Windows inherit directly from the destination folder.
-            file = api.createFile(request.parent, `.stage-${randomUUID()}`, null)
-          } else {
-            const security = api.security(request.parent)
-            directory = api.createDirectory(request.parent, `.stage-${randomUUID()}`, true, security.directory).token
-            file = api.createFile(directory, 'content', security.file)
-            api.secureEmpty(file, security.file)
-          }
+          // A null descriptor lets Windows inherit permissions and integrity labels from the destination folder.
+          file = api.createFile(request.parent, `.stage-${randomUUID()}`, null)
           const token = ++sequence
-          stages.set(token, { directory, file, parent: request.parent, name, replacement, phase: 'secured' })
+          stages.set(token, { file, parent: request.parent, name, replacement, phase: 'secured' })
           return { kind: 'staged', token }
         } catch (error) {
           const errors: unknown[] = [error]
-          for (const handle of [file, directory]) {
-            if (handle === undefined) continue
-            try { api.disposition(handle) } catch (failure) { errors.push(failure) }
-            try { api.close(handle) } catch (failure) { errors.push(failure) }
+          if (file !== undefined) {
+            try { api.disposition(file) } catch (failure) { errors.push(failure) }
+            try { api.close(file) } catch (failure) { errors.push(failure) }
           }
           try { replacement?.close() } catch (failure) { errors.push(failure) }
           if (errors.length > 1) throw new AggregateError(errors, 'Stage preparation and cleanup failed')
