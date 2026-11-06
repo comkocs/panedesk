@@ -1574,7 +1574,7 @@ export interface Config {
    * runtime's safe allocation/decode maximum. Defaults to 10 MiB.
    */
   diffBasisMaxBytes?: number
-  /** Opt in through protected profile configuration only; disabled preserves the legacy Windows backend. */
+  /** Windows handle backend; experimental by default, disabled selects the legacy backend. Protected profile or overlay only. */
   windowsHandleBackend?: 'disabled' | 'experimental'
 }
 ```

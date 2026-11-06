@@ -4,7 +4,7 @@ import { WindowsDirectoryBackend } from './directory-win32.ts'
 import type { DirectoryBackend } from './directory-handle.ts'
 
 /** Select only from protected provider configuration; Linux ignores the Windows-only choice.
- * @param choice - Validated provider setting, disabled unless explicitly selected.
+ * @param choice - Validated provider setting; experimental selects the handle backend on Windows.
  * @returns The instance's immutable backend.
  */
 export function createDirectoryBackend(choice: 'disabled' | 'experimental'): DirectoryBackend {

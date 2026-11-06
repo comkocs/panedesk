@@ -70,6 +70,13 @@ it('never falls back to paths after selecting the handle backend', async () => {
   expect(fixture.calls).toEqual([])
 })
 
-it('keeps the legacy backend selected by default', () => {
-  expect(directoryFixture().defaultChoice()).toBe('disabled')
+it('selects the handle backend by default', () => {
+  expect(directoryFixture().defaultChoice()).toBe('experimental')
+})
+
+it('selects the handle backend on Windows when the field is omitted', () => {
+  vi.stubGlobal('process', { ...process, platform: 'win32' })
+  const choice = directoryFixture().defaultChoice()
+  if (choice !== 'experimental') throw new Error(`expected experimental, got ${String(choice)}`)
+  expect(createDirectoryBackend(choice).choice).toBe('windows-handles')
 })

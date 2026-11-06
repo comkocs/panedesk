@@ -21,8 +21,11 @@
   en: 1bceab0cdb2e8f8e
   zh: 7d14d0c1ad90e9e2
 /panedesk-dsh-fs-local/use-this-package/minimal-configuration:
-  en: 4c948ed5cc27f0c9
-  zh: c11352f385df1d69
+  en: c573aa8259c1bfa1
+  zh: c57b84c9b8da0da8
+/panedesk-dsh-fs-local/use-this-package/switch-back-to-disabled:
+  en: c63bce85988a9174
+  zh: 96cb8f9ae64cffc8
 /panedesk-dsh-fs-local/use-this-package/what-you-can-do:
   en: cff37f0ccf4cff2a
   zh: d26ce57570880789
@@ -39,8 +42,8 @@
   en: 7f1b3cbfc44a7543
   zh: 0ce90e0aae429aff
 /panedesk-dsh-fs-local/understand-the-implementation/directory-relative-operations:
-  en: 1d5ee4c6de6c0a78
-  zh: abdc8a849c6cc04c
+  en: 6a8b0be04858e723
+  zh: 7a38288023620c5f
 /panedesk-dsh-fs-local/understand-the-implementation/write-path:
   en: eefa5c3b69af4614
   zh: d5ac6b2e14efe268
