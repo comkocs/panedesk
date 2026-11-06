@@ -81,7 +81,12 @@ function fixture(kind = 'inherited') {
   bind('NtQuerySecurityObject', (handle: object, information: number, buffer: Buffer, length: number, needed: [number]) => {
     events.push(`query:${(information >>> 0).toString(16)}`)
     if (kind === 'query-failure' && information !== 0x20) return 0xc0000022
-    const bytes = information === 0x20 ? Buffer.from([1, 0, 0, 128, ...Array<number>(16).fill(0)]) : policies.get(handle)!
+    let bytes = information === 0x20 ? Buffer.from([1, 0, 0, 128, ...Array<number>(16).fill(0)]) : policies.get(handle)!
+    if (kind === 'requested' && information !== 0x20 && (information & 0x04) === 0) {
+      bytes = Buffer.from(bytes)
+      bytes.writeUInt16LE(bytes.readUInt16LE(2) & ~0x04, 2)
+      bytes.writeUInt32LE(0, 16)
+    }
     needed[0] = bytes.length
     if (length < bytes.length) return 0xc0000023
     bytes.copy(buffer); events.push('query'); return 0
@@ -138,6 +143,20 @@ it('replaces an entirely inherited file in its own directory and leaves readable
   } finally { await f.handler.close() }
 })
 
+it('replaces an inherited file when the query returns only requested information', async () => {
+  const f = fixture('requested')
+  try {
+    const stage = await f.handler.execute({ kind: 'stage', parent: 1, name: 'entry', policy: { kind: 'replace', observed: metadata('C:\\synthetic\\entry') } })
+    if (stage.kind !== 'staged') throw new Error('Missing stage')
+    await f.handler.execute({ kind: 'write', token: stage.token, bytes: Buffer.from('new'), position: 0n })
+    await f.handler.execute({ kind: 'flush', token: stage.token })
+    await f.handler.execute({ kind: 'prepare-metadata', token: stage.token })
+    await f.handler.execute({ kind: 'publish', token: stage.token, request: { kind: 'replace', observed: metadata('C:\\synthetic\\entry'), metadataProfile: 'replacement' } })
+    await f.handler.execute({ kind: 'stage-close', token: stage.token })
+    expect(f.target()).toBe('new')
+  } finally { await f.handler.close() }
+})
+
 it('opens the old file without ACCESS_SYSTEM_SECURITY and queries no audit information', async () => {
   const f = fixture()
   try {
@@ -145,6 +164,7 @@ it('opens the old file without ACCESS_SYSTEM_SECURITY and queries no audit infor
     expect(f.events).toContain('open:120089')
     expect(f.events.some(value => value.startsWith('query:'))).toBe(true)
     expect(f.events.filter(value => value.startsWith('query:')).every(value => (Number.parseInt(value.slice(6), 16) & 0x08) === 0)).toBe(true)
+    expect(f.events.filter(value => value.startsWith('query:') && value !== 'query:20')).toEqual(['query:17', 'query:17'])
   } finally { await f.handler.close() }
 })
 

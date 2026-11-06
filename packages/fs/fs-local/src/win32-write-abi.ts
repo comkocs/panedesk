@@ -91,7 +91,7 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
     let buffer = Buffer.alloc(20)
     const needed: [number] = [0]
     // Owner, group, DACL and integrity label; audit information is not requested.
-    const information = 0x13
+    const information = 0x17
     let status = querySecurity(handle, information, buffer, buffer.length, needed) >>> 0
     if (status === 0xc0000023 && needed[0] >= 20 && needed[0] <= 65536) {
       buffer = Buffer.alloc(needed[0]); status = querySecurity(handle, information, buffer, buffer.length, needed) >>> 0
