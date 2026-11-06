@@ -16076,6 +16076,23 @@
         ],
         "test": "headless credential policy"
       }
+    },
+    {
+      "id": "cooperative-protected-input-persistence",
+      "description": "Bound protected-input record preparation and reduce metadata scan overhead",
+      "origin": "Protected input admission responsiveness",
+      "reason": "Hash existing records and encode captured file entries cooperatively while retaining the record lock, revision comparison, generation checks, and host-owned atomic rename before trust publication. Preserve durable JSON bytes and both metadata stability passes, use native canonical-path resolution for metadata stamps, and yield between authoritative-tree inode groups without changing the non-yielding conflict confirmation. Cover event-loop responsiveness, requests during persistence, revoked generations, commit refusal, and byte-identical serialization. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/input-integrity-structure.ts",
+          "packages/boot/app-boot/tests/input-integrity-persist.spec.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml"
+        ]
+      }
     }
   ]
 }

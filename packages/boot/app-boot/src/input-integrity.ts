@@ -97,7 +97,7 @@ function treeStamp(path: string): string {
   try {
     const link = lstatSync(path, { bigint: true })
     const target = statSync(path, { bigint: true })
-    return [realpathSync(path), ...[link, target].map(stat =>
+    return [realpathSync.native(path), ...[link, target].map(stat =>
       `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}:${stat.nlink}`)].join('\0')
   } catch (error) {
     if (missing(error)) return 'missing'
@@ -985,18 +985,18 @@ export class ProtectedInputIntegrity {
     this.assertCapturedRoots(candidates)
     if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
     const previous = new Map(this.approved)
-    for (const [path, value] of candidates) this.approved.set(path, value)
     const current = (): void => {
       if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
       this.assertCapturedRoots(candidates)
     }
-    try { await this.persist(current); current() } catch (error) {
+    try { await this.persist(current, candidates); current() } catch (error) {
       if (generation === this.generation) {
         this.approved.clear()
         for (const [path, value] of previous) this.approved.set(path, value)
       }
       throw error
     }
+    for (const [path, value] of candidates) this.approved.set(path, value)
     this.granted = true
     this.verifiedPass = { pass, roots: new Set(candidates.keys()) }
   }
@@ -1126,7 +1126,7 @@ export class ProtectedInputIntegrity {
     return bytes
   }
 
-  private async persist(current: () => void): Promise<void> {
+  private async persist(current: () => void, candidates: ReadonlyMap<string, InputSnapshot>): Promise<void> {
     current()
     if (this.record === undefined) return
     this.assertRecordLocation()
@@ -1136,11 +1136,12 @@ export class ProtectedInputIntegrity {
     mkdirSync(lock, { mode: 0o700 })
     const temporary = `${this.record}.${randomUUID()}.new`
     try {
-      let stored: string | undefined
-      try { stored = readFileSync(this.record, 'utf8') } catch (error) {
+      let storedRevision: string | undefined
+      try { storedRevision = await finishAsync(contentDigest(this.record), this.reviewUnit) } catch (error) {
         if (!missing(error)) throw error
       }
-      if ((stored === undefined ? undefined : createHash('sha256').update(stored).digest('hex')) !== this.revision) {
+      current()
+      if (storedRevision !== this.revision) {
         throw new Error('Protected workspace record changed in another host; reopen it before granting trust')
       }
       const descriptor = openSync(temporary, 'wx', 0o600)
@@ -1151,22 +1152,30 @@ export class ProtectedInputIntegrity {
         let offset = 0
         while (offset < bytes.length) offset += writeSync(descriptor, bytes, offset, bytes.length - offset)
       }
-      try {
-        append(`{"version":1,"workspace":${JSON.stringify(this.root)},"inputs":[`)
+      const encode = function* (root: string, approved: ReadonlyMap<string, InputSnapshot>): Generator<void, void> {
+        append(`{"version":1,"workspace":${JSON.stringify(root)},"inputs":[`)
         let separator = ''
-        for (const [path, value] of this.approved) {
+        for (const [path, value] of approved) {
           const { files, ...metadata } = value
           append(`${separator}{"path":${JSON.stringify(path)},"snapshot":${JSON.stringify(metadata).slice(0, -1)}`)
           if (files !== undefined) {
             append(',"files":[')
             let fileSeparator = ''
-            for (const file of files) { append(fileSeparator + JSON.stringify(file)); fileSeparator = ',' }
+            for (const file of files) {
+              append(fileSeparator + JSON.stringify(file))
+              fileSeparator = ','
+              yield
+            }
             append(']')
           }
           append('}}')
           separator = ','
+          yield
         }
         append(']}\n')
+      }
+      try {
+        await finishAsync(encode(this.root, candidates), () => { current(); this.reviewUnit?.() })
       } finally { closeSync(descriptor) }
       const nextRevision = revision.digest('hex')
       current()
@@ -1330,15 +1339,13 @@ export class ProtectedInputIntegrity {
     this.assertCapturedRoots(candidates)
     current()
     const previous = new Map(this.approved)
-    this.fileIndex.clear()
-    for (const [path, candidate] of candidates) this.approved.set(path, candidate)
     const tightened = [...candidates].some(([path, candidate]) => {
       const before = previous.get(path)
       return before !== undefined && !matches(candidate, before)
     })
     try {
       current()
-      if (changes.length > 0 || tightened) await this.persist(current)
+      if (changes.length > 0 || tightened) await this.persist(current, candidates)
       current()
     } catch (error) {
       if (generation === this.generation) {
@@ -1347,6 +1354,8 @@ export class ProtectedInputIntegrity {
       }
       throw error
     }
+    this.fileIndex.clear()
+    for (const [path, candidate] of candidates) this.approved.set(path, candidate)
     delete checked.previous
     this.verifiedPass = { pass: checked, roots: new Set(candidates.keys()) }
     return true
