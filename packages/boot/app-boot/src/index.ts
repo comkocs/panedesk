@@ -18,7 +18,7 @@ import Group from '@panedesk/cordis-plugin-group'
 import { dshHomePath, resolveDshHome } from '@panedesk/dsh-home-paths'
 import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bash-local'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
-export { grantProtectedWorkspace, protectedInputCovered, readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
+export { grantProtectedWorkspace, regrantProtectedWorkspace, protectedInputCovered, readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
 export { ProtectedInputIntegrity, ProtectedInputReviewError, WorkspaceContainsStateError, type ProtectedInputChange, type ProtectedInputOwner } from './input-integrity.ts'
 export {

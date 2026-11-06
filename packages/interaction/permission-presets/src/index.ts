@@ -23,7 +23,7 @@ import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-p
 import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import type { SandboxMode } from '@panedesk/dsh-sandbox'
 import { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
-import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
+import { grantProtectedWorkspace, regrantProtectedWorkspace } from '@panedesk/dsh-app-boot'
 // Side-effect type import: declaration-merges `ctx.shell` (the capability fact
 // `sandboxMode` this service reads), without a value dependency on the seam.
 import type {} from '@panedesk/dsh-shell'
@@ -365,7 +365,13 @@ export class PermissionPresetService extends TypertRemoteService {
   async authorizeWorkspaceWrite(workspace: string): Promise<void> {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
-    await this.captureWorkspace(workspace)
+    const sandbox = this.ctx.get('sandbox')
+    if (sandbox?.hasWorkspaceWriteGrant?.(workspace) === true) {
+      throw new RemoteError('permission/workspace-unavailable',
+        'Revoke the existing workspace write capability and finish its tasks before reauthorizing. / 请先撤销已有工作区写权限并结束相关任务，再重新授权。', {})
+    }
+    const profile = this.ctx.get('profileContext')
+    if (profile !== undefined) await regrantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
     await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
     this.emitChanged('permission-presets/workspace-write-changed')
   }

@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { grantProtectedWorkspace, ProtectedInputReviewError } from '@panedesk/dsh-app-boot'
+import { regrantProtectedWorkspace, ProtectedInputReviewError } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -352,7 +352,10 @@ export class ApprovalService extends Service {
         else {
           authorizing = true
           const profile = this.ctx.get('profileContext')
-          if (profile !== undefined) await grantProtectedWorkspace(profile, req.purpose.workspace, [])
+          const sandbox = this.ctx.get('sandbox')
+          if (profile !== undefined && sandbox?.supportsWorkspaceWriteAccess === true
+            && sandbox.hasWorkspaceWriteGrant?.(req.purpose.workspace) === true) throw new ProtectedInputReviewError()
+          if (profile !== undefined) await regrantProtectedWorkspace(profile, req.purpose.workspace, [])
           req.signal?.throwIfAborted()
           timeout?.signal.throwIfAborted()
           await authorization?.commit()

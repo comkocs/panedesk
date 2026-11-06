@@ -16,6 +16,8 @@ export interface ProfileContext {
   inputIntegrity?: ProtectedInputIntegrity
   /** Workspace-specific records owned by this launched profile, including non-launch session roots. */
   inputIntegrities?: Map<string, ProtectedInputIntegrity>
+  /** Host-owned composite identity slots; the path inventory above remains the confinement lookup. */
+  workspaceInputReaders?: Map<string, ProtectedInputIntegrity>
   /** Launcher-owned live inventory, evaluated before each workspace write grant. */
   protectedInputPaths?: () => readonly string[]
   /** Launcher-owned policy root for sessions without an explicit cwd. */

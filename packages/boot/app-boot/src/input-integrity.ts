@@ -2,6 +2,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { userInfo } from 'node:os'
 import { setImmediate } from 'node:timers/promises'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 import { authoritativeHomeTrees, isHomeDiagnosticFile, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
@@ -447,12 +448,14 @@ export class ProtectedInputIntegrity {
   private readonly workspace: string
   private readonly record: string | undefined
   private readonly home: string | undefined
+  private readonly workspaceIdentity: string
   private granted: boolean
   private revision: string | undefined
   private verifying = false
   private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
+  private admission: Promise<void> | undefined
 
   private stateTrusted(): boolean {
     if (this.record === undefined || process.platform !== 'win32') return true
@@ -520,6 +523,7 @@ export class ProtectedInputIntegrity {
   constructor(workspace: string, home?: string) {
     this.workspace = resolve(workspace)
     this.root = canonicalLocation(this.workspace)
+    this.workspaceIdentity = ProtectedInputIntegrity.workspaceKey(workspace, home)
     this.granted = home === undefined
     if (home === undefined) return
     this.home = canonicalLocation(home)
@@ -544,7 +548,29 @@ export class ProtectedInputIntegrity {
    * @returns Whether this reader owns the requested durable workspace record.
    */
   ownsWorkspaceRecord(workspace: string, home: string): boolean {
-    return this.root === canonicalLocation(resolve(workspace)) && this.home === canonicalLocation(home)
+    return this.home !== undefined && this.workspaceIdentity === ProtectedInputIntegrity.workspaceKey(workspace, home)
+  }
+
+  /**
+   * Identify a host-owned reader without merging owner domains or replaced workspace objects.
+   * @param workspace Writable directory; canonical aliases share a slot.
+   * @param home Durable owner storage; omission identifies a memory-only reader.
+   * @returns Process-local identity; baseline revisions and observed roots remain reader-owned.
+   */
+  static workspaceKey(workspace: string, home?: string): string {
+    const root = canonicalLocation(resolve(workspace))
+    const owner = userInfo()
+    return JSON.stringify([process.platform, owner.uid, owner.username, home === undefined ? null : canonicalLocation(home),
+      root, identity(root, true), 'protected-input-v1'])
+  }
+
+  /**
+   * Resolve the path index used by existing confinement consumers.
+   * @param workspace Writable directory spelling.
+   * @returns Canonical path, including a missing final component.
+   */
+  static workspacePath(workspace: string): string {
+    return canonicalLocation(resolve(workspace))
   }
 
   private loadRecord(text: string): void {
@@ -655,6 +681,29 @@ export class ProtectedInputIntegrity {
       finishSync(checkPass(pass))
       this.approved.set(path, value)
     }
+  }
+
+  /**
+   * Capture a first grant or verify existing trust without accepting changed inputs.
+   * @param protectedPaths Current native write exclusions.
+   * @returns Admission completion; failed captures require explicit owner reauthorization.
+   */
+  ensureWrite(protectedPaths: readonly string[] = []): Promise<void> {
+    this.assertRecordLocation(protectedPaths)
+    const admit = (): Promise<void> => {
+      this.refreshRecord()
+      if (!this.granted && this.grant === undefined) return this.grantWrite(protectedPaths)
+      return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
+        if (!accepted) throw new ProtectedInputReviewError()
+      })
+    }
+    // Later arrivals run a fresh verification rather than borrowing an earlier scan's window.
+    const operation = this.admission === undefined ? admit() : this.admission.then(admit, admit)
+    this.admission = operation
+    void operation.finally(() => {
+      if (this.admission === operation) this.admission = undefined
+    }).catch(() => {})
+    return operation
   }
 
   /**
