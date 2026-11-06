@@ -15,9 +15,9 @@ function home(): string {
 }
 
 describe('sandbox protected root edge observations', () => {
-  it('lists only the three exact authoritative home trees', () => {
+  it('lists only the four exact authoritative home trees', () => {
     const root = home()
-    expect(authoritativeHomeTrees(root)).toEqual([join(root, 'ledger'), join(root, 'sessions'), join(root, 'storages/session_projcache/sessions')])
+    expect(authoritativeHomeTrees(root)).toEqual([join(root, 'ledger'), join(root, 'sessions'), join(root, 'storages/session_projcache/sessions'), join(root, 'messages')])
   })
   it('omits only exact regular diagnostic files without redirected ancestors', () => {
     const root = home()
