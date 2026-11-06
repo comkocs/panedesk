@@ -1335,6 +1335,13 @@ export async function boot(
     }, { global: true, prepend: true })
     await ctx.plugin(Loader)
     await prepare?.(ctx)
+    const profile = ctx.get('profileContext')
+    if (profile !== undefined) ctx.effect(() => async () => {
+      const readers = new Set([...(profile.inputIntegrities?.values() ?? []),
+        ...(profile.workspaceInputReaders?.values() ?? []),
+        ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+      await Promise.all([...readers].map(reader => reader.disposeReview()))
+    }, 'app-boot.inputReviews')
     await markKernelBoot(ctx)
     stage = 'plugin tree failed to load'
     await mountRootInclude(ctx, absoluteConfigPath, patches, bareModuleBaseUrl, binName)

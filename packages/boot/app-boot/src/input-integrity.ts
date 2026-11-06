@@ -4,7 +4,7 @@ import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readF
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { userInfo } from 'node:os'
 import { setImmediate } from 'node:timers/promises'
-import { runInputReviewThread, type InputReviewProgress } from './input-review-thread.ts'
+import { InputReviewThread, runInputReviewThread, type InputReviewProgress } from './input-review-thread.ts'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 import { authoritativeHomeTrees, isHomeDiagnosticFile, protectedWorkspaceBranches } from '@panedesk/dsh-sandbox'
 import { en, zh } from './input-integrity-locales.ts'
@@ -468,6 +468,7 @@ export class ProtectedInputIntegrity {
   private revision: string | undefined
   private verifying = false
   private reviews: Promise<void> = Promise.resolve()
+  private readonly activeReviews = new Set<Promise<boolean>>()
   private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
@@ -475,6 +476,33 @@ export class ProtectedInputIntegrity {
   private rootsVersion = 0
   private generation = 0
   private reviewCommit: ((prepared: object) => Promise<string | undefined>) | undefined
+  private reviewPrepare: ((prepared: object) => Promise<void>) | undefined
+  private readonly reviewThread = new InputReviewThread()
+  private reviewCacheKey: string | undefined
+  private reviewWorkerIdentity: string | undefined
+
+  /** Release the process-local checked pass and await the owned review child.
+   * @returns Completion of isolate termination; future reviews import fresh state.
+   */
+  async disposeReview(): Promise<void> {
+    this.generation++
+    await this.resetReview()
+    await Promise.allSettled([...this.activeReviews, this.reviews])
+  }
+
+  private async resetReview(): Promise<void> {
+    this.reviewCacheKey = undefined
+    this.verifiedPass = undefined
+    await this.reviewThread.dispose()
+  }
+
+  /** Identify the exact in-memory authority sent over the private review channel.
+   * @returns Small metadata only; no approved copies or checked file stamps.
+   */
+  reviewIdentity(): string {
+    return createHash('sha256').update(JSON.stringify([this.workspaceIdentity, this.generation, this.rootsVersion, this.revision,
+      this.granted, [...this.observed], this.ownerRecords.map(record => record.reviewIdentity())])).digest('hex')
+  }
 
   /** Revoke pending captures and reviews without changing the durable record format.
    * @param workspace Canonical workspace whose owner authority changed.
@@ -499,10 +527,12 @@ export class ProtectedInputIntegrity {
 
   /** Delegate isolated baseline commits to the supervising host, which owns revocation.
    * @param commit Host commit request; the isolate never renames a trusted baseline itself.
+   * @param prepare Host-owned lock acquisition and temporary-file cleanup for isolated writers.
    */
-  setReviewCommit(commit: (prepared: object) => Promise<string | undefined>): void {
+  setReviewCommit(commit: (prepared: object) => Promise<string | undefined>, prepare?: (prepared: object) => Promise<void>): void {
     this.reviewCommit = commit
-    for (const record of this.ownerRecords) record.setReviewCommit(commit)
+    this.reviewPrepare = prepare
+    for (const record of this.ownerRecords) record.setReviewCommit(commit, prepare)
   }
 
   private stateTrusted(): boolean {
@@ -1134,8 +1164,9 @@ export class ProtectedInputIntegrity {
     mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
     this.assertRecordLocation()
     const lock = `${this.record}.lock`
-    mkdirSync(lock, { mode: 0o700 })
     const temporary = `${this.record}.${randomUUID()}.new`
+    if (this.reviewPrepare === undefined) mkdirSync(lock, { mode: 0o700 })
+    else await this.reviewPrepare({ workspace: this.root, record: this.record, temporary })
     try {
       let storedRevision: string | undefined
       try { storedRevision = await finishAsync(contentDigest(this.record), this.reviewUnit) } catch (error) {
@@ -1192,7 +1223,7 @@ export class ProtectedInputIntegrity {
       try { unlinkSync(temporary) } catch (error) {
         if (!missing(error)) throw error
       }
-      rmdirSync(lock)
+      if (this.reviewPrepare === undefined) rmdirSync(lock)
     }
   }
 
@@ -1219,17 +1250,38 @@ export class ProtectedInputIntegrity {
    * @returns Whether every input still matches its approved identity and bytes; ungranted workspaces need no approval.
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
+    const operation = this.verifyInputs(owner)
+    this.activeReviews.add(operation)
+    try { return await operation } finally { this.activeReviews.delete(operation) }
+  }
+
+  private async verifyInputs(owner: ProtectedInputOwner): Promise<boolean> {
     const current = this.checkpoint()
     await this.waitForCapture()
     current()
     if (this.verifying) throw new Error('Protected host input verification is already pending')
     if (this.isolatedReview && this.home !== undefined) {
       this.verifying = true
+      const prepared = new Map<string, { lock: string; stamp: string | undefined }>()
       try {
         let completed = -1
         const records = [this, ...this.ownerRecords]
-        const guards = records.map(record => ({ record, current: record.checkpoint(), revision: record.revision }))
-        const assertCurrent = (): void => { current(); for (const guard of guards) guard.current() }
+        const guards = records.map(record => ({ record, current: record.checkpoint(), revision: record.revision,
+          stamp: record.record === undefined ? undefined : treeStamp(record.record) }))
+        const assertCurrent = (): void => {
+          current()
+          for (const guard of guards) {
+            guard.current()
+            if (ProtectedInputIntegrity.workspaceKey(guard.record.workspace, guard.record.home) !== guard.record.workspaceIdentity) {
+              throw new Error('Protected input workspace identity changed during review')
+            }
+            const path = guard.record.record
+            if (path !== undefined && treeStamp(path) !== guard.stamp
+              && createHash('sha256').update(readFileSync(path)).digest('hex') !== guard.revision) {
+              throw new Error('Protected workspace record changed during review')
+            }
+          }
+        }
         const commit = (value: unknown): string => {
           assertCurrent()
           if (typeof value !== 'object' || value === null || !('record' in value) || typeof value.record !== 'string'
@@ -1238,19 +1290,31 @@ export class ProtectedInputIntegrity {
             || !('previous' in value) || !('revision' in value) || typeof value.revision !== 'string'
             || !/^[a-f0-9]{64}$/u.test(value.revision)) throw new Error('Invalid protected input commit request')
           const guard = guards.find(candidate => candidate.record.record === value.record && candidate.record.root === value.workspace)
-          if (guard === undefined || value.previous !== guard.revision
+          if (guard === undefined || !prepared.has(value.temporary) || value.previous !== guard.revision
             || !value.temporary.startsWith(`${value.record}.`)
             || !/^[a-f0-9-]{36}\.new$/u.test(value.temporary.slice(value.record.length + 1))) {
             throw new Error('Protected input commit does not match the reviewed generation')
           }
           guard.record.assertRecordLocation()
           assertCurrent()
-          // The worker retains the record lock; only this host can perform the final rename.
+          const owned = prepared.get(value.temporary)
+          if (owned === undefined || treeStamp(owned.lock) !== owned.stamp) throw new Error('Protected input publication lock was replaced')
+          // This host owns both the record lock and the final rename.
           renameSync(value.temporary, value.record)
           guard.revision = value.revision
+          guard.stamp = treeStamp(value.record)
           return value.revision
         }
-        const result = await runInputReviewThread({ kind: 'verify', workspace: this.workspace, home: this.home, state: this.exportReviewState() }, (value) => {
+        const cacheKey = this.reviewIdentity()
+        const reuse = this.reviewThread.available && this.reviewCacheKey === cacheKey
+        if (!reuse) {
+          await this.reviewThread.dispose()
+          assertCurrent()
+          this.verifiedPass = undefined
+          for (const record of this.ownerRecords) record.verifiedPass = undefined
+        }
+        const result = await runInputReviewThread({ kind: 'verify', workspace: this.workspace, home: this.home,
+          cacheKey, ...reuse ? {} : { state: this.exportReviewState() } }, (value) => {
           if (value.completed <= completed) return
           completed = value.completed
           this.reviewProgress(`${en.reviewProgress(completed, value.total)} / ${zh.reviewProgress(completed, value.total)}`)
@@ -1264,10 +1328,32 @@ export class ProtectedInputIntegrity {
           const accepted = await owner.confirm(change)
           assertCurrent()
           return accepted
-        }, commit)
+        }, commit, this.reviewThread, (value) => {
+          assertCurrent()
+          if (typeof value !== 'object' || value === null || !('record' in value) || typeof value.record !== 'string'
+            || !('workspace' in value) || typeof value.workspace !== 'string'
+            || !('temporary' in value) || typeof value.temporary !== 'string') throw new Error('Invalid protected input prepare request')
+          const guard = guards.find(candidate => candidate.record.record === value.record && candidate.record.root === value.workspace)
+          if (guard === undefined || !value.temporary.startsWith(`${value.record}.`)
+            || !/^[a-f0-9-]{36}\.new$/u.test(value.temporary.slice(value.record.length + 1))) {
+            throw new Error('Protected input preparation does not match the reviewed generation')
+          }
+          guard.record.assertRecordLocation()
+          const lock = `${value.record}.lock`
+          mkdirSync(lock, { mode: 0o700 })
+          prepared.set(value.temporary, { lock, stamp: treeStamp(lock) })
+        })
         assertCurrent()
         if (typeof result !== 'object' || result === null || !('accepted' in result) || typeof result.accepted !== 'boolean'
-          || !('state' in result)) throw new Error('Invalid protected input worker result')
+          || !('cacheKey' in result) || result.cacheKey !== cacheKey) throw new Error('Invalid protected input worker result')
+        if (!('state' in result)) {
+          if (!reuse || !('identity' in result) || result.identity !== this.reviewWorkerIdentity) {
+            throw new Error('Protected input worker generation does not match')
+          }
+          if (result.accepted) this.reviewCacheKey = cacheKey
+          else await this.resetReview()
+          return result.accepted
+        }
         const updated = ProtectedInputIntegrity.fromReviewState(result.state)
         if (updated.workspaceIdentity !== this.workspaceIdentity) throw new Error('Protected input worker changed workspace')
         if (result.accepted) {
@@ -1289,8 +1375,24 @@ export class ProtectedInputIntegrity {
           this.ownerRecords.splice(0, this.ownerRecords.length, ...updated.ownerRecords)
           this.indexCopies()
         }
+        this.reviewCacheKey = this.reviewIdentity()
+        this.reviewWorkerIdentity = updated.reviewIdentity()
+        if (!result.accepted || this.reviewCacheKey !== cacheKey) await this.resetReview()
+        assertCurrent()
         return result.accepted
-      } finally { this.verifying = false }
+      } catch (error) {
+        this.reviewCacheKey = undefined
+        await this.reviewThread.dispose()
+        throw error
+      } finally {
+        try {
+          for (const [temporary, { lock, stamp }] of prepared) {
+            if (treeStamp(lock) !== stamp) throw new Error('Protected input publication lock was replaced')
+            try { unlinkSync(temporary) } catch (error) { if (!missing(error)) throw error }
+            rmdirSync(lock)
+          }
+        } finally { this.verifying = false }
+      }
     }
     this.refreshRecord()
     if (this.stateFailure !== undefined) return false
