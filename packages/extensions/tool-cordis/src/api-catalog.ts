@@ -10271,20 +10271,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ProtectedInputApproval {\n    readonly type: \'protected-input\';\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
   },
   {
-    name: 'ProtectedInputChange',
-    declaration: 'export interface ProtectedInputChange {\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
-  },
-  {
     name: 'ProtectedInputEnforcement',
     declaration: 'export type ProtectedInputEnforcement = {\n    path: string;\n} & ({\n    enforcement: \'native\';\n} | {\n    enforcement: \'host-fallback\';\n    reason: \'unrepresentable\' | \'link-name\';\n});',
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    async disposeReview(): Promise<void>;\n    reviewIdentity(): string;\n    invalidateWorkspace(workspace: string): void;\n    setReviewCommit(commit: (prepared: object) => Promise<string | undefined>, prepare?: (prepared: object) => Promise<void>): void;\n    setReviewProgress(progress: () => void): void;\n    static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity;\n    static async openOwnerRecordsAsync(workspace: string, home: string, progress: (message: string) => void = () => { }): Promise<ProtectedInputIntegrity>;\n    exportReviewState(): InputReviewState;\n    static fromReviewState(value: unknown): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    static workspaceKey(workspace: string, home?: string): string;\n    static workspacePath(workspace: string): string;\n    observe(filename: string): void;\n    ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void>;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    review(owner: ProtectedInputOwner): Promise<boolean>;\n    async verify(owner: ProtectedInputOwner): Promise<bool /* …truncated — full shape in source */',
-  },
-  {
-    name: 'ProtectedInputOwner',
-    declaration: 'export interface ProtectedInputOwner {\n    confirm(change: ProtectedInputChange): Promise<boolean>;\n    blocked(change: ProtectedInputChange): void;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    async disposeReview(): Promise<void>;\n    reviewIdentity(): string;\n    invalidateWorkspace(workspace: string): void;\n    setReviewCommit(commit: (prepared: object) => Promise<string | undefined>, prepare?: (prepared: object) => Promise<void>): void;\n    setReviewProgress(progress: () => void): void;\n    static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity;\n    static async openOwnerRecordsAsync(workspace: string, home: string, progress: (message: string) => void = () => { }): Promise<ProtectedInputIntegrity>;\n    exportReviewState(): InputReviewState;\n    static fromReviewState(value: unknown): ProtectedInputIntegrity;\n    static fromReviewState(value: unknown, current: () => void): Promise<ProtectedInputIntegrity>;\n    static fromReviewState(value: unknown, current?: () => void): ProtectedInputIntegrity | Promise<ProtectedInputIntegrity>;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    static workspaceKey(workspace: string, home?: string): string;\n    static workspacePath(workspace: string): string;\n    observe(filename: string): void;\n    ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void>;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n     /* …truncated — full shape in source */',
   },
   {
     name: 'ProviderRequestId',

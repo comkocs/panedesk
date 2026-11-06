@@ -203,18 +203,21 @@ function finishSync<T>(operation: Generator<void, T>): T {
   return next.value
 }
 
-async function finishAsync<T>(operation: Generator<void, T>, progress?: () => void): Promise<T> {
+async function finishAsync<T>(operation: Generator<void, T>, progress?: () => void, current?: () => void): Promise<T> {
   await setImmediate()
+  current?.()
   let deadline = performance.now() + 8
   let next = operation.next()
   while (!next.done) {
     if (performance.now() >= deadline) {
       progress?.()
       await setImmediate()
+      current?.()
       deadline = performance.now() + 8
     }
     next = operation.next()
   }
+  current?.()
   return next.value
 }
 
@@ -402,6 +405,10 @@ function matches(previous: InputSnapshot, current: InputSnapshot): boolean {
 }
 
 function parseSnapshot(value: unknown): InputSnapshot {
+  return finishSync(restoreSnapshot(value))
+}
+
+function* restoreSnapshot(value: unknown): Generator<void, InputSnapshot> {
   if (typeof value !== 'object' || value === null || !('digest' in value) || typeof value.digest !== 'string'
     || !/^[a-f0-9]{64}$/u.test(value.digest) || !('kind' in value)
     || !('target' in value) || !(value.target === null || typeof value.target === 'string')
@@ -430,6 +437,7 @@ function parseSnapshot(value: unknown): InputSnapshot {
         throw new Error('Invalid protected input ancestor')
       }
       ancestors.push({ path: item.path, mode: item.mode })
+      yield
     }
   }
   const files: { path: string; content?: string; blob?: string }[] = []
@@ -445,6 +453,7 @@ function parseSnapshot(value: unknown): InputSnapshot {
       } else if ('content' in file && typeof file.content === 'string') {
         files.push({ path: file.path, content: file.content })
       } else throw new Error('Invalid protected input copy')
+      yield
     }
   }
   return { digest: value.digest, kind, target: value.target, content: value.content,
@@ -457,7 +466,7 @@ function parseSnapshot(value: unknown): InputSnapshot {
 
 /** A workspace's owner-approved input set; rejected reads never replace its baseline. */
 export class ProtectedInputIntegrity {
-  private readonly approved = new Map<string, InputSnapshot>()
+  private approved = new Map<string, InputSnapshot>()
   private readonly observed = new Set<string>()
   private readonly root: string
   private readonly workspace: string
@@ -559,14 +568,22 @@ export class ProtectedInputIntegrity {
     this.reviewUnit = progress
     for (const record of this.ownerRecords) record.setReviewProgress(progress)
   }
-  private readonly fileIndex = new Map<string, Map<string, { content?: string; blob?: string }>>()
+  private fileIndex = new Map<string, Map<string, { content?: string; blob?: string }>>()
 
   private indexCopies(): void {
+    finishSync(this.restoreIndex())
+  }
+
+  private *restoreIndex(): Generator<void, void> {
     this.fileIndex.clear()
     for (const [root, value] of this.approved) {
       const index = new Map<string, { content?: string; blob?: string }>()
-      for (const file of value.files ?? []) if (!index.has(file.path)) index.set(file.path, file)
+      for (const file of value.files ?? []) {
+        if (!index.has(file.path)) index.set(file.path, file)
+        yield
+      }
       this.fileIndex.set(root, index)
+      yield
     }
   }
 
@@ -683,7 +700,19 @@ export class ProtectedInputIntegrity {
    * @param value Structured-cloned worker state; invalid messages fail closed.
    * @returns Reader for the exact reviewed generation, without rereading the durable record.
    */
-  static fromReviewState(value: unknown): ProtectedInputIntegrity {
+  static fromReviewState(value: unknown): ProtectedInputIntegrity
+  /** Restore in cooperative batches, keeping the reader private until all checks finish.
+   * @param value Structured-cloned worker state; invalid messages fail closed.
+   * @param current Validate the caller's authority after each yield and before returning.
+   * @returns The complete reader; validation failures discard the unpublished state.
+   */
+  static fromReviewState(value: unknown, current: () => void): Promise<ProtectedInputIntegrity>
+  static fromReviewState(value: unknown, current?: () => void): ProtectedInputIntegrity | Promise<ProtectedInputIntegrity> {
+    const operation = ProtectedInputIntegrity.restoreReviewState(value)
+    return current === undefined ? finishSync(operation) : finishAsync(operation, undefined, current)
+  }
+
+  private static *restoreReviewState(value: unknown): Generator<void, ProtectedInputIntegrity> {
     if (typeof value !== 'object' || value === null || !('workspace' in value) || typeof value.workspace !== 'string'
       || !('approved' in value) || !Array.isArray(value.approved) || !('observed' in value) || !Array.isArray(value.observed)
       || !('granted' in value) || typeof value.granted !== 'boolean' || !('owners' in value) || !Array.isArray(value.owners)
@@ -701,20 +730,26 @@ export class ProtectedInputIntegrity {
         throw new Error('Invalid protected input worker snapshot')
       }
       const path = item[0]
-      const snapshot = parseSnapshot(item[1])
-      if (snapshot.files?.some(file => !isAbsolute(file.path) || !contains(path, file.path)) === true) {
-        throw new Error('Invalid protected input copy path')
+      const snapshot = yield* restoreSnapshot(item[1])
+      for (const file of snapshot.files ?? []) {
+        if (!isAbsolute(file.path) || !contains(path, file.path)) throw new Error('Invalid protected input copy path')
+        yield
       }
       reader.approved.set(item[0], snapshot)
+      yield
     }
     for (const path of value.observed) {
       if (typeof path !== 'string') throw new Error('Invalid protected input worker path')
       reader.observed.add(path)
+      yield
     }
     reader.granted = value.granted
     reader.revision = 'revision' in value && typeof value.revision === 'string' ? value.revision : undefined
     reader.loadedStamp = 'stamp' in value && typeof value.stamp === 'string' ? value.stamp : undefined
-    for (const owner of value.owners) reader.ownerRecords.push(ProtectedInputIntegrity.fromReviewState(owner))
+    for (const owner of value.owners) {
+      reader.ownerRecords.push(yield* ProtectedInputIntegrity.restoreReviewState(owner))
+      yield
+    }
     if ('verifiedPass' in value) {
       const checked = value.verifiedPass
       if (typeof checked !== 'object' || checked === null || !('pass' in checked) || typeof checked.pass !== 'object'
@@ -731,7 +766,7 @@ export class ProtectedInputIntegrity {
       }
       reader.verifiedPass = checked as { pass: CapturePass; roots: ReadonlySet<string> }
     }
-    reader.indexCopies()
+    yield* reader.restoreIndex()
     return reader
   }
 
@@ -1354,7 +1389,8 @@ export class ProtectedInputIntegrity {
           else await this.resetReview()
           return result.accepted
         }
-        const updated = ProtectedInputIntegrity.fromReviewState(result.state)
+        const updated = await ProtectedInputIntegrity.fromReviewState(result.state, assertCurrent)
+        assertCurrent()
         if (updated.workspaceIdentity !== this.workspaceIdentity) throw new Error('Protected input worker changed workspace')
         if (result.accepted) {
           const assertObserved = (before: ProtectedInputIntegrity, after: ProtectedInputIntegrity): void => {
@@ -1366,14 +1402,14 @@ export class ProtectedInputIntegrity {
             }
           }
           assertObserved(this, updated)
+          assertCurrent()
           this.granted = updated.granted
-          this.approved.clear()
-          for (const [path, value] of updated.approved) this.approved.set(path, value)
+          this.approved = updated.approved
+          this.fileIndex = updated.fileIndex
           this.revision = updated.revision
           this.loadedStamp = updated.loadedStamp
           this.verifiedPass = updated.verifiedPass
           this.ownerRecords.splice(0, this.ownerRecords.length, ...updated.ownerRecords)
-          this.indexCopies()
         }
         this.reviewCacheKey = this.reviewIdentity()
         this.reviewWorkerIdentity = updated.reviewIdentity()
