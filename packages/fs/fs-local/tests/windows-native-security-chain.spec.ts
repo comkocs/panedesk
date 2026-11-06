@@ -32,7 +32,9 @@ function fixture(kind = 'inherited') {
   const user = syntheticSid(101)
   const group = syntheticSid(103)
   const inherited = descriptor(0x8404, user, group, acl([ace(0, 0x10, 0x1f01ff, user)]))
-  const previous = Buffer.from(inherited)
+  const previous = Buffer.from(kind === 'integrity'
+    ? descriptor(0x8414, user, group, acl([ace(0, 0x10, 0x1f01ff, user)]), acl([ace(17, 0, 0, syntheticSid(104))]))
+    : inherited)
   if (kind === 'explicit') previous[previous.readUInt32LE(16) + 9] = 0
   if (kind === 'protected') previous.writeUInt16LE(0x9404, 2)
   if (kind === 'owner') syntheticSid(102).copy(previous, previous.readUInt32LE(4))
@@ -66,8 +68,9 @@ function fixture(kind = 'inherited') {
   bind('GetCurrentProcess', () => root)
   bind('CloseHandle', (handle: object) => { if (handle !== root) tokens--; return 1 })
   bind('ReOpenFile', () => root)
-  bind('NtCreateFile', (out: [object | null], _access: number, attributes: Buffer, _iosb: Buffer,
+  bind('NtCreateFile', (out: [object | null], access: number, attributes: Buffer, _iosb: Buffer,
     _size: null, _flags: number, _share: number, disposition: number) => {
+    if (disposition === 1) events.push(`open:${(access >>> 0).toString(16)}`)
     if (disposition === 2) {
       expect(attributes.readBigUInt64LE(8)).toBe(koffi.address(root))
       expect(koffi.decode(attributes, 32, 'void *')).toBeNull()
@@ -76,6 +79,7 @@ function fixture(kind = 'inherited') {
     out[0] = Buffer.alloc(8); return 0
   })
   bind('NtQuerySecurityObject', (handle: object, information: number, buffer: Buffer, length: number, needed: [number]) => {
+    events.push(`query:${(information >>> 0).toString(16)}`)
     if (kind === 'query-failure' && information !== 0x20) return 0xc0000022
     const bytes = information === 0x20 ? Buffer.from([1, 0, 0, 128, ...Array<number>(16).fill(0)]) : policies.get(handle)!
     needed[0] = bytes.length
@@ -134,7 +138,17 @@ it('replaces an entirely inherited file in its own directory and leaves readable
   } finally { await f.handler.close() }
 })
 
-it.each(['explicit', 'protected', 'owner', 'query-failure'])('refuses %s permissions with bilingual reason and no target or path write', async (kind) => {
+it('opens the old file without ACCESS_SYSTEM_SECURITY and queries no audit information', async () => {
+  const f = fixture()
+  try {
+    await f.handler.execute({ kind: 'stage', parent: 1, name: 'entry', policy: { kind: 'replace', observed: metadata('C:\\synthetic\\entry') } })
+    expect(f.events).toContain('open:120089')
+    expect(f.events.some(value => value.startsWith('query:'))).toBe(true)
+    expect(f.events.filter(value => value.startsWith('query:')).every(value => (Number.parseInt(value.slice(6), 16) & 0x08) === 0)).toBe(true)
+  } finally { await f.handler.close() }
+})
+
+it.each(['explicit', 'protected', 'owner', 'query-failure', 'integrity'])('refuses %s permissions with bilingual reason and no target or path write', async (kind) => {
   const f = fixture(kind)
   try {
     await expect(async () => f.handler.execute({ kind: 'stage', parent: 1, name: 'entry', policy: { kind: 'replace', observed: metadata('C:\\synthetic\\entry') } }))

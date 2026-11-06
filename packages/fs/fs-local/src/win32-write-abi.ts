@@ -90,9 +90,11 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   const queryDescriptor = (token: number, handle = context.get(token)): Buffer => {
     let buffer = Buffer.alloc(20)
     const needed: [number] = [0]
-    let status = querySecurity(handle, 0x1f, buffer, buffer.length, needed) >>> 0
+    // Owner, group, DACL and integrity label; audit information is not requested.
+    const information = 0x13
+    let status = querySecurity(handle, information, buffer, buffer.length, needed) >>> 0
     if (status === 0xc0000023 && needed[0] >= 20 && needed[0] <= 65536) {
-      buffer = Buffer.alloc(needed[0]); status = querySecurity(handle, 0x1f, buffer, buffer.length, needed) >>> 0
+      buffer = Buffer.alloc(needed[0]); status = querySecurity(handle, information, buffer, buffer.length, needed) >>> 0
     }
     if (status !== 0 || needed[0] < 20 || needed[0] > buffer.length) {
       throw new FsError('Windows security query failed / Windows 安全描述符查询失败', 'FS_IO_ERROR')
@@ -152,7 +154,8 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   return {
     security(_parent) { return refuseWindowsWrite() },
     prepareReplacement(parent, name, observed) {
-      const old = relative(parent, name, 0x1120089, 5, 1, false, null).token
+      // READ_CONTROL plus ordinary reads; ACCESS_SYSTEM_SECURITY is not requested.
+      const old = relative(parent, name, 0x120089, 5, 1, false, null).token
       try {
         if (inspect(old).version !== observed.version) throw new FsError('Replacement target changed / 覆盖目标已变化', 'FS_STALE_VERSION')
         const prepare = captureReplacementMetadata(createReplacementMetadataApi(context), old)

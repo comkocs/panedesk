@@ -29,7 +29,7 @@ export interface SecurityPreparationApi {
 
 /** Admit only inherited permissions owned by the current process user.
  * @param api - Native descriptor and process-token queries, never path operations.
- * @param old - Retained file whose DACL, SACL and owner must be observable.
+ * @param old - Retained file whose owner, DACL and integrity label must be observable.
  */
 export function checkReplacementSecurity(api: SecurityPreparationApi, old: number): void {
   const token: [object | null] = [null]
@@ -39,8 +39,9 @@ export function checkReplacementSecurity(api: SecurityPreparationApi, old: numbe
     // Protected or absent ACLs cannot establish inheritance from the containing directory.
     if ((previous.control & 0x3000) !== 0 || !(previous.control & 4) || !previous.dacl) refuseSecurity()
     const dacl = securityAces(previous.dacl)
+    // An explicit integrity label is individually configured; audit entries are not examined.
     if (dacl.length === 0 || dacl.some(ace => !(ace.readUInt8(1) & 0x10))
-      || (previous.sacl && securityAces(previous.sacl).some(ace => !(ace.readUInt8(1) & 0x10)))) refuseSecurity()
+      || (previous.sacl && securityAces(previous.sacl).some(ace => ace.readUInt8(0) === 17))) refuseSecurity()
     if (!api.bindings.openProcessToken(api.process(), 8, token) || !token[0]) refuseSecurity()
     // The token's default owner must also match: it owns the file created without a descriptor.
     for (const information of [1, 4]) {
