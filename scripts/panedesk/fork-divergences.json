@@ -16110,6 +16110,27 @@
           "docs/subsystems/approval.zh.md"
         ]
       }
+    },
+    {
+      "id": "host-message-authoritative-tree",
+      "description": "Treat host message storage as the fourth mutable authoritative home tree",
+      "origin": "Protected-input review after host mailbox registration",
+      "reason": "Exclude only messages alongside ledger, sessions, and the session projection cache from content and addition comparisons. Preserve Linux and macOS structural checks and fail closed on unsafe trees. Sandbox write exclusions and the protected-root inventory remain unchanged. Windows does not compare these four trees' contents or check their structure and relies only on sandbox write boundaries; native Windows enforcement was not verified here. Cover real host mailbox registration, unlisted sibling rejection, and unsafe message-tree structure without changing message writes. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox/src/roots.ts",
+          "packages/sandbox/sandbox/tests/authority-roots.spec.ts",
+          "packages/boot/app-boot/tests/input-integrity-messages.spec.ts",
+          "packages/session/message-delivery-local/tests/input-integrity.spec.ts",
+          "packages/sandbox/sandbox/README.md",
+          "packages/sandbox/sandbox/README.zh.md",
+          "packages/sandbox/sandbox/README.i18n.yaml",
+          "docs/subsystems/boot.md",
+          "docs/subsystems/boot.zh.md",
+          "docs/subsystems/boot.i18n.yaml"
+        ]
+      }
     }
   ]
 }
