@@ -499,6 +499,7 @@ export class ProtectedInputIntegrity {
   private readonly reviewThread = new InputReviewThread()
   private reviewCacheKey: string | undefined
   private reviewWorkerIdentity: string | undefined
+  private readonly executableRoots = new Map<string, { snapshot: InputSnapshot; authority: string; pass: CapturePass }>()
 
   /** Release the process-local checked pass and await the owned review child.
    * @returns Completion of isolate termination; future reviews import fresh state.
@@ -1188,15 +1189,52 @@ export class ProtectedInputIntegrity {
     if (roots.length === 0 && !contains(this.root, path)) return undefined
     let bytes: Buffer | undefined
     const pass = capturePass()
+    const authority = this.reviewIdentity()
     for (const { root, value, candidate } of roots) {
-      const files = new Map<string, Buffer>()
-      const current = finishSync(this.capture(root, files, pass, candidate))
-      if (!matches(value, current)) throw new Error(`Protected host input requires owner confirmation: ${root}`)
-      const content = files.get(candidate)
-      if (content !== undefined) {
-        if (bytes !== undefined && !bytes.equals(content)) throw new Error(`Protected host input changed while being read: ${path}`)
-        bytes = content
+      let checked = this.executableRoots.get(root)
+      if (checked?.snapshot !== value || checked.authority !== authority) {
+        // Durable records contain a whole-tree identity digest, not per-file identities.
+        // Establish those identities once before using a path-local comparison.
+        const baseline = capturePass()
+        const current = finishSync(this.capture(root, undefined, baseline))
+        if (!matches(value, current)) throw new Error(`Protected host input requires owner confirmation: ${root}`)
+        finishSync(checkPass(baseline))
+        checked = { snapshot: value, authority, pass: baseline }
+        this.executableRoots.set(root, checked)
       }
+      const assertIdentity = (): void => {
+        for (let current = candidate; contains(this.root, current); current = dirname(current)) {
+          const physical = value.target !== null && contains(root, current)
+            ? resolve(value.target, relative(root, current)) : current
+          const before = checked.pass.identities.get(current) ?? checked.pass.identities.get(physical)
+          const after = identity(current)
+          const ancestor = value.ancestors?.find(entry => entry.path === current)
+          const fields = after.split(':')
+          const previous = before?.split(':')
+          if (ancestor !== undefined && fields[3] !== undefined && previous?.[3] !== undefined) {
+            const mode = BigInt(fields[3])
+            const oldMode = BigInt(previous[3])
+            if ((mode & ~0o077n) === (oldMode & ~0o077n) && (mode & 0o077n & ~oldMode) === 0n) {
+              fields[3] = previous[3]
+            }
+          }
+          if (before === undefined || fields.join(':') !== before) {
+            throw new Error(`Protected host input requires owner confirmation: ${current}`)
+          }
+          if (current === dirname(current)) break
+        }
+      }
+      assertIdentity()
+      const files = new Map<string, Buffer>()
+      finishSync(this.capture(candidate, files, pass, candidate))
+      assertIdentity()
+      const content = files.get(candidate)
+      const approved = this.readLocalTrusted(candidate)
+      if (content === undefined || approved === undefined || !content.equals(approved)) {
+        throw new Error(`Protected host input requires owner confirmation: ${candidate}`)
+      }
+      if (bytes !== undefined && !bytes.equals(content)) throw new Error(`Protected host input changed while being read: ${path}`)
+      bytes = content
     }
     finishSync(checkPass(pass))
     if (bytes === undefined) throw new Error(`Protected host input requires owner confirmation: ${path}`)

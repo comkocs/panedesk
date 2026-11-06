@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "path-local-protected-module-loads",
+      "description": "Avoid repeated protected-root traversal during module loading",
+      "origin": "Protected module startup performance",
+      "reason": "Authenticate each approved root once per in-memory authority, then verify requested module bytes and path identities without enumerating unrelated siblings. Retain URL results only within the same reader authority and revalidate bytes on every load. Preserve durable formats, owner decisions, stability checks and write publication ordering. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/profile-resolution/service.ts",
+          "packages/boot/app-boot/tests/protected-module-loading.spec.ts",
+          "packages/boot/app-boot/README*"
+        ]
+      }
+    },
+    {
       "id": "prepared-input-copy-containment",
       "description": "Avoid repeated root resolution while validating restored input copies",
       "origin": "Protected input review performance",

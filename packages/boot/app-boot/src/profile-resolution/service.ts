@@ -72,6 +72,8 @@ export class PluginPackages extends Service {
       throw new Error('Memory-only module loading cannot disable Node host input verification')
     }
     if (config.inputFilesystem !== 'memory') ctx.effect(() => {
+      const modules = new Map<string, { authority: string; source: Buffer }>()
+      let inventory: readonly object[] = []
       const hooks = registerHooks({
         load(url, context, nextLoad) {
           const profile = ctx.get('profileContext')
@@ -85,7 +87,18 @@ export class PluginPackages extends Service {
             if (source !== undefined && !source.equals(candidate)) throw new Error('Protected module records disagree')
             source = candidate
           }
+          const readers = [...records]
+          if (inventory.length !== readers.length || inventory.some((record, index) => record !== readers[index])) {
+            modules.clear()
+            inventory = readers
+          }
+          const authority = JSON.stringify(readers.map(record => record.reviewIdentity()))
+          const cached = modules.get(url)
+          if (cached?.authority !== authority) modules.delete(url)
           if (source === undefined) return nextLoad(url, context)
+          // Revalidate bytes and path identities even when Node reloads the same URL.
+          if (cached?.authority === authority && cached.source.equals(source)) source = cached.source
+          else modules.set(url, { authority, source })
           if (context.format !== 'module' && context.format !== 'commonjs' && context.format !== 'json') {
             throw new Error(`Protected module format cannot consume verified bytes: ${url}`)
           }
