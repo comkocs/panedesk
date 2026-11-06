@@ -70,6 +70,16 @@ function contains(root: string, path: string): boolean {
   return child === '' || (!isAbsolute(child) && child !== '..' && !child.startsWith(`..${sep}`))
 }
 
+function preparedContains(root: string): (path: string) => boolean {
+  // Only normalized POSIX spellings admit a case-sensitive separator prefix.
+  // Other spellings retain node:path's normalization and platform semantics.
+  const normalized = (path: string): boolean => path.startsWith('/')
+    && (path === '/' || !path.endsWith('/')) && !/\/\/|\/(?:\.|\.\.)(?:\/|$)/u.test(path)
+  if (sep !== '/' || !normalized(root)) return path => contains(root, path)
+  const prefix = root === '/' ? root : `${root}/`
+  return path => normalized(path) ? path === root || path.startsWith(prefix) : contains(root, path)
+}
+
 function missing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')
 }
@@ -731,8 +741,9 @@ export class ProtectedInputIntegrity {
       }
       const path = item[0]
       const snapshot = yield* restoreSnapshot(item[1])
+      const containsCopy = preparedContains(path)
       for (const file of snapshot.files ?? []) {
-        if (!isAbsolute(file.path) || !contains(path, file.path)) throw new Error('Invalid protected input copy path')
+        if (!isAbsolute(file.path) || !containsCopy(file.path)) throw new Error('Invalid protected input copy path')
         yield
       }
       reader.approved.set(item[0], snapshot)

@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "prepared-input-copy-containment",
+      "description": "Avoid repeated root resolution while validating restored input copies",
+      "origin": "Protected input review performance",
+      "reason": "Prepare separator-qualified prefixes for normalized absolute POSIX snapshot roots and still validate every restored copy. Preserve native relative-path comparison for other spellings and Windows, all metadata samples, both stability passes, authoritative structure checks, owner decisions and durable formats. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/tests/input-integrity-equivalence.spec.ts",
+          "packages/boot/app-boot/README*"
+        ]
+      }
+    },
+    {
       "id": "cooperative-input-state-restoration",
       "description": "Restore and index complete input review results in cooperative host batches",
       "origin": "Protected input review performance",
