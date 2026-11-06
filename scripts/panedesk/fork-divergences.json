@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "windows-directory-handle-read-backend",
+      "description": "Add an opt-in fail-closed Windows directory-handle read backend",
+      "origin": "Host filesystem directory-relative capability review",
+      "reason": "Route provider operations through an instance-owned backend and retained target capabilities. Preserve Linux descriptor traversal and default legacy Windows behavior. Add experimental Windows x64 local NTFS root and relative opens, metadata, enumeration and same-handle reads on a dedicated worker with fixed-width Koffi bindings. Reject reparse points and unsupported operations without path fallback; keep writes, creation, publication, deletion and watching unavailable. Keep configuration disabled by default and selected only through existing protected profile inputs. Add deterministic substitute checks and paired package documentation; native ABI, filesystem and packaged-worker acceptance remains required. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/directory-*.ts",
+          "packages/fs/fs-local/src/win32-handle-*.ts",
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/src/index.ts",
+          "packages/fs/fs-local/tests/windows-*.spec.ts",
+          "packages/fs/fs-local/tests/fixtures/windows-directory-api.ts",
+          "packages/fs/fs-local/tsdown.config.ts",
+          "packages/fs/fs-local/README*"
+        ]
+      }
+    },
+    {
       "id": "host-directory-handle-operations",
       "description": "Anchor Linux host filesystem operations to retained directory descriptors",
       "origin": "Host filesystem ancestor replacement review",

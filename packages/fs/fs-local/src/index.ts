@@ -24,23 +24,17 @@ import type {
 } from '@panedesk/dsh-fs'
 import {
   applyLiteralEdit,
-  listDirectory,
   localDisplayPath,
   normalizeLineEndings,
-  probe,
-  probeNoFollow,
-  readForEdit,
   readByteWindow,
-  readTextForDiff,
   readWholeBytes,
   readWholeText,
-  resolveLocalTarget,
   restoreLineEndings,
   streamWholeText,
-  writeFileAtomic,
 } from './fsio.ts'
 import type { AuthorizeRead, FsIoInternals } from './fsio.ts'
-import { openDirectoryTarget } from './directory-handle.ts'
+import { createDirectoryBackend } from './directory-backend.ts'
+import type { DirectoryBackend } from './directory-handle.ts'
 export type { ReadIdentity } from './read-handle.ts'
 type SandboxExecutionPolicy = NonNullable<Parameters<FileSystem['readText']>[2]>
 
@@ -53,6 +47,8 @@ export interface Config {
    * runtime's safe allocation/decode maximum. Defaults to 10 MiB.
    */
   diffBasisMaxBytes?: number
+  /** Opt in through protected profile configuration only; disabled preserves the legacy Windows backend. */
+  windowsHandleBackend?: 'disabled' | 'experimental'
 }
 
 type ResolvedConfig = Required<Config>
@@ -71,6 +67,9 @@ const MAX_DIFF_BASIS_BYTES = Math.min(
 export class LocalFileSystem extends FileSystem {
   override async watch(target: FsTarget, changed: (error?: Error) => void, signal: AbortSignal): Promise<() => Promise<void>> {
     signal.throwIfAborted()
+    if (this.backend.choice === 'windows-handles') {
+      throw new FsError('Handle-based watching is unavailable; path fallback is forbidden / 句柄监听尚未就绪，禁止退回路径监听', 'FS_IO_ERROR')
+    }
     const path = resolve(this.processPath(target))
     const directory = (await this.stat(target, signal))?.type === 'directory'
     signal.throwIfAborted()
@@ -95,10 +94,12 @@ export class LocalFileSystem extends FileSystem {
   static Config: z<Config> = z.object({
     cwd: z.string().default(process.cwd()),
     diffBasisMaxBytes: z.number().default(DEFAULT_DIFF_BASIS_MAX_BYTES),
+    windowsHandleBackend: z.union(['disabled', 'experimental']).default('disabled'),
   })
 
   /** Validated config (schemastery applied the defaults before construction). */
   readonly config: ResolvedConfig
+  private readonly backend: DirectoryBackend
   /** Test hook forwarded to fsio for atomic-publication boundaries. */
   internals: FsIoInternals = {}
   /** Per-targetKey tail promise: serializes mutating ops so the read→guard→write
@@ -115,6 +116,7 @@ export class LocalFileSystem extends FileSystem {
       throw new Error(`fs-local: diffBasisMaxBytes must be a positive safe integer no greater than ${MAX_DIFF_BASIS_BYTES}`)
     }
     this.config = resolved
+    this.backend = createDirectoryBackend(resolved.windowsHandleBackend)
   }
 
   /** Run `op` with exclusive access to `targetKey` (FIFO per key). */
@@ -135,7 +137,7 @@ export class LocalFileSystem extends FileSystem {
 
   override async resolve(path: string, opts?: { cwd?: string; signal?: AbortSignal }): Promise<FsTarget> {
     if (opts?.signal?.aborted) throw new FsError('resolve aborted', 'FS_ABORTED')
-    const local = await resolveLocalTarget(opts?.cwd ?? this.config.cwd, path)
+    const local = await this.backend.resolve(opts?.cwd ?? this.config.cwd, path, opts?.signal)
     if (opts?.signal?.aborted) throw new FsError('resolve aborted', 'FS_ABORTED')
     return { targetKey: local.targetKey, displayPath: local.displayPath }
   }
@@ -159,7 +161,7 @@ export class LocalFileSystem extends FileSystem {
 
   override async stat(target: FsTarget, signal?: AbortSignal): Promise<FsInfo | undefined> {
     if (signal?.aborted) throw new FsError('stat aborted', 'FS_ABORTED')
-    const info = await probe(target.targetKey)
+    const info = await this.backend.probe(target.targetKey, signal)
     if (signal?.aborted) throw new FsError('stat aborted', 'FS_ABORTED')
     if (!info) return undefined
     return { version: info.version, type: info.type, size: info.size }
@@ -169,7 +171,9 @@ export class LocalFileSystem extends FileSystem {
     if (signal?.aborted) throw new FsError('lstat aborted', 'FS_ABORTED')
     if (path.trim().length === 0) throw new FsError('file_path must be a non-empty string', 'FS_NOT_FOUND')
     const cwd = opts?.cwd ?? this.config.cwd
-    const info = await probeNoFollow(localDisplayPath(cwd, path))
+    const displayPath = this.backend.choice === 'windows-handles'
+      ? (await this.backend.resolve(cwd, path, signal)).displayPath : localDisplayPath(cwd, path)
+    const info = await this.backend.probeNoFollow(displayPath, signal)
     if (signal?.aborted) throw new FsError('lstat aborted', 'FS_ABORTED')
     if (!info) return undefined
     return { version: info.version, type: info.type, size: info.size }
@@ -181,27 +185,27 @@ export class LocalFileSystem extends FileSystem {
   }
 
   override async readText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<string> {
-    return readWholeText(target, signal, this.readAuthorization(sandboxPolicy))
+    return readWholeText({ ...target, backend: this.backend }, signal, this.readAuthorization(sandboxPolicy))
   }
 
   override streamText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<AsyncIterable<string>> {
-    return Promise.resolve(streamWholeText(target, signal, this.readAuthorization(sandboxPolicy)))
+    return Promise.resolve(streamWholeText({ ...target, backend: this.backend }, signal, this.readAuthorization(sandboxPolicy)))
   }
 
   override async readBytes(
     target: FsTarget, signal: AbortSignal | undefined, maxBytes: number, sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<Uint8Array> {
-    return readWholeBytes(target, signal, maxBytes, this.internals, this.readAuthorization(sandboxPolicy))
+    return readWholeBytes({ ...target, backend: this.backend }, signal, maxBytes, this.internals, this.readAuthorization(sandboxPolicy))
   }
 
   override async readByteRange(
     target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<Uint8Array> {
-    return readByteWindow(target, range, signal, this.readAuthorization(sandboxPolicy))
+    return readByteWindow({ ...target, backend: this.backend }, range, signal, this.readAuthorization(sandboxPolicy))
   }
 
   override async listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]> {
-    const entries = await listDirectory({ displayPath: target.displayPath, targetKey: target.targetKey }, signal)
+    const entries = await this.backend.list(target, signal)
     return entries.map(entry => ({
       name: entry.name,
       type: entry.type,
@@ -228,10 +232,12 @@ export class LocalFileSystem extends FileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
+    this.backend.assertWritable()
     return this.withLock(target.targetKey, async () => {
-      const anchor = await openDirectoryTarget(target.targetKey, true, await this.writeRoot(target, sandboxPolicy))
+      const root = await this.writeRoot(target, sandboxPolicy)
+      const anchor = await this.backend.openTarget(target.targetKey, true, root === '/' ? { kind: 'filesystem' } : { kind: 'authorized-directory', displayPath: root }, signal)
       try {
-        const existing = await probe(anchor.path, true)
+        const existing = await anchor.probe()
         if (existing && existing.type !== 'file') {
           throw new FsError(`cannot write "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
         }
@@ -256,18 +262,16 @@ export class LocalFileSystem extends FileSystem {
         const diffable = existing !== null
         && Buffer.byteLength(content, 'utf8') < this.config.diffBasisMaxBytes
         const before = diffable
-          ? await readTextForDiff(anchor.path, this.config.diffBasisMaxBytes, signal, this.readAuthorization(sandboxPolicy), true)
+          ? await anchor.readTextForDiff(this.config.diffBasisMaxBytes, signal, this.readAuthorization(sandboxPolicy))
           : null
-        await writeFileAtomic(
-          anchor.path,
+        await anchor.write(
           content,
           existing?.mode,
           signal,
           this.internals,
           expected?.kind === 'createIfAbsent' ? { displayPath: target.displayPath } : undefined,
-          true,
         )
-        const after = await probe(anchor.path, true)
+        const after = await anchor.probe()
         return {
           operation: existing ? 'update' : 'create',
           version: this.versionAfterWrite(after, target),
@@ -288,16 +292,17 @@ export class LocalFileSystem extends FileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
+    this.backend.assertWritable()
     return this.withLock(target.targetKey, async () => {
       const root = await this.writeRoot(target, sandboxPolicy)
-      const anchor = await openDirectoryTarget(target.targetKey, false, root).catch((error: unknown) => {
+      const anchor = await this.backend.openTarget(target.targetKey, false, root === '/' ? { kind: 'filesystem' } : { kind: 'authorized-directory', displayPath: root }, signal).catch((error: unknown) => {
         if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
           throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
         }
         throw error
       })
       try {
-        const existing = await probe(anchor.path, true)
+        const existing = await anchor.probe()
         // Stale guard before literal matching: an edit based on an old read reports
         // FS_STALE_VERSION, not FS_EDIT_NOT_FOUND/FS_AMBIGUOUS_EDIT against newer content.
         // Missing targets use the same stale code on guarded and unconditional edit paths.
@@ -310,12 +315,12 @@ export class LocalFileSystem extends FileSystem {
           throw new FsError(`cannot edit "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
         }
 
-        const original = await readForEdit(anchor.path, target.displayPath, signal, this.readAuthorization(sandboxPolicy), true)
+        const original = await anchor.readForEdit(target.displayPath, signal, this.readAuthorization(sandboxPolicy))
         const edited = applyLiteralEdit(original.content, edit.oldString, edit.newString, edit.replaceAll, target.displayPath)
         const content = restoreLineEndings(edited.content, original.lineEndings)
-        await writeFileAtomic(anchor.path, content, existing.mode, signal, this.internals, undefined, true)
+        await anchor.write(content, existing.mode, signal, this.internals)
 
-        const after = await probe(anchor.path, true)
+        const after = await anchor.probe()
         return {
           version: this.versionAfterWrite(after, target),
           // The LF-normalized before/after text (the applied-hunk diff basis);
