@@ -69,11 +69,11 @@ it.each([0xc0000003, 0xc00000bb, 0xc0000043])('refuses Native status %i without 
   expect(state.paths).toEqual([])
 })
 
-it.each(['OpenProcessToken', 'GetTokenInformation', 'CreatePrivateObjectSecurityEx', 'DestroyPrivateObjectSecurity'])('binds %s without admitting unverified security inheritance', (symbol) => {
+it.each(['OpenProcessToken', 'GetTokenInformation'])('binds %s for permission detection without enabling new-file staging', (symbol) => {
   const api = createWindowsWriteApi(context)
   expect(() => api.security(2)).toThrow('Windows')
   expect(state.declarations.filter(value => value.startsWith('advapi32.dll:')).map(value => value.match(/__stdcall (\w+)/)?.[1]))
-    .toEqual(['OpenProcessToken', 'GetTokenInformation', 'CreatePrivateObjectSecurityEx', 'DestroyPrivateObjectSecurity'])
+    .toEqual(['OpenProcessToken', 'GetTokenInformation'])
   expect(state.declarations.some(value => value.includes(`${symbol}(`))).toBe(true)
   expect(state.target).toBe('old')
   expect(state.paths).toEqual([])

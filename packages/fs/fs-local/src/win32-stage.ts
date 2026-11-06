@@ -6,7 +6,7 @@ import type { HandleReply, HandleWriteRequest, WindowsWriteHandler } from './win
 import type { ReplacementPreparation, WindowsWriteApi } from './win32-write-abi.ts'
 
 type Stage = {
-  directory: number
+  directory: number | undefined
   file: number
   parent: number
   name: string
@@ -32,6 +32,7 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
     stages.delete(token)
     const errors: unknown[] = []
     for (const handle of [stage.file, stage.directory]) {
+      if (handle === undefined) continue
       // A rename moved the staging name itself: disposition would delete the published file.
       if (!(handle === stage.file && stage.replacement && stage.phase === 'committed')) {
         try { api.disposition(handle) } catch (error) { errors.push(error) }
@@ -51,10 +52,15 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
         let directory: number | undefined
         let file: number | undefined
         try {
-          const security = replacement ? replacement.security : api.security(request.parent)
-          directory = api.createDirectory(request.parent, `.stage-${randomUUID()}`, true, security.directory).token
-          file = api.createFile(directory, 'content', security.file)
-          api.secureEmpty(file, security.file)
+          if (replacement) {
+            // A null descriptor lets Windows inherit directly from the destination folder.
+            file = api.createFile(request.parent, `.stage-${randomUUID()}`, null)
+          } else {
+            const security = api.security(request.parent)
+            directory = api.createDirectory(request.parent, `.stage-${randomUUID()}`, true, security.directory).token
+            file = api.createFile(directory, 'content', security.file)
+            api.secureEmpty(file, security.file)
+          }
           const token = ++sequence
           stages.set(token, { directory, file, parent: request.parent, name, replacement, phase: 'secured' })
           return { kind: 'staged', token }
@@ -108,7 +114,7 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
               return { kind: 'completed' }
             case 'prepare-metadata':
               if (stage.phase !== 'flushed') throw new FsError('Flush is required before metadata preparation', 'FS_IO_ERROR')
-              // Security was installed on the empty object; metadata must complete before publication.
+              // Permissions are established at creation; metadata must complete before publication.
               stage.replacement?.prepare(stage.file)
               stage.phase = 'ready'
               return { kind: 'completed' }

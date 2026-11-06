@@ -37,7 +37,8 @@ function fixture(failure = '') {
   basic.writeBigInt64LE(123n); basic.writeUInt32LE(0x22, 32)
   const streams: BackupStream[] = [{ id: 4, attributes: 0, name: ':keep:$DATA', data: Buffer.from('kept') }]
   const meta: ReplacementMetadataApi = {
-    basic(token) { const result = Buffer.from(basic); if (token !== 2) result.writeBigInt64LE(456n, 16)
+    basic(token) { const result = Buffer.from(basic); result.writeUInt32LE(token === 2 ? 2 : 32, 32)
+      if (token !== 2) result.writeBigInt64LE(456n, 16)
       if (failure === 'efs') result.writeUInt32LE(0x4000, 32)
       if (failure === 'attributes') result.writeUInt32LE(0x100000, 32)
       return result },
@@ -59,19 +60,18 @@ function fixture(failure = '') {
       }
       const prepare = captureReplacementMetadata(meta, 2)
       live.add(2)
-      return { security: { directory: Buffer.from('private'), file: Buffer.from('protected') },
-        prepare(token) { calls.push('metadata'); prepare(token) }, close() { calls.push('old-close'); live.delete(2) } }
+      return { prepare(token) { calls.push('metadata'); prepare(token) }, close() { calls.push('old-close'); live.delete(2) } }
     },
     createDirectory() { const token = ++next; live.add(token); calls.push('private'); return { kind: 'opened', token, metadata: metadata('C:\\safe', true) } },
-    createFile() { const token = ++next; live.add(token); calls.push('empty'); return token },
+    createFile(parent, _name, descriptor) { expect(parent).toBe(1); expect(descriptor).toBeNull(); const token = ++next; live.add(token); calls.push('inherited'); return token },
     secureEmpty() { calls.push('secure') }, inspect: () => metadata('C:\\safe\\file'), read: () => Buffer.from(staged),
-    write(_token, bytes) { expect(calls.includes('secure')).toBe(true); expect(target).toBe('old'); calls.push('write'); staged += Buffer.from(bytes).toString(); return bytes.length },
+    write(_token, bytes) { expect(calls.includes('inherited')).toBe(true); expect(target).toBe('old'); calls.push('write'); staged += Buffer.from(bytes).toString(); return bytes.length },
     flush() { calls.push('flush'); expect(target).toBe('old') },
     link() { throw new Error('unexpected fallback link') },
     replace() { calls.push('replace'); expect(target).toBe('old'); expect(calls.includes('metadata')).toBe(true)
       if (failure === 'occupied') throw new FsError(reasons[6][1], 'FS_PERMISSION_DENIED')
       target = staged },
-    disposition(token) { calls.push(`dispose:${token}`); if (token === 12 && target !== 'old') target = 'deleted' },
+    disposition(token) { calls.push(`dispose:${token}`); if (token === 11 && target !== 'old') target = 'deleted' },
     openRemoval() { throw new Error('unexpected removal') }, close(token) { live.delete(token) },
   }
   const handler = createStageHandler(api)
@@ -93,8 +93,8 @@ it('publishes replacement only after security and metadata, and never deletes th
   try {
     await f.extension.write('new', 0o666, undefined, {})
     expect(f.target()).toBe('new')
-    expect(f.calls).toEqual(['capture', 'private', 'empty', 'secure', 'write', 'flush', 'metadata', 'compression',
-      'stream::keep:$DATA:kept', 'basic:123:456:34', 'replace', 'dispose:11', 'old-close'])
+    expect(f.calls).toEqual(['capture', 'inherited', 'write', 'flush', 'metadata', 'compression',
+      'stream::keep:$DATA:kept', 'basic:123:456:34', 'replace', 'old-close'])
     expect(f.live.size).toBe(0)
     expect(paths).toEqual([])
   } finally { await f.handler.close() }

@@ -47,7 +47,7 @@ kind: "package-reference"
 | `diffBasisMaxBytes` | `10 MiB` | 每次覆写 diff 一侧的 UTF-8 字节上限；更大的覆写返回 `before: null` |
 | `windowsHandleBackend` | `disabled` | `experimental` 选择失败即拒绝的 Windows 句柄后端；其他平台忽略此项 |
 
-其余通用行为说明针对缺省后端。仅通过所有者批准、受保护的 profile 或 overlay 选择 `experimental`；没有环境变量或 CLI 快捷开关。它在原生能力检查通过时支持本地盘符 Windows x64 NTFS 的读取、探测与目录枚举。相对名称要求带绝对盘符的 `cwd`；设备路径、UNC、驱动器相对路径、点路径段、备用流、歧义 DOS 名称及所有重解析点均拒绝，而非规范化或跟随。重解析子项使整个列表请求拒绝。此模式以明确错误拒绝写入、编辑、创建、发布、删除与监听，均不退回路径操作。真实 Windows ABI、DLL 装载、共享约束与打包 Worker 行为仍须原生验证。
+其余通用行为说明针对缺省后端。仅通过所有者批准、受保护的 profile 或 overlay 选择 `experimental`；没有环境变量或 CLI 快捷开关。它在原生能力检查通过时支持本地盘符 Windows x64 NTFS 的读取、探测与目录枚举。相对名称要求带绝对盘符的 `cwd`；设备路径、UNC、驱动器相对路径、点路径段、备用流、歧义 DOS 名称及所有重解析点均拒绝，而非规范化或跟随。重解析子项使整个列表请求拒绝。写模块通过句柄支持受限覆盖、目录创建与删除；新文件暂存及监听仍不可用，所有操作均不退回路径。真实 Windows ABI、DLL 装载、共享约束与打包 Worker 行为仍须原生验证。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-fs-local)完整列出了所有受支持字段及其 JSDoc。
 
@@ -96,7 +96,7 @@ Chokidar 通过 OS 事件观察单个文件或目录的直接子项，不使用�
 
 内部 `DirectoryCapability` 还提供单段 `walk` 与 `stage`；`OwnedStage` 拥有文件 I/O、同步、元数据准备、发布、丢弃与关闭。子目录及暂存对象保留父级所有者。兼容入口 `openDirectory` 与 `openDirectoryTarget` 的 `path` 仅保留原始展示身份，调用者通过方法执行 I/O。旧后端独立暂存明确不可用；既有提供方写事务及其描述符相对原语不变。
 
-Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径。写模块实现自有暂存、部分写入、先同步后发布、不覆盖的相对硬链接与句柄 disposition 清理。原生暂存仍在创建对象前拒绝，因为调用者专属私有安全描述符与目标目录继承能力尚不可用；替身测试不代表原生验收。编辑与差异预读使用已授权的打开句柄。覆盖暂存要求先捕获安全信息并完成元数据准备，才调用带 POSIX 与 replace-if-exists 标志的 Native `FileRenameInformationEx`；访问拒绝报告文件被占用，不重试 Win32 改名或 `ReplaceFileW`。已提交覆盖的清理只关闭发布文件，不将其标记删除。元数据准备复制旧创建时间与压缩格式，合并已观测的 hidden/system/archive 位，并复制缺失命名流，不回放主数据、安全信息、EA 或 ObjectId。只读、未知属性或备份流、EFS、安全资源属性及企业保护均拒绝；检测失败也拒绝。Worker 绑定 `OpenProcessToken`、`GetTokenInformation`、`CreatePrivateObjectSecurityEx` 与 `DestroyPrivateObjectSecurity`，但安全合成与原生企业保护检测仍不可用，因此原生覆盖仍在创建暂存前拒绝。替身发布测试不代表原生安全等价。短名和 ObjectId 不保留，也不作为拒因；这与 `ReplaceFileW` 不同。目录创建和删除使用相对原生句柄；缺省旧后端行为不变。
+Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径。写模块实现自有暂存、部分写入、先同步后发布、不覆盖的相对硬链接与句柄 disposition 清理。新建文件的暂存仍在创建对象前拒绝，因为其私有暂存继承策略尚不可用。覆盖仅接纳属主为当前进程用户的普通文件：DACL 未受保护、非空且所有 ACE 均继承；存在 SACL 项时也必须全部继承。显式权限、断开继承、不同属主、不支持的 ACL 格式及检测失败均在暂存前拒绝：“This file has individually configured permissions; direct replacement is not supported yet / 该文件有单独设置的权限，暂不支持直接覆盖”。替换文件在同一目标目录中独占创建，不传入安全描述符，由 Windows 自动继承权限，不执行权限合成或安装。`OpenProcessToken` 与 `GetTokenInformation` 查询进程用户及默认属主，两者均须与旧属主一致；`NtQuerySecurityObject` 查询保留的文件句柄。不会自动启用所需安全查询特权；缺少访问能力即拒。编辑与差异预读使用已授权的打开句柄。元数据准备后，通过带 POSIX 与 replace-if-exists 标志的 Native `FileRenameInformationEx` 发布；访问拒绝提示“File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试”，不重试 Win32 改名或 `ReplaceFileW`。已提交清理只关闭发布文件，不将其标记删除。元数据准备复制旧创建时间与压缩格式，仅合并已观测的 hidden/system/archive 组合，并复制缺失命名流，不回放主数据、安全信息、EA 或 ObjectId。只读、未知属性或备份流、EFS、安全资源属性及企业保护均拒绝；检测失败也拒绝。两种句柄属性观测均拒绝加密位，保留 EFS 或企业保护拒因，并附“Encrypted / possibly enterprise-protected file / 已加密 / 可能受企业保护”。替身测试执行原生调用适配器并核替换内容可读，不代表真实 Windows 验收。短名和 ObjectId 不保留，也不作为拒因；这与 `ReplaceFileW` 不同。目录创建和删除使用相对原生句柄；缺省旧后端行为不变。
 
 ### 写入路径
 

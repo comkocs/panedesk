@@ -1,8 +1,9 @@
-/** Worker-local mutation bindings; security construction is unavailable until native inheritance is verified. */
+/** Worker-local mutation bindings; replacement files inherit permissions in their destination directory. */
 import koffi from 'koffi'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
-import { createWindowsSecurityBindings } from './win32-write-security.ts'
+import { checkReplacementSecurity, createWindowsSecurityBindings } from './win32-write-security.ts'
+import { parseSecurityDescriptor } from './win32-security-descriptor.ts'
 import { createReplacementMetadataApi } from './win32-metadata-abi.ts'
 import { captureReplacementMetadata } from './win32-replacement-metadata.ts'
 import type { HandleMetadata, HandleReply, WindowsNativeContext } from './win32-handle-types.ts'
@@ -16,7 +17,6 @@ export interface StageSecurity {
 
 /** Captured security and metadata retain their source until the transaction settles. */
 export interface ReplacementPreparation {
-  security: StageSecurity
   prepare(file: number): void
   close(): void
 }
@@ -27,7 +27,7 @@ export interface WindowsWriteApi {
   /** Capture the old object before staging; close releases it without mutation. */
   prepareReplacement(parent: number, name: string, observed: PathInfo): ReplacementPreparation
   createDirectory(parent: number, name: string, exclusive: boolean, descriptor: Buffer | null): Extract<HandleReply, { kind: 'opened' }>
-  createFile(parent: number, name: string, descriptor: Buffer): number
+  createFile(parent: number, name: string, descriptor: Buffer | null): number
   secureEmpty(token: number, descriptor: Buffer): void
   inspect(token: number): HandleMetadata
   read(token: number, position: bigint, length: number): Uint8Array
@@ -57,13 +57,13 @@ export function windowsWriteFailure(domain: 'NTSTATUS' | 'Win32', code: number, 
     : permission ? 'FS_PERMISSION_DENIED' : reparse ? 'FS_SANDBOX_DENIED' : missing ? 'FS_NOT_FOUND' : 'FS_IO_ERROR')
 }
 
-/** Bind kernel32, ntdll and the four security synthesis exports on the owning worker.
+/** Bind kernel32, ntdll and process-token query exports on the owning worker.
  * @param context - Existing read owner's validated native handle table.
  * @returns Relative mutation primitives; security() refuses until its separate capability is available.
  */
 export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWriteApi {
   if (process.platform !== 'win32' || process.arch !== 'x64') refuseWindowsWrite()
-  createWindowsSecurityBindings()
+  const securityBindings = createWindowsSecurityBindings()
   const kernel = koffi.load('kernel32.dll')
   const native = koffi.load('ntdll.dll')
   const unicode = koffi.struct({ Length: 'uint16_t', MaximumLength: 'uint16_t', Buffer: 'void *' })
@@ -84,6 +84,22 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   const flush = kernel.func('int32_t __stdcall FlushFileBuffers(void *)') as (handle: object) => number
   const close = kernel.func('int32_t __stdcall CloseHandle(void *)') as (handle: object) => number
   const lastError = kernel.func('uint32_t __stdcall GetLastError()') as () => number
+  const processHandle = kernel.func('void * __stdcall GetCurrentProcess()') as () => object
+  const querySecurity = native.func('int32_t __stdcall NtQuerySecurityObject(void *, uint32_t, void *, uint32_t, _Out_ uint32_t *)') as
+    (handle: object, information: number, buffer: Buffer, length: number, needed: [number]) => number
+  const queryDescriptor = (token: number, handle = context.get(token)): Buffer => {
+    let buffer = Buffer.alloc(20)
+    const needed: [number] = [0]
+    let status = querySecurity(handle, 0x1f, buffer, buffer.length, needed) >>> 0
+    if (status === 0xc0000023 && needed[0] >= 20 && needed[0] <= 65536) {
+      buffer = Buffer.alloc(needed[0]); status = querySecurity(handle, 0x1f, buffer, buffer.length, needed) >>> 0
+    }
+    if (status !== 0 || needed[0] < 20 || needed[0] > buffer.length) {
+      throw new FsError('Windows security query failed / Windows 安全描述符查询失败', 'FS_IO_ERROR')
+    }
+    const result = buffer.subarray(0, needed[0]); parseSecurityDescriptor(result)
+    return result
+  }
   let poisoned = false
   const available = () => { if (poisoned) throw new FsError('Native write capability unavailable / 原生写能力不可用', 'FS_IO_ERROR') }
   const winFailure = (syscall: string) => windowsWriteFailure('Win32', lastError(), syscall)
@@ -136,18 +152,23 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   return {
     security(_parent) { return refuseWindowsWrite() },
     prepareReplacement(parent, name, observed) {
-      const old = relative(parent, name, 0x120089, 1, 1, false, null).token
+      const old = relative(parent, name, 0x1120089, 5, 1, false, null).token
       try {
         if (inspect(old).version !== observed.version) throw new FsError('Replacement target changed / 覆盖目标已变化', 'FS_STALE_VERSION')
-        captureReplacementMetadata(createReplacementMetadataApi(context), old)
-        throw new FsError('Security descriptor equivalence is unknown / 无法判定安全描述符等价', 'FS_IO_ERROR')
-      } finally { context.release(old) }
+        const prepare = captureReplacementMetadata(createReplacementMetadataApi(context), old)
+        checkReplacementSecurity({ bindings: securityBindings, process: processHandle,
+          close(handle) { if (!close(handle)) throw winFailure('CloseHandle') }, query: queryDescriptor }, old)
+        return { prepare, close() { context.release(old) } }
+      } catch (error) {
+        try { context.release(old) } catch (cleanup) { throw new AggregateError([error, cleanup], 'Replacement preparation and cleanup failed') }
+        throw error
+      }
     },
     createDirectory(parent, name, exclusive, descriptor) {
       if (exclusive && !descriptor) refuseWindowsWrite()
       return relative(parent, name, 0x110087, exclusive ? 0 : 3, exclusive ? 2 : 3, true, descriptor)
     },
-    createFile(parent, name, descriptor) { return relative(parent, name, 0x17019f, 0, 2, false, descriptor).token },
+    createFile(parent, name, descriptor) { return relative(parent, name, descriptor ? 0x17019f : 0x13019f, 0, 2, false, descriptor).token },
     secureEmpty(token, descriptor) {
       available()
       if (inspect(token).size !== 0) throw new FsError('Security must precede content', 'FS_IO_ERROR')

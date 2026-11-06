@@ -1,4 +1,4 @@
-/** Handle-only metadata bindings; unavailable enterprise detection prevents native replacement. */
+/** Handle-only metadata bindings reject encrypted files and failed protection queries. */
 import { constants } from 'node:buffer'
 import koffi from 'koffi'
 import { FsError } from '@panedesk/dsh-fs'
@@ -7,7 +7,7 @@ import type { WindowsNativeContext } from './win32-handle-types.ts'
 
 /** Bind independent metadata queries without treating unsupported protection as absent.
  * @param context - Worker-owned native handle table.
- * @returns Metadata operations; enterprise protection detection currently refuses every query.
+ * @returns Metadata operations with fail-closed, handle-based encryption detection.
  */
 export function createReplacementMetadataApi(context: WindowsNativeContext): ReplacementMetadataApi {
   const kernel = koffi.load('kernel32.dll')
@@ -88,8 +88,15 @@ export function createReplacementMetadataApi(context: WindowsNativeContext): Rep
       }
       return found
     },
-    enterpriseProtected() {
-      throw new FsError('Windows enterprise protection detection unavailable / Windows 企业保护检测不可用', 'FS_IO_ERROR')
+    enterpriseProtected(token) {
+      const handle = context.get(token)
+      const tag = Buffer.alloc(8)
+      const basic = Buffer.alloc(40)
+      if (!information(handle, 9, tag, tag.length) || !information(handle, 0, basic, basic.length)) {
+        throw new FsError('Protection detection failed / 保护检测失败', 'FS_IO_ERROR', { cause: failure('GetFileInformationByHandleEx') })
+      }
+      // WIP/EDP uses encrypted files; either handle observation is sufficient to refuse.
+      return ((tag.readUInt32LE(0) | basic.readUInt32LE(32)) & 0x4000) !== 0
     },
     compression(token) {
       const buffer = Buffer.alloc(2); const count: [number] = [0]

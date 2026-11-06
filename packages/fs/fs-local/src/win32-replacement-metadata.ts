@@ -35,23 +35,27 @@ export function captureReplacementMetadata(api: ReplacementMetadataApi, old: num
   const basic = detect(() => api.basic(old))
   const flags = checkedAttributes(basic)
   if (detect(() => api.resourceAttributes(old))) refuse('Security resource attributes are unsupported / 不支持安全资源属性')
-  if (detect(() => api.enterpriseProtected(old))) refuse('Enterprise-protected replacement is unsupported / 不支持覆盖企业保护文件')
+  if (detect(() => api.enterpriseProtected(old))) refuse('Enterprise-protected replacement is unsupported / 不支持覆盖企业保护文件; Encrypted / possibly enterprise-protected file / 已加密 / 可能受企业保护')
   const compression = api.compression(old)
   if (compression !== 0 && compression !== 2) refuse('Unsupported compression format / 不支持该压缩格式')
   const streams = checkedStreams(api.streams(old))
   return (stage) => {
     const replacement = api.basic(stage)
     const replacementFlags = checkedAttributes(replacement)
+    const attributePairs = new Map([[0x02 * 256 + 0x20, 0x22], [0x04 * 256 + 0x20, 0x24],
+      [0x20 * 256 + 0x80, 0x20], [0x20 * 256 + 0x20, 0x20]])
+    const attributes = attributePairs.get((flags & ~0x800) * 256 + (replacementFlags & ~0x800))
+    if (attributes === undefined) refuse('Unverified file attribute combination / 未核实的文件属性组合')
     if (detect(() => api.resourceAttributes(stage))) refuse('Security resource attributes are unsupported / 不支持安全资源属性')
-    if (detect(() => api.enterpriseProtected(stage))) refuse('Enterprise-protected replacement is unsupported / 不支持覆盖企业保护文件')
+    if (detect(() => api.enterpriseProtected(stage))) refuse('Enterprise-protected replacement is unsupported / 不支持覆盖企业保护文件; Encrypted / possibly enterprise-protected file / 已加密 / 可能受企业保护')
     const existing = new Set(checkedStreams(api.streams(stage)).map(stream => stream.name))
     api.setCompression(stage, compression)
     if (api.compression(stage) !== compression) refuse('Compression verification failed / 压缩格式复核失败')
     for (const stream of streams) if (!existing.has(stream.name)) api.writeStream(stage, stream)
     const merged = Buffer.from(replacement)
     basic.copy(merged, 0, 0, 8)
-    // Only the observed hidden/system/archive bits are merged; normal is not additive.
-    merged.writeUInt32LE(((flags | replacementFlags) & 0x26) || 0x80, 32)
+    // Compression is handled separately; ordinary attributes follow the observed pairs only.
+    merged.writeUInt32LE(attributes, 32)
     api.setBasic(stage, merged)
   }
 }
@@ -61,7 +65,7 @@ function refuse(message: string): never { throw new FsError(message, 'FS_IO_ERRO
 function checkedAttributes(basic: Buffer): number {
   if (basic.length !== 40) refuse('Unverified file attributes / 未核实的文件属性')
   const flags = basic.readUInt32LE(32)
-  if (flags & 0x4000) refuse('EFS replacement is unsupported / 不支持覆盖 EFS 加密文件')
+  if (flags & 0x4000) refuse('EFS replacement is unsupported / 不支持覆盖 EFS 加密文件; Encrypted / possibly enterprise-protected file / 已加密 / 可能受企业保护')
   if (flags & 1) refuse('Read-only replacement is unsupported / 不支持覆盖只读文件')
   if (flags & ~(0x26 | 0x80 | 0x800)) refuse('Unverified file attributes / 未核实的文件属性')
   return flags
