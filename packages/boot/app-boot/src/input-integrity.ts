@@ -470,7 +470,8 @@ export class ProtectedInputIntegrity {
   private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
-  private admission: Promise<void> | undefined
+  private admission: { promise: Promise<void>; enrolling: boolean; roots: number } | undefined
+  private rootsVersion = 0
 
   private stateTrusted(): boolean {
     if (this.record === undefined || process.platform !== 'win32') return true
@@ -834,6 +835,7 @@ export class ProtectedInputIntegrity {
     if (!contains(this.root, path)) return
     // Only mutable record storage is excluded; its ancestors also contain host inputs.
     if (this.isRecordStorage(path)) return
+    if (!this.observed.has(path)) this.rootsVersion++
     this.observed.add(path)
     if (this.record === undefined && !this.approved.has(path)) {
       const pass = capturePass()
@@ -846,9 +848,10 @@ export class ProtectedInputIntegrity {
   /**
    * Capture a first grant or verify existing trust without accepting changed inputs.
    * @param protectedPaths Current native write exclusions.
-   * @returns Admission completion; failed captures require explicit owner reauthorization.
+   * @param signal Cancels only this waiter; omission waits for the shared operation to settle.
+   * @returns Admission completion, shared only before scanning. Failed captures require explicit owner reauthorization.
    */
-  ensureWrite(protectedPaths: readonly string[] = []): Promise<void> {
+  ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void> {
     this.assertRecordLocation(protectedPaths)
     const admit = (): Promise<void> => {
       if (this.isolatedReview) {
@@ -863,13 +866,43 @@ export class ProtectedInputIntegrity {
         if (!accepted) throw new ProtectedInputReviewError()
       })
     }
-    // Later arrivals run a fresh verification rather than borrowing an earlier scan's window.
-    const operation = this.admission === undefined ? admit() : this.admission.then(admit, admit)
-    this.admission = operation
-    void operation.finally(() => {
-      if (this.admission === operation) this.admission = undefined
-    }).catch(() => {})
-    return operation
+    signal?.throwIfAborted()
+    let batch = this.admission
+    if (batch === undefined || !batch.enrolling || batch.roots !== this.rootsVersion) {
+      const previous = batch?.promise ?? Promise.resolve()
+      // Install the first-capture barrier synchronously, before confinement can wait on it.
+      if (batch === undefined && !this.isolatedReview) this.refreshRecord()
+      const capture = batch === undefined && !this.isolatedReview && !this.granted && this.grant === undefined
+        ? this.grantWrite(protectedPaths) : undefined
+      const next = { promise: Promise.resolve(), enrolling: true, roots: this.rootsVersion }
+      const start = (): Promise<void> => {
+        next.enrolling = false
+        return capture ?? admit()
+      }
+      next.promise = previous.then(start, start)
+      this.admission = batch = next
+      const settled = (): void => {
+        if (this.admission === next) this.admission = undefined
+      }
+      void next.promise.then(settled, settled)
+    }
+    const operation = batch.promise
+    if (signal === undefined) return operation
+    return new Promise<void>((resolve, reject) => {
+      const abort = (): void => {
+        const reason: unknown = signal.reason
+        reject(reason instanceof Error ? reason : new Error(String(reason), { cause: reason }))
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      void operation.then(() => {
+        signal.removeEventListener('abort', abort)
+        if (signal.aborted) abort()
+        else resolve()
+      }, (error: unknown) => {
+        signal.removeEventListener('abort', abort)
+        reject(error instanceof Error ? error : new Error(String(error), { cause: error }))
+      })
+    })
   }
 
   /**

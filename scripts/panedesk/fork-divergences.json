@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "workspace-admission-enrollment",
+      "description": "Share ordinary workspace admission before scanning and isolate waiter cancellation",
+      "origin": "Concurrent workspace admission review",
+      "reason": "Keep enrollment and root versions on the launcher-owned reader. Share capture or review with requests enrolled before scanning, queue later requests for another review, and cancel individual waiters without cancelling shared work. Preserve the synchronous first-capture barrier, content decisions and durable format. This stage does not close revocation or asynchronous native publication races. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/profile-context.ts",
+          "packages/boot/app-boot/tests/workspace-admission-concurrency.spec.ts",
+          "packages/boot/app-boot/README*"
+        ]
+      }
+    },
+    {
       "id": "owner-record-operation-review",
       "description": "Review owner records once per operation with indexed copies and isolated stall supervision",
       "origin": "Restart input review responsiveness",

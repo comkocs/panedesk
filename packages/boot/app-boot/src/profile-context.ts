@@ -13,10 +13,14 @@ export type { ProfileContext, ProfilePnpmInvocation } from './profile-context-ty
  * @param context Launcher-owned profile and record inventory.
  * @param workspace Actual sandbox write root, not necessarily the launch directory.
  * @param paths Current protected input spellings, including Loader links.
- * @returns Completion of durable capture; rejection must prevent publication of write access.
+ * @param signal Cancels this request without cancelling other waiters; omission waits until admission settles.
+ * @returns Completion of durable capture or review; rejection must prevent publication of write access.
  */
-export function grantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): Promise<void> {
-  return workspaceReader(context, workspace, paths).ensureWrite([...context.protectedInputPaths?.() ?? [], ...paths])
+export function grantProtectedWorkspace(
+  context: ProfileContext, workspace: string, paths: readonly string[], signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted()
+  return workspaceReader(context, workspace, paths).ensureWrite([...context.protectedInputPaths?.() ?? [], ...paths], signal)
 }
 
 /**
