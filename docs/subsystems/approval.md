@@ -139,7 +139,7 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */
-async request( req: ApprovalRequest, authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>
+async request( req: ApprovalRequest, authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>
 
 /**
  * Ask an authenticated owner about a host input, including between model turns.

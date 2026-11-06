@@ -544,6 +544,7 @@ export class ProtectedInputIntegrity {
    * Open every granted workspace for an owner before parsing any launch input.
    * @param workspace Launch workspace; opening it does not grant write access.
    * @param home Owner state root containing the durable workspace records.
+   * @param progress Receives checked and total counts while overlapping records are compared; omission reports nothing.
    * @returns A reader that rejects inconsistent overlapping records instead of reading current files.
    */
   static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity {

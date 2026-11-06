@@ -16093,6 +16093,23 @@
           "packages/boot/app-boot/README.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "help-only-startup-review-skip",
+      "description": "Skip the startup protected-input review on help-only and version-only invocations",
+      "origin": "CLI help reference diagnostics",
+      "reason": "Document the optional progress callback of the synchronous owner-record opener. A profile invocation whose only argument is help or version displays text and starts no host and no agent, so it opens owner records without the startup review and prints no review lines; every invocation that can start a host still reviews and still reports bilingual progress. Cover panedesk acp --help producing help text on stdout with an empty stderr. Regenerate the Cordis service catalog so its committed projection matches the current API. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "apps/cli/src/profile-boot.ts",
+          "apps/cli/tests/acp-help.spec.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/approval.md",
+          "docs/subsystems/approval.zh.md"
+        ]
+      }
     }
   ]
 }
