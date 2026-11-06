@@ -16026,6 +16026,19 @@
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
         ]
       }
+    },
+    {
+      "id": "headless-restart-input-review-smoke",
+      "description": "Gate the built headless restart input-review success path",
+      "origin": "Headless restart input review acceptance",
+      "reason": "Boot the built CLI twice over one isolated home: the first Web launch captures and grants the durable protected input baseline through the shared fixture, and the restarted headless launch must pass its startup owner review (startup banner before bilingual progress lines, no refusal text) and finish one keyless scripted task with exit 0, while a changed persisted protected copy exits nonzero without running the task. Register the new spec in the built-bin smoke gate. Review algorithms, default thresholds, and refusal decisions stay unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/headless-restart-review.e2e.ts",
+          "scripts/run-gates.ts"
+        ]
+      }
     }
   ]
 }
