@@ -16063,13 +16063,16 @@
       "id": "headless-credential-startup-review-stderr",
       "description": "Allow only the startup review banner and progress lines on headless credential stderr",
       "origin": "Headless startup review output",
-      "reason": "Six headless credential examples asserted an empty stderr. The startup protected-input review now prints a bilingual banner and bilingual progress lines there, so those examples drop only lines that match those exact wordings and still require every other stderr line to be absent. A separate example rejects an extra line and a one-word banner change. The restored-credentials example and every other assertion stay unchanged, as do the review output and the product. These changes can be contributed upstream.",
+      "reason": "Seven headless credential examples asserted an empty stderr. The startup protected-input review now prints a bilingual banner and bilingual progress lines there, so those examples drop only lines that match those exact wordings and still require every other stderr line to be absent. A separate example rejects an extra line and a one-word banner change. The restored-credentials example also checks the private destination after the provider relocates the legacy document, retaining exact content equality. Other assertions, review output, and product behavior stay unchanged. These changes can be contributed upstream.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "apps/cli/tests/profiles/headless/tests/credentials.e2e.ts",
           "apps/cli/tests/profiles/headless/tests/startup-review-stderr.ts",
-          "apps/cli/tests/profiles/headless/tests/startup-review-stderr.spec.ts"
+          "apps/cli/tests/profiles/headless/tests/startup-review-stderr.spec.ts",
+          "apps/cli/README.md",
+          "apps/cli/README.zh.md",
+          "apps/cli/README.i18n.yaml"
         ],
         "test": "headless credential policy"
       }

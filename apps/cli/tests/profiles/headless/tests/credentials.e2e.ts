@@ -156,7 +156,12 @@ describe('headless credential policy', { retry: 0 }, () => {
           ))
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(document)
+          if (restoring) {
+            // Enabling the stored provider relocates the legacy document into its private directory.
+            expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(document)
+          } else {
+            expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(document)
+          }
         },
       })
       if (missing) {
@@ -169,8 +174,9 @@ describe('headless credential policy', { retry: 0 }, () => {
         expect(server.requests.length).toBeGreaterThan(0)
       } else {
         expect(result.stdout.trim()).toBe('mock response recovered')
-        expect(result.stderr).toBe('')
+        expect(stderrBeyondStartupReview(result.stderr)).toBe('')
         expect(server.requests.length).toBeGreaterThan(0)
+        expect(server.requests.every(request => request.headers['x-api-key'] === savedKey)).toBe(true)
       }
     } finally {
       await server.close()

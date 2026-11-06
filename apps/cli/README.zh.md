@@ -66,6 +66,8 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 
 构建后的 headless 入口验收使用隔离项目目录，owner home 位于该工作区之外，因此不会将仓库检出目录及其链接依赖当作任务输入。
 
+headless 凭据验收在提供方的目标位置 `private/.credentials.yaml` 检查恢复的旧版凭据，并要求内容保持不变。其 stderr 断言仅放行措辞精确匹配的双语启动复核横幅与进度行。
+
 生产运行需要已构建的包与前端产物。请在仓库根目录单独运行 `pnpm run build`，然后使用 `pnpm dsh <args...>` 运行 TypeScript 入口并转发所有参数；模块解析约定以[源码执行参考](reference/README.zh.md#source-execution)为准。
 
 `panedesk/profile-boot` 导出向 Desktop Host 提供共享 profile 生命周期。已解析的应用 profile 为运行时包解析指定自己的安装锚点，同时沿用 Harness home patch、代理环境、遥测开关、patch 热重载和有界关闭。
