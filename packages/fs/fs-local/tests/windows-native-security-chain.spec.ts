@@ -32,8 +32,9 @@ function fixture(kind = 'inherited') {
   const user = syntheticSid(101)
   const group = syntheticSid(103)
   const inherited = descriptor(0x8404, user, group, acl([ace(0, 0x10, 0x1f01ff, user)]))
-  const previous = Buffer.from(kind === 'integrity'
-    ? descriptor(0x8414, user, group, acl([ace(0, 0x10, 0x1f01ff, user)]), acl([ace(17, 0, 0, syntheticSid(104))]))
+  const previous = Buffer.from(kind === 'integrity' || kind === 'inherited-label'
+    ? descriptor(0x8414, user, group, acl([ace(0, 0x10, 0x1f01ff, user)]),
+      acl([ace(17, kind === 'inherited-label' ? 0x10 : 0, 0, syntheticSid(104))]))
     : inherited)
   if (kind === 'explicit') previous[previous.readUInt32LE(16) + 9] = 0
   if (kind === 'protected') previous.writeUInt16LE(0x9404, 2)
@@ -140,6 +141,23 @@ it('replaces an entirely inherited file in its own directory and leaves readable
     expect(native.declarations.some(value =>
       /ReplaceFileW|MoveFile|SetFileInformationByHandle|CreatePrivateObjectSecurityEx|DestroyPrivateObjectSecurity/.test(value),
     )).toBe(false)
+  } finally { await f.handler.close() }
+})
+
+it('replaces a file whose integrity label was inherited from its directory', async () => {
+  const f = fixture('inherited-label')
+  try {
+    const stage = await f.handler.execute({ kind: 'stage', parent: 1, name: 'entry', policy: { kind: 'replace', observed: metadata('C:\\synthetic\\entry') } })
+    if (stage.kind !== 'staged') throw new Error('Missing stage')
+    await f.handler.execute({ kind: 'write', token: stage.token, bytes: Buffer.from('new'), position: 0n })
+    await f.handler.execute({ kind: 'flush', token: stage.token })
+    await f.handler.execute({ kind: 'prepare-metadata', token: stage.token })
+    await f.handler.execute({ kind: 'publish', token: stage.token, request: { kind: 'replace', observed: metadata('C:\\synthetic\\entry'), metadataProfile: 'replacement' } })
+    await f.handler.execute({ kind: 'stage-close', token: stage.token })
+    expect(f.target()).toBe('new')
+    expect(f.events).toContain('rename')
+    expect(f.events).not.toContain('set-security')
+    expect(native.paths).toEqual([])
   } finally { await f.handler.close() }
 })
 

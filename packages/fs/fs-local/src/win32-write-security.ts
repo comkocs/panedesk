@@ -39,9 +39,10 @@ export function checkReplacementSecurity(api: SecurityPreparationApi, old: numbe
     // Protected or absent ACLs cannot establish inheritance from the containing directory.
     if ((previous.control & 0x3000) !== 0 || !(previous.control & 4) || !previous.dacl) refuseSecurity()
     const dacl = securityAces(previous.dacl)
-    // An explicit integrity label is individually configured; audit entries are not examined.
+    // Only an explicit integrity label is individually configured; one inherited from the
+    // containing directory is admitted, and audit entries are not examined.
     if (dacl.length === 0 || dacl.some(ace => !(ace.readUInt8(1) & 0x10))
-      || (previous.sacl && securityAces(previous.sacl).some(ace => ace.readUInt8(0) === 17))) refuseSecurity()
+      || (previous.sacl && securityAces(previous.sacl).some(ace => ace.readUInt8(0) === 17 && !(ace.readUInt8(1) & 0x10)))) refuseSecurity()
     if (!api.bindings.openProcessToken(api.process(), 8, token) || !token[0]) refuseSecurity()
     // The token's default owner must also match: it owns the file created without a descriptor.
     for (const information of [1, 4]) {
