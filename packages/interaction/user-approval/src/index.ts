@@ -179,7 +179,7 @@ export class ApprovalService extends Service {
           ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
         const approved = new Set<string>()
         for (const record of records) {
-          if (!await record.verify({
+          if (!await record.review({
             blocked: (change) => { scope.logger.warn('Protected host input awaits owner review: %s', change.path) },
             confirm: async (change) => {
               if (lifetime.signal.aborted) return false

@@ -16028,6 +16028,25 @@
       }
     },
     {
+      "id": "serialized-host-input-admission-review",
+      "description": "Serialize protected input reviews across host admission callers",
+      "origin": "Protected input admission concurrency",
+      "reason": "Queue workspace write admission, owner approval, and profile recomposition reviews on their shared reader without changing direct verify overlap rejection. Each queued request keeps its owner callbacks and checks the workspace generation and registered roots before and after verification; refusal and failure never publish write access. Prepare existing authoritative-tree parent directories before nested-home capture so later host-owned tree creation does not invalidate protected ancestors. Cover concurrent admission, refusal, invalidation, failed-request recovery, and nested-home startup, and run the headless restart smoke with default permissions. Digest algorithms, record formats, protected roots, and review thresholds remain unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/index.ts",
+          "packages/boot/app-boot/tests/input-review-admission.spec.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/interaction/user-approval/src/index.ts",
+          "apps/cli/tests/headless-restart-review.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "headless-restart-input-review-smoke",
       "description": "Gate the built headless restart input-review success path",
       "origin": "Headless restart input review acceptance",

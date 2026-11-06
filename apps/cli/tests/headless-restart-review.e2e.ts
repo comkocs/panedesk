@@ -133,7 +133,6 @@ async function restartTask(world: World, baseUrl: string): Promise<RunOutcome> {
     tsconfigPath,
     env: {
       ...worldEnv(world),
-      PANEDESK_PERMISSION_MODE: 'danger-full-access',
       DEEPSEEK_API_KEY: 'headless-restart-review-keyless',
       DEEPSEEK_BASE_URL: baseUrl,
     },
