@@ -467,6 +467,7 @@ export class ProtectedInputIntegrity {
   private granted: boolean
   private revision: string | undefined
   private verifying = false
+  private reviews: Promise<void> = Promise.resolve()
   private grant: { promise: Promise<void>; pending: boolean; failed: boolean } | undefined
   private stateFailure: Error | undefined
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
@@ -891,14 +892,14 @@ export class ProtectedInputIntegrity {
     const admit = (): Promise<void> => {
       current()
       if (this.isolatedReview) {
-        return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
+        return this.review({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
           if (!accepted) throw new ProtectedInputReviewError()
           if (!this.granted && this.grant === undefined) return this.grantWrite(protectedPaths)
         })
       }
       this.refreshRecord()
       if (!this.granted && this.grant === undefined) return this.grantWrite(protectedPaths)
-      return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
+      return this.review({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
         if (!accepted) throw new ProtectedInputReviewError()
       })
     }
@@ -974,6 +975,9 @@ export class ProtectedInputIntegrity {
   private async captureGrant(): Promise<void> {
     const generation = this.generation
     if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
+    if (this.home !== undefined && contains(this.root, this.home)) {
+      for (const tree of authoritativeHomeTrees(this.home)) mkdirSync(dirname(tree), { recursive: true, mode: 0o700 })
+    }
     const pass = capturePass()
     const candidates = new Map<string, InputSnapshot>()
     for (const path of this.observed) candidates.set(path, await finishAsync(this.capture(path, undefined, pass)))
@@ -1180,6 +1184,23 @@ export class ProtectedInputIntegrity {
       }
       rmdirSync(lock)
     }
+  }
+
+  /**
+   * Queue a host admission review without overlapping another coordinated review.
+   * @param owner Authenticated confirmation and visible refusal reporting for this request only.
+   * @returns This request's fresh verification result; stale generations and changed roots reject queued work.
+   */
+  review(owner: ProtectedInputOwner): Promise<boolean> {
+    const current = this.checkpoint()
+    const operation = this.reviews.then(async () => {
+      current()
+      const accepted = await this.verify(owner)
+      current()
+      return accepted
+    })
+    this.reviews = operation.then(() => {}, () => {})
+    return operation
   }
 
   /**

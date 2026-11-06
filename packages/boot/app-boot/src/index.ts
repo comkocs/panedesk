@@ -383,7 +383,7 @@ async function recompose(
   const records = new Set([...(profile?.inputIntegrities?.values() ?? []),
     ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
   for (const record of records) {
-    if (!await record.verify({
+    if (!await record.review({
       blocked(change) { ctx.logger.warn('Protected host input requires owner confirmation: %s', change.path) },
       confirm: () => Promise.resolve(false),
     })) {

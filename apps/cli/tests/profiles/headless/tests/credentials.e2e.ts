@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { startMockLlmServer } from '@panedesk/dsh-llm-mock-server'
 import { runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
 import { describe, expect, it } from 'vitest'
+import { stderrBeyondStartupReview } from './startup-review-stderr.ts'
 
 const binScript = fileURLToPath(new URL('../../../../../../apps/cli/src/bin.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
@@ -86,7 +87,7 @@ describe('headless credential policy', { retry: 0 }, () => {
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
-      expect(result.stderr).toBe('')
+      expect(stderrBeyondStartupReview(result.stderr)).toBe('')
       expect(server.requests.length).toBeGreaterThan(0)
       expect(server.requests.every(request => request.headers['x-api-key'] === scenario.expected)).toBe(true)
     } finally {
@@ -124,7 +125,7 @@ describe('headless credential policy', { retry: 0 }, () => {
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
-      expect(result.stderr).toBe('')
+      expect(stderrBeyondStartupReview(result.stderr)).toBe('')
       expect(server.keys.length).toBeGreaterThan(0)
       expect(server.keys.every(key => key === launchKey)).toBe(true)
     } finally {
@@ -155,17 +156,27 @@ describe('headless credential policy', { retry: 0 }, () => {
           ))
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(document)
+          if (restoring) {
+            // Enabling the stored provider relocates the legacy document into its private directory.
+            expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(document)
+          } else {
+            expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(document)
+          }
         },
       })
       if (missing) {
         expect(result.stdout).toBe('\n')
         expect(result.stderr).toContain('MISSING_CREDENTIAL')
         expect(server.requests).toHaveLength(0)
+      } else if (mode === 'invalid stored document') {
+        expect(result.stdout.trim()).toBe('mock response recovered')
+        expect(stderrBeyondStartupReview(result.stderr)).toBe('')
+        expect(server.requests.length).toBeGreaterThan(0)
       } else {
         expect(result.stdout.trim()).toBe('mock response recovered')
-        expect(result.stderr).toBe('')
+        expect(stderrBeyondStartupReview(result.stderr)).toBe('')
         expect(server.requests.length).toBeGreaterThan(0)
+        expect(server.requests.every(request => request.headers['x-api-key'] === savedKey)).toBe(true)
       }
     } finally {
       await server.close()

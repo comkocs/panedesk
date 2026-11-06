@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "web-startup-input-review-refusal",
+      "description": "Show bilingual protected-input refusal before Web profile composition",
+      "origin": "Web restart input review acceptance",
+      "reason": "Keep an initial owner-record review refusal visible in an API-free loopback page without mounting profile plugins or exposing protected paths. Preserve review algorithms, protected configuration and workspace write decisions; close the refused listener on termination and exit nonzero. Pin a real built Web host restart and browser rendering against a changed persisted input copy. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/src/profile-boot.ts",
+          "apps/cli/src/input-review-web-refusal.ts",
+          "apps/cli/README*",
+          "apps/web/tests/input-review-refusal.spec.ts",
+          "apps/cli/tests/fixtures/input-review-baseline.mjs"
+        ]
+      }
+    },
+    {
       "id": "startup-agent-review-readiness",
       "description": "Keep synchronous startup agent review outside readiness-blocked HMR transactions",
       "origin": "Startup seed session rename deadlock review",
@@ -16075,6 +16091,25 @@
       }
     },
     {
+      "id": "serialized-host-input-admission-review",
+      "description": "Serialize protected input reviews across host admission callers",
+      "origin": "Protected input admission concurrency",
+      "reason": "Queue workspace write admission, owner approval, and profile recomposition reviews on their shared reader without changing direct verify overlap rejection. Each queued request keeps its owner callbacks and checks the workspace generation and registered roots before and after verification; refusal and failure never publish write access. Prepare existing authoritative-tree parent directories before nested-home capture so later host-owned tree creation does not invalidate protected ancestors. Cover concurrent admission, refusal, invalidation, failed-request recovery, and nested-home startup, and run the headless restart smoke with default permissions. Digest algorithms, record formats, protected roots, and review thresholds remain unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/index.ts",
+          "packages/boot/app-boot/tests/input-review-admission.spec.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/interaction/user-approval/src/index.ts",
+          "apps/cli/tests/headless-restart-review.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "windows-handle-new-file-destination-staging",
       "description": "Create new files through the Windows handle backend with destination-inherited staging and no-replace publication",
       "origin": "Windows handle backend new-file creation",
@@ -16087,6 +16122,37 @@
           "packages/fs/fs-local/README.zh.md",
           "packages/fs/fs-local/README.i18n.yaml"
         ]
+      }
+    },
+    {
+      "id": "headless-restart-input-review-smoke",
+      "description": "Gate the built headless restart input-review success path",
+      "origin": "Headless restart input review acceptance",
+      "reason": "Boot the built CLI twice over one isolated home: the first Web launch captures and grants the durable protected input baseline through the shared fixture, and the restarted headless launch must pass its startup owner review (startup banner before bilingual progress lines, no refusal text) and finish one keyless scripted task with exit 0, while a changed persisted protected copy exits nonzero without running the task. Register the new spec in the built-bin smoke gate. Review algorithms, default thresholds, and refusal decisions stay unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/headless-restart-review.e2e.ts",
+          "scripts/run-gates.ts"
+        ]
+      }
+    },
+    {
+      "id": "headless-credential-startup-review-stderr",
+      "description": "Allow only the startup review banner and progress lines on headless credential stderr",
+      "origin": "Headless startup review output",
+      "reason": "Seven headless credential examples asserted an empty stderr. The startup protected-input review now prints a bilingual banner and bilingual progress lines there, so those examples drop only lines that match those exact wordings and still require every other stderr line to be absent. A separate example rejects an extra line and a one-word banner change. The restored-credentials example also checks the private destination after the provider relocates the legacy document, retaining exact content equality. Other assertions, review output, and product behavior stay unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/headless/tests/credentials.e2e.ts",
+          "apps/cli/tests/profiles/headless/tests/startup-review-stderr.ts",
+          "apps/cli/tests/profiles/headless/tests/startup-review-stderr.spec.ts",
+          "apps/cli/README.md",
+          "apps/cli/README.zh.md",
+          "apps/cli/README.i18n.yaml"
+        ],
+        "test": "headless credential policy"
       }
     }
   ]
