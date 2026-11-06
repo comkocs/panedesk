@@ -3,7 +3,10 @@ import koffi from 'koffi'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
 import { createWindowsSecurityBindings } from './win32-write-security.ts'
+import { createReplacementMetadataApi } from './win32-metadata-abi.ts'
+import { captureReplacementMetadata } from './win32-replacement-metadata.ts'
 import type { HandleMetadata, HandleReply, WindowsNativeContext } from './win32-handle-types.ts'
+import type { PathInfo } from './directory-legacy.ts'
 
 /** Security descriptors must be constructed for the actual caller and destination, never a default DACL. */
 export interface StageSecurity {
@@ -11,9 +14,18 @@ export interface StageSecurity {
   file: Buffer
 }
 
+/** Captured security and metadata retain their source until the transaction settles. */
+export interface ReplacementPreparation {
+  security: StageSecurity
+  prepare(file: number): void
+  close(): void
+}
+
 /** Synchronous operations execute on the worker that owns the context's handle table. */
 export interface WindowsWriteApi {
   security(parent: number): StageSecurity
+  /** Capture the old object before staging; close releases it without mutation. */
+  prepareReplacement(parent: number, name: string, observed: PathInfo): ReplacementPreparation
   createDirectory(parent: number, name: string, exclusive: boolean, descriptor: Buffer | null): Extract<HandleReply, { kind: 'opened' }>
   createFile(parent: number, name: string, descriptor: Buffer): number
   secureEmpty(token: number, descriptor: Buffer): void
@@ -123,6 +135,14 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   }
   return {
     security(_parent) { return refuseWindowsWrite() },
+    prepareReplacement(parent, name, observed) {
+      const old = relative(parent, name, 0x120089, 1, 1, false, null).token
+      try {
+        if (inspect(old).version !== observed.version) throw new FsError('Replacement target changed / 覆盖目标已变化', 'FS_STALE_VERSION')
+        captureReplacementMetadata(createReplacementMetadataApi(context), old)
+        throw new FsError('Security descriptor equivalence is unknown / 无法判定安全描述符等价', 'FS_IO_ERROR')
+      } finally { context.release(old) }
+    },
     createDirectory(parent, name, exclusive, descriptor) {
       if (exclusive && !descriptor) refuseWindowsWrite()
       return relative(parent, name, 0x110087, exclusive ? 0 : 3, exclusive ? 2 : 3, true, descriptor)

@@ -3,13 +3,14 @@ import { randomUUID } from 'node:crypto'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
 import type { HandleReply, HandleWriteRequest, WindowsWriteHandler } from './win32-handle-types.ts'
-import type { WindowsWriteApi } from './win32-write-abi.ts'
+import type { ReplacementPreparation, WindowsWriteApi } from './win32-write-abi.ts'
 
 type Stage = {
   directory: number
   file: number
   parent: number
   name: string
+  replacement: ReplacementPreparation | undefined
   phase: 'secured' | 'writing' | 'flushed' | 'ready' | 'committed' | 'failed'
 }
 
@@ -31,9 +32,13 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
     stages.delete(token)
     const errors: unknown[] = []
     for (const handle of [stage.file, stage.directory]) {
-      try { api.disposition(handle) } catch (error) { errors.push(error) }
+      // A rename moved the staging name itself: disposition would delete the published file.
+      if (!(handle === stage.file && stage.replacement && stage.phase === 'committed')) {
+        try { api.disposition(handle) } catch (error) { errors.push(error) }
+      }
       try { api.close(handle) } catch (error) { errors.push(error) }
     }
+    try { stage.replacement?.close() } catch (error) { errors.push(error) }
     if (errors.length && stage.phase !== 'committed') throw new AggregateError(errors, 'Stage cleanup failed / 暂存清理失败')
   }
   const execute = (request: HandleWriteRequest): HandleReply => {
@@ -42,22 +47,25 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
       case 'create-directory': return api.createDirectory(request.parent, checkWindowsComponent(request.name), false, null)
       case 'stage': {
         const name = checkWindowsComponent(request.name)
-        if (request.policy.kind !== 'new') return refuseWindowsWrite()
-        const security = api.security(request.parent)
-        const directory = api.createDirectory(request.parent, `.stage-${randomUUID()}`, true, security.directory)
+        const replacement = request.policy.kind === 'replace' ? api.prepareReplacement(request.parent, name, request.policy.observed) : undefined
+        let directory: number | undefined
         let file: number | undefined
         try {
-          file = api.createFile(directory.token, 'content', security.file)
+          const security = replacement ? replacement.security : api.security(request.parent)
+          directory = api.createDirectory(request.parent, `.stage-${randomUUID()}`, true, security.directory).token
+          file = api.createFile(directory, 'content', security.file)
           api.secureEmpty(file, security.file)
           const token = ++sequence
-          stages.set(token, { directory: directory.token, file, parent: request.parent, name, phase: 'secured' })
+          stages.set(token, { directory, file, parent: request.parent, name, replacement, phase: 'secured' })
           return { kind: 'staged', token }
         } catch (error) {
           const errors: unknown[] = [error]
-          for (const handle of file === undefined ? [directory.token] : [file, directory.token]) {
+          for (const handle of [file, directory]) {
+            if (handle === undefined) continue
             try { api.disposition(handle) } catch (failure) { errors.push(failure) }
             try { api.close(handle) } catch (failure) { errors.push(failure) }
           }
+          try { replacement?.close() } catch (failure) { errors.push(failure) }
           if (errors.length > 1) throw new AggregateError(errors, 'Stage preparation and cleanup failed')
           throw error
         }
@@ -81,7 +89,8 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
       default: {
         const stage = get(request.token)
         if (stage.phase === 'committed' || stage.phase === 'failed') throw new FsError('Stage is no longer mutable', 'FS_IO_ERROR')
-        if (request.kind === 'publish' && request.request.kind !== 'create-if-absent') return refuseWindowsWrite()
+        if (request.kind === 'publish' && (request.request.kind === 'create-or-replace'
+          || (request.request.kind === 'replace') !== Boolean(stage.replacement))) return refuseWindowsWrite()
         try {
           switch (request.kind) {
             case 'stage-inspect': return { kind: 'metadata', metadata: api.inspect(stage.file) }
@@ -99,13 +108,14 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
               return { kind: 'completed' }
             case 'prepare-metadata':
               if (stage.phase !== 'flushed') throw new FsError('Flush is required before metadata preparation', 'FS_IO_ERROR')
-              // Security was installed on the empty object; no post-write ACL relaxation is allowed.
+              // Security was installed on the empty object; metadata must complete before publication.
+              stage.replacement?.prepare(stage.file)
               stage.phase = 'ready'
               return { kind: 'completed' }
             case 'publish': {
-              if (request.request.kind !== 'create-if-absent') return refuseWindowsWrite()
               if (stage.phase !== 'ready') throw new FsError('Stage is not ready for publication', 'FS_IO_ERROR')
-              api.link(stage.file, stage.parent, stage.name)
+              if (stage.replacement) api.replace(stage.file, stage.parent, stage.name)
+              else api.link(stage.file, stage.parent, stage.name)
               stage.phase = 'committed'
               // Metadata failure cannot undo a completed link; callers may probe the retained target.
               let metadata = null

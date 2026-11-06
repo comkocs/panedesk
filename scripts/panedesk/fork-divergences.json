@@ -4,12 +4,18 @@
       "id": "windows-handle-security-synthesis-bindings",
       "description": "Bind four advapi32 security synthesis functions and a Native POSIX replacement primitive",
       "origin": "Handle-only Windows replacement compatibility review",
-      "reason": "Register OpenProcessToken with a process HANDLE, DWORD access and output token HANDLE; GetTokenInformation with fixed-width information class, buffer length and required length; CreatePrivateObjectSecurityEx with a 32-bit BOOL container flag, generic mapping and self-relative output descriptor; and DestroyPrivateObjectSecurity with an in-out descriptor pointer. Only these four advapi32 exports are added, without changing Koffi version, argument heap configuration or execve. Supply Native FileRenameInformationEx with POSIX and replace-if-exists flags, bilingual access-denied refusal and no path fallback. Replacement remains disconnected from staging because DACL/inheritance and replacement attribute equivalence are not established. Substitute tests cover binding registration and the isolated replacement primitive, not native equivalence or completed overwrite support. These changes can be contributed upstream.",
+      "reason": "Register OpenProcessToken with a process HANDLE, DWORD access and output token HANDLE; GetTokenInformation with fixed-width information class, buffer length and required length; CreatePrivateObjectSecurityEx with a 32-bit BOOL container flag, generic mapping and self-relative output descriptor; and DestroyPrivateObjectSecurity with an in-out descriptor pointer. Only these four advapi32 exports are added, without changing Koffi version, argument heap configuration or execve. Supply Native FileRenameInformationEx with POSIX and replace-if-exists flags, bilingual access-denied refusal and no path fallback. Connect replacement staging to captured security and metadata preparation, preserve the commit point, and close renamed files without deleting the published name. Add authorized handle-only edit/diff pre-reads and metadata preparation for creation time, observed hidden/system/archive bits, compression and missing named streams. Bind handle-only basic information, resource attribute, compression and backup-stream operations. Refuse readonly, unknown attributes or backup streams, EFS, resource attributes, enterprise protection and failed detection. Native security synthesis and enterprise-protection detection remain unavailable, so native replacement still refuses before staging. Substitute tests cover the replacement transaction and refusal propagation, not native equivalence; security, audit and occupied-file errors are injected at their owning capability. ObjectId and short names are neither retained nor refusal reasons. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/fs/fs-local/src/win32-write-security.ts",
           "packages/fs/fs-local/src/win32-write-abi.ts",
+          "packages/fs/fs-local/src/win32-stage.ts",
+          "packages/fs/fs-local/src/win32-write-backend.ts",
+          "packages/fs/fs-local/src/win32-write-read.ts",
+          "packages/fs/fs-local/src/win32-replacement-metadata.ts",
+          "packages/fs/fs-local/src/win32-metadata-abi.ts",
+          "packages/fs/fs-local/tests/windows-replacement-chain.spec.ts",
           "packages/fs/fs-local/tests/windows-native-replacement.spec.ts",
           "packages/fs/fs-local/README*"
         ]

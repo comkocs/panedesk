@@ -4,6 +4,7 @@ import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
 import { createWindowsWriteApi } from './win32-write-abi.ts'
 import { createStageHandler } from './win32-stage.ts'
 import type { OwnedStage } from './directory-handle.ts'
+import { readWindowsEdit, readWindowsDiff } from './win32-write-read.ts'
 import type { HandleReply, WindowsNativeContext, WindowsWriteExtension, WindowsWriteHandler, WindowsWriteTarget } from './win32-handle-types.ts'
 
 function aborted(signal?: AbortSignal): void {
@@ -27,7 +28,7 @@ export function createWindowsWriteHandler(context: WindowsNativeContext): Window
 
 /** Assemble serialized owned stages for one retained directory target.
  * @param target - Retained tokens and read capabilities, never a pathname for I/O.
- * @returns No-replace write and deletion adapter; overwrite remains unavailable.
+ * @returns Owned write and deletion adapter; replacement requires verified security and metadata.
  */
 export function createWindowsWriteExtension(target: WindowsWriteTarget): WindowsWriteExtension {
   const extension: WindowsWriteExtension = {
@@ -38,7 +39,6 @@ export function createWindowsWriteExtension(target: WindowsWriteTarget): Windows
     },
     async stage(parent, name, policy, signal) {
       aborted(signal)
-      if (policy.kind !== 'new') return refuseWindowsWrite()
       const reply = await target.execute({ kind: 'stage', parent, name: checkWindowsComponent(name), policy })
       if (reply.kind !== 'staged') throw new FsError('Invalid stage creation reply', 'FS_IO_ERROR')
       const token = reply.token
@@ -98,12 +98,15 @@ export function createWindowsWriteExtension(target: WindowsWriteTarget): Windows
       if (signal?.aborted) { await close(); aborted(signal) }
       return stage
     },
-    readForEdit() { return Promise.reject(new FsError('Windows handle replacement not ready / Windows 句柄覆盖尚未就绪', 'FS_IO_ERROR')) },
-    readTextForDiff() { return Promise.reject(new FsError('Windows handle replacement not ready / Windows 句柄覆盖尚未就绪', 'FS_IO_ERROR')) },
+    readForEdit: (displayPath, signal, authorize) => readWindowsEdit(target.openRead, displayPath, signal, authorize),
+    readTextForDiff: (limit, signal, authorize) => readWindowsDiff(target.openRead, limit, signal, authorize),
     async write(content, mode, signal, _internals, createIfAbsent) {
       aborted(signal)
-      if (mode !== undefined || target.entry.kind !== 'child') return refuseWindowsWrite()
-      const stage = await extension.stage(target.parent, target.entry.name, { kind: 'new', inheritFromDestination: true }, signal)
+      if (target.entry.kind !== 'child') return refuseWindowsWrite()
+      const observed = mode === undefined || createIfAbsent ? null : await target.probe()
+      if (mode !== undefined && !createIfAbsent && !observed) throw new FsError('Replacement target disappeared / 覆盖目标已消失', 'FS_STALE_VERSION')
+      const stage = await extension.stage(target.parent, target.entry.name, observed
+        ? { kind: 'replace', observed } : { kind: 'new', inheritFromDestination: true }, signal)
       let failure: Error | undefined
       let committed = false
       try {
@@ -115,7 +118,8 @@ export function createWindowsWriteExtension(target: WindowsWriteTarget): Windows
         }
         await stage.file.flush()
         await stage.prepareMetadata()
-        await stage.publish({ kind: 'create-if-absent', displayPath: createIfAbsent?.displayPath ?? target.entry.name }, signal)
+        await stage.publish(observed ? { kind: 'replace', observed, metadataProfile: 'verified-subset' }
+          : { kind: 'create-if-absent', displayPath: createIfAbsent?.displayPath ?? target.entry.name }, signal)
         committed = true
       } catch (error) {
         failure = error instanceof Error ? error : new FsError('Write failed', 'FS_IO_ERROR', { cause: error })
