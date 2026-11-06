@@ -22,7 +22,9 @@ export function checkWindowsComponent(raw: string): string {
   return raw
 }
 
-/** Refuse mutations until the complete write adapter is available and accepted. */
+/** Refuse mutations until the complete write adapter is available and accepted.
+ * @returns Never returns; this function always throws.
+ */
 export function refuseWindowsWrite(): never {
   throw new FsError('Windows handle write capability is not ready; path fallback is forbidden / Windows 句柄写能力尚未就绪，禁止退回路径操作', 'FS_IO_ERROR')
 }
