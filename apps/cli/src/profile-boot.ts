@@ -307,9 +307,15 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   try {
     let inputIntegrity: ProtectedInputIntegrity
     try {
-      inputIntegrity = await ProtectedInputIntegrity.openOwnerRecordsAsync(process.cwd(), resolveDshHome(), (message) => {
-        process.stderr.write(`${message}\n`)
-      })
+      // Help and version only display text: they start no host and build no agent, so they skip the
+      // startup review and its stderr lines. Any other argument can start the host, so it reviews.
+      const displayOnly = options.args.length === 1
+        && (options.args[0] === '--help' || options.args[0] === '-h' || options.args[0] === '--version' || options.args[0] === '-V')
+      inputIntegrity = displayOnly
+        ? ProtectedInputIntegrity.openOwnerRecords(process.cwd(), resolveDshHome())
+        : await ProtectedInputIntegrity.openOwnerRecordsAsync(process.cwd(), resolveDshHome(), (message) => {
+          process.stderr.write(`${message}\n`)
+        })
     } catch (error) {
       if (options.profile === 'web') {
         process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)

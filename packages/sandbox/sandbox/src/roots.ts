@@ -60,7 +60,7 @@ export function rootsOverlap(left: string, right: string): boolean {
 }
 
 const homeDiagnosticFiles = new Set(['run/kernel-boot.json', 'run/kernel-status.json', 'logs/host-errors.log'])
-const homeAuthorityTrees = ['ledger', 'sessions', 'storages/session_projcache/sessions'] as const
+const homeAuthorityTrees = ['ledger', 'sessions', 'storages/session_projcache/sessions', 'messages'] as const
 
 /**
  * List authoritative host trees whose mutable contents are not input baselines.

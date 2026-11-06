@@ -419,7 +419,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'agent', description: 'the live agent whose policy is changing.' }, { name: 'policy', description: 'the new effective policy.' }],
       },
       {
-        signature: 'async request( req: ApprovalRequest, authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>',
+        signature: 'async request( req: ApprovalRequest, authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>',
         description: 'Ask ordinary composed answerers, or authenticated owner Clients for workspace consent. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`; missing answerers, exceptions, and invalid answers yield `\'unavailable\'` with a diagnostic reason. Owner rejection and rule failures yield `\'rejected\'`; failed grants identify prior owner consent. Workspace rules run before dispatch and again after consent; their failures are audited without granting access. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
         parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, purpose, reason, signal).' }, { name: 'authorization', description: 'Host-owned check (returns a rule refusal, throws on inspection failure), grant commit, and rollback; omitted without a policy consumer. Only rule refusals and failed checks inject a diagnostic.' }],
         returns: 'the closed outcome; only `\'allowed-once\'` consents to the declared purpose. Without a purpose it grants one action; workspace persistence belongs to the consumer.',
@@ -2541,6 +2541,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'workspaceInputReaders?: Map<string, ProtectedInputIntegrity>',
+        description: 'Host-owned composite identity slots; the path inventory above remains the confinement lookup.',
+        parameters: [],
+      },
+      {
         signature: 'protectedInputPaths?: () => readonly string[]',
         description: 'Launcher-owned live inventory, evaluated before each workspace write grant.',
         parameters: [],
@@ -2558,6 +2563,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'reloadProtectedInputs?: () => Promise<void>',
         description: 'Reload approved inputs through the active HMR transaction queue when available.',
+        parameters: [],
+      },
+      {
+        signature: 'inputReviewReady?: boolean',
+        description: 'Whether HMR has observed application readiness; absent when HMR does not own review scheduling.',
+        parameters: [],
+      },
+      {
+        signature: 'startupInputReview?: Promise<boolean>',
+        description: 'Startup reviews already admitted outside HMR; reloads await their settlement before mutating inputs.',
         parameters: [],
       },
       {
@@ -8640,6 +8655,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type InputPriority = \'immediate\' | \'steer\' | \'queue\';',
   },
   {
+    name: 'InputReviewProgress',
+    declaration: 'export interface InputReviewProgress {\n    readonly completed: number;\n    readonly total: number;\n}',
+  },
+  {
+    name: 'InputReviewState',
+    declaration: 'export interface InputReviewState {\n    workspace: string;\n    home?: string;\n    revision?: string;\n    stamp?: string;\n    approved: [\n        string,\n        InputSnapshot\n    ][];\n    observed: string[];\n    granted: boolean;\n    owners: InputReviewState[];\n    verifiedPass?: {\n        pass: CapturePass;\n        roots: ReadonlySet<string>;\n    };\n}',
+  },
+  {
     name: 'InputScheduling',
     declaration: 'export interface InputScheduling {\n    readonly priority: InputPriority;\n    readonly passive: boolean;\n    readonly enqueueSequence: number;\n    readonly earliestTurn: number;\n}',
   },
@@ -10248,20 +10271,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ProtectedInputApproval {\n    readonly type: \'protected-input\';\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
   },
   {
-    name: 'ProtectedInputChange',
-    declaration: 'export interface ProtectedInputChange {\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
-  },
-  {
     name: 'ProtectedInputEnforcement',
     declaration: 'export type ProtectedInputEnforcement = {\n    path: string;\n} & ({\n    enforcement: \'native\';\n} | {\n    enforcement: \'host-fallback\';\n    reason: \'unrepresentable\' | \'link-name\';\n});',
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
-  },
-  {
-    name: 'ProtectedInputOwner',
-    declaration: 'export interface ProtectedInputOwner {\n    confirm(change: ProtectedInputChange): Promise<boolean>;\n    blocked(change: ProtectedInputChange): void;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    async disposeReview(): Promise<void>;\n    reviewIdentity(): string;\n    invalidateWorkspace(workspace: string): void;\n    setReviewCommit(commit: (prepared: object) => Promise<string | undefined>, prepare?: (prepared: object) => Promise<void>): void;\n    setReviewProgress(progress: () => void): void;\n    static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity;\n    static async openOwnerRecordsAsync(workspace: string, home: string, progress: (message: string) => void = () => { }): Promise<ProtectedInputIntegrity>;\n    exportReviewState(): InputReviewState;\n    static fromReviewState(value: unknown): ProtectedInputIntegrity;\n    static fromReviewState(value: unknown, current: () => void): Promise<ProtectedInputIntegrity>;\n    static fromReviewState(value: unknown, current?: () => void): ProtectedInputIntegrity | Promise<ProtectedInputIntegrity>;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    static workspaceKey(workspace: string, home?: string): string;\n    static workspacePath(workspace: string): string;\n    observe(filename: string): void;\n    ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void>;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n     /* …truncated — full shape in source */',
   },
   {
     name: 'ProviderRequestId',
@@ -13481,7 +13496,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [], private readonly profileDirectory: () => string | undefined = () => undefined, private readonly ownerDirectories: () => readonly string[] = () => []);\n    assertCanAuthorize(workspace: string): void;\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+    declaration: 'export class WorkspaceWriteAccess {\n    checkpoint(workspace: string): () => void;\n    beginGrant(workspace: string): () => void;\n    issuedCapability(workspace: string): void;\n    async rollback(workspace: string, current: () => void, revokeAcl: (workspace: string) => void): Promise<void>;\n    constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [], private readonly profileDirectory: () => string | undefined = () => undefined, private readonly ownerDirectories: () => readonly string[] = () => [], private readonly invalidateInputs: (workspace: string) => void = () => { });\n    assertCanAuthorize(workspace: string): void;\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal, current?: () => void): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
   },
   {
     name: 'WorkspaceWriteApproval',

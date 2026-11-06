@@ -65,6 +65,7 @@ export function* checkAuthoritativeTree(root: string): Generator<void, void> {
       yield
     }
     for (const { paths, dev, ino } of links.values()) {
+      yield
       const live = paths.map(path => ({ path, entry: stat(path) }))
         .filter(value => value.entry?.dev === dev && value.entry.ino === ino)
       for (const { path, entry } of live) {

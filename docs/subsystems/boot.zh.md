@@ -36,7 +36,9 @@
 
 `ProfileContext.overlayPaths` 可选记录命令行补丁的绝对路径，其解析内容在启动时固定。`bundleInputPaths` 记录本进程读取的 bundle 清单与补丁，并在重新组合后保留早先输入。启动器提供叠加路径，`readBundlePatches()` 扩充 bundle 集合。[沙盒策略](../../packages/sandbox/sandbox-policy/README.zh.md#protected-host-inputs)消费这些路径，不会将无关项目清单视为宿主输入。
 
-已登记的产品 home 根捕获全部未列名输入。共享保护根辅助函数通过 `isHomeDiagnosticFile()` 定义诊断普通文件，并通过 `authoritativeHomeTrees()` 精确定义三棵可变权威树：`ledger/`、`sessions/` 与 `storages/session_projcache/sessions/`。捕获与复核不比较这些树的内容与新增项，不记录内容变化告警；它们的父目录与未列名兄弟项仍是受保护输入。在 Linux 和 macOS 上，每轮检查现存树根是真实目录、各项属于本用户、普通文件与目录不可由组或其他用户写入，且符号链接与硬链接均不跨出本树。只允许目录、普通文件与树内符号链接；缺失的树根允许由宿主创建。结构失败以中英恢复提示拒绝捕获或复核，不请求内容审批。Windows 不对这些树做结构核，只依赖沙盒写排除。这一读取选择不改变写排除。处于约束之外的 owner 自装 MCP 服务与 provider 仍可修改权威内容。进程内捕获缓存仅逐项复用未变且时间戳足够早的条目；目录变化使该目录名单失效，不使无关文件失效。`ProtectedInputReviewError` 向准入消费端携带中英恢复提示。
+已登记的产品 home 根捕获全部未列名输入。共享保护根辅助函数通过 `isHomeDiagnosticFile()` 定义诊断普通文件，并通过 `authoritativeHomeTrees()` 精确定义四棵可变权威树：`ledger/`、`sessions/`、`storages/session_projcache/sessions/` 与 `messages/`。捕获与复核不比较这些树的内容与新增项，不记录内容变化告警；它们的父目录与未列名兄弟项仍是受保护输入。在 Linux 和 macOS 上，每轮检查现存树根是真实目录、各项属于本用户、普通文件与目录不可由组或其他用户写入，且符号链接与硬链接均不跨出本树。只允许目录、普通文件与树内符号链接；缺失的树根允许由宿主创建。结构失败以中英恢复提示拒绝捕获或复核，不请求内容审批。Windows 不对这些树做结构核，只依赖沙盒写排除。这一读取选择不改变写排除。处于约束之外的 owner 自装 MCP 服务与 provider 仍可修改权威内容。进程内捕获缓存仅逐项复用未变且时间戳足够早的条目；目录变化使该目录名单失效，不使无关文件失效。`ProtectedInputReviewError` 向准入消费端携带中英恢复提示。
+
+启动读器仅在当前宿主生命周期内保留隔离复核者。稳定复核使用绑定请求的小消息；权威变化及复核失败会丢弃已核状态。[App-boot](../../packages/boot/app-boot/README.zh.md#profiles) 定义导入、监督、发布及释放语义。已核状态缓存不会跨宿主重启保留。
 
 ## Profile 重新组合
 

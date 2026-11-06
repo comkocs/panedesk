@@ -400,6 +400,11 @@ class Hmr extends Service {
     yield async () => {
       this.closing = true
       await this.watcher?.close()
+      const profile = this.ownerContext.get('profileContext')
+      const readers = new Set([...(profile?.inputIntegrities?.values() ?? []),
+        ...(profile?.workspaceInputReaders?.values() ?? []),
+        ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+      await Promise.all([...readers].map(reader => reader.disposeReview()))
       // A configuration reload may remove its own HMR entry.
       if (!this.executing.getStore()) await this.operations
       this.manifests.dispose()
