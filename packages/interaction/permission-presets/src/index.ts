@@ -365,6 +365,7 @@ export class PermissionPresetService extends TypertRemoteService {
   async authorizeWorkspaceWrite(workspace: string): Promise<void> {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
+    const current = policy.workspaceAccess.beginGrant(workspace)
     const sandbox = this.ctx.get('sandbox')
     if (sandbox?.hasWorkspaceWriteGrant?.(workspace) === true) {
       throw new RemoteError('permission/workspace-unavailable',
@@ -372,7 +373,9 @@ export class PermissionPresetService extends TypertRemoteService {
     }
     const profile = this.ctx.get('profileContext')
     if (profile !== undefined) await regrantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
-    await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
+    current()
+    await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization', undefined, current)
+    current()
     this.emitChanged('permission-presets/workspace-write-changed')
   }
 

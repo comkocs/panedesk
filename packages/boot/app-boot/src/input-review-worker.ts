@@ -63,6 +63,20 @@ try {
       })
       send({ kind: 'confirmation', change })
     })
+    reader.setReviewCommit(state => new Promise((resolve, reject) => {
+      process.once('message', (value: unknown) => {
+        if (typeof value === 'object' && value !== null && 'kind' in value && value.kind === 'commit-refused'
+          && 'message' in value && typeof value.message === 'string') {
+          reject(new Error(value.message))
+          return
+        }
+        if (typeof value !== 'object' || value === null || !('kind' in value) || value.kind !== 'commit'
+          || !('revision' in value) || value.revision !== undefined && typeof value.revision !== 'string') {
+          reject(new Error('Invalid protected input commit response'))
+        } else resolve(value.revision)
+      })
+      send({ kind: 'commit', state })
+    }))
     reader.setReviewProgress(() => {
       completed++
       send({ kind: 'progress', completed, total })

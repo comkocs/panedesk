@@ -150,7 +150,12 @@ export class SandboxPolicyService extends Service {
     this.defaultSource = effective.source
     this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
     this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), workspace => resolveProtectedPaths(this.ctx, workspace),
-      () => this.ctx.get('profileContext')?.dir, () => resolveOwnerMaterialPaths(this.ctx))
+      () => this.ctx.get('profileContext')?.dir, () => resolveOwnerMaterialPaths(this.ctx), (workspace) => {
+        const profile = this.ctx.get('profileContext')
+        const readers = new Set([profile?.inputIntegrity, ...profile?.inputIntegrities?.values() ?? [],
+          ...profile?.workspaceInputReaders?.values() ?? []])
+        for (const reader of readers) reader?.invalidateWorkspace(workspace)
+      })
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
     ctx.on('agent/created', ({ agent }) => {
@@ -244,6 +249,7 @@ export class SandboxPolicyService extends Service {
     const workspace = this.workspaceAccess.canonical(policy.workspaceRoot)
     const sandbox = this.ctx.get('sandbox')
     let committed = false
+    let current: (() => void) | undefined
     const outcome = await approval.request({
       ...request, agent: request.agent,
       purpose: { type: 'workspace-write', workspace },
@@ -259,19 +265,23 @@ export class SandboxPolicyService extends Service {
           throw error
         }
       },
+      begin: () => { current = this.workspaceAccess.beginGrant(workspace) },
       commit: async () => {
         if (session !== undefined && this.overrideOf(session) !== undefined) return
-        await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
+        if (current === undefined) throw new Error('Workspace authorization has no owner generation')
+        current()
+        await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal, current)
         committed = true
         request.signal?.throwIfAborted()
         const granted = this.resolve(session === undefined ? {} : { session })
         if (sandbox?.supportsWorkspaceWriteAccess === true) {
           await sandbox.materializeWorkspaceWriteGrant?.(granted, request.signal)
         }
+        current()
       },
       rollback: async () => {
-        if (!committed) return
-        await this.workspaceAccess.revoke(workspace, (path) => { sandbox?.revokeWorkspaceWriteGrant?.(path) })
+        if (!committed || current === undefined) return
+        await this.workspaceAccess.rollback(workspace, current, (path) => { sandbox?.revokeWorkspaceWriteGrant?.(path) })
         committed = false
       },
     })

@@ -472,6 +472,37 @@ export class ProtectedInputIntegrity {
   private verifiedPass: { pass: CapturePass; roots: ReadonlySet<string> } | undefined
   private admission: { promise: Promise<void>; enrolling: boolean; roots: number } | undefined
   private rootsVersion = 0
+  private generation = 0
+  private reviewCommit: ((prepared: object) => Promise<string | undefined>) | undefined
+
+  /** Revoke pending captures and reviews without changing the durable record format.
+   * @param workspace Canonical workspace whose owner authority changed.
+   */
+  invalidateWorkspace(workspace: string): void {
+    for (const record of this.ownerRecords) record.invalidateWorkspace(workspace)
+    if (canonicalLocation(workspace) !== this.root) return
+    this.generation++
+    this.admission = undefined
+    this.grant = undefined
+    this.verifiedPass = undefined
+  }
+
+  private checkpoint(): () => void {
+    const generation = this.generation
+    const roots = this.rootsVersion
+    return () => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+      if (roots !== this.rootsVersion) throw new Error('Protected host input registered during capture')
+    }
+  }
+
+  /** Delegate isolated baseline commits to the supervising host, which owns revocation.
+   * @param commit Host commit request; the isolate never renames a trusted baseline itself.
+   */
+  setReviewCommit(commit: (prepared: object) => Promise<string | undefined>): void {
+    this.reviewCommit = commit
+    for (const record of this.ownerRecords) record.setReviewCommit(commit)
+  }
 
   private stateTrusted(): boolean {
     if (this.record === undefined || process.platform !== 'win32') return true
@@ -852,8 +883,13 @@ export class ProtectedInputIntegrity {
    * @returns Admission completion, shared only before scanning. Failed captures require explicit owner reauthorization.
    */
   ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void> {
+    const generation = this.generation
+    const current = (): void => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+    }
     this.assertRecordLocation(protectedPaths)
     const admit = (): Promise<void> => {
+      current()
       if (this.isolatedReview) {
         return this.verify({ blocked() {}, confirm: () => Promise.resolve(false) }).then((accepted) => {
           if (!accepted) throw new ProtectedInputReviewError()
@@ -876,6 +912,7 @@ export class ProtectedInputIntegrity {
         ? this.grantWrite(protectedPaths) : undefined
       const next = { promise: Promise.resolve(), enrolling: true, roots: this.rootsVersion }
       const start = (): Promise<void> => {
+        current()
         next.enrolling = false
         return capture ?? admit()
       }
@@ -886,7 +923,7 @@ export class ProtectedInputIntegrity {
       }
       void next.promise.then(settled, settled)
     }
-    const operation = batch.promise
+    const operation = batch.promise.then(() => { current() })
     if (signal === undefined) return operation
     return new Promise<void>((resolve, reject) => {
       const abort = (): void => {
@@ -935,17 +972,25 @@ export class ProtectedInputIntegrity {
   }
 
   private async captureGrant(): Promise<void> {
+    const generation = this.generation
     if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
     const pass = capturePass()
     const candidates = new Map<string, InputSnapshot>()
     for (const path of this.observed) candidates.set(path, await finishAsync(this.capture(path, undefined, pass)))
     await finishAsync(checkPass(pass))
     this.assertCapturedRoots(candidates)
+    if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
     const previous = new Map(this.approved)
     for (const [path, value] of candidates) this.approved.set(path, value)
-    try { this.persist() } catch (error) {
-      this.approved.clear()
-      for (const [path, value] of previous) this.approved.set(path, value)
+    const current = (): void => {
+      if (generation !== this.generation) throw new Error('Protected workspace generation was revoked or replaced')
+      this.assertCapturedRoots(candidates)
+    }
+    try { await this.persist(current); current() } catch (error) {
+      if (generation === this.generation) {
+        this.approved.clear()
+        for (const [path, value] of previous) this.approved.set(path, value)
+      }
       throw error
     }
     this.granted = true
@@ -1077,7 +1122,8 @@ export class ProtectedInputIntegrity {
     return bytes
   }
 
-  private persist(): void {
+  private async persist(current: () => void): Promise<void> {
+    current()
     if (this.record === undefined) return
     this.assertRecordLocation()
     mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
@@ -1086,11 +1132,11 @@ export class ProtectedInputIntegrity {
     mkdirSync(lock, { mode: 0o700 })
     const temporary = `${this.record}.${randomUUID()}.new`
     try {
-      let current: string | undefined
-      try { current = readFileSync(this.record, 'utf8') } catch (error) {
+      let stored: string | undefined
+      try { stored = readFileSync(this.record, 'utf8') } catch (error) {
         if (!missing(error)) throw error
       }
-      if ((current === undefined ? undefined : createHash('sha256').update(current).digest('hex')) !== this.revision) {
+      if ((stored === undefined ? undefined : createHash('sha256').update(stored).digest('hex')) !== this.revision) {
         throw new Error('Protected workspace record changed in another host; reopen it before granting trust')
       }
       const descriptor = openSync(temporary, 'wx', 0o600)
@@ -1118,8 +1164,16 @@ export class ProtectedInputIntegrity {
         }
         append(']}\n')
       } finally { closeSync(descriptor) }
-      renameSync(temporary, this.record)
-      this.revision = revision.digest('hex')
+      const nextRevision = revision.digest('hex')
+      current()
+      if (this.reviewCommit === undefined) {
+        renameSync(temporary, this.record)
+        this.revision = nextRevision
+      } else {
+        this.revision = await this.reviewCommit({ workspace: this.root, record: this.record, temporary,
+          previous: this.revision, revision: nextRevision })
+        current()
+      }
     } finally {
       try { unlinkSync(temporary) } catch (error) {
         if (!missing(error)) throw error
@@ -1134,12 +1188,37 @@ export class ProtectedInputIntegrity {
    * @returns Whether every input still matches its approved identity and bytes; ungranted workspaces need no approval.
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
+    const current = this.checkpoint()
     await this.waitForCapture()
+    current()
     if (this.verifying) throw new Error('Protected host input verification is already pending')
     if (this.isolatedReview && this.home !== undefined) {
       this.verifying = true
       try {
         let completed = -1
+        const records = [this, ...this.ownerRecords]
+        const guards = records.map(record => ({ record, current: record.checkpoint(), revision: record.revision }))
+        const assertCurrent = (): void => { current(); for (const guard of guards) guard.current() }
+        const commit = (value: unknown): string => {
+          assertCurrent()
+          if (typeof value !== 'object' || value === null || !('record' in value) || typeof value.record !== 'string'
+            || !('workspace' in value) || typeof value.workspace !== 'string'
+            || !('temporary' in value) || typeof value.temporary !== 'string'
+            || !('previous' in value) || !('revision' in value) || typeof value.revision !== 'string'
+            || !/^[a-f0-9]{64}$/u.test(value.revision)) throw new Error('Invalid protected input commit request')
+          const guard = guards.find(candidate => candidate.record.record === value.record && candidate.record.root === value.workspace)
+          if (guard === undefined || value.previous !== guard.revision
+            || !value.temporary.startsWith(`${value.record}.`)
+            || !/^[a-f0-9-]{36}\.new$/u.test(value.temporary.slice(value.record.length + 1))) {
+            throw new Error('Protected input commit does not match the reviewed generation')
+          }
+          guard.record.assertRecordLocation()
+          assertCurrent()
+          // The worker retains the record lock; only this host can perform the final rename.
+          renameSync(value.temporary, value.record)
+          guard.revision = value.revision
+          return value.revision
+        }
         const result = await runInputReviewThread({ kind: 'verify', workspace: this.workspace, home: this.home, state: this.exportReviewState() }, (value) => {
           if (value.completed <= completed) return
           completed = value.completed
@@ -1151,8 +1230,11 @@ export class ProtectedInputIntegrity {
           }
           const change = { path: value.path, previous: value.previous, current: value.current }
           owner.blocked(change)
-          return await owner.confirm(change)
-        })
+          const accepted = await owner.confirm(change)
+          assertCurrent()
+          return accepted
+        }, commit)
+        assertCurrent()
         if (typeof result !== 'object' || result === null || !('accepted' in result) || typeof result.accepted !== 'boolean'
           || !('state' in result)) throw new Error('Invalid protected input worker result')
         const updated = ProtectedInputIntegrity.fromReviewState(result.state)
@@ -1189,9 +1271,11 @@ export class ProtectedInputIntegrity {
   }
 
   private async verifyCandidate(owner: ProtectedInputOwner): Promise<boolean> {
+    const generation = this.generation
+    const current = this.checkpoint()
     const cached = this.verifiedPass
     if (cached !== undefined && await finishAsync(reusablePass(cached.pass), this.reviewUnit)
-      && [...this.observed].every(path => cached.roots.has(path))) return true
+      && [...this.observed].every(path => cached.roots.has(path))) { current(); return true }
     this.verifiedPass = undefined
     const changes: ProtectedInputChange[] = []
     const candidates = new Map<string, InputSnapshot>()
@@ -1223,6 +1307,7 @@ export class ProtectedInputIntegrity {
     }
     await finishAsync(checkPass(checked), this.reviewUnit)
     this.assertCapturedRoots(candidates)
+    current()
     const previous = new Map(this.approved)
     this.fileIndex.clear()
     for (const [path, candidate] of candidates) this.approved.set(path, candidate)
@@ -1230,9 +1315,15 @@ export class ProtectedInputIntegrity {
       const before = previous.get(path)
       return before !== undefined && !matches(candidate, before)
     })
-    try { if (changes.length > 0 || tightened) this.persist() } catch (error) {
-      this.approved.clear()
-      for (const [path, value] of previous) this.approved.set(path, value)
+    try {
+      current()
+      if (changes.length > 0 || tightened) await this.persist(current)
+      current()
+    } catch (error) {
+      if (generation === this.generation) {
+        this.approved.clear()
+        for (const [path, value] of previous) this.approved.set(path, value)
+      }
       throw error
     }
     delete checked.previous

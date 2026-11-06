@@ -312,7 +312,7 @@ export class ApprovalService extends Service {
    */
   async request(
     req: ApprovalRequest,
-    authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> },
+    authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> },
   ): Promise<ApprovalOutcome> {
     const session = req.agent.session
     if (!hasOpenTurn(session)) {
@@ -351,6 +351,7 @@ export class ApprovalService extends Service {
         if (refusal !== undefined) decision = this.refusal(refusal)
         else {
           authorizing = true
+          authorization?.begin?.()
           const profile = this.ctx.get('profileContext')
           const sandbox = this.ctx.get('sandbox')
           if (profile !== undefined && sandbox?.supportsWorkspaceWriteAccess === true

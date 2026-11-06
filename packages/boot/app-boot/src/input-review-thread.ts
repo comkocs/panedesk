@@ -13,12 +13,14 @@ export interface InputReviewProgress {
  * @param request Structured-cloneable review input.
  * @param progress User-visible progress sink; failures stop the review.
  * @param answer Authenticated owner confirmation for an exact candidate.
+ * @param commit Synchronous host-owned final rename after generation validation; absent forbids commits.
  * @returns Structured-cloned worker result, validated by the caller.
  */
 export async function runInputReviewThread(
   request: object,
   progress: (value: InputReviewProgress) => void,
   answer: (value: unknown) => Promise<boolean>,
+  commit?: (value: unknown) => unknown,
 ): Promise<unknown> {
   const source = import.meta.url.endsWith('.ts')
   const entry = new URL(source ? './input-review-worker.ts' : './worker/input-review.js', import.meta.url)
@@ -76,6 +78,14 @@ export async function runInputReviewThread(
             worker.send({ kind: 'confirmation', accepted })
           }
         }, (error: unknown) => { settle(error) })
+      } else if (value.kind === 'commit' && 'state' in value) {
+        try {
+          if (commit === undefined) throw new Error('Protected input commit has no host authorization')
+          const revision = commit(value.state)
+          worker.send({ kind: 'commit', revision })
+        } catch (error) {
+          worker.send({ kind: 'commit-refused', message: error instanceof Error ? error.message : 'Protected input commit refused' })
+        }
       } else if (value.kind === 'result' && 'result' in value) settle(undefined, value.result)
       else if (value.kind === 'error' && 'message' in value && typeof value.message === 'string') settle(new Error(value.message))
       else settle(new Error('Invalid protected input worker response'))
