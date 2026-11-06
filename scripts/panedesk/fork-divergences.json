@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "windows-handle-backend-root-documentation",
+      "description": "Document the default Windows handle backend and validation limits",
+      "origin": "Windows platform documentation",
+      "reason": "Describe the default handle backend and legacy path option, report the Windows file-tool functional results without claiming native sandbox validation, and distinguish launcher test coverage from Windows hardware validation. These documentation changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": ["README.md", "README.zh.md", "README.i18n.yaml"]
+      }
+    },
+    {
       "id": "web-startup-input-review-refusal",
       "description": "Show bilingual protected-input refusal before Web profile composition",
       "origin": "Web restart input review acceptance",

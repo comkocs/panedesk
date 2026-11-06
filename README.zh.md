@@ -30,7 +30,7 @@ Linux/macOS 上所有者私密目录可以位于工作区内，但工作区位�
 
 受限文件工具和沙箱进程排除 owner 凭据目录，原子替换后仍受保护；普通附件仍可读取。Linux 使用目录挂载或 Landlock 兄弟树放行，macOS 使用 Seatbelt 排除，Windows 对凭据及崩溃目录使用 Medium 禁止向上读写标签。这是指定 owner 材料保护，不是整个 home 的保密隔离。新 Web 浏览器要求 POSIX 控制终端确认；Windows Web 与非交互服务默认拒绝新登录，除非 owner 在受保护配置中显式关闭确认、自担持有启动链接即可获得身份的风险。升级服务部署前请看[登录及服务配置](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)。桌面 owner cookie 使用纯内存会话及 IPC；Windows 不标记 userData，因此低完整性命令仍可读取第三方平台 cookie。详见[桌面安全说明](apps/desktop/README.zh.md)。
 
-Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
+Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。使用默认句柄后端的文件工具读取、列目录、新建文件和改写既有文件已在一台 Windows Server 2025 机器的管理员账号下跑通；普通权限账号尚未在 Windows 实机测试。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
 Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录不能授权写入，只读启动会省略不可信的工作区配置。撤销在重启后扫描所选工作区，包括 `node_modules`，只有令牌检查确认根与每个匹配显式 ACE 的位置均无写权才报成功。精确目录与 SID 的 `icacls` 命令及限制见 [Windows 恢复指南](docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。
 
@@ -38,7 +38,7 @@ Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录
 
 owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedesk 沙盒与首次写确认约束；安装前请确认其写能力。其 profile 配置仍受保护，受限模型不能直接修改；插件管理变更须经认证的 owner 批准。
 
-在 Linux 与 macOS 上，以 IPC 通道起 CLI 的自写启动器必须在 Node 命令行带上 `--disable-sigusr1`；经 `NODE_OPTIONS` 传入不算，缺少该开关会在读取 profile 与凭据前退出，而不再重启。终端、shell、systemd、pnpm 脚本与 SDK 管道启动不用改。详见 [IPC 启动升级说明](docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md)。
+在 Linux 与 macOS 上，以 IPC 通道起 CLI 的自写启动器必须在 Node 命令行带上 `--disable-sigusr1`；经 `NODE_OPTIONS` 传入不算，缺少该开关会在读取 profile 与凭据前退出，而不再重启。终端、shell、systemd、pnpm 脚本与 SDK 管道启动不用改。Windows 桌面端 CLI 启动器带有 `--disable-sigusr1` 并有测试覆盖，但尚未在 Windows 实机运行。详见 [IPC 启动升级说明](docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md)。
 
 Web 模式下，owner 的登录 cookie 存在系统浏览器的配置目录里，沙箱内的进程读得到。平台前提可用时，连接来源准入会阻止已登记产品沙箱回放 cookie；否则仍可能回放。见[沙箱会话隔离与限制](#sandbox-session-isolation-and-limitations)。
 
@@ -63,7 +63,7 @@ Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scop
 
 本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。M9 正式发布前补本机回环网络限制。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
 
-Linux 上，宿主替模型执行的文件操作——读、写、编辑、建目录、暂存与发布、元数据探查、列目录——逐段打开各规范祖先目录且不跟随链接，经保留的目录描述符处理单个条目；工作区内被换成链接的目录不能使这些操作改道。macOS 与 Windows 上，宿主文件操作仍按路径解析：沙箱内进程把工作区子目录换成链接，可使宿主写到授权工作区之外——macOS 在缺省 workspace-write 模式下即如此；Windows 因缺省只读，在 owner 授予工作区写之后如此。在该平台验证过目录相对的原生后端之前，维持此限制。
+Linux 上，宿主替模型执行的文件操作——读、写、编辑、建目录、暂存与发布、元数据探查、列目录——逐段打开各规范祖先目录且不跟随链接，经保留的目录描述符处理单个条目；工作区内被换成链接的目录不能使这些操作改道。macOS 上，宿主文件操作仍按路径解析：沙箱内进程把工作区子目录换成链接，可使宿主写到授权工作区之外，缺省 workspace-write 模式下即如此。在 macOS 验证过目录相对的原生后端之前，维持此限制。Windows 缺省的 `experimental` 句柄后端相对保留的目录句柄打开子项，并拒绝重解析点；支持的操作及覆盖限制见 [fs-local](packages/fs/fs-local/README.zh.md#use-this-package)。仅可通过 owner 批准的受保护 profile 或 overlay 将 `windowsHandleBackend` 设为 `disabled`，以选择旧路径后端。使用该后端时，Windows 缺省只读，但 owner 授予工作区写之后，沙箱内进程把工作区子目录换成链接可使宿主写到授权工作区之外。此限制对旧路径后端仍然成立。
 
 owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护的 Host 配置启用。缺省新浏览器确认下，在宿主终端确认过的登录只对当次宿主进程有效：宿主重启后，先前确认过的 cookie 被拒，须用新的启动链接重新经终端确认。受保护宿主配置把 `requireOwnerConfirmation` 设为 `false` 时，登录不经终端确认，同一 cookie 跨重启仍有效。在具备 cgroup v2 用户委派及原生套接字 cgroup 归因的 Linux 上，经本地子进程提供方启动并登记的产品沙箱连接即使持有有效 cookie 也会被拒绝。显式启用的实验 Python 运行时使用受管子进程提供方，并保留这项 Linux 登记。缺少前提时，启动给出双语警告，cookie 仍可能被回放；请启用用户会话委派或以不同账户运行不可信进程。套接字归因已在 Linux 7.0 验证，最低内核版本尚未核定。macOS Web 启动提示缺少本产品沙箱连接识别，不声称已阻止回放。Windows 通过宿主持有的作业对象成员关系与 TCP 属主识别产品沙箱；见 [Windows 前提与剩余限制](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。见 [Linux 升级前提](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。见[认证行为](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)与[剩余限制](packages/client/connection/README.zh.md#known-limitations-and-deferred-work)。
 
