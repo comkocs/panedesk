@@ -1,7 +1,7 @@
 /** Installed launcher scripts preserve terminal invocation through a minimal runtime fixture. */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
@@ -61,6 +61,16 @@ function fixture() {
   }
   return { root, command, start }
 }
+
+it('disables signal-triggered debugging before the installed Windows CLI script path', () => {
+  const launcher = readFileSync(new URL('../cli/dsh.cmd', import.meta.url), 'utf8')
+  const line = launcher.split(/\r?\n/u).find(entry => entry.includes('Panedesk.exe'))
+  expect(line).toBeDefined()
+  const script = '%~dp0..\\..\\..\\app.asar\\dsh\\node_modules\\@panedesk\\dsh-desktop-host\\lib\\cli.js'
+  const nodeOptions = line!.slice(0, line!.indexOf(`"${script}"`))
+  expect(nodeOptions).toContain('--disable-sigusr1')
+  expect(nodeOptions.indexOf('--disable-sigusr1')).toBeLessThan(nodeOptions.indexOf('--expose-internals'))
+})
 
 it('preserves common arguments, cwd, environment, binary input, stderr and exit status', async () => {
   const f = fixture()
