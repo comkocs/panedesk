@@ -45,6 +45,9 @@ kind: "package-reference"
 |---|---|---|
 | `cwd` | `process.cwd()` | 相对路径的基准目录 |
 | `diffBasisMaxBytes` | `10 MiB` | 每次覆写 diff 一侧的 UTF-8 字节上限；更大的覆写返回 `before: null` |
+| `windowsHandleBackend` | `disabled` | `experimental` 选择失败即拒绝的 Windows 句柄后端；其他平台忽略此项 |
+
+其余通用行为说明针对缺省后端。仅通过所有者批准、受保护的 profile 或 overlay 选择 `experimental`；没有环境变量或 CLI 快捷开关。它在原生能力检查通过时支持本地盘符 Windows x64 NTFS 的读取、探测与目录枚举。相对名称要求带绝对盘符的 `cwd`；设备路径、UNC、驱动器相对路径、点路径段、备用流、歧义 DOS 名称及所有重解析点均拒绝，而非规范化或跟随。重解析子项使整个列表请求拒绝。写模块通过句柄支持受限覆盖、目录创建与删除；新文件暂存及监听仍不可用，所有操作均不退回路径。真实 Windows ABI、DLL 装载、共享约束与打包 Worker 行为仍须原生验证。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-fs-local)完整列出了所有受支持字段及其 JSDoc。
 
@@ -89,7 +92,11 @@ Chokidar 通过 OS 事件观察单个文件或目录的直接子项，不使用�
 
 ### 相对目录句柄的操作
 
-在 Linux 上，规范化祖先目录通过 `O_DIRECTORY | O_NOFOLLOW` 逐段打开；后续操作经保留的目录描述符访问单个条目。读取、元数据探测、目录枚举、父目录创建、暂存与发布共用此遍历层。每次变更在预读、发布与写后探测期间保留父目录，并持有独立的暂存目录描述符。将目录替换为链接不能重定向这些操作。部署中的 Worker 以 `process.title === 'dsh-webworker'` 明确标识其虚拟文件系统，并保留路径操作。其他 Linux 进程若缺少 `O_DIRECTORY`，会在加载本后端时、执行文件操作前以 `FS_IO_ERROR` 拒绝；绝不退回路径操作，必须使用支持目录句柄的运行时。macOS 与 Windows 仍按路径遍历祖先；等价的变更约束需要本后端尚未提供的原生目录相对操作。
+在 Linux 上，规范化祖先目录通过 `O_DIRECTORY | O_NOFOLLOW` 逐段打开；后续操作经保留的目录描述符访问单个条目。读取、元数据探测、目录枚举、父目录创建、暂存与发布共用此遍历层。每次变更在预读、发布与写后探测期间保留父目录，并持有独立的暂存目录描述符。将目录替换为链接不能重定向这些操作。部署中的 Worker 以 `process.title === 'dsh-webworker'` 明确标识其虚拟文件系统，并保留路径操作。其他 Linux 进程若缺少 `O_DIRECTORY`，会在加载本后端时、执行文件操作前以 `FS_IO_ERROR` 拒绝；绝不退回路径操作，必须使用支持目录句柄的运行时。macOS 与缺省 Windows 后端仍按路径遍历祖先。实验 Windows 后端保留所有祖先且不共享删除权限，相对目录 HANDLE 打开子项，并在操作拥有的 Worker 上执行同步原生调用。最终名称仅用于身份授权，绝不据此重新打开。目标能力暴露探测、读取、写入与关闭操作，而非 I/O 路径；旧适配器内部保留既有 Linux 描述符路径与发布机制。实验写能力要求通过验收的全句柄暂存、安全继承、元数据保留、发布及清理实现；普通改名不能替代覆盖元数据保证。
+
+内部 `DirectoryCapability` 还提供单段 `walk` 与 `stage`；`OwnedStage` 拥有文件 I/O、同步、元数据准备、发布、丢弃与关闭。子目录及暂存对象保留父级所有者。兼容入口 `openDirectory` 与 `openDirectoryTarget` 的 `path` 仅保留原始展示身份，调用者通过方法执行 I/O。旧后端独立暂存明确不可用；既有提供方写事务及其描述符相对原语不变。
+
+Windows 变更装配仅加载固定同级模块：源码中的 `win32-write-backend.ts` 或构建产物中的 `win32-write-backend.js`。导出为 `createWindowsWriteExtension` 与 `createWindowsWriteHandler`，类型由 `win32-handle-types.ts` 的 `WindowsWriteModule` 定义。主线程工厂获得保留的句柄标识、明确的自身／子项引用及读回调；Worker 工厂获得原生所有者的 get/adopt/inspect/release 操作。共享消息覆盖目录创建、暂存 I/O、元数据、发布、删除及清理。包构建在该同级源码存在时纳入它。模块缺失、无效或失败时拒绝变更，不退回路径。写模块实现自有暂存、部分写入、先同步后发布、不覆盖的相对硬链接与句柄 disposition 清理。新建文件的暂存仍在创建对象前拒绝，因为其私有暂存继承策略尚不可用。覆盖仅接纳属主为当前进程用户的普通文件：DACL 未受保护、非空且所有 ACE 均继承，且无显式完整性标签。旧文件仅以普通读与 `READ_CONTROL` 打开，不请求 `ACCESS_SYSTEM_SECURITY`；`NtQuerySecurityObject` 只查询属主、组、DACL 与完整性标签，不查询审核信息；审核设置既不检测也不保留。显式权限、断开继承、不同属主、显式完整性标签、不支持的 ACL 格式及检测失败均在暂存前拒绝：“This file has individually configured permissions; direct replacement is not supported yet / 该文件有单独设置的权限，暂不支持直接覆盖”。替换文件在同一目标目录中独占创建，不传入安全描述符，由 Windows 自动继承权限，不执行权限合成或安装。`OpenProcessToken` 与 `GetTokenInformation` 查询进程用户及默认属主，两者均须与旧属主一致。缺少访问能力即拒。编辑与差异预读使用已授权的打开句柄。元数据准备后，通过带 POSIX 与 replace-if-exists 标志的 Native `FileRenameInformationEx` 发布；访问拒绝提示“File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试”，不重试 Win32 改名或 `ReplaceFileW`。已提交清理只关闭发布文件，不将其标记删除。元数据准备复制旧创建时间与压缩格式，仅合并已观测的 hidden/system/archive 组合，并复制缺失命名流，不回放主数据、安全信息、EA 或 ObjectId。只读、未知属性或备份流、EFS、安全资源属性及企业保护均拒绝；检测失败也拒绝。两种句柄属性观测均拒绝加密位，保留 EFS 或企业保护拒因，并附“Encrypted / possibly enterprise-protected file / 已加密 / 可能受企业保护”。替身测试执行原生调用适配器并核替换内容可读，不代表真实 Windows 验收。短名和 ObjectId 不保留，也不作为拒因；这与 `ReplaceFileW` 不同。目录创建和删除使用相对原生句柄；缺省旧后端行为不变。
 
 ### 写入路径
 

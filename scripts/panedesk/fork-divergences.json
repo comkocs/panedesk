@@ -1,6 +1,56 @@
 {
   "divergences": [
     {
+      "id": "windows-handle-inherited-replacement",
+      "description": "Restrict Native Windows replacement to inherited file permissions",
+      "origin": "Handle-only Windows replacement compatibility review",
+      "reason": "Keep only OpenProcessToken and GetTokenInformation from advapi32 to compare the retained file owner with the process user and default owner. Open the retained file with ordinary reads and READ_CONTROL only, without ACCESS_SYSTEM_SECURITY, and query it with NtQuerySecurityObject for the owner, group, DACL and integrity label but not audit information. Audit settings are neither detected nor preserved. Refuse explicit ACEs, protected inheritance, different ownership, an explicit integrity label, unsupported ACLs and failed detection with a bilingual reason before staging. Remove descriptor synthesis, policy comparison and parent-policy fixtures, including CreatePrivateObjectSecurityEx, DestroyPrivateObjectSecurity and ReOpenFile. Create the replacement exclusively in the same destination directory with a null descriptor so Windows inherits permissions; do not synthesize or install replacement permissions. Preserve Native FileRenameInformationEx with POSIX and replace-if-exists flags, occupied-file refusal, no path fallback and committed-file cleanup. Retain creation time, observed attribute combinations, compression and named-stream preparation; reject encryption, possible enterprise protection, resource attributes and detection failures. Bind GetCurrentProcess for token queries without changing Koffi version, argument heap configuration or execve. Substitute tests cover readable replacement, the old-file open mask without ACCESS_SYSTEM_SECURITY and a query without audit information, and explicit, protected, different-owner, query-failure and explicit-integrity-label refusals with unchanged targets and no path writes; real Windows functional acceptance remains pending. ObjectId and short names are neither retained nor refusal reasons. Keep the backend disabled by default and Linux unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/win32-write-security.ts",
+          "packages/fs/fs-local/src/win32-security-descriptor.ts",
+          "packages/fs/fs-local/tests/fixtures/windows-security.ts",
+          "packages/fs/fs-local/tests/windows-encrypted-replacement.spec.ts",
+          "packages/fs/fs-local/tests/windows-observed-attributes.spec.ts",
+          "packages/fs/fs-local/tests/windows-native-security-chain.spec.ts",
+          "packages/fs/fs-local/src/win32-write-abi.ts",
+          "packages/fs/fs-local/src/win32-stage.ts",
+          "packages/fs/fs-local/src/win32-write-backend.ts",
+          "packages/fs/fs-local/src/win32-write-read.ts",
+          "packages/fs/fs-local/src/win32-replacement-metadata.ts",
+          "packages/fs/fs-local/src/win32-metadata-abi.ts",
+          "packages/fs/fs-local/tests/windows-replacement-chain.spec.ts",
+          "packages/fs/fs-local/tests/windows-native-replacement.spec.ts",
+          "packages/fs/fs-local/README*"
+        ]
+      }
+    },
+    {
+      "id": "windows-directory-handle-read-backend",
+      "description": "Add an opt-in fail-closed Windows directory-handle read backend",
+      "origin": "Host filesystem directory-relative capability review",
+      "reason": "Route provider operations through an instance-owned backend and retained target capabilities. Preserve Linux descriptor traversal and default legacy Windows behavior. Add experimental Windows x64 local NTFS root and relative opens, metadata, enumeration and same-handle reads on a dedicated worker with fixed-width Koffi bindings. Reject reparse points and unsupported operations without path fallback; keep Windows mutations unavailable without the fixed package-owned write module and keep watching unavailable. Supply worker-local WriteFile/FlushFileBuffers and relative NtCreateFile/NtSetInformationFile primitives, owned secure-before-write staging, partial-write handling, no-replace links, disposition deletion and settled cleanup. New-file staging refuses before creation until caller-specific private security and destination inheritance are available; replacement is limited to inherited permissions as documented in the dedicated replacement entry. Substitute tests cover ordering, ownership, cancellation and failure cleanup without asserting native acceptance. Define walk and owned-stage operations, shared mutation messages and native handle ownership access for that optional module, automatically included in builds when present. Keep compatibility path fields display-only and descriptor I/O adapter-private, preserving the existing provider write transaction. Keep configuration disabled by default and selected only through existing protected profile inputs. Add deterministic substitute checks and paired package documentation; native ABI, filesystem and packaged-worker acceptance remains required. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/directory-*.ts",
+          "packages/fs/fs-local/src/win32-handle-*.ts",
+          "packages/fs/fs-local/src/win32-write-*.ts",
+          "packages/fs/fs-local/src/win32-stage.ts",
+          "packages/fs/fs-local/src/win32.ts",
+          "packages/fs/fs-local/src/read-handle.ts",
+          "packages/fs/fs-local/tests/directory-capability-extension.spec.ts",
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/src/index.ts",
+          "packages/fs/fs-local/tests/windows-*.spec.ts",
+          "packages/fs/fs-local/tests/fixtures/windows-directory-api.ts",
+          "packages/fs/fs-local/tsdown.config.ts",
+          "packages/fs/fs-local/README*"
+        ]
+      }
+    },
+    {
       "id": "host-directory-handle-operations",
       "description": "Anchor Linux host filesystem operations to retained directory descriptors",
       "origin": "Host filesystem ancestor replacement review",
