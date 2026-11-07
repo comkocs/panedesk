@@ -122,7 +122,23 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
         : { kind: untiered ? 'untiered' : 'unknown' },
   }
   const accounting = untiered && !anthropic && !gpt ? { cacheWriteAccounting: 'not-applicable' as const } : {}
-  if (request.cache === undefined) return { metadata, ...accounting, options: {} }
+  // Session fields ride every anthropic-messages request that has a key, including ones
+  // that carry no cache controls. Without controls the only key is the session id.
+  const sessionKey = model.api === 'anthropic-messages' ? request.cache?.key ?? request.sessionId : undefined
+  const session = sessionKey === undefined ? undefined : claudeCodeSession(model, sessionKey)
+  if (request.cache === undefined) return {
+    metadata, ...accounting,
+    options: session === undefined ? {} : {
+      ...session.headers === undefined ? {} : { headers: session.headers },
+      onPayload: (payload) => {
+        const body = payloadRecord(payload)
+        if (body === undefined) throw new LlmError('Expected an Anthropic request payload', 'INVALID_CONFIG')
+        const existing = payloadRecord(body.metadata)
+        body.metadata = { ...existing, user_id: session.userId }
+        return body
+      },
+    },
+  }
   const requested = request.cache.retention
   const unsupported = (): never => {
     throw new LlmError(`Cache retention "${requested}" is not supported for this model and API`, 'INVALID_CONFIG')
@@ -130,8 +146,6 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
   if (anthropic) {
     const retention = requested === 'default' ? '1h' : requested
     if (retention !== 'none' && retention !== '5m' && retention !== '1h') return unsupported()
-    const sessionKey = request.cache.key ?? request.sessionId
-    const session = sessionKey === undefined ? undefined : claudeCodeSession(model, sessionKey)
     return {
       metadata: { ...metadata, cacheRetention: retention },
       options: {
@@ -193,8 +207,6 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
     }
   }
   if (requested !== 'default' && requested !== 'auto') return unsupported()
-  const sessionKey = model.api === 'anthropic-messages' ? request.cache.key ?? request.sessionId : undefined
-  const session = sessionKey === undefined ? undefined : claudeCodeSession(model, sessionKey)
   return {
     metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} },
     ...accounting,
