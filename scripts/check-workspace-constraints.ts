@@ -301,7 +301,7 @@ export function expectedDshPackageFiles(manifest: PackageManifest): readonly str
   return [
     ...new Set(icons),
     ...[...localeFiles].sort(),
-    'lib/index.js',
+    manifest.name === '@panedesk/dsh-fs-local' ? 'lib/*.js' : 'lib/index.js',
     ...manifest.bin ? ['lib/bin.js'] : [],
     // Worker-thread packages ship a CJS worker entry; the browser worker
     // bundle is an ES module a page loads with `new Worker(type: 'module')`.

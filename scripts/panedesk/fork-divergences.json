@@ -1,6 +1,19 @@
 {
   "divergences": [
     {
+      "id": "fs-local-multiple-runtime-entries",
+      "description": "Allow the local filesystem package to publish its runtime entries",
+      "origin": "Windows filesystem backend",
+      "reason": "The local filesystem package builds a worker and a Windows write backend beside its main entry. Its publication constraint permits the existing runtime glob so these entries and shared chunks are included without changing other packages.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/check-workspace-constraints.ts",
+          "scripts/check-workspace-constraints.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "windows-msvc-environment-quoting",
       "description": "Pass the MSVC developer command line to cmd.exe with one quote layer",
       "origin": "Native Windows build preparation",
