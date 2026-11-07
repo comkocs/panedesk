@@ -819,7 +819,7 @@ export class LocalCredentialProvider extends CredentialProvider {
             throw new Error('Credential relocation verification failed; the original is unchanged. / 凭据迁址核验失败，原件未改动。')
           }
           // Persist the verified successor before removing the only legacy copy.
-          const file = await open(this.spec.filename, 'r')
+          const file = await open(this.spec.filename, 'r+')
           try { await file.sync() } finally { await file.close() }
           if (process.platform !== 'win32') {
             const directory = await open(dirname(this.spec.filename), 'r')

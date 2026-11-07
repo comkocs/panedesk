@@ -39,7 +39,14 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     unlink: traced('unlink', actual.unlink),
     open: async (...args: Parameters<typeof actual.open>) => {
       const handle = await actual.open(...args)
-      handle.sync = traced(`sync:${String(args[0])}`, handle.sync.bind(handle))
+      const sync = traced(`sync:${String(args[0])}`, handle.sync.bind(handle))
+      // Windows FlushFileBuffers rejects a read-only file handle; directories are gated separately.
+      handle.sync = async () => {
+        if (String(args[1]) === 'r' && (await handle.stat()).isFile()) {
+          throw Object.assign(new Error('EPERM: operation not permitted, fsync'), { code: 'EPERM' })
+        }
+        return sync()
+      }
       handle.close = traced('close', handle.close.bind(handle))
       try { checkpoint('open') } catch (error) {
         await handle.close()
@@ -82,6 +89,13 @@ it('syncs the new directory entry in the home before deleting the legacy documen
   expect(homeSync).toBeGreaterThan(privateSync)
   expect(homeSync).toBeLessThan(removal)
   expect(faults.operations.lastIndexOf(`sync:${home}`)).toBeGreaterThan(removal)
+})
+
+it('finishes relocating a legacy document when a read-only file handle cannot sync', async () => {
+  const { home, text } = await prepare()
+  await boot(home)
+  expect(await readFile(join(home, 'private', '.credentials.yaml'), 'utf8')).toBe(text)
+  expect(await readdir(home)).not.toContain('.credentials.yaml')
 })
 
 it('restarts after every completed relocation I/O without losing or duplicating credentials', async () => {
