@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-settings-web-search",
   "description": "Settings page of the DeepSeek web-search provider on the panedesk web client's Plugins page: its API key, endpoint, and per-request search budget",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publishConfig": {
     "access": "public"
   },

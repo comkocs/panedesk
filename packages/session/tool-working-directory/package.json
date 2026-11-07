@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-working-directory",
   "description": "Read and change the active Session working directory",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publishConfig": {
     "access": "public"
   },
