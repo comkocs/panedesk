@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+
+- Windows startup failed with EPERM fsync when relocating a legacy credentials file.
+
 ## 1.1.0
 
 ### Added
