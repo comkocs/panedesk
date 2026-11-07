@@ -77,7 +77,7 @@ Registered provider failures expose only `detail: 'source-settlement-pending'` o
 
 Normal disposal and `SIGINT`/`SIGTERM` drain owned resources and attempt credential, endpoint and lock removal even when an earlier cleanup rejects. Termination listeners are removed by the same idempotent disposal; forced termination cannot run cleanup. The deployment's process supervisor retains ownership of process exit.
 
-`reportHostFailure` appends one fixed-summary error line to `~/.panedesk/logs/host-errors.log` and stderr. Only explicitly allowlisted machine codes are retained; exception messages, stacks, paths and URLs are never formatted. Log append failures produce a separate fixed stderr line. This helper does not install the boot fatal handler.
+`reportHostFailure` appends one fixed-summary error line to `~/.panedesk/logs/host-errors.log` and stderr. Only explicitly allowlisted machine codes are retained; exception messages, stacks, paths and URLs are never formatted. Log append failures produce a separate fixed stderr line. Existing logs remain at the same path and are appended without owner, permission, link, or ACL checks. This helper does not install the boot fatal handler.
 
 Windows acceptance: after building the native addon on Windows, run `pnpm exec tsx packages/host/host-admin/tests/windows-private-files-native.mts` from the repository root. It checks real private-file operations, hard-link and junction refusal, lock exclusion/release and twenty replacement writes; output reports median/P95 milliseconds with targets 3000/5000 ms. Linux oracle tests do not establish Windows execution or latency.
 

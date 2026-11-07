@@ -77,7 +77,7 @@ Windows 策略拒绝错误提供稳定的 `code`；`WINDOWS_PRIVATE_FILE_CODES` 
 
 正常卸载及 `SIGINT`/`SIGTERM` 排空自有资源；即使前序清理失败，仍尝试删除凭据、端点和锁。同一幂等释放函数撤销终止监听；强杀无法执行清理。进程退出仍由部署的进程监管方负责。
 
-`reportHostFailure` 将固定短句的一行 error 追加到 `~/.panedesk/logs/host-errors.log` 并写 stderr。仅保留显式白名单细因码，不格式化异常消息、堆栈、路径或 URL。追加失败另写一行固定 stderr 提示。该助手不安装 boot 致命出口。
+`reportHostFailure` 将固定短句的一行 error 追加到 `~/.panedesk/logs/host-errors.log` 并写 stderr。仅保留显式白名单细因码，不格式化异常消息、堆栈、路径或 URL。追加失败另写一行固定 stderr 提示。既有日志保持原路径，追加时不检查属主、权限、链接或 ACL。该助手不安装 boot 致命出口。
 
 Windows 验收：在 Windows 构建原生 addon 后，从仓库根运行 `pnpm exec tsx packages/host/host-admin/tests/windows-private-files-native.mts`。它检查真实私有文件操作、硬链接与 junction 拒绝、锁互斥和释放及二十次替换写入；输出中位数与 P95 毫秒值，目标分别为 3000/5000 毫秒。Linux 对照测试不能证明 Windows 实跑或耗时。
 

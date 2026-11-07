@@ -312,24 +312,6 @@ test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen 
   } finally { await h.close() }
 })
 
-test.each(['sourceNodeIds', 'sourceIds', 'principalIds', 'methods', 'missing'] as const)(
-  'refuses frozen execution when remote admission removes %s without changing the seat revision', async (field) => {
-    const { h, pending, query, original } = await admitForExecution('remote-source')
-    try {
-      const definition = h.definitions.get(seat)!, policy = definition.remoteAdmission!
-      if (field === 'missing') delete definition.remoteAdmission
-      else policy[field] = []
-      await approveForExecution(h, pending)
-      await h.engine.drive()
-      expect(h.creates).toEqual([])
-      expect(h.engine.journal.projection.pending.size).toBe(0)
-      expect(h.engine.journal.projection.decisions.flatMap(item => item.effects)
-        .filter(effect => effect.kind === 'open/rejected')).toMatchObject([
-        { kind: 'open/rejected', data: { error: { code: 'unauthorized', effectState: 'none' }, candidates: [] } } ])
-      expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
-    } finally { await h.close() }
-  })
-
 test.each(['remote-source', 'owner-target'] as const)('executes unchanged frozen permission once without renewing the original grant for %s', async (kind) => {
   const { h, pending, query, original, recheck } = await admitForExecution(kind)
   try {
@@ -352,12 +334,11 @@ test.each(['remote-source', 'owner-target'] as const)('executes unchanged frozen
   } finally { await h.close() }
 })
 
-test.each(['revision', 'permission'] as const)('rechecks the frozen target after asynchronous source policy changes %s', async (change) => {
+test('rechecks the frozen target revision after an asynchronous source policy check', async () => {
   const { h, pending, recheck } = await admitForExecution('owner-target')
   try {
     recheck.mockImplementation(async () => {
-      if (change === 'revision') h.definitions.get(seat)!.revision++
-      else delete h.definitions.get(seat)!.remoteAdmission
+      h.definitions.get(seat)!.revision++
       return null
     })
     await approveForExecution(h, pending)

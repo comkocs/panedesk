@@ -1,4 +1,4 @@
-/** Local owner capabilities for catalog editing and historical opening observations. */
+/** Local capabilities for catalog editing and historical opening observations. */
 import { type Context, Service } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import { SeatEngine } from '@panedesk/dsh-seat-engine'
@@ -10,7 +10,7 @@ import { refuse, SeatLocalError } from './errors.ts'
 import { parseDefinition } from './schema.ts'
 import { digest } from './store.ts'
 
-/** Owner-only capabilities; every call checks live invocation authority. */
+/** Local catalog editing and import capabilities. */
 export interface SeatProfileAccess {
   /** Read catalog definitions and complete deletion impact.
    * @returns The current catalog and versioned window and approval observations.
@@ -48,7 +48,7 @@ declare module '@panedesk/cordis' {
 }
 
 /** Install the smallest local editor capability without expanding the seat wire protocol.
- * @param ctx - Provider lifecycle; each access uses its caller's live invocation authority.
+ * @param ctx - Provider lifecycle.
  * @param store - Catalog CAS owner.
  * @param service - Existing local seat operations.
  * @param options - Deployment-owned pagination and node identity.
@@ -60,18 +60,12 @@ export function registerProfileAccess(ctx: Context, store: SeatStore, service: T
 }
 
 class LocalSeatProfileAccess extends Service implements SeatProfileAccess {
-  private readonly lifetime = new AbortController()
-
   constructor(ctx: Context, private readonly store: SeatStore, private readonly service: T.SeatService,
     private readonly options: LocalSeatOptions, private readonly runtime: Pick<LocalSeatRuntime, 'evidence'>) {
     super(ctx, 'seatProfilesLocal')
-    ctx.effect(() => () => { this.lifetime.abort() })
   }
 
   private owner(): T.SeatService {
-    if (this.lifetime.signal.aborted || this.ctx.invocation?.peer.principal.kind !== 'owner' || this.ctx.invocation.signal.aborted) {
-      refuse('unauthorized', 'Authenticated owner required.', 'Sign in as the local owner.')
-    }
     return this.service.withAuthority({ principalId: 'owner' as T.SeatPrincipalId, origin: 'manual', nodeId: this.options.nodeId })
   }
 

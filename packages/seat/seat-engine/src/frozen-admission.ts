@@ -64,18 +64,12 @@ export function frozenIdentity(request: T.AcceptFrozenTriggerRequest | T.OpenFro
   return input
 }
 
-/** Compare retained admission with current target policy without renewing its original authority.
+/** Compare the retained definition revision with the current execution target.
  * @param input - Previously frozen business identity and expected definition revision.
  * @param definition - Current execution-node seat definition.
- * @returns Confirmed no-effect refusal, or permission to continue the independent execution recheck.
+ * @returns Confirmed no-effect revision refusal, or permission to continue the independent execution recheck.
  */
 export function recheckFrozenDefinition(input: T.NodeWorkChainAcceptedData, definition: T.SeatDefinition): T.SeatRejected | null {
-  const policy = definition.remoteAdmission
-  if (!policy?.allowOpen || !policy.sourceNodeIds.includes(input.operationKey.sourceNodeId)
-    || !policy.sourceIds.includes(input.route.sourceId) || !policy.principalIds.includes(input.operationKey.principalId)
-    || !policy.methods.includes(input.operationKey.method as T.SeatRemoteOpeningMethod)) {
-    return rejected('unauthorized', 'Remote opening is not allowed for this source, principal and method')
-  }
   if (definition.revision !== input.expectedSeatRevision) return rejected('revision-conflict', 'Frozen seat revision changed')
   return null
 }
@@ -97,6 +91,12 @@ export function authorizeFrozen(issuers: AuthorizationIssuers, grant: T.SeatAuth
     || data.principalId !== input.operationKey.principalId || data.seat !== definition.seat
     || input.openingContext.snapshot.taskIds.some(task => !data.taskIds.includes(task))) {
     throw new EngineError('unauthorized', 'Frozen operation requires matching live authority')
+  }
+  const policy = definition.remoteAdmission
+  if (!policy?.allowOpen || !policy.sourceNodeIds.includes(input.operationKey.sourceNodeId)
+    || !policy.sourceIds.includes(input.route.sourceId) || !policy.principalIds.includes(input.operationKey.principalId)
+    || !policy.methods.includes(input.operationKey.method as T.SeatRemoteOpeningMethod)) {
+    throw new EngineError('unauthorized', 'Remote opening is not allowed for this source, principal and method')
   }
   const refusal = recheckFrozenDefinition(input, definition)
   if (refusal) throw new EngineError(refusal.error.code, refusal.error.message)
