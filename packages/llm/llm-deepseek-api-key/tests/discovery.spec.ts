@@ -32,6 +32,26 @@ it('advertises configured models with an API key', async () => {
   }
 })
 
+it('discovers online models with the stored key', async () => {
+  vi.stubEnv('DEEPSEEK_API_KEY', 'fixture-api-key')
+  const fetchModels = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ data: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] })))
+  vi.stubGlobal('fetch', fetchModels)
+  const ctx = new Context()
+  try {
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(ApiKey, { baseURL: 'https://gateway.example/v1' })
+    expect(await ctx.llm.discoverModels(ApiKey.name, { provider: 'deepseek-official' })).toEqual([
+      { id: 'deepseek-chat' }, { id: 'deepseek-reasoner' },
+    ])
+    expect(fetchModels.mock.calls[0]?.[0]).toBe('https://gateway.example/v1/models')
+    expect(fetchModels.mock.calls[0]?.[1].headers).toEqual({ Authorization: 'Bearer fixture-api-key' })
+  } finally {
+    await ctx.fiber.dispose()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  }
+})
+
 it('reports malformed credentials during discovery', async () => {
   vi.stubEnv('DEEPSEEK_API_KEY', 'invalid\nheader')
   const ctx = new Context()

@@ -33,9 +33,26 @@ export function apply(ctx: Context, config: Config): void {
       'MISSING_CREDENTIAL',
     )
   }
+  const settingsNs = ctx.fiber.entry?.options.id ?? name
   ctx.llm.registerConfigurableProviders([
-    { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: ctx.fiber.entry?.options.id ?? name, settingsPath: [] },
+    { provider: PROVIDER, displayName: 'DeepSeek', settingsNs, settingsPath: [] },
   ])
+  ctx.llm.registerModelDiscovery(settingsNs, async (_request, signal) => {
+    const connection = options()
+    const key = await resolveApiKey(connection)
+    const response = await fetch(`${connection.baseURL.replace(/\/+$/u, '')}/models`, {
+      headers: { Authorization: `Bearer ${key}` }, ...signal === undefined ? {} : { signal },
+    })
+    if (!response.ok) throw new LlmError(`DeepSeek model discovery failed: HTTP ${response.status}`, 'DISCOVERY_FAILED')
+    const body: unknown = await response.json()
+    if (body === null || typeof body !== 'object' || !('data' in body) || !Array.isArray(body.data)) {
+      throw new LlmError('DeepSeek model discovery returned an invalid listing', 'DISCOVERY_FAILED')
+    }
+    return (body.data as unknown[]).flatMap(model => (
+      model !== null && typeof model === 'object' && 'id' in model && typeof model.id === 'string'
+        ? [{ id: model.id }] : []
+    ))
+  })
   registerDeepSeekProvider(ctx, PROVIDER, {
     options, providerName: 'DeepSeek',
     resolveAuth: async connection => ({ headers: { 'x-api-key': await resolveApiKey(connection) } }),

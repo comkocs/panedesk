@@ -570,7 +570,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 </span>
               </div>
               {error}
-              <RecognizeModels
+              {row.entry.hasModelDiscovery && <RecognizeModels
                 settingsNs={row.entry.settingsNs}
                 provider={row.entry.provider}
                 endpoint={storedEndpoint(schema, namespace, row.entry.settingsPath)}
@@ -598,7 +598,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   await controller.load()
                   return undefined
                 }}
-              />
+              />}
               {renderSlot(
                 'settings.models.provider-card',
                 { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },

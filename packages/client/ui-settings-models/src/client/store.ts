@@ -27,6 +27,7 @@ export interface ProviderDirectoryEntry {
   readonly provider: string
   readonly displayName: string
   readonly settingsNs: string
+  readonly hasModelDiscovery?: boolean
   readonly settingsPath: readonly string[]
   readonly active: boolean
   readonly declared?: boolean
@@ -52,6 +53,7 @@ export function joinProviderDirectory(
     provider: entry.provider,
     displayName: entry.displayName,
     settingsNs: entry.settingsNs,
+    ...entry.hasModelDiscovery === undefined ? {} : { hasModelDiscovery: entry.hasModelDiscovery },
     settingsPath: [...entry.settingsPath],
     active: active.has(entry.provider),
     ...entry.declared === undefined ? {} : { declared: entry.declared },
