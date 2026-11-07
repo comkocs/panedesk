@@ -519,6 +519,15 @@ export async function* streamWholeText(target: LocalTarget, signal?: AbortSignal
 
 // --- Writing ---
 
+function writeIoError(step: string, path: string, error: unknown): FsError {
+  if (error instanceof FsError) return error
+  const denied = isPermissionError(error)
+  const reason = denied
+    ? 'permission denied / 被拒（权限）'
+    : `system call failed / 系统调用失败: ${errorMessage(error)}`
+  return new FsError(`cannot ${step} "${path}": ${reason}`, denied ? 'FS_PERMISSION_DENIED' : 'FS_IO_ERROR', { cause: error })
+}
+
 async function removeStagingDirOrThrow(
   stagingDir: string,
   originalError: unknown,
@@ -528,7 +537,7 @@ async function removeStagingDirOrThrow(
     await removeStagingDir(stagingDir)
   } catch (cleanupError: unknown) {
     /* v8 ignore next 1 -- cleanup failure here needs a second filesystem fault after the primary write failure. */
-    throw new FsError(`write failed (${errorMessage(originalError)}) and temp cleanup failed (${errorMessage(cleanupError)})`, 'FS_NOT_FOUND', { cause: originalError })
+    throw new FsError(`${errorMessage(originalError)}; ${writeIoError('remove temporary directory / 清理临时目录', stagingDir, cleanupError).message}`, originalError instanceof FsError ? originalError.code : 'FS_IO_ERROR', { cause: originalError })
   }
   throw originalError
 }
@@ -544,7 +553,7 @@ async function throwGuardedCreateFailure(
     existing = await inspectPublicationTarget(absolutePath)
   } catch (metadataError: unknown) {
     if (!isENOENT(metadataError) && !isENOTDIR(metadataError)) {
-      throw new FsError(`cannot write "${displayPath}": ${errorMessage(metadataError)}`, 'FS_IO_ERROR', { cause: metadataError })
+      throw writeIoError('inspect destination / 检查目标', displayPath, metadataError)
     }
   }
 
@@ -567,7 +576,7 @@ async function throwGuardedCreateFailure(
       { cause: error },
     )
   }
-  throw new FsError(`cannot write "${displayPath}": ${errorMessage(error)}`, 'FS_IO_ERROR', { cause: error })
+  throw writeIoError('create file / 建文件', displayPath, error)
 }
 
 /**
@@ -575,6 +584,7 @@ async function throwGuardedCreateFailure(
  * POSIX protects the staging directory and file with `0o700` and `0o600`. A new Windows file
  * inherits the destination directory's DACL; a replacement copies the existing target's DACL
  * onto the empty temp before writing and preserves the target descriptor at publication.
+ * I/O failures report the operation and path in English and Chinese, distinguishing permission denial.
  * @param absolutePath - destination; missing parent directories are created.
  * @param content - the full UTF-8 text to write.
  * @param mode - existing destination's POSIX mode to preserve, or `undefined` for a new file;
@@ -595,7 +605,11 @@ export async function writeFileAtomic(
 ): Promise<void> {
   throwIfAborted(signal, 'write')
   const directory = dirname(absolutePath)
-  await mkdir(directory, { recursive: true })
+  try {
+    await mkdir(directory, { recursive: true })
+  } catch (error: unknown) {
+    throw writeIoError('create directory / 建目录', directory, error)
+  }
 
   throwIfAborted(signal, 'write')
   const stagingDirName = internals.tempDirName?.(absolutePath) ?? `.${basename(absolutePath)}.${process.pid}.${randomUUID()}.tmpdir`
@@ -612,16 +626,21 @@ export async function writeFileAtomic(
     ?? (path => rm(path, { recursive: true, force: true }))
   let handle: Awaited<ReturnType<typeof open>> | undefined
   let stagingCreated = false
+  let step = 'create directory / 建目录'
+  let failurePath = stagingDir
   try {
     await mkdir(stagingDir, { mode: 0o700 })
     stagingCreated = true
     await chmod(stagingDir, 0o700)
 
+    step = 'create file / 建文件'
+    failurePath = tempPath
     handle = await open(tempPath, 'wx', 0o600)
     await handle.chmod(0o600)
     if (platform === 'win32' && mode !== undefined) {
       await copyFileDacl(absolutePath, tempPath)
     }
+    step = 'write / 写入'
     await handle.writeFile(content, { encoding: 'utf8', ...signal ? { signal } : {} })
     await handle.sync()
     await internals.inspectTemp?.({ stagingDir, tempPath })
@@ -630,6 +649,8 @@ export async function writeFileAtomic(
     handle = undefined
 
     throwIfAborted(signal, 'write')
+    step = createIfAbsent !== undefined ? 'create file / 建文件' : 'rename / 改名'
+    failurePath = createIfAbsent?.displayPath ?? absolutePath
     if (createIfAbsent !== undefined) {
       try {
         await linkFile(tempPath, absolutePath)
@@ -655,13 +676,13 @@ export async function writeFileAtomic(
     }
   } catch (error: unknown) {
     /* v8 ignore next -- abort-mid-write needs a writeFile/signal race; the non-abort (rename/open) side is tested. */
-    let failure: unknown = isAbortError(error) ? new FsError('write aborted', 'FS_ABORTED') : error
+    let failure = isAbortError(error) ? new FsError('write aborted', 'FS_ABORTED') : writeIoError(step, failurePath, error)
     /* v8 ignore next 8 -- reached only if writeFile/sync throws with the handle open (IO fault); close-failure is a double fault. */
     if (handle) {
       try {
         await handle.close()
       } catch (closeError: unknown) {
-        failure = new FsError(`write failed (${errorMessage(failure)}) and temp close failed (${errorMessage(closeError)})`, 'FS_NOT_FOUND', { cause: failure })
+        failure = new FsError(`${failure.message}; ${writeIoError('close temporary file / 关闭临时文件', tempPath, closeError).message}`, failure.code, { cause: failure })
       }
     }
     if (!stagingCreated) throw failure

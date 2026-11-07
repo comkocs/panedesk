@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "local-write-actionable-errors",
+      "description": "Report local write failures with bilingual operation, path and cause details",
+      "origin": "Local filesystem write diagnostics",
+      "reason": "Distinguish permission denial from system call failure during directory creation, file creation, writing and publication while preserving structured filesystem errors and cleanup behavior.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs-local/src/fsio.ts",
+          "packages/fs/fs-local/tests/fsio.spec.ts",
+          "packages/fs/fs-local/tests/write-errors.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "desktop-welcome-other-provider",
       "description": "Open model provider setup from the welcome page",
       "origin": "Desktop welcome flow",
@@ -10041,11 +10055,9 @@
           "packages/fs/fs-local/README.md",
           "packages/fs/fs-local/README.zh.md",
           "packages/fs/fs-local/package.json",
-          "packages/fs/fs-local/src/fsio.ts",
           "packages/fs/fs-local/src/index.ts",
           "packages/fs/fs-local/src/win32.ts",
           "packages/fs/fs-local/tests/filesystem.spec.ts",
-          "packages/fs/fs-local/tests/fsio.spec.ts",
           "packages/fs/fs-local/tests/watch.spec.ts",
           "packages/fs/fs-observation-policy/README.md",
           "packages/fs/fs-observation-policy/README.zh.md",
