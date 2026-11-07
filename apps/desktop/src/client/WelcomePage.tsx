@@ -111,12 +111,13 @@ export function Welcome({ api }: { api: WelcomeApi }) {
       if (mounted.current) setBusy(false)
     }
   }
-  async function skip() {
+  async function skip(destination?: 'models-add') {
     if (busyRef.current) return
     busyRef.current = true
     setBusy(true)
     try {
-      await api.skip()
+      if (destination === undefined) await api.skip()
+      else await api.skip(destination)
       if (mounted.current) setDraft('')
     } catch {
       if (mounted.current) setError(m.welcomeContinueFailed)
@@ -211,6 +212,8 @@ export function Welcome({ api }: { api: WelcomeApi }) {
       <div id="entry-actions" className="actions" hidden={page !== 'entry'}>
         <button id="sign-in" className="primary" type="button" onClick={() => { void api.analytics?.('auth_page_click', { button_name: 'sign_in' }); void start() }}>{m.welcomeSignIn}</button>
         <button ref={keyButton} id="api-key" className="secondary" type="button" onClick={() => { void api.analytics?.('auth_page_click', { button_name: 'api-key' }); navigate('key') }}>{m.welcomeApiKey}</button>
+        <button id="other-provider" className="secondary" type="button" disabled={busy} onClick={() => { void skip('models-add') }}>{m.welcomeOtherProvider}</button>
+        <p className="key-error" role="alert" hidden={error === ''}>{error}</p>
       </div>
       <div id="key-actions" className="actions" hidden={page !== 'key'}>
         <button id="save-key" className="primary" type="submit" form="key-form" disabled={busy || draft.trim() === ''}>{m.welcomeKeySave}</button>

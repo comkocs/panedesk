@@ -90,12 +90,28 @@ export function apply(ctx: ClientContext): void {
   // Registration-time text (the nav label thunk) and the inject faces share
   // one bound translate; copy freshness rides the locale revision.
   const t = ctx.locale.bind(NS) as ModelsSectionInjected['t']
+  let initialAddOpen = false
+  if ('dshDesktop' in globalThis) {
+    const url = new URL(globalThis.location.href)
+    initialAddOpen = url.searchParams.get('settings') === 'models-add'
+    if (initialAddOpen) {
+      url.searchParams.delete('settings')
+      globalThis.history.replaceState(null, '', url)
+      ctx.inject(['settingsNavigation'], (scope) => { scope.settingsNavigation.openSection('models') })
+    }
+  }
+  function takeInitialAddOpen(): boolean {
+    const open = initialAddOpen
+    initialAddOpen = false
+    return open
+  }
   const injected = (): ModelsSectionInjected => ({
     controller,
     hooks: { snapshot: controller.store },
     operations,
     schema,
     t,
+    initialAddOpen: takeInitialAddOpen(),
   })
   const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
     automatic: credentialOnboarding,

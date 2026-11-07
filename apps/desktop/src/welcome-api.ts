@@ -50,7 +50,7 @@ export interface WelcomeOperations {
    * Enter the workspace without writing an onboarding-completion setting.
    * @returns completion after the workspace opens.
    */
-  skip(): Promise<void>
+  skip(destination?: 'models-add'): Promise<void>
 }
 
 /** The renderer receives localized copy, login operations, and safe account snapshots. */
