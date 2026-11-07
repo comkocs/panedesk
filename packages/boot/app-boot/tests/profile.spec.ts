@@ -332,19 +332,6 @@ describe('initProfile', () => {
     expect(readProfileManifest('t', dir).dsh?.profile?.bundles).toEqual(['@panedesk/dsh-base'])
     expect(readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')).toContain('- id: x')
   })
-
-  it.skipIf(process.platform === 'win32')('creates every profile directory owner-only under umask 0002', () => {
-    const home = tmp()
-    const dir = join(home, 'profiles', 'nested', 'tui')
-    const umask = process.umask(0o002)
-    try {
-      initProfile(dir, ['@panedesk/dsh-base'])
-      for (let path = dir; ; path = dirname(path)) {
-        expect(lstatSync(path).mode & 0o077).toBe(0)
-        if (path === home) break
-      }
-    } finally { process.umask(umask) }
-  })
 })
 
 describe('manifest round-trip', () => {

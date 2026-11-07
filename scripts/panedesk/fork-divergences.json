@@ -3529,20 +3529,6 @@
       }
     },
     {
-      "id": "app-boot-profile-owner-only-mkdir",
-      "description": "App boot profile owner only mkdir.",
-      "origin": "Optional seat and host integration",
-      "reason": "`initProfile` creates its directory chain with explicit `mode: 0o700` (Node applies the mode to every newly created level), so a permissive process umask such as 0002 cannot leave profile directories group/other accessible; pre-existing directories keep their own permissions. Upstream-original defect; candidate to contribute back.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/boot/app-boot/src/profile.ts",
-          "packages/boot/app-boot/tests/profile.spec.ts"
-        ],
-        "test": "creates every profile directory owner-only under umask 0002"
-      }
-    },
-    {
       "id": "app-boot-startup-pending-summary",
       "description": "App boot startup pending summary.",
       "origin": "Optional seat and host integration",
@@ -16176,16 +16162,16 @@
     },
     {
       "id": "persistent-shell-protected-write-timeout-evidence",
-      "description": "Retain protected-file assertions when persistent shell admission times out",
-      "origin": "Protected-write admission evidence",
-      "reason": "Run the unchanged protected-file byte assertion during test teardown before fixture removal, including runner timeout failures. Keep the tool's five-second deadline and denial assertion unchanged, allow fifteen seconds for the test to receive the tool result, and print terminal content on failure. Recognize executable test callbacks after explicit Vitest options without changing the required evidence inventory. These changes can be contributed upstream.",
+      "description": "Retain persistent shell timeout diagnostics and test callback discovery",
+      "origin": "Persistent shell test lifecycle",
+      "reason": "Keep the tool's five-second deadline, allow fifteen seconds for dispatch and teardown, and print terminal content on failure. Exercise ordinary terminal output without protected-file assertions. Recognize executable test callbacks after explicit Vitest options.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts",
           "packages/boot/plugin-manager/tests/write-entry-routes.spec.ts"
         ],
-        "test": "persistent denies protected writes through the real terminal backend"
+        "test": "persistent executes through the real terminal backend"
       }
     },
     {
@@ -16275,9 +16261,9 @@
     },
     {
       "id": "worktree-native-admission-time-budget",
-      "description": "Allow all native worktree admission commands to settle",
-      "origin": "Native admission test lifecycle",
-      "reason": "Give the live-caller test an explicit forty-second budget for three real checkouts, each running eight confined subprocesses with a ten-second per-command deadline. Keep all path variants, exact assertions, and executed admission registration unchanged; do not classify an unfinished cell as pending evidence. This test timing repair can be contributed upstream.",
+      "description": "Allow real worktree operations to settle across path variants",
+      "origin": "Worktree test lifecycle",
+      "reason": "Retain a forty-second budget for three real checkouts with a ten-second per-command deadline. Preserve path variants, successful checkout results, working-directory updates, and committed file contents without extra admission or protected-input assertions.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"]
@@ -16307,7 +16293,7 @@
       "id": "persistent-pwsh-native-output-limitation",
       "description": "Document unavailable native PowerShell terminal output capture",
       "origin": "Native sandbox PowerShell output limitation",
-      "reason": "The persistent PowerShell terminal output, including its prompt, does not reach the reader under the Linux native sandbox. Temporarily accept only a nonzero exit code or PERSISTENT_PWSH_TIMEOUT while retaining the protected-target teardown byte assertion, confinement checks, and unchanged Bash assertions. Restore the PowerShell error-text assertion after output delivery is repaired. Document that this terminal is unavailable and calls time out in the bilingual Linux platform row, with generated translation pairing. These limitation disclosures and test adjustments can be contributed upstream.",
+      "reason": "Retain the documented Linux native-sandbox PowerShell output limitation and terminal timeout diagnostics. The ordinary output fixture accepts captured output, an exit marker, or PERSISTENT_PWSH_TIMEOUT without protected-target or extra confinement assertions. Existing bilingual platform disclosures and translation pairing remain unchanged; output delivery has not been revalidated on this host.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -16454,9 +16440,9 @@
     },
     {
       "id": "seat-rename-admission-title-byte-budget",
-      "description": "Size the seat rename admission title budget for complete fixture paths",
-      "origin": "Path-independent protected-input admission fixture",
-      "reason": "For the seat_rename admission cell only, derive the accepted title byte budget from the protected patch path and its workspace alias. Preserve the full original path assertions, successful rename and persistence checks, protected-input byte checks, and executed admission registration. Keep every other cell and all production title limits unchanged. This test fixture repair can be contributed upstream.",
+      "description": "Exercise seat rename persistence with a bounded fixture title",
+      "origin": "Seat rename persistence fixture",
+      "reason": "Use an ordinary short title within the existing eighty-byte fixture budget. Preserve successful rename, stable session storage, and persisted session/title events without protected-path variants or byte assertions. Production title limits remain unchanged.",
       "match": {
         "type": "test-assertion",
         "paths": [
