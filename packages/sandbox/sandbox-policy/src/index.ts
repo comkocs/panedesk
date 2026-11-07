@@ -297,7 +297,7 @@ export class SandboxPolicyService extends Service {
   /** The absolute `workspace-write` fallback root for calls without a session cwd. */
   readonly workspaceRoot: string
   /** Retired authorization ledger. Present so callers type-check; it stores nothing. */
-  readonly workspaceAccess = new WorkspaceWriteAccess()
+  readonly workspaceAccess: WorkspaceWriteAccess = new WorkspaceWriteAccess()
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
