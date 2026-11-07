@@ -1122,11 +1122,6 @@ function builtBinSmokeGate(needs: string[] = ['build']): Gate {
     // Launches the built CLI through resolveExampleLaunch and asserts a refused
     // protected input exits nonzero with bilingual recovery text.
     'apps/cli/tests/protected-input-refusal.e2e.ts',
-    // Boots the built headless CLI twice over one isolated home: the first run
-    // captures the protected input baseline, the restarted run passes the
-    // startup review (banner before bilingual progress) and finishes a keyless
-    // scripted task.
-    'apps/cli/tests/headless-restart-review.e2e.ts',
     'apps/desktop/tests/acl-skill.built.e2e.ts',
     'packages/host/directory-picker-native/tests/built-worker.e2e.ts',
     // Built Linux filesystem writes retain directory anchors and refuse missing O_DIRECTORY.

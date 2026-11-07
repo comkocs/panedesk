@@ -387,22 +387,6 @@
       }
     },
     {
-      "id": "web-startup-input-review-refusal",
-      "description": "Show bilingual protected-input refusal before Web profile composition",
-      "origin": "Web restart input review acceptance",
-      "reason": "Keep an initial owner-record review refusal visible in an API-free loopback page without mounting profile plugins or exposing protected paths. Preserve review algorithms, protected configuration and workspace write decisions; close the refused listener on termination and exit nonzero. Pin a real built Web host restart and browser rendering against a changed persisted input copy. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "apps/cli/src/profile-boot.ts",
-          "apps/cli/src/input-review-web-refusal.ts",
-          "apps/cli/README*",
-          "apps/web/tests/input-review-refusal.spec.ts",
-          "apps/cli/tests/fixtures/input-review-baseline.mjs"
-        ]
-      }
-    },
-    {
       "id": "startup-agent-review-readiness",
       "description": "Keep synchronous startup agent review outside readiness-blocked HMR transactions",
       "origin": "Startup seed session rename deadlock review",
@@ -478,8 +462,6 @@
           "packages/boot/app-boot/package.json",
           "packages/boot/app-boot/tsdown.config.ts",
           "packages/boot/app-boot/README*",
-          "apps/cli/src/profile-boot.ts",
-          "apps/cli/tests/input-review-startup.spec.ts",
           "apps/cli/tests/input-review-process.spec.ts"
         ]
       }
@@ -16491,8 +16473,7 @@
           "packages/boot/app-boot/README.md",
           "packages/boot/app-boot/README.zh.md",
           "packages/boot/app-boot/README.i18n.yaml",
-          "packages/interaction/user-approval/src/index.ts",
-          "apps/cli/tests/headless-restart-review.e2e.ts"
+          "packages/interaction/user-approval/src/index.ts"
         ]
       }
     },
@@ -16508,19 +16489,6 @@
           "packages/fs/fs-local/README.md",
           "packages/fs/fs-local/README.zh.md",
           "packages/fs/fs-local/README.i18n.yaml"
-        ]
-      }
-    },
-    {
-      "id": "headless-restart-input-review-smoke",
-      "description": "Gate the built headless restart input-review success path",
-      "origin": "Headless restart input review acceptance",
-      "reason": "Boot the built CLI twice over one isolated home: the first Web launch captures and grants the durable protected input baseline through the shared fixture, and the restarted headless launch must pass its startup owner review (startup banner before bilingual progress lines, no refusal text) and finish one keyless scripted task with exit 0, while a changed persisted protected copy exits nonzero without running the task. Register the new spec in the built-bin smoke gate. Review algorithms, default thresholds, and refusal decisions stay unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "apps/cli/tests/headless-restart-review.e2e.ts",
-          "scripts/run-gates.ts"
         ]
       }
     },

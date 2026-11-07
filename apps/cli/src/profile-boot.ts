@@ -23,8 +23,6 @@ import {
   installFailLoud,
   loadOverlayPatches,
   loadProfile,
-  loadProfileDirectory,
-  ProtectedInputIntegrity,
   reportSkippedBundles,
   PluginPackages,
   PROFILE_PATCH_FILENAME,
@@ -40,7 +38,6 @@ import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@pan
 import { provideCmdline, type AppReady } from '@panedesk/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 import { windowsConsoleNotice, windowsPermissionNotice } from './windows-permission-notice.ts'
-import { showInputReviewWebRefusal } from './input-review-web-refusal.ts'
 
 /** Plugin commands may call a running host without booting an engine in their profile. */
 export { callHostSdk as requestRunningHost } from '@panedesk/dsh-host-admin'
@@ -234,18 +231,11 @@ async function composeProfile(
   patchFiles: readonly string[],
   fromDefaultProfile?: string,
   resolvedProfile?: ResolvedProfileRuntime,
-  integrity?: ProtectedInputIntegrity,
 ): Promise<ComposedProfile> {
-  const dir = resolvedProfile?.profile.dir ?? resolveProfileDir(name)
-  const profile = integrity?.covers(join(dir, 'package.json')) === true
-    ? loadProfileDirectory(NAME, dir, resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, { integrity })
-    : resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
+  const profile = resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
   if (resolvedProfile !== undefined) writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
-  const resolutionOptions = { installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile,
-    ...integrity === undefined ? {} : { integrity },
-  }
-  const resolution = await createRuntimeResolution(resolutionOptions)
-  const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file), integrity))
+  const resolution = await createRuntimeResolution({ installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile })
+  const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
   return { profile, resolution, overlays }
 }
 
@@ -308,27 +298,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     if (failures.length > 1) throw new AggregateError(failures, 'panedesk: profile cleanup failed')
   })()
   try {
-    let inputIntegrity: ProtectedInputIntegrity
-    try {
-      // Help and version only display text: they start no host and build no agent, so they skip the
-      // startup review and its stderr lines. Any other argument can start the host, so it reviews.
-      const displayOnly = options.args.length === 1
-        && (options.args[0] === '--help' || options.args[0] === '-h' || options.args[0] === '--version' || options.args[0] === '-V')
-      inputIntegrity = displayOnly
-        ? ProtectedInputIntegrity.openOwnerRecords(process.cwd(), resolveDshHome())
-        : await ProtectedInputIntegrity.openOwnerRecordsAsync(process.cwd(), resolveDshHome(), (message) => {
-          process.stderr.write(`${message}\n`)
-        })
-    } catch (error) {
-      if (options.profile === 'web') {
-        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
-        await dispose()
-        await showInputReviewWebRefusal(error, options.args)
-      }
-      throw error
-    }
     const composed = await composeProfile(
-      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, inputIntegrity,
+      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile,
     )
     const appReady = createAppReady()
     const shutdown = createProcessShutdown(dispose)
@@ -351,7 +322,6 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     const rootConfig = join(composed.profile.dir, PROFILE_ROOT_FILENAME)
     const profileContext: ProfileContext = {
       name: options.profile,
-      inputIntegrity,
       ...(options.packageManager === undefined ? {} : { packageManager: options.packageManager }),
       dir: composed.profile.dir, patchPath: composed.profile.patchPath,
       installAnchor: options.resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
