@@ -26,6 +26,8 @@
  * @module dsh-llm-pi-ai/adapter
  */
 
+import { createHash } from 'node:crypto'
+import { hostname } from 'node:os'
 import type {
   Api,
   AuthContext,
@@ -78,7 +80,31 @@ type CacheMetadata = Pick<Extract<StreamChunk, { type: 'finish' }>, 'cacheWriteT
 interface RequestCache {
   metadata: CacheMetadata
   cacheWriteAccounting?: 'not-applicable'
-  options: Pick<SimpleStreamOptions, 'cacheRetention' | 'onPayload'>
+  options: Pick<SimpleStreamOptions, 'cacheRetention' | 'onPayload' | 'headers'>
+}
+
+/** Stable per machine: sha256 of the host name, memoized for the process. */
+let deviceId: string | undefined
+function deviceIdOf(): string {
+  return (deviceId ??= createHash('sha256').update(hostname()).digest('hex'))
+}
+
+/** True only for Anthropic's own endpoint; every other address gets the session header. */
+function officialAnthropic(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname.toLowerCase() === 'api.anthropic.com'
+  } catch {
+    // An unparseable base URL is not the official endpoint.
+    return false
+  }
+}
+
+/** Claude Code's session stamp: a JSON `user_id` and, off the official endpoint, the session header. */
+function claudeCodeSession(model: Model<Api>, key: string): { userId: string; headers?: Record<string, string> } {
+  const userId = JSON.stringify({ device_id: deviceIdOf(), account_uuid: '', session_id: key })
+  return officialAnthropic(model.baseUrl)
+    ? { userId }
+    : { userId, headers: { 'x-claude-code-session-id': key } }
 }
 
 /** Resolve only explicitly supplied Harness controls; absent controls keep pi-ai defaults. */
@@ -104,10 +130,13 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
   if (anthropic) {
     const retention = requested === 'default' ? '1h' : requested
     if (retention !== 'none' && retention !== '5m' && retention !== '1h') return unsupported()
+    const sessionKey = request.cache.key ?? request.sessionId
+    const session = sessionKey === undefined ? undefined : claudeCodeSession(model, sessionKey)
     return {
       metadata: { ...metadata, cacheRetention: retention },
       options: {
         cacheRetention: retention === 'none' ? 'none' : 'short',
+        ...session?.headers === undefined ? {} : { headers: session.headers },
         onPayload: (payload) => {
           const body = payloadRecord(payload)
           if (body === undefined) throw new LlmError('Expected an Anthropic request payload', 'INVALID_CONFIG')
@@ -133,6 +162,10 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
             else { block.cache_control = { type: 'ephemeral', ttl: retention }; marked = true }
           }
           if (retention !== 'none' && !marked) body.cache_control = { type: 'ephemeral', ttl: retention }
+          if (session !== undefined) {
+            const existing = payloadRecord(body.metadata)
+            body.metadata = { ...existing, user_id: session.userId }
+          }
           return body
         },
       },
@@ -161,15 +194,17 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
   }
   if (requested !== 'default' && requested !== 'auto') return unsupported()
   const sessionKey = model.api === 'anthropic-messages' ? request.cache.key ?? request.sessionId : undefined
+  const session = sessionKey === undefined ? undefined : claudeCodeSession(model, sessionKey)
   return {
     metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} },
     ...accounting,
-    options: sessionKey === undefined ? {} : {
+    options: session === undefined ? {} : {
+      ...session.headers === undefined ? {} : { headers: session.headers },
       onPayload: (payload) => {
         const body = payloadRecord(payload)
         if (body === undefined) throw new LlmError('Expected an Anthropic request payload', 'INVALID_CONFIG')
         const existing = payloadRecord(body.metadata)
-        body.metadata = { ...existing, user_id: sessionKey }
+        body.metadata = { ...existing, user_id: session.userId }
         return body
       },
     },
@@ -558,7 +593,7 @@ export class PiAiAdapter extends LlmAdapter {
         signal: watchdog.signal,
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
-        headers: requestHeaders(profile.headers),
+        headers: { ...requestHeaders(profile.headers), ...cache.options.headers },
       })
       const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
       let exhausted = false

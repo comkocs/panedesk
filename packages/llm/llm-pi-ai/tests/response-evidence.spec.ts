@@ -241,7 +241,10 @@ describe('opt-in wire cache controls', () => {
       system?: { cache_control?: { type?: string } }[]
       messages: { content: string | { cache_control?: { type?: string } }[] }[]
     }
-    expect(body.metadata?.user_id).toBe(expected)
+    const userId = JSON.parse(body.metadata?.user_id ?? '') as { device_id: string; account_uuid: string; session_id: string }
+    expect(JSON.stringify(userId)).toBe(JSON.stringify({ device_id: userId.device_id, account_uuid: '', session_id: expected }))
+    expect(userId.device_id).toMatch(/^[0-9a-f]{64}$/)
+    expect(server.headers[0]?.['x-claude-code-session-id']).toBe(expected)
     const marked = (body.tools ?? []).some(block => block.cache_control?.type === 'ephemeral')
       || (body.system ?? []).some(block => block.cache_control?.type === 'ephemeral')
       || body.messages.some(message => Array.isArray(message.content)
@@ -249,6 +252,52 @@ describe('opt-in wire cache controls', () => {
     expect(marked).toBe(true)
     expect(result.finish).toMatchObject({ cacheWriteTiering: { kind: 'unknown' } })
     expect(result.finish).not.toHaveProperty('cacheRetention')
+  })
+
+  it.each([
+    { model: 'claude-model-a', retention: '1h' as const },
+    { model: 'gpt-6-astra', retention: 'auto' as const },
+  ])('stamps Claude Code session metadata for $model on anthropic-messages', async ({ model, retention }) => {
+    const gateway = await mockServer([{ events: frames('anthropic-messages', model) }])
+    const official = await mockServer([{ events: frames('anthropic-messages', model) }])
+    // The official-endpoint request is rewritten onto the local stand-in, so the
+    // test never leaves the machine, while the code still sees api.anthropic.com.
+    const realFetch = globalThis.fetch
+    const rewriting: typeof fetch = async (input, init) => {
+      const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const url = new URL(raw)
+      if (url.hostname === 'api.anthropic.com') {
+        const target = new URL(official.url)
+        url.protocol = target.protocol
+        url.host = target.host
+        return realFetch(url, init)
+      }
+      return realFetch(input, init)
+    }
+    globalThis.fetch = rewriting
+    try {
+      const controls: Partial<GenerateOptions> = {
+        system: 'stable prefix', cache: { retention, key: 'session-a' },
+        tools: [{ name: 'read', description: 'Read', parameters: { type: 'object', properties: {} } }],
+      }
+      await collect(adapter('anthropic-messages', gateway.url, model), model, controls)
+      await collect(adapter('anthropic-messages', 'https://api.anthropic.com', model), model, controls)
+      const userIds = [gateway, official].map((server) => {
+        const body = server.requests[0] as { metadata?: { user_id?: string } }
+        return JSON.parse(body.metadata?.user_id ?? '') as { device_id: string; account_uuid: string; session_id: string }
+      })
+      for (const userId of userIds) {
+        expect(JSON.stringify(userId)).toBe(JSON.stringify({
+          device_id: userId.device_id, account_uuid: '', session_id: 'session-a',
+        }))
+        expect(userId.device_id).toMatch(/^[0-9a-f]{64}$/)
+      }
+      expect(userIds[0]?.device_id).toBe(userIds[1]?.device_id)
+      expect(gateway.headers[0]?.['x-claude-code-session-id']).toBe('session-a')
+      expect(official.headers[0]?.['x-claude-code-session-id']).toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
   })
 
   it('keeps the shared prefix identical across two turns of one Anthropic Messages session', async () => {
