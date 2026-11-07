@@ -186,7 +186,12 @@ export function apply(ctx: ClientContext): void {
     locale: PERMISSION_ACCESS_NS,
     inject: (sessionId: SessionId): PermissionSelectInjected => ({
       hooks: { permissionCatalog: catalog.store },
-      select: preset => submit(sessionId, preset),
+      select: async (preset) => {
+        const result = await submit(sessionId, preset)
+        await controller.load()
+        if (controller.store.getSnapshot().options.some(option => option.id === preset)) await controller.select(preset)
+        return result
+      },
     }),
   }, PermissionSelect))
 
