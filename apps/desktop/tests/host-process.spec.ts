@@ -27,7 +27,7 @@ const server = createServer((request, response) => {
   response.end(JSON.stringify({runtime: process.argv[2], profile: process.argv[3], cwd: process.cwd(), nodePath: process.env.NODE_PATH, registry: process.env.NPM_CONFIG_REGISTRY, nodeOptions: process.env.NODE_OPTIONS, runAsNode: process.env.ELECTRON_RUN_AS_NODE, internals: process.execArgv.includes('--expose-internals')}))
 })
 server.listen(0, '127.0.0.1', () => {
-  process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/', cookie: 'synthetic-owner-cookie' })
+  process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/?token=fixture' })
 })
 process.on('message', message => {
   if (message.type === 'update-tasks') {
@@ -73,14 +73,6 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
-  it('disables signal-triggered Inspector startup before the Host entry runs', async () => {
-    const runtime = projectWithHost(HTTP_HOST.replace('runtime: process.argv[2]',
-      "signalDebuggerDisabled: process.execArgv.includes('--disable-sigusr1'), runtime: process.argv[2]"))
-    const host = hostProcess(runtime)
-    const { url } = await host.start()
-    expect(await (await fetch(url)).json()).toMatchObject({ signalDebuggerDisabled: true })
-  })
-
   it('correlates task inspections and admission changes over private IPC', async () => {
     const host = hostProcess(projectWithHost())
     await expect(host.updateTasks('inspect')).rejects.toThrow('Host is unavailable')
@@ -109,7 +101,7 @@ describe('desktop host process', () => {
     'process.exit(0)',
   ])('refuses installation when exit lacks successful teardown acknowledgement: %s', async (exit) => {
     const host = hostProcess(projectWithHost(`
-      process.send({ type: 'ready', url: 'http://127.0.0.1:3080/', cookie: 'synthetic-owner-cookie' })
+      process.send({ type: 'ready', url: 'http://127.0.0.1:3080/' })
       process.on('message', message => {
         if (message.type === 'shutdown') process.stderr.write('token=fixture-secret', () => { ${exit} })
       })
@@ -123,13 +115,12 @@ describe('desktop host process', () => {
     await expect(host.stop()).resolves.toBeUndefined()
   })
 
-  it('returns a clean Web URL and a private IPC credential and waits for graceful shutdown', async () => {
+  it('returns the Web authentication URL and waits for graceful shutdown', async () => {
     const runtime = projectWithHost()
     const failure = vi.fn()
     const host = hostProcess(runtime, runtime, failure)
     const ready = await host.start()
-    expect(new URL(ready.url).search).toBe('')
-    expect(ready.cookie).toBe('synthetic-owner-cookie')
+    expect(new URL(ready.url).searchParams.get('token')).toBe('fixture')
     expect(await host.start()).toEqual(ready)
     expect((await fetch(ready.url)).status).toBe(200)
     await host.stop()
@@ -169,21 +160,6 @@ describe('desktop host process', () => {
     await fetch(new URL('/crash', url))
     await expect.poll(() => failure.mock.calls.length).toBe(1)
     expect(failure).toHaveBeenCalledWith(new Error('dsh desktop host exited with 7: plugin crashed'))
-  })
-
-  it('redacts split credential fields before a long diagnostic can truncate their labels', async () => {
-    const runtime = projectWithHost(`
-      process.stderr.write('cook');
-      setTimeout(() => {
-        process.stderr.write('ie: ' + 'synthetic-sensitive-'.repeat(5000), () => {
-          process.exitCode = 7; process.disconnect()
-        })
-      }, 10)
-    `)
-    const failure = await hostProcess(runtime).start().catch((error: unknown) => error)
-    expect(failure).toBeInstanceOf(Error)
-    expect(String(failure)).not.toContain('synthetic-sensitive-')
-    expect(String(failure)).toContain('<redacted>')
   })
 
   it('retains only recent diagnostics from a noisy child', async () => {

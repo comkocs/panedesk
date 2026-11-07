@@ -114,10 +114,18 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "README.md", "README.zh.md", "README.i18n.yaml",
-          "CONTRIBUTING.md", "CONTRIBUTING.zh.md", "CONTRIBUTING.i18n.yaml",
-          "BRAND_GUIDELINES.md", "BRAND_GUIDELINES.zh.md", "BRAND_GUIDELINES.i18n.yaml",
-          "CHANGELOG.md", "package.json", "apps/cli/package.json"
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "CONTRIBUTING.md",
+          "CONTRIBUTING.zh.md",
+          "CONTRIBUTING.i18n.yaml",
+          "BRAND_GUIDELINES.md",
+          "BRAND_GUIDELINES.zh.md",
+          "BRAND_GUIDELINES.i18n.yaml",
+          "CHANGELOG.md",
+          "package.json",
+          "apps/cli/package.json"
         ]
       }
     },
@@ -129,39 +137,34 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "apps/desktop/src/main.ts",
-          "apps/desktop/tests/main-startup.spec.ts",
-          "apps/desktop/README.md",
-          "apps/desktop/README.zh.md",
-          "apps/desktop/README.i18n.yaml",
           "packages/boot/app-boot/src/profile-context.ts",
           "packages/boot/app-boot/tests/profile.spec.ts",
           "apps/cli/tests/telemetry-switch.spec.ts"
         ]
       }
     },
-  {
-    "id": "desktop-unsigned-windows-no-mandatory-update",
-    "description": "Ship unsigned Windows desktop packages without a mandatory-update policy",
-    "origin": "Desktop update policy",
-    "reason": "Unsigned Windows packaging no longer requires a mandatory-update HTTPS origin and embeds no policy, matching unsigned macOS. Signed and preparation-only builds keep the origin requirement and the embedded policy; ordinary update feeds stay unsigned-free. Packaged runtime behavior is unchanged: absent policy configuration issues no update request. These changes can be contributed upstream.",
-    "match": {
-      "type": "behavior",
-      "paths": [
-        "apps/desktop/scripts/desktop-package-environment.mjs",
-        "apps/desktop/scripts/electron-builder-config.mjs",
-        "apps/desktop/tests/desktop-package-environment.spec.ts",
-        "apps/desktop/tests/desktop-policy-environment.spec.ts",
-        "apps/desktop/tests/macos-signature.spec.ts",
-        "apps/desktop/README.md",
-        "apps/desktop/README.zh.md",
-        "apps/desktop/README.i18n.yaml",
-        "apps/desktop/packaging/README.md",
-        "apps/desktop/packaging/README.zh.md",
-        "apps/desktop/packaging/README.i18n.yaml"
-      ]
-    }
-  },
+    {
+      "id": "desktop-unsigned-windows-no-mandatory-update",
+      "description": "Ship unsigned Windows desktop packages without a mandatory-update policy",
+      "origin": "Desktop update policy",
+      "reason": "Unsigned Windows packaging no longer requires a mandatory-update HTTPS origin and embeds no policy, matching unsigned macOS. Signed and preparation-only builds keep the origin requirement and the embedded policy; ordinary update feeds stay unsigned-free. Packaged runtime behavior is unchanged: absent policy configuration issues no update request. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/scripts/desktop-package-environment.mjs",
+          "apps/desktop/scripts/electron-builder-config.mjs",
+          "apps/desktop/tests/desktop-package-environment.spec.ts",
+          "apps/desktop/tests/desktop-policy-environment.spec.ts",
+          "apps/desktop/tests/macos-signature.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "apps/desktop/packaging/README.md",
+          "apps/desktop/packaging/README.zh.md",
+          "apps/desktop/packaging/README.i18n.yaml"
+        ]
+      }
+    },
     {
       "id": "desktop-independent-product-identity",
       "description": "Separate packaged Panedesk identity from the upstream desktop application",
@@ -316,7 +319,11 @@
       "reason": "Describe the default handle backend and legacy path option, report the Windows file-tool functional results without claiming native sandbox validation, and distinguish launcher test coverage from Windows hardware validation. These documentation changes can be contributed upstream.",
       "match": {
         "type": "behavior",
-        "paths": ["README.md", "README.zh.md", "README.i18n.yaml"]
+        "paths": [
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml"
+        ]
       }
     },
     {
@@ -694,7 +701,9 @@
       "reason": "Run host and Chromium owner controls, confined cookie replay, orphan descendants, cgroup migration denial, nested namespaces and native socket queries in the ordinary unit inventory. Report exact limitation counts and fail required native sandboxing on unavailable delegation. Select the nested namespace executable through PANEDESK_TEST_UNSHARE for both host and confined calls; required runs assert exact permission denial inside the product sandbox instead of skipping when the host probe is denied, and explicitly leave permissive hosts unverified. These tests can be contributed upstream.",
       "match": {
         "type": "behavior",
-        "paths": ["packages/sandbox/sandbox-local/tests/linux-owner-source-native.spec.ts"]
+        "paths": [
+          "packages/sandbox/sandbox-local/tests/linux-owner-source-native.spec.ts"
+        ]
       }
     },
     {
@@ -859,28 +868,52 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "README.md", "README.zh.md", "README.i18n.yaml",
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
           "packages/subprocess/subprocess-local/src/linux-product-*.ts",
-          "packages/subprocess/subprocess-local/src/index.ts", "packages/subprocess/subprocess-local/src/linux-scope.ts",
-          "packages/subprocess/subprocess-local/src/runner-protocol.ts", "packages/subprocess/subprocess-local/src/spawn-runner.ts",
-          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts", "packages/subprocess/subprocess-local/tests/local.spec.ts",
-          "packages/subprocess/subprocess-local/package.json", "packages/subprocess/subprocess-local/tsconfig.json",
-          "packages/subprocess/subprocess-local/README*", "packages/subprocess/subprocess/README*", "packages/subprocess/subprocess/src/types.ts",
-          "packages/sandbox/sandbox/src/index.ts", "packages/sandbox/sandbox/README*",
-          "packages/sandbox/sandbox-local/src/index.ts", "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/tests/local.spec.ts", "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
+          "packages/subprocess/subprocess-local/src/index.ts",
+          "packages/subprocess/subprocess-local/src/linux-scope.ts",
+          "packages/subprocess/subprocess-local/src/runner-protocol.ts",
+          "packages/subprocess/subprocess-local/src/spawn-runner.ts",
+          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts",
+          "packages/subprocess/subprocess-local/tests/local.spec.ts",
+          "packages/subprocess/subprocess-local/package.json",
+          "packages/subprocess/subprocess-local/tsconfig.json",
+          "packages/subprocess/subprocess-local/README*",
+          "packages/subprocess/subprocess/README*",
+          "packages/subprocess/subprocess/src/types.ts",
+          "packages/sandbox/sandbox/src/index.ts",
+          "packages/sandbox/sandbox/README*",
+          "packages/sandbox/sandbox-local/src/index.ts",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/tests/local.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
           "packages/sandbox/sandbox-local/README*",
-          "packages/shell/bash-local/src/index.ts", "packages/shell/bash-local/README*",
-          "packages/shell/pwsh-local/src/index.ts", "packages/shell/pwsh-local/README*",
-          "packages/shell/bash-sandbox/src/index.ts", "packages/shell/bash-sandbox/README*",
-          "packages/shell/pwsh-sandbox/src/index.ts", "packages/shell/pwsh-sandbox/README*",
-          "packages/terminal/terminal-bash/src/index.ts", "packages/terminal/terminal-bash/README*",
-          "packages/lsp/lsp-stdio/src/index.ts", "packages/lsp/lsp-stdio/src/connection.ts", "packages/lsp/lsp-stdio/README*",
-          "packages/ptc-runtime/ptc-runtime-node/src/index.ts", "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts", "packages/ptc-runtime/ptc-runtime-node/README*",
-          "packages/fs/tool-fs-search/src/search-core.ts", "packages/fs/tool-fs-search/README*",
-          "packages/experimental/worktree/src/process.ts", "packages/experimental/worktree/tests/process-source.spec.ts", "packages/experimental/worktree/README*",
+          "packages/shell/bash-local/src/index.ts",
+          "packages/shell/bash-local/README*",
+          "packages/shell/pwsh-local/src/index.ts",
+          "packages/shell/pwsh-local/README*",
+          "packages/shell/bash-sandbox/src/index.ts",
+          "packages/shell/bash-sandbox/README*",
+          "packages/shell/pwsh-sandbox/src/index.ts",
+          "packages/shell/pwsh-sandbox/README*",
+          "packages/terminal/terminal-bash/src/index.ts",
+          "packages/terminal/terminal-bash/README*",
+          "packages/lsp/lsp-stdio/src/index.ts",
+          "packages/lsp/lsp-stdio/src/connection.ts",
+          "packages/lsp/lsp-stdio/README*",
+          "packages/ptc-runtime/ptc-runtime-node/src/index.ts",
+          "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts",
+          "packages/ptc-runtime/ptc-runtime-node/README*",
+          "packages/fs/tool-fs-search/src/search-core.ts",
+          "packages/fs/tool-fs-search/README*",
+          "packages/experimental/worktree/src/process.ts",
+          "packages/experimental/worktree/tests/process-source.spec.ts",
+          "packages/experimental/worktree/README*",
           "packages/boot/plugin-manager/tests/write-entry-routes.spec.ts",
-          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*", "pnpm-lock.yaml"
+          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
+          "pnpm-lock.yaml"
         ]
       }
     },
@@ -892,11 +925,18 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "native/system/README.md", "native/system/README.zh.md", "native/system/README.i18n.yaml",
-          "native/system/package.json", "native/system/packages/entry/package.json",
-          "native/system/packages/entry/README.md", "native/system/packages/entry/README.zh.md", "native/system/packages/entry/README.i18n.yaml",
-          "native/system/packages/entry/src/flock.c", "native/system/packages/entry/src/socket-cgroup.*",
-          "native/system/test/socket-cgroup.test.js", "tsconfig.base.json"
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/README.i18n.yaml",
+          "native/system/package.json",
+          "native/system/packages/entry/package.json",
+          "native/system/packages/entry/README.md",
+          "native/system/packages/entry/README.zh.md",
+          "native/system/packages/entry/README.i18n.yaml",
+          "native/system/packages/entry/src/flock.c",
+          "native/system/packages/entry/src/socket-cgroup.*",
+          "native/system/test/socket-cgroup.test.js",
+          "tsconfig.base.json"
         ]
       }
     },
@@ -1212,61 +1252,104 @@
       "description": "Make shared default Web fixtures explicitly unattended",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Shared schedule and default-isolation callers inherit it without assertion changes. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/default-web-process.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/default-web-process.ts"
+        ]
+      }
     },
     {
       "id": "web-schedule-owner-opt-out",
       "description": "Use the shared unattended connection fixture for schedule timing",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation in the shared default-web-process helper. This caller has no direct diff and its assertions stay unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/schedule-timing.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/schedule-timing.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "web-isolation-owner-opt-out",
       "description": "Use the shared unattended connection fixture for default isolation",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation in the shared default-web-process helper. This caller has no direct diff and its assertions stay unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-default-isolation.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/web-default-isolation.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "web-public-url-owner-opt-out",
       "description": "Configure unattended public URL fixtures explicitly",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation through protected connection configuration while preserving trustedHosts derived from the invocation flags. Launch tokens are single-use and cookies are authority-bound, so cross-authority fixtures obtain fresh links through the existing host Connection authenticatedUrl method over the fixture child IPC channel. Each authority reuses its first exchanged cookie. Authentication and URL assertions remain unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/public-url.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/public-url.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "web-best-effort-owner-opt-out",
       "description": "Configure unattended best-effort startup explicitly",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Failure fixtures and assertions remain unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "web-failure-matrix-owner-opt-out",
       "description": "Configure unattended failure-matrix startup explicitly",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry in the existing watcher patch. Launch tokens are single-use, so the fixture caches the first exchanged cookie per launch URL and exchanges again only for a different URL. Deliberate connection disabling and all recovery assertions remain unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "web-creator-manager-owner-opt-out",
       "description": "Configure unattended creator-manager startup explicitly",
       "origin": "Owner confirmation fixture configuration",
       "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Plugin operations and assertions remain unchanged. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/creator-plugin-manager.expected.e2e.ts"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/creator-plugin-manager.expected.e2e.ts"
+        ]
+      }
     },
     {
       "id": "windows-console-and-uninstall-notices",
       "description": "Document shared-console authority and preserved owner labels",
       "origin": "Windows owner safety guidance",
       "reason": "Warn interactive Windows CLI and TUI owners about shared-console key injection without changing process options or unattended output. Preserve uninstall behavior and add bilingual log and finish-page guidance for offline owner-label cleanup. Synchronize English and Chinese safety documentation. These changes can be contributed upstream.",
-      "match": { "type": "behavior", "paths": [
-        "README.md", "README.zh.md", "README.i18n.yaml",
-        "packages/sandbox/sandbox-windows-acl/README.md", "packages/sandbox/sandbox-windows-acl/README.zh.md", "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
-        "apps/cli/src/profile-boot.ts", "apps/cli/src/windows-permission-notice.ts", "apps/cli/tests/windows-permission-notice.spec.ts",
-        "apps/desktop/installer/strings.nsh", "apps/desktop/installer/uninstall.nsh", "apps/desktop/tests/uninstall-owner-notice.spec.ts"
-      ] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "packages/sandbox/sandbox-windows-acl/README.md",
+          "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
+          "apps/cli/src/profile-boot.ts",
+          "apps/cli/src/windows-permission-notice.ts",
+          "apps/cli/tests/windows-permission-notice.spec.ts"
+        ]
+      }
     },
     {
       "id": "owner-confirmation-ci-fixtures",
@@ -1285,16 +1368,6 @@
           "packages/api/gateway/tests/gateway.host.spec.ts",
           "packages/host/frontend-static/tests/frontend-static.spec.ts"
         ]
-      }
-    },
-    {
-      "id": "owner-partition-welcome-fixture",
-      "description": "Supply the owner session partition in the welcome startup substitute",
-      "origin": "Desktop startup CI regression repair",
-      "reason": "Align the Electron session substitute with the existing nonpersistent owner partition so both welcome startup paths reach their original assertions. Product startup behavior and assertions remain unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": ["apps/desktop/tests/welcome-startup.spec.ts"]
       }
     },
     {
@@ -1346,14 +1419,22 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "apps/cli/src/args.ts", "apps/cli/src/bin.ts", "apps/cli/tests/args.spec.ts",
-          "apps/cli/package.json", "apps/cli/README.md", "apps/cli/README.zh.md", "apps/cli/README.i18n.yaml",
+          "apps/cli/src/args.ts",
+          "apps/cli/src/bin.ts",
+          "apps/cli/tests/args.spec.ts",
+          "apps/cli/package.json",
+          "apps/cli/README.md",
+          "apps/cli/README.zh.md",
+          "apps/cli/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/src/owner-cleanup.ts",
-          "packages/sandbox/sandbox-windows-acl/src/acl.ts", "packages/sandbox/sandbox-windows-acl/src/index.ts",
+          "packages/sandbox/sandbox-windows-acl/src/acl.ts",
+          "packages/sandbox/sandbox-windows-acl/src/index.ts",
           "packages/sandbox/sandbox-windows-acl/tests/owner-cleanup.spec.ts",
           "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/README.md", "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml", "pnpm-lock.yaml"
+          "packages/sandbox/sandbox-windows-acl/README.md",
+          "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
+          "pnpm-lock.yaml"
         ]
       }
     },
@@ -1384,29 +1465,6 @@
           "docs/subsystems/web-server.zh.md",
           "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/**",
           "packages/extensions/tool-cordis/src/api-catalog.ts"
-        ]
-      }
-    },
-    {
-      "id": "desktop-memory-owner-session",
-      "description": "Keep desktop owner authentication in memory and protect diagnostic storage",
-      "origin": "Owner credential read isolation",
-      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Redact fragmented stderr fields before truncation and suppress the remainder of sensitive lines. Document platform limitations and assert the uncached owner partition and crash-directory registration with Electron substitutes. The packaged runtime smoke loads the frontend with the cookie delivered over IPC. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "apps/desktop-host/src/index.ts",
-          "apps/desktop/scripts/smoke-runtime.ts",
-          "apps/desktop/src/crash-report.ts",
-          "apps/desktop/src/host-process.ts",
-          "apps/desktop/src/main.ts",
-          "apps/desktop/src/redact-diagnostic.ts",
-          "apps/desktop/tests/crash-report.spec.ts",
-          "apps/desktop/tests/host-process.spec.ts",
-          "apps/desktop/tests/main-startup.spec.ts",
-          "apps/desktop/README.md",
-          "apps/desktop/README.zh.md",
-          "apps/desktop/README.i18n.yaml"
         ]
       }
     },
@@ -16115,46 +16173,46 @@
       }
     },
     {
-     "id": "tracked-file-listing-buffer",
-     "description": "Raise the tracked-file listing buffer for the public-link and concrete-term gates.",
-     "origin": "Tracked-file discovery for repository gates",
-     "reason": "tracked-file listing exceeds Node's default 1 MiB buffer as the fork grows",
-     "match": {
-      "type": "behavior",
-      "paths": [
-       "scripts/verify-public-repository-links.ts",
-       "scripts/verify-concrete-terms.ts"
-      ]
-     }
+      "id": "tracked-file-listing-buffer",
+      "description": "Raise the tracked-file listing buffer for the public-link and concrete-term gates.",
+      "origin": "Tracked-file discovery for repository gates",
+      "reason": "tracked-file listing exceeds Node's default 1 MiB buffer as the fork grows",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/verify-public-repository-links.ts",
+          "scripts/verify-concrete-terms.ts"
+        ]
+      }
     },
     {
-     "id": "acp-image-offload-home-outside-workspace",
-     "description": "Expect offloaded ACP image attachments under the scenario product home.",
-     "origin": "Owner state location for profile expectations",
-     "reason": "The owner state directory must stay outside writable roots: the image-offload expectation reads stored attachments from the scenario product home instead of the workspace, and its assertions are unchanged.",
-     "match": {
-      "type": "test-assertion",
-      "paths": [
-       "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
-      ],
-      "test": "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
-     }
+      "id": "acp-image-offload-home-outside-workspace",
+      "description": "Expect offloaded ACP image attachments under the scenario product home.",
+      "origin": "Owner state location for profile expectations",
+      "reason": "The owner state directory must stay outside writable roots: the image-offload expectation reads stored attachments from the scenario product home instead of the workspace, and its assertions are unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
+        ],
+        "test": "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
+      }
     },
     {
-     "id": "session-snapshot-harness-external-home",
-     "description": "Allocate the scenario product home outside the writable workspace and report it.",
-     "origin": "Owner state location for snapshot harness runs",
-     "reason": "The owner state directory must stay outside writable roots: the harness allocates each scenario product home outside the writable workspace and reports that path on RunResult so expectations can read it, without changing assertions. The launcher places profile patches and package links under the same home and removes a home it allocated itself. These changes are suitable for upstream.",
-     "match": {
-      "type": "test-assertion",
-      "paths": [
-       "packages/test-support/session-snapshot/src/harness.ts",
-       "packages/test-support/session-snapshot/src/launcher.ts",
-       "packages/test-support/session-snapshot/tests/fixtures/fake-acp-agent.ts",
-       "packages/test-support/session-snapshot/tests/harness.spec.ts"
-      ],
-      "test": "reports the scenario home path and removes that directory after the run"
-     }
+      "id": "session-snapshot-harness-external-home",
+      "description": "Allocate the scenario product home outside the writable workspace and report it.",
+      "origin": "Owner state location for snapshot harness runs",
+      "reason": "The owner state directory must stay outside writable roots: the harness allocates each scenario product home outside the writable workspace and reports that path on RunResult so expectations can read it, without changing assertions. The launcher places profile patches and package links under the same home and removes a home it allocated itself. These changes are suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/test-support/session-snapshot/src/harness.ts",
+          "packages/test-support/session-snapshot/src/launcher.ts",
+          "packages/test-support/session-snapshot/tests/fixtures/fake-acp-agent.ts",
+          "packages/test-support/session-snapshot/tests/harness.spec.ts"
+        ],
+        "test": "reports the scenario home path and removes that directory after the run"
+      }
     },
     {
       "id": "persistent-shell-protected-write-timeout-evidence",
@@ -16219,7 +16277,9 @@
       "reason": "The browser Worker's virtual Linux host cannot provide native cgroup socket attribution. Require exactly one complete bilingual limitation warning instead of an empty diagnostic list, rejecting missing, repeated, or unrelated warnings while preserving the approved startup fallback. This exact expectation update can be contributed upstream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["apps/web/tests/preview-boot.e2e.ts"]
+        "paths": [
+          "apps/web/tests/preview-boot.e2e.ts"
+        ]
       }
     },
     {
@@ -16242,7 +16302,9 @@
       "reason": "Assert Object.is is false for distinct host registries, exactly preserving the negated toBe identity condition without Vitest's eager deep-equality diagnostics over two large identity buffers. Keep the same-host identity assertion and all production filter and admission semantics unchanged. This test performance repair can be contributed upstream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts"]
+        "paths": [
+          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts"
+        ]
       }
     },
     {
@@ -16252,7 +16314,9 @@
       "reason": "Select an explicit POSIX shell for the isolated tmux pane rather than inheriting a service account's non-login shell. Verify the same server PID before and after sandbox connection attempts, retaining all unreachable-socket assertions and successful explicit server teardown. This fixture repair can be contributed upstream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts"]
+        "paths": [
+          "packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts"
+        ]
       }
     },
     {
@@ -16262,7 +16326,9 @@
       "reason": "Give the live-caller test an explicit forty-second budget for three real checkouts, each running eight confined subprocesses with a ten-second per-command deadline. Keep all path variants, exact assertions, and executed admission registration unchanged; do not classify an unfinished cell as pending evidence. This test timing repair can be contributed upstream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"]
+        "paths": [
+          "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
+        ]
       }
     },
     {
@@ -16272,7 +16338,9 @@
       "reason": "F-1b adds the public productSandbox field to the subprocess spawn specs; refreshed the same way upstream refreshes this catalog snapshot after public declaration changes",
       "match": {
         "type": "test-assertion",
-        "paths": ["snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl"]
+        "paths": [
+          "snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl"
+        ]
       }
     },
     {
@@ -16282,7 +16350,9 @@
       "reason": "Model session mount destinations with a test-owned directory instead of assuming the host already has every conventional session directory. Retain the exact per-ancestor symlink assertions and protected-input mount expectations. This fixture repair can be contributed upstream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts"]
+        "paths": [
+          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts"
+        ]
       }
     },
     {
@@ -16377,12 +16447,6 @@
           "apps/cli/README.md",
           "apps/cli/README.zh.md",
           "apps/cli/README.i18n.yaml",
-          "apps/desktop/cli/dsh",
-          "apps/desktop/src/host-process.ts",
-          "apps/desktop/tests/host-process.spec.ts",
-          "apps/desktop/README.md",
-          "apps/desktop/README.zh.md",
-          "apps/desktop/README.i18n.yaml",
           "packages/sandbox/sandbox-local/tests/landlock-signal.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
@@ -16443,19 +16507,6 @@
         "type": "test-assertion",
         "paths": [
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "windows-cli-signal-debugger",
-      "description": "Disable signal-triggered debugging for the installed Windows CLI launcher",
-      "origin": "Installed Windows CLI launcher review",
-      "reason": "Pass --disable-sigusr1 before the script path in the installed Windows CLI launcher, beside --expose-internals, matching the installed POSIX launcher. Same-user processes can otherwise open a debug port through process._debugProcess when Electron runs as Node. Keep every other launch argument, ELECTRON_RUN_AS_NODE, and Electron fuses unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "apps/desktop/cli/dsh.cmd",
-          "apps/desktop/tests/cli-launcher.spec.ts"
         ]
       }
     },
