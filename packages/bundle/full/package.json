@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/full",
   "description": "Panedesk full preset carrier: every package the upstream dsh launcher installed by default (dsh-base, the web/acp/sdk apps, optional bundles, plugin manager). Install it beside the slim launcher to enable the full, web, acp, and sdk profiles.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

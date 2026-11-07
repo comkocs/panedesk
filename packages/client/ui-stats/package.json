@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-stats",
   "description": "Owner-authorized read-only session ledger statistics in five tabs",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-stats" },

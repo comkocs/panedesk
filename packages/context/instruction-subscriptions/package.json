@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-instruction-subscriptions",
   "description": "Bounded instruction change reminders before input claim",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publishConfig": {
     "access": "public"
   },

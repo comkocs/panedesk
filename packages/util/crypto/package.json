@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-util-crypto",
   "description": "Zero-dependency browser-safe UUID and byte-encoding helpers",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publishConfig": {
     "access": "public"
   },
