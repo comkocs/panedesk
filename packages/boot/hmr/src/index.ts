@@ -285,7 +285,7 @@ class Hmr extends Service {
     const records = new Set([...(profile.inputIntegrities?.values() ?? []),
       ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
     for (const integrity of records) {
-      if (!await integrity.verify({
+      if (!await integrity.review({
         blocked: (change) => {
           this.ctx.logger.warn('Protected host input changed; owner confirmation is required before loading: %s', change.path)
         },

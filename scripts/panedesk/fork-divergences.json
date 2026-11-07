@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "serialized-hmr-input-review",
+      "description": "Serialize HMR input reviews with reader write admission",
+      "origin": "Protected input review concurrency",
+      "reason": "Use the existing per-reader review queue for HMR without sharing scans or owner decisions with write admission. Preserve pending guards, candidate verification, durable approvals and write publication ordering. This change can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/hmr/src/index.ts",
+          "packages/boot/hmr/tests/input-review-coordination.spec.ts",
+          "packages/boot/hmr/README*"
+        ]
+      }
+    },
+    {
       "id": "path-local-protected-module-loads",
       "description": "Avoid repeated protected-root traversal during module loading",
       "origin": "Protected module startup performance",
