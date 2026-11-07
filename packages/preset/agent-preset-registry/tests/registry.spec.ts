@@ -1,3 +1,4 @@
+import './isolated-agent-sources.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createScope } from '@panedesk/dsh-scope'
 import { assembleContextFor } from '@panedesk/dsh-agent'

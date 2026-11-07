@@ -1,4 +1,5 @@
 /** Claude Code agent definitions become named presets. */
+import './isolated-agent-sources.ts'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
