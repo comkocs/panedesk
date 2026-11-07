@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- The first-run welcome page links to Settings → Models → Add model provider through “Use another provider”.
+- Unsigned Windows installations check comkocs/panedesk GitHub Releases for updates and prompt before downloading and installing. Version 1.0 has no update source, so install 1.1 manually once.
+- The inbox explains and logs when data directory permissions are too broad.
+
+### Fixed
+
+- Subagent presets reported as "Unknown agent preset" when validated in the same activation turn.
+- Update prompts opened from the account row downloading without confirmation.
+
+### Changed
+
+- Updated known limitations to identify the inherited Agent Teams issue and remove resolved issues.
+- The run-gates development script accepts `--base` and file arguments to skip checks unrelated to changed files.
+
 ## 1.0.0
 
 ### Added
