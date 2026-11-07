@@ -225,7 +225,8 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           + (subagentProvider.prepareContinuable !== undefined
             ? ' The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.'
             : ' The completion notice includes its final answer. This backend does not accept follow-up messages.')
-          + choiceDescription,
+          + choiceDescription
+          + (presets.choices === undefined ? '' : ` ${presets.description}`),
         parameters: {
           cwd: {
             type: 'string',
@@ -451,9 +452,12 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
   }
 
   const compositionScope = scopeOf(ctx)
-  if (presets.configured && (session !== undefined || compositionScope === undefined)) await presets.validate(ctx)
+  const registryChoices = ctx.get('agentPresets') !== undefined
+    && initialProvider?.capabilities.agentPreset === true && !initialProvider.inheritsParentContext
+  const validatePresets = presets.configured || registryChoices
+  if (validatePresets && (session !== undefined || compositionScope === undefined)) await presets.validate(ctx)
 
-  if (!modelSelectionCapable && (!presets.configured || session !== undefined || compositionScope === undefined)) {
+  if (!modelSelectionCapable && (!validatePresets || session !== undefined || compositionScope === undefined)) {
     install(ctx, undefined)
     return
   }
@@ -521,7 +525,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
     try {
       const policy = selectForSession(candidate.session)
       fiber = candidate.ctx.inject(['tools', 'subagents', 'systemPrompt'], async (runtimeCtx) => {
-        if (presets.configured) await presets.validate(ctx)
+        if (validatePresets) await presets.validate(ctx)
         install(runtimeCtx, policy)
       })
     } finally {
