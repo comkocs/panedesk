@@ -1,106 +1,59 @@
 name: Package Desktop · Windows
 
-on:
+# Trial packaging on a GitHub-hosted Windows runner. Unsigned only: no signing,
+# no secrets, no update origin, and no telemetry. Hosted images move, so the
+# preinstalled/installed split below cites the Windows Server 2025 image readme
+# (https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md,
+# image 20261101.318.1) for the windows-latest label:
+#   preinstalled: Node.js 24 (cached; default on PATH is Node 22, so setup-node selects 24),
+#     Visual Studio 2022 Enterprise with VC++ x64/x86 tools
+#     (Microsoft.VisualStudio.Component.VC.Tools.x86.x64), Windows SDK 10.0.26100.0,
+#     Python 3.12, Git, tar, PowerShell 7
+#   installed here: pnpm at the version locked by packageManager (pnpm/action-setup reads it;
+#     the image lists npm and yarn, not pnpm)
+
+"on":
   workflow_dispatch:
-    inputs:
-      preset:
-        description: '打包环境：选择机器上的 test 或 production 配置；同时决定后续发布环境'
-        type: choice
-        options: [test, production]
-        default: test
-        required: true
-      signing:
-        description: '签名方式：unsigned 仅限内部调试，禁止发布到 test / production 或用于自动更新；需要发布请选择 signed（EV 硬件令牌）'
-        type: choice
-        options: [signed, unsigned]
-        default: signed
-        required: true
-      test_release_id:
-        description: '测试 release ID：32 位小写十六进制随机前缀（非鉴权）；留空使用机器默认值，连续升级测试须保持相同值'
-        type: string
-        default: ''
-        required: false
-      source_ref:
-        description: '打包源码：test 支持仓库内分支或 dsh-v* tag；production 仅支持 master 或 dsh-v* tag；源码须包含 CI 适配脚本'
-        type: string
-        default: master
-        required: true
-      update_channel:
-        description: '升级通道：nightly 或 latest（须为稳定版本）；自动更新不会切换通道'
-        type: choice
-        options: [nightly, latest]
-        default: nightly
-        required: true
-      version_mode:
-        description: '版本模式：default 为 test 自动编号、production 跟随产品；product 保留原版本，auto 自动编号，manual 手填'
-        type: choice
-        options: [default, product, auto, manual]
-        default: default
-        required: true
-      build_version:
-        description: '手动版本号：仅 manual 时填写完整版本；须为产品原版本或受支持的预发布后缀'
-        type: string
-        default: ''
-        required: false
+  push:
+    branches: [m9/exe-trial]
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-desktop-package
+  group: windows-desktop-package-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   package:
-    runs-on: dsh-win-package-trial
+    runs-on: windows-latest
     timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
     env:
-      PACKAGE_SOURCE_REF: ${{ inputs.source_ref }}
-      PACKAGE_VERSION_MODE: ${{ inputs.version_mode }}
-      DSH_DESKTOP_UPDATE_CHANNEL: ${{ inputs.update_channel }}
+      DSH_PACKAGING_PRESET: production
+      PACKAGE_VERSION_MODE: product
+      PACKAGE_SIGNING: unsigned
       PANEDESK_TELEMETRY_DISABLED: '1'
-      DSH_PACKAGING_PRESET: ${{ inputs.preset }}
-      PACKAGE_TEST_RELEASE_ID: ${{ inputs.test_release_id }}
-      PACKAGE_SIGNING: ${{ inputs.signing }}
     steps:
-      - name: Reset packaging checkout
-        working-directory: ${{ runner.temp }}
-        run: |
-          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
-          $parent = [IO.Path]::GetFullPath($env:RUNNER_WORKSPACE)
-          if ([IO.Path]::GetDirectoryName($workspace) -ne $parent) { throw 'Checkout must be a direct child of RUNNER_WORKSPACE' }
-          for ($item = [IO.DirectoryInfo]::new($workspace); $null -ne $item; $item = $item.Parent) {
-            if ($item.Exists -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Checkout ancestors cannot be links' }
-          }
-          node -e "const fs = require('node:fs'); fs.rmSync(process.argv[1], { recursive: true, force: true, maxRetries: 3 }); fs.mkdirSync(process.argv[1])" $workspace
-          if ($LASTEXITCODE -ne 0) { throw 'Checkout cleanup failed' }
       - uses: actions/checkout@v7.0.1
-        id: checkout
         with:
           persist-credentials: false
           clean: true
-          ref: ${{ inputs.source_ref }}
-      - name: Validate selected source and adapter support
-        run: >-
-          node -e "const fs=require('node:fs'); const ref=process.env.PACKAGE_SOURCE_REF;
-          const cp=require('node:child_process'); const preset=process.env.DSH_PACKAGING_PRESET;
-          if(!['test','production'].includes(preset)) throw Error('Unknown packaging preset');
-          const tag=/^dsh-v[0-9][0-9A-Za-z.-]*$/.test(ref);
-          if(preset==='production' && ref!=='master' && !tag) throw Error('Production source must be master or dsh-v*');
-          if(tag) {
-          const v=JSON.parse(fs.readFileSync('package.json','utf8')).version;
-          if(ref!=='dsh-v'+v) throw Error('Source tag must match product version');
-          const tagged=cp.execFileSync('git',['rev-parse','--verify','refs/tags/'+ref+'^{commit}'],{encoding:'utf8'}).trim();
-          const head=cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-          if(tagged!==head) throw Error('Checkout does not match source tag');
-          } else {
-          const branch=cp.execFileSync('git',['rev-parse','--abbrev-ref','HEAD'],{encoding:'utf8'}).trim();
-          if(branch==='HEAD' || branch!==ref || ref.startsWith('refs/')) throw Error('Select a branch in this repository, not a SHA or PR ref');
-          }
-          if(!fs.readFileSync('apps/desktop/scripts/desktop-ci-version.mjs','utf8').includes('PACKAGE_VERSION_MODE')) throw Error('Source lacks Desktop channel/version CI support; select a newer release');"
+      - name: Write unsigned packaging preset
+        env:
+          DSH_PACKAGING_CONFIG_DIR: ${{ runner.temp }}\desktop-packaging
+        run: |
+          "DSH_PACKAGING_CONFIG_DIR=$env:DSH_PACKAGING_CONFIG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          $root = $env:DSH_PACKAGING_CONFIG_DIR
+          New-Item -ItemType Directory -Force -Path (Join-Path $root 'presets') | Out-Null
+          @(
+            'DSH_DESKTOP_APP_ID=com.deepseek.harness'
+            'DSH_DESKTOP_AUTO_UPDATE_ENV=production'
+            'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN=https://example.com'
+            "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG='{}'"
+          ) | Set-Content -Encoding ascii -NoNewline:$false -Path (Join-Path $root 'presets/production.env')
       - uses: pnpm/action-setup@v5.0.0
         with:
           dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
@@ -111,57 +64,44 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           exit $LASTEXITCODE
-      - name: Validate preset and resolve build version
-        id: settings
-        env:
-          PACKAGE_BUILD_VERSION: ${{ inputs.build_version }}
-        run: node apps/desktop/scripts/prepare-windows-ci.mjs
-      - name: Check packaging configuration and toolchain
-        env:
-          PACKAGE_VERSION: ${{ steps.settings.outputs.version }}
+      - name: Prepare Windows native toolchain
+        working-directory: native/system
         run: |
-          $packageArgs = @('run', 'package:desktop:win:x64', '--check', '--build-version', $env:PACKAGE_VERSION)
-          if ($env:PACKAGE_SIGNING -eq 'unsigned') { $packageArgs += '--unsigned' }
-          pnpm @packageArgs
-          exit $LASTEXITCODE
-      - name: Build installer and verify packaged runtime
-        env:
-          PACKAGE_VERSION: ${{ steps.settings.outputs.version }}
+          $log = Join-Path $env:RUNNER_TEMP 'prepare.log'
+          try { ./scripts/prepare-windows-build.ps1 *>&1 | Tee-Object -FilePath $log }
+          catch { $_ | Out-String | Add-Content -Path $log; throw }
+      - name: Check unsigned packaging configuration and toolchain
         run: |
-          $packageArgs = @('run', 'package:desktop:win:x64', '--build-version', $env:PACKAGE_VERSION)
-          if ($env:PACKAGE_SIGNING -eq 'unsigned') { $packageArgs += '--unsigned' }
-          pnpm @packageArgs
+          pnpm run package:desktop:win:x64:unsigned -- --check *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'check.log')
           exit $LASTEXITCODE
-      - name: Retain complete package outside the checkout
-        id: retained
-        env:
-          PACKAGE_SOURCE_SHA: ${{ steps.checkout.outputs.commit }}
-          PACKAGE_VERSION: ${{ steps.settings.outputs.version }}
-        run: node --import tsx apps/desktop/scripts/retain-desktop-ci.ts
-      - name: Retain packaging diagnostics
-        if: always() && steps.checkout.outcome == 'success'
+      - name: Build unsigned installer and smoke the packaged runtime
+        run: |
+          pnpm run package:desktop:win:x64:unsigned *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'package.log')
+          exit $LASTEXITCODE
+      - name: Upload unsigned installer and smoke logs
+        if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: windows-package-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          name: windows-x64-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
-          path: apps/desktop/.desktop-build/packaging-runs/
+          path: |
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+            apps/desktop/.desktop-build/packaging-runs/**
           if-no-files-found: warn
-          retention-days: 14
-      - name: Retain verified unsigned installer
-        if: success() && inputs.signing == 'unsigned'
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: windows-x64-unsigned-${{ steps.settings.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
-          include-hidden-files: true
-          path: ${{ steps.retained.outputs.directory }}/*
-          if-no-files-found: error
-          retention-days: 14
-      - name: Retain verified signed installer
-        if: success() && inputs.signing == 'signed'
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: windows-x64-signed-${{ steps.settings.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
-          include-hidden-files: true
-          path: ${{ steps.retained.outputs.directory }}/*
-          if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
+      - name: Report failed step output
+        if: failure()
+        run: |
+          foreach ($name in 'prepare', 'check', 'package') {
+            $log = Join-Path $env:RUNNER_TEMP "$name.log"
+            if (!(Test-Path $log)) { continue }
+            $tail = (Get-Content -Path $log -Tail 200) -join "`n"
+            $errors = (Select-String -Path $log -Pattern 'error|fatal|failed|LNK\d|ERR_' | ForEach-Object Line) -join "`n"
+            # Annotations keep only the first 4096 characters, so send the end of each body.
+            foreach ($item in @(@('end', $tail), @('error lines', $errors))) {
+              $body = $item[1]
+              if ($body.Length -gt 4000) { $body = $body.Substring($body.Length - 4000) }
+              if ($body) { Write-Output ("::error title=$name $($item[0])::" + $body.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')) }
+            }
+            @("### $name output (last 200 lines)", '```text', $tail, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }

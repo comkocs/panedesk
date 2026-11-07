@@ -91,7 +91,7 @@ static int read_acl(napi_env env, wchar_t *path, PSID user, int parents, napi_va
       &owner, NULL, &acl, NULL, &descriptor) != ERROR_SUCCESS) return 0;
   SECURITY_DESCRIPTOR_CONTROL control;
   DWORD revision;
-  napi_value rules;
+  napi_value rules = NULL;
   int ok = acl != NULL && IsValidAcl(acl)
     && GetSecurityDescriptorControl(descriptor, &control, &revision)
     && napi_create_object(env, result) == napi_ok
@@ -132,14 +132,14 @@ static napi_value inspect(napi_env env, napi_callback_info info) {
   wchar_t *path = path_argument(env, args[0]);
   wchar_t *directory = argc > 1 ? path_argument(env, args[1]) : NULL;
   TOKEN_USER *user = current_user();
-  int reparse, parents;
+  int reparse = 0, parents = 0;
   int ok = path != NULL && (argc < 2 || directory != NULL) && user != NULL && ancestors(path, &reparse, &parents);
   if (ok && reparse) {
     ok = napi_create_object(env, &result) == napi_ok && boolean_property(env, result, "reparse", 1);
   } else if (ok) {
     ok = read_acl(env, path, user->User.Sid, parents, &result);
     if (ok && directory != NULL) {
-      napi_value root;
+      napi_value root = NULL;
       int root_reparse, root_parents;
       ok = ancestors(directory, &root_reparse, &root_parents);
       if (ok && root_reparse) {

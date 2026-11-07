@@ -8,7 +8,7 @@ $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudi
 if ($LASTEXITCODE -ne 0 -or !$installation) { throw 'MSVC development tools unavailable' }
 $developer = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
 $target = if ($architecture -eq 'arm64') { 'arm64' } else { 'x64' }
-$environment = & cmd.exe /d /s /c "`"`"$developer`" -no_logo -arch=$target -host_arch=x64 >nul && set`""
+$environment = & cmd.exe /d /s /c "`"$developer`" -no_logo -arch=$target -host_arch=x64 >nul && set"
 if ($LASTEXITCODE -ne 0) { throw 'MSVC development environment failed' }
 foreach ($line in $environment) {
   if ($line -match '^(PATH|INCLUDE|LIB|LIBPATH|WindowsSdkDir|WindowsSDKVersion|VCINSTALLDIR|VCToolsInstallDir)=(.*)$') {
