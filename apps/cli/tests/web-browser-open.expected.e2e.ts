@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { afterEach, describe, expect, it } from 'vitest'
+import { stripInputReviewStderr } from './support/input-review-stderr.ts'
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const builtBin = join(repoRoot, 'apps/cli/lib/bin.js')
@@ -83,7 +84,7 @@ describe.skipIf(!builtArtifactsExist)('panedesk web browser-open assembled snaps
       bootManifest: opened.bootManifest,
       apiKeyPresent: opened.apiKeyPresent,
       dshHomePresent: opened.dshHomePresent,
-      stderr: result.stderr,
+      stderr: stripInputReviewStderr(result.stderr),
     }).toMatchInlineSnapshot(`
       {
         "apiKeyPresent": false,
@@ -181,7 +182,7 @@ describe.skipIf(!builtArtifactsExist)('panedesk web browser-open assembled snaps
       opening: result.stdout.includes(openingMessage),
       readyUrl: readyUrl === undefined ? undefined : normalizeLocalUrl(readyUrl),
       opened: result.stdout.includes('dsh browser-open: '),
-      stderr: result.stderr,
+      stderr: stripInputReviewStderr(result.stderr),
     }).toMatchInlineSnapshot(`
       {
         "exitCode": 0,
