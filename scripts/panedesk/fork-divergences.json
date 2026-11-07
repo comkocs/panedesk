@@ -461,8 +461,7 @@
           "packages/boot/app-boot/tests/input-review-watchdog.spec.ts",
           "packages/boot/app-boot/package.json",
           "packages/boot/app-boot/tsdown.config.ts",
-          "packages/boot/app-boot/README*",
-          "apps/cli/tests/input-review-process.spec.ts"
+          "packages/boot/app-boot/README*"
         ]
       }
     },
@@ -15649,8 +15648,6 @@
           "packages/sandbox/sandbox-policy/tests/protected-paths.spec.ts",
           "packages/client/ui-workspace/tests/apply.client.spec.ts",
           "packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts",
-          "apps/cli/tests/protected-input-refusal.e2e.ts",
-          "apps/cli/tests/fixtures/refused-protected-input.mjs",
           "docs/subsystems/boot*",
           "packages/boot/app-boot/tests/input-integrity-records.spec.ts",
           "packages/extensions/tool-cordis/tests/api-catalog-coverage.spec.ts",
