@@ -38,7 +38,7 @@
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { watch as chokidarWatch } from 'chokidar'
-import { chmod, mkdir, open, readFile, stat, unlink } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { Document, isMap, isScalar, parseDocument, type YAMLError } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
@@ -788,54 +788,6 @@ export class LocalCredentialProvider extends CredentialProvider {
    * the layout change without a hand edit.
    */
   private async loadInitial(): Promise<void> {
-    await assertOwnerOnly(this.spec.filename)
-    await mkdir(dirname(this.spec.filename), { recursive: true, mode: 0o700 })
-    if (this.config.path === undefined) {
-      if (process.platform !== 'win32') await chmod(dirname(this.spec.filename), 0o700)
-      const legacy = join(resolveDshHome(this.config.dshHome), CREDENTIALS_FILENAME)
-      await withFileLock(legacy, async () => {
-        try { await stat(legacy) } catch (error) {
-          if (isENOENT(error)) return
-          throw error
-        }
-        await assertOwnerOnly(legacy)
-        await withFileLock(this.spec.filename, async () => {
-          const source = await readFile(legacy, 'utf8')
-          parseCredentialsDocument(renderFlatLayoutMigration(source) ?? source, legacy)
-          await assertOwnerOnly(this.spec.filename)
-          let destination: string | undefined
-          try {
-            destination = await readFile(this.spec.filename, 'utf8')
-          } catch (error) {
-            if (!isENOENT(error)) throw error
-          }
-          if (destination !== undefined && destination !== source) {
-            throw new Error('Credential relocation found conflicting documents; keep both and reconcile before startup. / 凭据迁址发现冲突文档；请保留两份并合并处理后再启动。')
-          }
-          if (destination === undefined) {
-            await writeFileAtomic(this.spec.filename, source, { mode: 0o600, dirMode: 0o700 })
-          }
-          if (await readFile(this.spec.filename, 'utf8') !== source) {
-            throw new Error('Credential relocation verification failed; the original is unchanged. / 凭据迁址核验失败，原件未改动。')
-          }
-          // Persist the verified successor before removing the only legacy copy.
-          const file = await open(this.spec.filename, 'r+')
-          try { await file.sync() } finally { await file.close() }
-          if (process.platform !== 'win32') {
-            const directory = await open(dirname(this.spec.filename), 'r')
-            try { await directory.sync() } finally { await directory.close() }
-            // The private directory itself must survive before its predecessor is removed.
-            const home = await open(dirname(legacy), 'r')
-            try { await home.sync() } finally { await home.close() }
-          }
-          await unlink(legacy)
-          if (process.platform !== 'win32') {
-            const home = await open(dirname(legacy), 'r')
-            try { await home.sync() } finally { await home.close() }
-          }
-        }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
-      }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
-    }
     await assertOwnerOnly(this.spec.filename)
     let text: string
     try {
