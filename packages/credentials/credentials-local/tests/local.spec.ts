@@ -59,6 +59,23 @@ describe('resolveSpec', () => {
 })
 
 describe('layering and reads', () => {
+  it('reads saved default private credentials and keeps set and unset in the same file', async () => {
+    const home = await tempDir()
+    const path = join(home, 'private', '.credentials.yaml')
+    const legacy = join(home, '.credentials.yaml')
+    await mkdir(join(home, 'private'))
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: saved\n')
+    const oldText = 'version: 1\nrefs:\n  DSH_CRED_TEST: previous\n'
+    await writeCredentials(legacy, oldText)
+    const ctx = await boot({ dshHome: home, watch: false })
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'saved', source: 'file' })
+    await ctx.credentials.set(KEY, 'updated')
+    expect(await readFile(path, 'utf8')).toContain('DSH_CRED_TEST: updated')
+    await ctx.credentials.unset(KEY)
+    expect(await readFile(path, 'utf8')).not.toContain('DSH_CRED_TEST')
+    expect(await readFile(legacy, 'utf8')).toBe(oldText)
+  })
+
   it('treats an absent file as an empty writable store', async () => {
     const dir = await tempDir()
     const ctx = await boot({ path: join(dir, '.credentials.yaml'), watch: false })

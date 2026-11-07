@@ -60,7 +60,6 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
-    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-node-link": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
