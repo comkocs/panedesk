@@ -15180,9 +15180,6 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
-      '@panedesk/dsh-app-boot':
-        specifier: workspace:*
-        version: link:../../boot/app-boot
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../message-delivery

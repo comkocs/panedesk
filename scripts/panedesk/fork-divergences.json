@@ -237,19 +237,6 @@
       }
     },
     {
-      "id": "message-delivery-local-test-app-boot-dependency",
-      "description": "Declare the app boot workspace dependency used by local message delivery tests",
-      "origin": "Local message delivery test dependency",
-      "reason": "Declare the app boot workspace dependency imported by the protected input test and synchronize its lockfile entry. This change can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/session/message-delivery-local/package.json",
-          "pnpm-lock.yaml"
-        ]
-      }
-    },
-    {
       "id": "exact-startup-review-stderr-assertions",
       "description": "Separate startup review diagnostics from exact business stderr expectations",
       "origin": "Bilingual protected-input startup diagnostics",
@@ -6042,19 +6029,6 @@
           "packages/session/message-delivery-local/tests/routed.spec.ts"
         ],
         "test": "retains causal identity, returns the original ack after restart and rejects every reused identity with another digest"
-      }
-    },
-    {
-      "id": "F05-routed-causality-refusal",
-      "description": "Refuse caller-defined causal fields before issuing authority or dispatching a routed message.",
-      "origin": "Optional host integration",
-      "reason": "Only trusted invocation evidence can establish causal identity; missing evidence must not be fabricated from request fields.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/session/message-delivery-local/tests/routed-causality.spec.ts"
-        ],
-        "test": "rejects self-declared %s without route dispatch"
       }
     },
     {

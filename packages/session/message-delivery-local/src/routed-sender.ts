@@ -48,7 +48,6 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
       return refuse(unknown ? 'delivery-uncertain' : 'cross-node-unsupported',
         object(previous) ? decode(previous.request).delivery.message.messageId : messageId)
     }
-    if (['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'].some(key => key in request)) return refuse('unauthorized')
     const envelope = { deliveryId: randomUUID(), sourceNodeId: mailbox.options.nodeId,
       message: { messageId, sender, senderSessionId: sender.sessionId,
         target: request.target,
