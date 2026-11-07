@@ -13,7 +13,15 @@ afterEach(cleanup)
 
 const SECRET = 'sk-live-secret-value-0001'
 
-function operations(calls: { provider: string; baseURL?: string; api?: string }[]): ModelsOperations {
+function operations(
+  calls: { provider: string; baseURL?: string; api?: string }[],
+  models: { id: string; createdAt?: number }[] = [
+    { id: 'old', createdAt: 1 },
+    { id: 'mid', createdAt: 2 },
+    { id: 'new', createdAt: 4 },
+    { id: 'newer', createdAt: 3 },
+  ],
+): ModelsOperations {
   return {
     storeCredential: async () => undefined,
     removeCredential: async () => undefined,
@@ -24,15 +32,7 @@ function operations(calls: { provider: string; baseURL?: string; api?: string }[
         ...request.baseURL === undefined ? {} : { baseURL: request.baseURL },
         ...request.api === undefined ? {} : { api: request.api },
       })
-      return {
-        kind: 'found',
-        models: [
-          { id: 'old', createdAt: 1 },
-          { id: 'mid', createdAt: 2 },
-          { id: 'new', createdAt: 4 },
-          { id: 'newer', createdAt: 3 },
-        ],
-      }
+      return { kind: 'found', models }
     },
     probeModel: async (_provider, model) => (
       model === 'hand-typed'
@@ -44,8 +44,8 @@ function operations(calls: { provider: string; baseURL?: string; api?: string }[
 
 describe('RecognizeModels card', () => {
   it.each([
-    { locale: 'en', copy: en, recognize: 'Recognize models', adopt: 'Add selected', saved: 'Selected models were added.' },
-    { locale: 'zh', copy: zh, recognize: '识别模型', adopt: '添加所选', saved: '已添加所选模型。' },
+    { locale: 'en', copy: en, recognize: 'Recognize models', adopt: 'Add selected', saved: 'Added 2 models. They are available in new conversations.' },
+    { locale: 'zh', copy: zh, recognize: '识别模型', adopt: '添加所选', saved: '已添加 2 个模型，新建会话时即可选用。' },
   ])('adopts the current checklist and reports success in $locale', async ({ copy, recognize, adopt, saved }) => {
     const adopted: string[][] = []
     render(<RecognizeModels settingsNs="models" provider="openai" operations={operations([])} t={key => copy[key]} disabled={false} onAdopt={async (models) => { adopted.push(models.map(model => model.id)); return undefined }} />)
@@ -54,7 +54,7 @@ describe('RecognizeModels card', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'mid' }))
     fireEvent.click(screen.getByRole('button', { name: adopt }))
     expect(await screen.findByText(saved)).toBeTruthy()
-    expect(adopted).toEqual([['new', 'newer', 'old']])
+    expect(adopted).toEqual([['new', 'newer']])
   })
 
   it('contains rejected discovery and probe promises', async () => {
@@ -67,7 +67,7 @@ describe('RecognizeModels card', () => {
     expect(await screen.findByRole('status')).toHaveProperty('textContent', 'The try failed: model refused')
   })
 
-  it('checks the three newest models from each route stand-in', async () => {
+  it('checks the newest two models of each family from each route stand-in', async () => {
     const calls: { provider: string }[] = []
     const shared = operations(calls)
     const { unmount } = render(
@@ -77,7 +77,7 @@ describe('RecognizeModels card', () => {
     expect(await screen.findByRole('checkbox', { name: 'new' })).toHaveProperty('checked', true)
     expect(screen.getByRole('checkbox', { name: 'newer' })).toHaveProperty('checked', true)
     expect(screen.getByRole('checkbox', { name: 'mid' })).toHaveProperty('checked', true)
-    expect(screen.getByRole('checkbox', { name: 'old' })).toHaveProperty('checked', false)
+    expect(screen.getByRole('checkbox', { name: 'old' })).toHaveProperty('checked', true)
     unmount()
 
     render(
@@ -122,6 +122,60 @@ describe('RecognizeModels card', () => {
     fireEvent.click(screen.getByRole('button', { name: en.recognize }))
     await screen.findByRole('checkbox', { name: 'new' })
     expect(calls).toEqual([{ provider: 'acme-gateway' }])
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      copy: en,
+      guide: 'Click “Recognize models” to read every model this provider offers. Check the ones you want, then click “Add selected” to make them available in conversations.',
+      lead: 'The newest 2 models in each family are checked (5 in all). Add or remove checks, then click “Add selected” below to confirm.',
+      order: 'The list is ordered by the creation time the provider reported.',
+      saved: 'Added 5 models. They are available in new conversations.',
+    },
+    {
+      locale: 'zh',
+      copy: zh,
+      guide: '点「识别模型」读取这个提供商的全部模型，勾选后点「添加所选」，就能在会话里选用。',
+      lead: '已为每个系列勾选最新的 2 个（共 5 个）。可增减勾选，确认后点下方「添加所选」。',
+      order: '列表按提供商报告的创建时间排序。',
+      saved: '已添加 5 个模型，新建会话时即可选用。',
+    },
+  ])('guides an empty card, names the real check count, and lists without bullets in $locale', async ({ copy, guide, lead, order, saved }) => {
+    const adopted: string[][] = []
+    render(
+      <RecognizeModels
+        settingsNs="models"
+        provider="gpt"
+        modelCount={0}
+        operations={operations([], [
+          { id: 'gpt-6.1-sol', createdAt: 6 },
+          { id: 'gpt-6-sol', createdAt: 5 },
+          { id: 'gpt-5.5-sol', createdAt: 4 },
+          { id: 'gpt-6-astra', createdAt: 3 },
+          { id: 'claude-opus-5-5', createdAt: 2 },
+          { id: 'claude-opus-5', createdAt: 1 },
+        ])}
+        t={key => copy[key]}
+        disabled={false}
+        onAdopt={async (models) => { adopted.push(models.map(model => model.id)); return undefined }}
+      />,
+    )
+    expect(screen.getByText(guide)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: copy.recognize }))
+    expect(await screen.findByText(lead)).toBeTruthy()
+    expect(screen.getByText(order).className).toContain('modelCatalogMeta')
+    expect(screen.queryByText(guide)).toBeNull()
+    const list = screen.getByRole('list')
+    expect(list.className).toContain('candidateList')
+    expect(list.querySelectorAll(':scope > li')).toHaveLength(6)
+    expect([...list.querySelectorAll(':scope > li')].every(item => item.className.includes('candidate'))).toBe(true)
+    expect(screen.getAllByRole('checkbox').filter(box => (box as HTMLInputElement).checked)).toHaveLength(5)
+
+    fireEvent.click(screen.getByRole('button', { name: copy.fetchAdopt }))
+    expect(await screen.findByText(saved)).toBeTruthy()
+    expect(adopted[0]).toHaveLength(5)
   })
 
   it('reports the probe refusal without the credential text', async () => {

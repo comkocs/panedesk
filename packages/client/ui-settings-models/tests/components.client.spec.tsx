@@ -324,7 +324,7 @@ it.each([
   expect(await within(provider).findByLabelText('Extra')).toBeTruthy()
   fireEvent.click(within(provider).getByRole('button', { name: en.fetchAdopt }))
   await waitFor(() => { expect(scripted.mutate).toHaveBeenCalledWith(ns, [{ op: 'set', path, value: [...existing, { id: 'extra-model', name: 'Extra', ...input }] }], 0) })
-  expect(await within(provider).findByText(en.recognizedSaved)).toBeTruthy()
+  expect(await within(provider).findByText(en.recognizedSaved.replace('{count}', '1'))).toBeTruthy()
 })
 
 async function mountFace(scripted: ReturnType<typeof scriptedFace>) {

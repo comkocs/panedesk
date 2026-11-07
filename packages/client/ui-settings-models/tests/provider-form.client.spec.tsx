@@ -686,7 +686,7 @@ describe('endpoint interrogation', () => {
     ])
   })
 
-  it('checks the three newest unknown models, leaving older and configured ones unchecked', async () => {
+  it('checks the newest two models of each family, leaving older and configured ones unchecked', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([
       { id: 'kept', createdAt: 9, contextWindow: 111 },
       { id: 'oldest', createdAt: 1 },
@@ -709,11 +709,11 @@ describe('endpoint interrogation', () => {
     expect(checked('newest')).toBe(true)
     expect(checked('second')).toBe(true)
     expect(checked('third')).toBe(true)
-    expect(checked('oldest')).toBe(false)
+    expect(checked('oldest')).toBe(true)
     expect(checked('kept')).toBe(false)
   })
 
-  it('checks the first three unknown models in server order when no creation time is disclosed', async () => {
+  it('checks every unknown model in server order when no creation time is disclosed', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([
       { id: 'first' }, { id: 'second' }, { id: 'third' }, { id: 'fourth' },
     ])))
@@ -726,7 +726,7 @@ describe('endpoint interrogation', () => {
     expect(checked('first')).toBe(true)
     expect(checked('second')).toBe(true)
     expect(checked('third')).toBe(true)
-    expect(checked('fourth')).toBe(false)
+    expect(checked('fourth')).toBe(true)
   })
 
   it('keeps the rows editable when the provider cannot be interrogated', async () => {
