@@ -20,7 +20,7 @@
  * @module @panedesk/dsh-sandbox-policy
  */
 
-import { isAbsolute, resolve } from 'node:path'
+import { isAbsolute } from 'node:path'
 import { Context, Service } from '@panedesk/cordis'
 import { z as zod } from 'zod'
 import z from '@panedesk/schemastery'
@@ -39,171 +39,6 @@ export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
  */
 export function resolveProtectedPaths(_ctx: unknown, _workspace?: string): string[] {
   return []
-}
-
-/** No owner-material exclusion list. Returns an empty list.
- * @param _ctx - ignored.
- * @returns no owner-material paths.
- */
-export function resolveOwnerMaterialPaths(_ctx: unknown): string[] {
-  return []
-}
-
-/** How a workspace write was recorded before the authorization ledger was retired. */
-export type WorkspaceWriteSource = 'first-confirmation' | 'settings-preauthorization'
-
-/** One workspace-write record. The retired ledger never stores one. */
-export interface WorkspaceWriteRecord {
-  /** Absolute workspace directory. */
-  workspace: string
-  /** Former consent source. */
-  source: WorkspaceWriteSource
-  /** ISO timestamp, present only on a freshly returned record. */
-  grantedAt?: string
-}
-
-/** Request accepted by {@link SandboxPolicyService.requestWrite}. Extra fields are ignored. */
-export interface WorkspaceWriteRequest {
-  /** Calling agent, when the caller has one. */
-  agent?: { session?: Session }
-  /** Tool name recorded by the former approval prompt. */
-  toolName?: string
-  /** Tool call id recorded by the former approval prompt. */
-  callId?: string
-  /** Cancellation for the former approval wait. */
-  signal?: AbortSignal
-}
-
-/**
- * Workspace-write authorization ledger retired to a no-op. Nothing is written,
- * nothing is refused, and previously stored records are left untouched on disk.
- */
-export class WorkspaceWriteAccess {
-  /** No durable record path. Returns the workspace spelling only.
-   * @param workspace - directory the caller asked about.
-   * @returns the absolute spelling, without creating a file.
-   */
-  recordPath(workspace: string): string {
-    return resolve(workspace)
-  }
-
-  /** No stored record.
-   * @param _workspace - ignored.
-   * @returns nothing.
-   */
-  find(_workspace: string): WorkspaceWriteRecord | undefined {
-    return undefined
-  }
-
-  /** Nothing is recorded as authorized.
-   * @param _workspace - ignored.
-   * @returns false.
-   */
-  isAuthorized(_workspace: string): boolean {
-    return false
-  }
-
-  /** No inventory.
-   * @returns no records.
-   */
-  list(): WorkspaceWriteRecord[] {
-    return []
-  }
-
-  /** No revocation is pending.
-   * @returns no workspaces.
-   */
-  pendingRevocations(): string[] {
-    return []
-  }
-
-  /** Preserve the caller's spelling. Missing directories are not an error.
-   * @param workspace - directory to spell.
-   * @returns the absolute spelling.
-   */
-  canonical(workspace: string): string {
-    return resolve(workspace)
-  }
-
-  /** Authorization is not checked.
-   * @param _workspace - ignored.
-   */
-  assertCanAuthorize(_workspace: string): void {}
-
-  /** No grant transaction to open.
-   * @param _workspace - ignored.
-   * @returns a checkpoint that does nothing.
-   */
-  beginGrant(_workspace: string): () => void {
-    return () => {}
-  }
-
-  /** No grant transaction to open.
-   * @param _workspace - ignored.
-   * @returns a checkpoint that does nothing.
-   */
-  checkpoint(_workspace: string): () => void {
-    return () => {}
-  }
-
-  /** No capability issuance to record.
-   * @param _workspace - ignored.
-   */
-  issuedCapability(_workspace: string): void {}
-
-  /** Accept the request and return a record that is not stored.
-   * @param workspace - directory the caller named.
-   * @param source - former consent source.
-   * @param _grantedAt - ignored.
-   * @param _checkpoint - ignored.
-   * @returns a record that is not written anywhere.
-   */
-  authorize(
-    workspace: string,
-    source: WorkspaceWriteSource,
-    _grantedAt?: string,
-    _checkpoint?: () => void,
-  ): WorkspaceWriteRecord {
-    return { workspace: resolve(workspace), source, grantedAt: new Date().toISOString() }
-  }
-
-  /** Run the caller's body without an authorization gate.
-   * @param _workspace - ignored.
-   * @param body - work that used to require a grant.
-   * @returns the body's result.
-   */
-  async withAuthorization<T>(_workspace: string, body: () => Promise<T> | T): Promise<T> {
-    return await body()
-  }
-
-  /** Drop the request without calling a native revoke and without deleting user files.
-   * @param _workspace - ignored.
-   * @param _revokeAcl - ignored; native ACL changes are not requested.
-   */
-  revoke(_workspace: string, _revokeAcl?: (workspace: string) => Promise<void> | void): Promise<void> {
-    return Promise.resolve()
-  }
-
-  /** Drop the rollback without changing files.
-   * @param _workspace - ignored.
-   * @param _current - ignored.
-   * @param _revokeAcl - ignored.
-   */
-  rollback(
-    _workspace: string,
-    _current?: () => void,
-    _revokeAcl?: (workspace: string) => Promise<void> | void,
-  ): Promise<void> {
-    return Promise.resolve()
-  }
-}
-
-/** No extra denial text. Writes are not held for authorization.
- * @param _mode - ignored.
- * @returns no hint.
- */
-export function writeDenialHint(_mode: SandboxMode): string {
-  return ''
 }
 
 /** Preserve execution-world spelling; enforcing providers resolve filesystem identity on their host. */
@@ -296,8 +131,6 @@ export class SandboxPolicyService extends Service {
   readonly defaultMode: SandboxMode
   /** The absolute `workspace-write` fallback root for calls without a session cwd. */
   readonly workspaceRoot: string
-  /** Retired authorization ledger. Present so callers type-check; it stores nothing. */
-  readonly workspaceAccess: WorkspaceWriteAccess = new WorkspaceWriteAccess()
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
@@ -353,23 +186,6 @@ export class SandboxPolicyService extends Service {
    */
   overrideOf(session: Session): SandboxMode | undefined {
     return this.ctx.sessionProjections.stateOf(session, 'sandboxMode') ?? undefined
-  }
-
-  /** Resolve the standing policy without waiting for workspace authorization.
-   * @param request - agent and ignored approval fields.
-   * @returns the same policy {@link resolve} returns for that session.
-   */
-  requestWrite(request: WorkspaceWriteRequest = {}): SandboxExecutionPolicy {
-    request.signal?.throwIfAborted()
-    return this.resolve(request.agent?.session === undefined ? {} : { session: request.agent.session })
-  }
-
-  /** No extra denial text.
-   * @param _mode - ignored.
-   * @returns an empty string.
-   */
-  writeDenialHint(_mode: SandboxMode): string {
-    return ''
   }
 }
 

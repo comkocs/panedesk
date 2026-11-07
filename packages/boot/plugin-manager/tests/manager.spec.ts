@@ -31,9 +31,6 @@ import ApprovalService, { type ApprovalOutcome } from '@panedesk/dsh-user-approv
 import { SessionId } from '@panedesk/dsh-session'
 import { ToolCallId } from '@panedesk/dsh-llm'
 import * as ManagerTool from '../src/tools.ts'
-import SandboxedFileSystem from '@panedesk/dsh-fs-sandbox'
-import * as ToolFs from '@panedesk/dsh-tool-fs'
-import * as StrReplaceEditor from '@panedesk/dsh-tool-str-replace-editor'
 
 // These cases install through real Git and pnpm, so the host's command-line configuration group must not reach their children.
 let restoreGitCommandLineConfig: () => void
@@ -527,84 +524,6 @@ it('refuses self-disable, unknown entries and removal of installation-owned bund
   expect(await manager.setBundleEnabled('unknown', true)).toMatchObject({ changed: false, application: 'failed', error: { code: 'operation-error' } })
 })
 
-for (const implicit of [false, true]) for (const tool of ['write', 'edit', 'str_replace_editor']) {
-  for (const location of ['profile patch', 'home patch', 'bundle manifest', 'plugin source', 'host watch', 'plugin development', 'source clone']) {
-    const unrelated = location === 'plugin development' || location === 'source clone'
-    it(`${unrelated ? 'allows' : 'denies'} ${tool} at ${location} without Loader changes, implicit Windows: ${implicit}`, async () => {
-      const { ctx, dir, profile, manager, stopHmr } = await fixture()
-      const workspace = join(profile.home, 'independent-project')
-      mkdirSync(workspace)
-      const hostRoot = join(profile.home, 'watched-host')
-      if (location === 'host watch') {
-        mkdirSync(hostRoot)
-        writeFileSync(join(hostRoot, 'plugin.mjs'), 'export function apply() {}\n')
-        await ctx.loader.create({ name: pathToFileURL(join(hostRoot, 'plugin.mjs')).href })
-        await ctx.loader.await()
-        await stopHmr()
-        await ctx.plugin(Hmr, { root: [hostRoot], ignored: [], debounce: 0 })
-      }
-      if (unrelated) {
-        writeFileSync(join(workspace, 'package.json'), JSON.stringify({ name: location === 'source clone' ? 'panedesk-monorepo' : 'unloaded-addon', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
-        writeFileSync(join(workspace, 'cordis.patch.yml'), '[{"insert":[{"name":"./plugin.mjs"}]}]\n')
-      }
-      await mountAgentLoopTestDependencies(ctx)
-      provideWorkingDirectoryFixture(ctx)
-      vi.stubEnv('PANEDESK_HOME', profile.home)
-      vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
-      onTestFinished(() => { vi.unstubAllEnvs() })
-      const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-      try {
-        await ctx.plugin(SandboxPolicy, { workspaceRoot: workspace, ...implicit ? {} : { mode: 'workspace-write' } })
-      } finally { platform.mockRestore() }
-      await ctx.plugin(ApprovalService, { policy: 'ask' })
-      await ctx.plugin(SandboxedFileSystem, { cwd: workspace })
-      Object.assign(ctx.loader.builtins, { fileTools: ToolFs, editorTool: StrReplaceEditor })
-      await ctx.loader.create({ name: 'cordis:fileTools' })
-      await ctx.loader.create({ name: 'cordis:editorTool' })
-      await ctx.loader.await()
-      const harness = await mountAgentLoopTestHarness(ctx)
-      const agent = await harness.create(SessionId('protected-plugin-write'), {}, { cwd: workspace })
-      agent.session.append('turn/start', { turn: 1 })
-      const asked = vi.fn(async () => 'allowed-once' as const)
-      await ownerAnswer(ctx, asked)
-      if (implicit) {
-        expect((await ctx.sandboxPolicy.requestWrite({ agent, toolName: 'write' })).mode).toBe('workspace-write')
-        expect(asked).toHaveBeenCalledOnce()
-      }
-      const target = location === 'host watch' ? join(hostRoot, 'plugin.mjs')
-        : unrelated ? join(workspace, 'plugin.mjs') : location === 'profile patch' ? profile.patchPath
-          : location === 'home patch' ? join(profile.home, 'cordis.patch.yml')
-            : location === 'bundle manifest' ? join(dir, 'package.json')
-              : join(dir, 'node_modules', 'extra', 'plugin.mjs')
-      if (!existsSync(target)) writeFileSync(target, '[]\n')
-      const original = readFileSync(target, 'utf8')
-      const payload = unrelated || location === 'plugin source' || location === 'host watch' ? 'export function apply(ctx) { ctx.provide("modelInstalledProbe", true) }\n'
-        : location === 'bundle manifest' ? JSON.stringify({ name: 'model-owned', dsh: { profile: { bundles: [] } } })
-          : JSON.stringify([{ id: 'managed', disabled: true }])
-      const plugins = await manager.listPlugins()
-      const bundles = await manager.listBundles()
-      const recompose = vi.spyOn(ctx.hmr, 'reconcileProfile')
-      onTestFinished(() => { recompose.mockRestore() })
-      const args = tool === 'write' ? { file_path: target, content: payload }
-        : tool === 'edit' ? { file_path: target, old_string: original, new_string: payload }
-          : { command: 'str_replace', path: target, old_str: original, new_str: payload }
-      const result = await ctx.tools.execute({ name: tool, arguments: args, agent,
-        callId: ToolCallId('protected-write'), signal: new AbortController().signal })
-      if (unrelated) {
-        expect(result.isError).not.toBe(true)
-        expect(readFileSync(target, 'utf8')).toBe(payload)
-      } else {
-        expect(result.isError).toBe(true)
-        expect(result.content.some(part => part.type === 'text' && part.text.includes('protected host path'))).toBe(true)
-        expect(readFileSync(target, 'utf8')).toBe(original)
-      }
-      await ctx.hmr.runExclusive(async () => {})
-      expect(recompose).not.toHaveBeenCalled()
-      expect(await manager.listPlugins()).toEqual(plugins)
-      expect(await manager.listBundles()).toEqual(bundles)
-    })
-  }
-}
 
 it.each([false, true])('waits for owner refusal and approval before real Loader installation, implicit Windows: %s', async (implicit) => {
   const { ctx, dir, manager, bundle } = await fixture()

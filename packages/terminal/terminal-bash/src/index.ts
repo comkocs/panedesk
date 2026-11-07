@@ -221,9 +221,7 @@ export class BashTerminalBackend implements TerminalBackend {
   async spawn(spec: TerminalBackendSpawnSpec): Promise<LocalPtySession> {
     spec.signal?.throwIfAborted()
     ensureSandboxModeFence(this.ctx, spec.owner)
-    const policy = await this.ctx.sandboxPolicy.requestWrite({
-      agent: spec.owner, toolName: 'terminal-bash', ...spec.signal === undefined ? {} : { signal: spec.signal },
-    })
+    const policy = this.ctx.sandboxPolicy.resolve({ session: spec.owner.session })
     const prepared = await spawnArgv(this.ctx, this.config, policy, spec.signal)
     spec.signal?.throwIfAborted()
     if (prepared.argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')
@@ -241,11 +239,8 @@ export class BashTerminalBackend implements TerminalBackend {
     try {
       session = this.createSession(terminal, this.config, () => {
         const current = this.ctx.sandboxPolicy.resolve({ session: spec.owner.session })
-        if (current.mode === policy.mode && current.workspaceRoot === policy.workspaceRoot
-          && (current.mode === 'danger-full-access'
-            || JSON.stringify(current.protectedPaths ?? []) === JSON.stringify(policy.protectedPaths ?? []))) return
-        const hint = this.ctx.sandboxPolicy.writeDenialHint(current.mode)
-        throw new Error(`Terminal input denied: sandbox policy changed; close this terminal and open a new one.${hint === undefined ? '' : ` ${hint}`}`)
+        if (current.mode === policy.mode && current.workspaceRoot === policy.workspaceRoot) return
+        throw new Error('Terminal input denied: sandbox policy changed; close this terminal and open a new one.')
       })
     } catch (error) {
       return rejectAfterStartupCleanup(error, () => terminal.terminate())

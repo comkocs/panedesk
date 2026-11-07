@@ -32,24 +32,6 @@ export interface PermissionCatalog {
   defaultPreset: string
 }
 
-/** A recorded authorization, interrupted revocation, or exact legacy product capability. */
-export interface WorkspaceWriteEntry {
-  /** Canonical absolute directory on the serving Windows host. */
-  workspace: string
-  /** Consent origin or incomplete revocation; legacy and pending entries need not have a consent record. */
-  source: 'first-confirmation' | 'settings-preauthorization' | 'legacy' | 'revocation-pending'
-  /** ISO authorization time, absent for an unrecorded legacy ACE. */
-  grantedAt?: string
-}
-
-/** Owner-only Windows workspace authorization inventory. */
-export interface WorkspaceWriteView {
-  /** Whether native Windows workspace ACL management is available. */
-  supported: boolean
-  /** Recorded workspaces and discovered legacy grants. */
-  entries: WorkspaceWriteEntry[]
-}
-
 /** Whole `permissions` Session projection: current durable selection only. */
 export interface PermissionSelection {
   /** The effective current value: a configured preset key, `auto`, or `custom`. */
@@ -64,11 +46,6 @@ declare module '@panedesk/cordis' {
      * @mode emit
      */
     'permission-presets/catalog-changed'(): void
-    /**
-     * Workspace consent or revocation changed; owners re-read the inventory.
-     * @mode emit
-     */
-    'permission-presets/workspace-write-changed'(): void
   }
 }
 

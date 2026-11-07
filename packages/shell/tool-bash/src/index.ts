@@ -211,7 +211,6 @@ export function apply(ctx: Context, config: Config = {}): void {
   if (defaultMode !== undefined && sandboxPolicy === undefined) {
     throw new Error('tool-bash: the mounted bash executor confines but ctx.sandboxPolicy is missing')
   }
-  const readOnlyHint = sandboxPolicy?.writeDenialHint('read-only')
   /** Resolve the complete standing policy for this call when a confining executor is mounted. */
   const resolveSandboxPolicy = (exec: ToolExecution): SandboxExecutionPolicy | undefined =>
     sandboxPolicy?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
@@ -286,7 +285,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               }
               return proc
             },
-            started => processOutcome(started, escalationModes, readOnlyHint),
+            started => processOutcome(started, escalationModes),
           )
           return {
             done: hooks.done,
@@ -357,7 +356,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           timeoutMs,
           output: renderJobRead(
             ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [],
-            attached.process()?.sandbox, escalationModes, readOnlyHint,
+            attached.process()?.sandbox, escalationModes,
           ),
         }
       }
@@ -484,16 +483,14 @@ export function apply(ctx: Context, config: Config = {}): void {
             ? `started background job ${value.jobId}`
             : value.kind === 'promoted'
               ? renderPromoted(value)
-              : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes, readOnlyHint),
+              : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes),
         }],
         presentationMeta: (_args, value) => ({ cwd: value.cwd }),
       },
       async execute(args: BashToolArgs, exec) {
         // Description is display metadata; workdir defaults to the caller's session.
-        validateBashArgs(args, resolveSandboxPolicy(exec)?.mode)
-        const standingPolicy = args.sandbox_permissions === undefined
-          ? await sandboxPolicy?.requestWrite({ ...exec.agent === undefined ? {} : { agent: exec.agent }, toolName: 'bash', callId: exec.callId, signal: exec.signal })
-          : resolveSandboxPolicy(exec)
+        const standingPolicy = resolveSandboxPolicy(exec)
+        validateBashArgs(args, standingPolicy?.mode)
         const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
           ? await approveBashEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
           : undefined

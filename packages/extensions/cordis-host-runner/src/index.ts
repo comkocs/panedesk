@@ -791,11 +791,6 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
 
   private activationDenial(): string | undefined {
     const policy = this.ctx.get('sandboxPolicy')
-    if (policy?.windowsDefault === true) {
-      return 'Dynamic packages are unavailable under the implicit Windows read-only default. '
-        + 'Their Host and Client code can access owner approval capabilities. '
-        + 'An owner must explicitly configure a permission mode before enabling dynamic packages.'
-    }
     if (policy === undefined && process.platform === 'win32') {
       return 'Dynamic packages are unavailable while the Windows sandbox policy is unavailable.'
     }

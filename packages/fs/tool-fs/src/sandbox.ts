@@ -88,9 +88,7 @@ export class FsSandboxController {
    */
   async resolvePolicy(toolName: string, args: FsEscalationArgs, exec: ToolExecution): Promise<SandboxExecutionPolicy | undefined> {
     validateEscalationArgs(args.sandbox_permissions, args.justification)
-    const standingPolicy = args.sandbox_permissions === undefined
-      ? await this.policy?.requestWrite({ ...exec.agent ? { agent: exec.agent } : {}, toolName, callId: exec.callId, signal: exec.signal })
-      : this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
+    const standingPolicy = this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
     if (args.sandbox_permissions === undefined || args.justification === undefined) {
       return standingPolicy
     }
@@ -144,7 +142,6 @@ export class FsSandboxController {
     // path always resolves a policy before mutation.
     const mode = (policy as SandboxExecutionPolicy).mode
     if (error.sandboxDenial === 'protected-host-path') return error
-    const hint = this.policy?.writeDenialHint(mode) ?? escalationHintMarker('operation')
-    return new FsError(`${sandboxDenialMarker(mode)}\n${hint}`, 'FS_SANDBOX_DENIED', { cause: error })
+    return new FsError(`${sandboxDenialMarker(mode)}\n${escalationHintMarker('operation')}`, 'FS_SANDBOX_DENIED', { cause: error })
   }
 }

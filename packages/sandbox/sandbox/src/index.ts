@@ -20,7 +20,6 @@ export {
 } from './escalation.ts'
 export type { EscalationApproval, EscalationApprover, EscalationOutcome, EscalationRequest } from './escalation.ts'
 export { canonicalPath, writableRoots } from './roots.ts'
-export { OWNER_MATERIAL_DENIED, assertOwnerWorkspace, isOwnerMaterial, isolatedOwnerPaths, ownerMaterialDirectories } from './owner-material.ts'
 
 /**
  * File-effect policy for confined processes. `read-only` permits only required
@@ -45,8 +44,6 @@ export interface SandboxExecutionPolicy {
   workspaceRoot: string
   /** Accepted and ignored. Host-input path lists no longer exclude writes. */
   protectedPaths?: readonly string[]
-  /** Accepted and ignored. Owner-material paths are not refused. */
-  unreadablePaths?: readonly string[]
   /** Accepted and ignored. Workspace writes are not held for extra authorization. */
   requiresWorkspaceAuthorization?: true
   /**
@@ -184,18 +181,6 @@ export abstract class SandboxProvider extends Service {
    *   the selected backend achieves for it.
    */
   abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
-
-  /** No extra workspace-write gate. Always false. */
-  get supportsWorkspaceWriteAccess(): boolean { return false }
-
-  /** No recorded workspace-write grant. Always false. */
-  hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
-
-  /** No grant to materialize. Resolves without changing access. */
-  materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
-
-  /** No grant to revoke. */
-  revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 }
 
 export default SandboxProvider

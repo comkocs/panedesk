@@ -55,35 +55,6 @@ import { drainPipe, spawnSandboxed, spawnSandboxedInherited, waitForExit } from 
 import { createRestrictedToken, findLogonSid, makeWellKnownSid, openCurrentProcessToken, restrictTokenIntegrity, setTokenDefaultDaclGrant } from './token.ts'
 import * as abi from './win32-abi.ts'
 
-/** State directories are not refused. The former trust check is a no-op.
- * @param _directory - ignored.
- * @param _workspace - ignored.
- * @param _temporarySids - ignored.
- */
-export function assertWindowsStateTrusted(_directory: string, _workspace: string, _temporarySids: readonly string[] = []): void {}
-
-/** Former refusal for an untrusted Windows state directory. Nothing throws it. */
-export class UnsafeWindowsStateError extends Error {
-  /** Directory the former check named. */
-  readonly directory: string
-  /** Access mask the former check named. */
-  readonly mask: number
-  /** Optional ACE entries the former check named. */
-  readonly entries: readonly unknown[]
-  /**
-   * @param directory - directory the caller named.
-   * @param mask - access mask the caller named.
-   * @param entries - optional ACE entries the caller named.
-   */
-  constructor(directory: string, mask: number, entries: readonly unknown[] = []) {
-    super(`UnsafeWindowsStateError: ${directory}`)
-    this.name = 'UnsafeWindowsStateError'
-    this.directory = directory
-    this.mask = mask
-    this.entries = entries
-  }
-}
-
 export { AclWriteGrant } from './grant.ts'
 export { assertTempRootOutsideWorkspace } from './path-boundary.ts'
 export { tempWriteSid, workspaceWriteSid } from './workspace-sid.ts'

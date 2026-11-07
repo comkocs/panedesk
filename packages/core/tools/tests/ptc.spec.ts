@@ -2225,7 +2225,7 @@ class ConfinedFakeRuntime extends FakeRuntime {
 }
 
 describe('PTC standing file policy and sandbox outcomes', () => {
-  it.each([false, true])('retains Windows owner guidance after a denied program with error=%s without retrying', async (failed) => {
+  it.each([false, true])('reports an ordinary read-only denial after a denied program with error=%s without retrying', async (failed) => {
     const { ctx } = await setup({ runtime: false })
     vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
     const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
@@ -2244,11 +2244,10 @@ describe('PTC standing file policy and sandbox outcomes', () => {
       })
       const result = await runCode(ctx, 'attemptWrite()')
       const text = result.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
-      expect(text).toContain('Windows defaults to read-only.')
-      expect(text).toContain('Settings > General > Windows workspace write access.')
-      expect(text).toContain('Unattended tasks cannot grant this access.')
+      expect(text).not.toContain('Windows defaults to read-only.')
+      expect(text).not.toContain('Settings > General > Windows workspace write access.')
       expect(text).toContain('earlier output')
-      expect(text).not.toContain('A sandbox escalation approves')
+      expect(text).toContain('A sandbox escalation approves')
       expect(run).toHaveBeenCalledOnce()
       expect(approve).not.toHaveBeenCalled()
       expect(result.isError).toBe(failed)

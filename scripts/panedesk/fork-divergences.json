@@ -209,20 +209,6 @@
       }
     },
     {
-      "id": "revoked-workspace-reauthorization-requires-host-restart",
-      "description": "Document and test host restart before reauthorizing revoked workspace capabilities",
-      "origin": "Workspace write capability lifecycle",
-      "reason": "Preserve issued-capability and completion-proof guards. Assert same-host reauthorization is refused, report bilingual restart guidance through both grant entry points, and verify a fresh host can reauthorize only after protected-input capture and authorization complete. Document the host restart requirement in the filesystem and policy package READMEs. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
-          "packages/fs/tool-fs/README*",
-          "packages/sandbox/sandbox-policy/README*"
-        ]
-      }
-    },
-    {
       "id": "private-session-permission-preparation",
       "description": "Prepare permissions inside the composite agent creation transaction",
       "origin": "Session publication ordering",
@@ -231,7 +217,6 @@
         "type": "behavior",
         "paths": [
           "packages/core/agent-loop/src/index.ts",
-          "packages/core/agent-loop/tests/session-preparation.spec.ts",
           "packages/core/agent-loop/README*",
           "packages/core/session/src/index.ts",
           "packages/core/session/README*",
@@ -541,7 +526,6 @@
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/boot/plugin-manager/tests/native-profile-capture.ts",
           "packages/fs/tool-fs-search/tests/tools.spec.ts",
           "docs/upgrade-guide/v0.2.1-rc.2/sandbox-session-sockets/*"
         ]
@@ -597,7 +581,6 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/sandbox/sandbox/src/owner-material.ts",
           "packages/sandbox/sandbox/src/roots.ts",
           "packages/sandbox/sandbox/src/index.ts",
           "packages/sandbox/sandbox/README.md",
@@ -617,7 +600,6 @@
           "packages/boot/app-boot/README.md",
           "packages/boot/app-boot/README.zh.md",
           "packages/boot/app-boot/README.i18n.yaml",
-          "packages/fs/fs-sandbox/tests/owner-material.spec.ts",
           "packages/extensions/tool-cordis/src/api-catalog.ts",
           "pnpm-lock.yaml"
         ]
@@ -642,26 +624,6 @@
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md"
-        ]
-      }
-    },
-    {
-      "id": "owner-material-ci-policy-fixtures",
-      "description": "Synchronize exact owner-material policies and isolated test storage",
-      "origin": "Owner material CI regression repair",
-      "reason": "Retain exact policy and runner argv assertions while including private read exclusions. Separate credential storage from intentionally nested state fixtures, use a memory-only credential provider for the ambient-temp overlap case, and route Worker filesystem primitives through its existing virtual filesystem. Do not change confinement behavior or weaken assertions. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/tool-fs/tests/tools.spec.ts",
-          "packages/shell/tool-pwsh/tests/tools.spec.ts",
-          "packages/shell/bash-sandbox/tests/sandbox.spec.ts",
-          "packages/terminal/terminal-bash/tests/index.spec.ts",
-          "packages/terminal/terminal-bash/tests/local.spec.ts",
-          "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
-          "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/provider-chain.spec.ts",
-          "packages/experimental/webworker-runtime/tests/node/sandbox-stack.spec.ts"
         ]
       }
     },
@@ -696,34 +658,6 @@
       }
     },
     {
-      "id": "owner-material-file-read-policy",
-      "description": "Deny owner material reads through filesystem tools",
-      "origin": "Owner credential read isolation",
-      "reason": "Carry per-call read policies through filesystem interfaces and tools, reject canonical and inode aliases of owner materials, filter private directory entries, and preserve explicit full-access reads. Cover real credential files and workspace confirmation without weakening write approvals. Verify glob and grep carry owner directories through session policy, real mount-profile construction, and subprocess spawn in both restricted modes, with a full-access control. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/fs/src/index.ts",
-          "packages/fs/fs-sandbox/src/index.ts",
-          "packages/fs/fs-sandbox/tests/owner-material.spec.ts",
-          "packages/fs/fs-sandbox/README.md",
-          "packages/fs/fs-sandbox/README.zh.md",
-          "packages/fs/fs-sandbox/README.i18n.yaml",
-          "packages/fs/tool-fs/src/read-image.ts",
-          "packages/fs/tool-fs/src/read-target.ts",
-          "packages/fs/tool-fs/src/read.ts",
-          "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
-          "packages/fs/tool-str-replace-editor/src/index.ts",
-          "packages/fs/tool-fs-search/tests/tools.spec.ts",
-          "packages/fs/tool-fs-search/package.json",
-          "packages/fs/tool-fs-search/README.md",
-          "packages/fs/tool-fs-search/README.zh.md",
-          "packages/fs/tool-fs-search/README.i18n.yaml",
-          "pnpm-lock.yaml"
-        ]
-      }
-    },
-    {
       "id": "owner-directory-process-isolation",
       "description": "Exclude owner material directories from restricted processes",
       "origin": "Owner credential read isolation",
@@ -732,7 +666,6 @@
         "type": "behavior",
         "paths": [
           "packages/sandbox/sandbox/src/index.ts",
-          "packages/sandbox/sandbox/src/owner-material.ts",
           "packages/sandbox/sandbox-policy/package.json",
           "packages/sandbox/sandbox-policy/src/index.ts",
           "packages/sandbox/sandbox-policy/tests/policy.spec.ts",
@@ -14690,7 +14623,6 @@
           "packages/extensions/tool-cordis/tests/api-catalog-coverage.spec.ts",
           "packages/bundle/headless/tests/headless.spec.ts",
           "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
-          "packages/interaction/permission-presets/tests/workspace-access.spec.ts",
           "packages/boot/app-boot/src/input-integrity-locales.ts",
           "packages/boot/app-boot/tests/protected-input-reference.ts",
           "packages/interaction/permission-presets/tests/initialization-capture.spec.ts",
@@ -14804,9 +14736,6 @@
           "packages/sandbox/sandbox-windows-acl/src/revoke-tree.ts",
           "packages/sandbox/sandbox-windows-acl/src/state-access.ts",
           "docs/persistence-changes/2026-11-03-approval-refusal-reason*",
-          "packages/bundle/base/tests/windows-workspace-policy.spec.ts",
-          "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
-          "packages/interaction/permission-presets/tests/workspace-access.spec.ts",
           "packages/interaction/user-approval/tests/workspace-capture.spec.ts",
           "README.i18n.yaml",
           "README.md",
@@ -14883,7 +14812,6 @@
           "packages/client/ui-permission-presets/README.md",
           "packages/client/ui-permission-presets/README.zh.md",
           "packages/client/ui-permission-presets/src/client/index.ts",
-          "packages/client/ui-permission-presets/src/client/locales.ts",
           "packages/core/tools/README.i18n.yaml",
           "packages/core/tools/README.md",
           "packages/core/tools/README.zh.md",
@@ -14922,7 +14850,6 @@
           "packages/acp/acp/tests/approval.spec.ts",
           "packages/interaction/user-approval/tests/approval.spec.ts",
           "packages/interaction/user-approval/tests/windows-acl-fixture.ts",
-          "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
           "packages/interaction/user-approval/tsconfig.json",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
@@ -15017,10 +14944,8 @@
           "packages/ssh/ssh/src/helper.ts",
           "packages/ssh/ssh/src/index.ts",
           "packages/ssh/ssh/src/schemas.ts",
-          "packages/fs/fs-sandbox/tests/live-inputs.spec.ts",
           "packages/ssh/ssh/tests/local-protection.spec.ts",
           "packages/ssh/ssh/tests/local-write-admission.spec.ts",
-          "packages/boot/plugin-manager/tests/live-input-matrix.spec.ts",
           "packages/boot/plugin-manager/tests/source-clone-writes.spec.ts",
           "docs/module-graph.md",
           "docs/module-graph.zh.md",
@@ -15033,9 +14958,6 @@
           "packages/bundle/headless/tsconfig.json",
           "packages/fs/tool-fs/tests/headless-approval.spec.ts",
           "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
-          "packages/boot/plugin-manager/tests/complete-input-matrix.spec.ts",
-          "packages/boot/plugin-manager/tests/native-profile-capture.ts",
-          "packages/fs/fs-sandbox/tests/protected-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
           "packages/sandbox/sandbox-windows-acl/src/runner.ts",
           "packages/boot/app-boot/tests/state-directory.spec.ts",
@@ -15267,8 +15189,7 @@
           "packages/fs/fs-sandbox/src/index.ts",
           "packages/fs/fs-sandbox/README.md",
           "packages/fs/fs-sandbox/README.zh.md",
-          "packages/fs/fs-sandbox/README.i18n.yaml",
-          "packages/sandbox/sandbox/src/owner-material.ts"
+          "packages/fs/fs-sandbox/README.i18n.yaml"
         ]
       }
     },
