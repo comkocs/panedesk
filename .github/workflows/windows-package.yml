@@ -96,6 +96,12 @@ jobs:
             $log = Join-Path $env:RUNNER_TEMP "$name.log"
             if (!(Test-Path $log)) { continue }
             $tail = (Get-Content -Path $log -Tail 200) -join "`n"
-            Write-Output ("::error title=$name output::" + $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+            $errors = (Select-String -Path $log -Pattern 'error|fatal|failed|LNK\d|ERR_' | ForEach-Object Line) -join "`n"
+            # Annotations keep only the first 4096 characters, so send the end of each body.
+            foreach ($item in @(@('end', $tail), @('error lines', $errors))) {
+              $body = $item[1]
+              if ($body.Length -gt 4000) { $body = $body.Substring($body.Length - 4000) }
+              if ($body) { Write-Output ("::error title=$name $($item[0])::" + $body.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')) }
+            }
             @("### $name output (last 200 lines)", '```text', $tail, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           }
