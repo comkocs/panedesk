@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "windows-msvc-environment-quoting",
+      "description": "Pass the MSVC developer command line to cmd.exe with one quote layer",
+      "origin": "Native Windows build preparation",
+      "reason": "PowerShell already wraps an argument containing spaces in quotes, so the extra quote pair made cmd.exe read the quoted Visual Studio path as a broken command whenever Visual Studio is installed under a path with spaces, and the MSVC environment was never loaded. One quote layer yields the intended command line. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "native/system/scripts/prepare-windows-build.ps1"
+        ]
+      }
+    },
+    {
       "id": "descriptor-bound-file-reads",
       "description": "Authorize file content using the opened handle identity",
       "origin": "Filesystem read confidentiality",
