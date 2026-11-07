@@ -1564,7 +1564,7 @@ export interface Config {
 
 ## `@panedesk/dsh-fs-local`
 
-- `source`: [`packages/fs/fs-local/src/index.ts:42`](../packages/fs/fs-local/src/index.ts)
+- `source`: [`packages/fs/fs-local/src/index.ts:45`](../packages/fs/fs-local/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the local filesystem backend. */
@@ -1576,8 +1576,6 @@ export interface Config {
    * runtime's safe allocation/decode maximum. Defaults to 10 MiB.
    */
   diffBasisMaxBytes?: number
-  /** Windows handle backend; experimental by default, disabled selects the legacy backend. Protected profile or overlay only. */
-  windowsHandleBackend?: 'disabled' | 'experimental'
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-fs-local -->

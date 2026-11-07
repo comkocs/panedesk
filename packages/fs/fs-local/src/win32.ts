@@ -1,6 +1,6 @@
 /**
- * Legacy-only path helpers for Windows atomic replacement. The experimental handle backend
- * never calls these helpers. Koffi loads lazily so non-Windows processes never open Win32 libraries.
+ * Windows security-descriptor helpers for atomic local-file replacement. Koffi loads lazily so
+ * non-Windows processes never open Win32 libraries.
  * @module @panedesk/dsh-fs-local/win32
  */
 
