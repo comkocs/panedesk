@@ -78,7 +78,7 @@ async function setup(transport: boolean): Promise<Context> {
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(RemoteAccessService)
   await ctx.plugin(TypertGatewayService, {})
-  if (transport) await ctx.plugin({ inject: [...connectionInject], apply: applyConnection }, { requireOwnerConfirmation: false })
+  if (transport) await ctx.plugin({ inject: [...connectionInject], apply: applyConnection }, {})
   await ctx.plugin(EchoService)
   return ctx
 }

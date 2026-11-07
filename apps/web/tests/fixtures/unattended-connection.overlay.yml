@@ -1,3 +1,0 @@
-- id: connection
-  config:
-    requireOwnerConfirmation: false

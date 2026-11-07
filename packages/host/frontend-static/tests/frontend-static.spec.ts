@@ -51,8 +51,6 @@ async function loadComposition(): Promise<Context> {
     "    host: '127.0.0.1'",
     '    port: 0',
     "- name: '@panedesk/dsh-client-connection'",
-    '  config:',
-    '    requireOwnerConfirmation: false',
     '- id: frontend',
     "  name: '@panedesk/dsh-host-frontend-static'",
     '  config:',
@@ -125,7 +123,7 @@ describe('real Loader composition', () => {
     expect(await request(port, '/')).toMatchObject({
       status: 401,
       type: 'text/plain; charset=utf-8',
-      body: 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie. / 需要 Panedesk 身份认证。启动链接仅可使用一次，五分钟后失效；请重启宿主取得新链接。API 连接需要已认证所有者的 cookie。\n',
+      body: 'dsh web authentication required; reopen the URL printed by dsh web.\n',
     })
 
     // Real assets with their MIME types; a live rebuild is served on the next read.

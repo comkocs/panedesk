@@ -2,7 +2,7 @@
 
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
-import { mkdir, stat, writeFile } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import { request as httpRequest } from 'node:http'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
@@ -17,45 +17,6 @@ import { authAdmissionBody } from '@panedesk/dsh-client-connection'
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const DSH_SOURCE_BIN = join(REPO_ROOT, 'apps/cli/src/bin.ts')
 const TSX_LOADER = pathToFileURL(createRequire(join(REPO_ROOT, 'package.json')).resolve('tsx')).href
-
-/**
- * Relay one real controlling terminal for the CLI. A new browser is admitted
- * only by an owner answer read from `/dev/tty`, never from redirected input.
- */
-const OWNER_TERMINAL = `import os, pty, select, signal, sys
-
-def terminate(_signum, _frame):
-    raise SystemExit(0)
-
-pid, master = pty.fork()
-if pid == 0:
-    os.execv(sys.argv[1], [sys.argv[1], '--import', sys.argv[2], sys.argv[3], 'web', '--no-open', '--port', sys.argv[4]])
-signal.signal(signal.SIGTERM, terminate)
-try:
-    while True:
-        ready, _, _ = select.select([master, sys.stdin], [], [], 1)
-        if master in ready:
-            try:
-                data = os.read(master, 65536)
-            except OSError:
-                break
-            if not data:
-                break
-            sys.stdout.buffer.write(data)
-            sys.stdout.buffer.flush()
-        if sys.stdin in ready:
-            data = os.read(sys.stdin.fileno(), 1024)
-            if not data:
-                break
-            os.write(master, data)
-finally:
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
-    os.waitpid(pid, 0)
-    os.close(master)
-`
 
 interface RunningWeb {
   readonly child: ChildProcess
@@ -104,18 +65,18 @@ function cleanEnvironment(root: string, dshHome: string): NodeJS.ProcessEnv {
   }
 }
 
-/** Start the public source CLI behind a real controlling terminal and wait for its readiness URL. */
+/** Start the public source CLI and wait for its authenticated readiness URL. */
 async function startWeb(root: string, dshHome: string, port: number): Promise<RunningWeb> {
-  const child = spawn('python3', [
-    '-I', '-c', OWNER_TERMINAL,
-    process.execPath,
-    TSX_LOADER,
+  const child = spawn(process.execPath, [
+    '--import', TSX_LOADER,
     DSH_SOURCE_BIN,
-    String(port),
+    'web',
+    '--no-open',
+    '--port', String(port),
   ], {
     cwd: root,
     env: cleanEnvironment(root, dshHome),
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''
   const launchUrl = await new Promise<string>((resolve, reject) => {
@@ -192,7 +153,7 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
 }
 
 describe('panedesk web authentication through the real CLI', () => {
-  it('rejects a forged loopback Host and requires fresh owner confirmation after restart', { timeout: 180_000 }, async () => {
+  it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-real-cli-'))
     const dshHome = join(root, '.panedesk')
     const port = await freePort()
@@ -220,12 +181,6 @@ describe('panedesk web authentication through the real CLI', () => {
       expect(setCookie).not.toContain('Secure')
       const cookie = setCookie.split(';', 1)[0]!
 
-      // The launch exchange admits the browser only once the host terminal answers.
-      await expect.poll(() => first?.output().includes('[y/N]') ?? false, { timeout: 30_000 }).toBe(true)
-      const ownerInput = first?.child.stdin
-      if (ownerInput === undefined || ownerInput === null) throw new Error('owner terminal input closed before confirmation')
-      ownerInput.write('y\n')
-      await expect.poll(async () => (await describeSettings(port, firstUrl.host, cookie)).status, { timeout: 30_000 }).toBe(200)
       const authenticated = await describeSettings(port, firstUrl.host, cookie)
       expect(authenticated.status).toBe(200)
       const authenticatedBody: unknown = JSON.parse(authenticated.body)
@@ -240,71 +195,10 @@ describe('panedesk web authentication through the real CLI', () => {
       second = await startWeb(root, dshHome, port)
       const secondUrl = new URL(second.launchUrl)
       expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
-      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(401)
-
-      const secondExchange = await fetch(second.launchUrl, { redirect: 'manual' })
-      expect(secondExchange.status).toBe(303)
-      expect(secondExchange.headers.get('location')).toBe('./')
-      const secondSetCookie = secondExchange.headers.get('set-cookie')
-      if (secondSetCookie === null) throw new Error('restarted CLI token exchange omitted Set-Cookie')
-      expect(secondSetCookie).toContain('HttpOnly')
-      expect(secondSetCookie).toContain('SameSite=Strict')
-      expect(secondSetCookie).not.toContain('Secure')
-      const secondCookie = secondSetCookie.split(';', 1)[0]!
-      expect(secondCookie).not.toBe(cookie)
-      expect((await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(401)
-      await expect.poll(() => second?.output().includes('[y/N]') ?? false).toBe(true)
-      const secondOwnerInput = second.child.stdin
-      if (secondOwnerInput === undefined || secondOwnerInput === null) throw new Error('owner terminal input closed before reconfirmation')
-      secondOwnerInput.write('y\n')
-      await expect.poll(async () => (await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(200)
-      expect((await describeSettings(port, secondUrl.host, secondCookie)).status).toBe(200)
-      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(401)
+      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
 
       const credentialMode = (await stat(join(dshHome, 'private', '.credentials.yaml'))).mode & 0o777
       expect(credentialMode).toBe(0o600)
-    } catch (error) {
-      const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
-      throw new Error(`${error instanceof Error ? error.message : String(error)}\n${redact(evidence)}`, { cause: error })
-    } finally {
-      if (second !== undefined) await stopWeb(second)
-      if (first !== undefined) await stopWeb(first)
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
-  it('preserves the browser cookie across restart when protected host configuration disables owner confirmation', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-unconfirmed-'))
-    const dshHome = join(root, '.panedesk')
-    const port = await freePort()
-    let first: RunningWeb | undefined
-    let second: RunningWeb | undefined
-    try {
-      await mkdir(dshHome)
-      await writeFile(join(dshHome, 'cordis.patch.yml'),
-        '- id: connection\n  config:\n    requireOwnerConfirmation: false\n')
-      first = await startWeb(root, dshHome, port)
-      const firstUrl = new URL(first.launchUrl)
-      const exchange = await fetch(first.launchUrl, { redirect: 'manual' })
-      expect(exchange.status).toBe(303)
-      expect(exchange.headers.get('location')).toBe('./')
-      const setCookie = exchange.headers.get('set-cookie')
-      if (setCookie === null) throw new Error('unconfirmed CLI token exchange omitted Set-Cookie')
-      expect(setCookie).toContain('HttpOnly')
-      expect(setCookie).toContain('SameSite=Strict')
-      expect(setCookie).not.toContain('Secure')
-      const cookie = setCookie.split(';', 1)[0]!
-      expect((await describeSettings(port, firstUrl.host, cookie)).status).toBe(200)
-      expect(first.output()).not.toContain('[y/N]')
-
-      await stopWeb(first)
-      expect(first.output()).not.toContain('[y/N]')
-      first = undefined
-      second = await startWeb(root, dshHome, port)
-      const secondUrl = new URL(second.launchUrl)
-      expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
-      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
-      expect(second.output()).not.toContain('[y/N]')
     } catch (error) {
       const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
       throw new Error(`${error instanceof Error ? error.message : String(error)}\n${redact(evidence)}`, { cause: error })

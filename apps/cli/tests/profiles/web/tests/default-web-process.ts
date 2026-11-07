@@ -52,7 +52,7 @@ export async function withDefaultWeb(
       await writeFile(path, output)
     }
     const patch = join(root, 'observer.patch.yml')
-    await writeFile(patch, JSON.stringify([{ id: 'connection', config: { requireOwnerConfirmation: false } }, { insert: [{
+    await writeFile(patch, JSON.stringify([{ insert: [{
       id: 'runtime-roster-observer',
       name: pathToFileURL(join(root, 'fixtures/runtime-roster-observer.js')).href,
       config: { negativeControl: pathToFileURL(join(repoRoot, 'packages/experimental/client-ui-agent-team/lib/index.js')).href },

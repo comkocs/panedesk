@@ -78,11 +78,8 @@ describe.each(MODE === 'record' ? ['button'] as const : ['button', 'keyboard'] a
 
     const connectUrl = new URL(scaffold.authenticatedUrl)
     connectUrl.pathname = '/connect'
-    connectUrl.search = ''
     connectUrl.searchParams.set('interactions', 'none')
-    const browserCookies = await page.context().cookies(connectUrl.origin)
-    const ownerCookie = browserCookies.map(({ name, value }) => `${name}=${value}`).join('; ')
-    const connected = await fetch(connectUrl, { redirect: 'manual', headers: { accept: 'application/json', cookie: ownerCookie } })
+    const connected = await fetch(connectUrl, { redirect: 'manual', headers: { accept: 'application/json' } })
     expect(connected.status).toBe(302)
     const cookie = connected.headers.get('set-cookie')!.split(';', 1)[0]!
     const muxUrl = new URL(connected.headers.get('location')!, connectUrl)
