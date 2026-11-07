@@ -7,7 +7,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { CLIENT_BUILD_PROFILE_SELECTOR } from './client-build-environment.ts'
 import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './coverage-exempt.ts'
@@ -102,11 +102,17 @@ if (import.meta.main) {
 
 async function main(args: string[]): Promise<number> {
   const mode = parseMode(args[0])
+  const selection = parseGateSelection(args.slice(1))
   const workerEnv = ciWorkerEnvironment(mode, process.env)
   Object.assign(process.env, workerEnv)
   if (Object.keys(workerEnv).length > 0) console.log(`run-gates: worker settings ${JSON.stringify(workerEnv)}`)
   const gates = gatesForMode(mode)
-  return runAggregate(mode, gates, defaultConcurrency(mode, gates.length))
+  const selected = selectGates(gates, selection.changedFiles)
+  if (selection.dryRun) {
+    printGateSelection(gates, selected)
+    return 0
+  }
+  return runAggregate(mode, selected, defaultConcurrency(mode, selected.length))
 }
 
 /**
@@ -146,6 +152,220 @@ export async function runAggregate(name: string, gates: Gate[], concurrencyDefau
 export function cliGateOptions(failFast: boolean): RunGatesOptions {
   return { failFast, forwardProcessSignals: failFast }
 }
+
+/** Changed files that narrow an aggregate, or the unchanged full aggregate. */
+interface GateSelection {
+  /** Repository-relative paths, or undefined when every gate runs. */
+  changedFiles: readonly string[] | undefined
+  /** Print the selected and skipped gates without starting any of them. */
+  dryRun: boolean
+}
+
+/**
+ * Read `--base <rev>`, `--dry-run`, and paths after `--` from the runner arguments.
+ * Paths win over a baseline. Neither one leaves the aggregate unchanged.
+ * @param args - arguments after the mode.
+ * @returns the changed paths, when selection was requested, and whether to only list gates.
+ */
+export function parseGateSelection(args: readonly string[]): GateSelection {
+  let base: string | undefined
+  let dryRun = false
+  const files: string[] = []
+  let paths = false
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? ''
+    if (paths) {
+      files.push(arg)
+      continue
+    }
+    if (arg === '--') {
+      paths = true
+      continue
+    }
+    if (arg === '--dry-run') {
+      dryRun = true
+      continue
+    }
+    if (arg === '--base') {
+      base = args[index + 1]
+      if (base === undefined || base.startsWith('-')) {
+        throw new Error('run-gates: --base requires a revision.')
+      }
+      index += 1
+      continue
+    }
+    throw new Error(`run-gates: unknown argument ${JSON.stringify(arg)}; use --base <rev>, --dry-run, or -- <file>.`)
+  }
+  if (files.length > 0) return { changedFiles: files.map(normalizeChangedPath), dryRun }
+  if (base !== undefined) return { changedFiles: changedFilesFromBase(base), dryRun }
+  return { changedFiles: undefined, dryRun }
+}
+
+/**
+ * Repository paths changed since `revision`, including uncommitted work.
+ * @param revision - baseline revision compared with HEAD.
+ * @returns normalized repository-relative paths.
+ */
+function changedFilesFromBase(revision: string): string[] {
+  const committed = gitChangedPaths(['diff', '--name-only', '-z', `${revision}...HEAD`])
+  const unstaged = gitChangedPaths(['diff', '--name-only', '-z'])
+  const staged = gitChangedPaths(['diff', '--name-only', '-z', '--cached'])
+  const untracked = gitChangedPaths(['ls-files', '--others', '--exclude-standard', '-z'])
+  return [...new Set([...committed, ...unstaged, ...staged, ...untracked])].sort()
+}
+
+/**
+ * Run one null-delimited Git path listing.
+ * @param args - Git arguments after the executable.
+ * @returns normalized repository-relative paths.
+ */
+function gitChangedPaths(args: readonly string[]): string[] {
+  const result = spawnSync('git', [...args], { cwd: root, encoding: 'utf8' })
+  if (result.status !== 0) {
+    throw new Error(`run-gates: git ${args.join(' ')} failed: ${result.stderr.trim()}`)
+  }
+  return result.stdout.split('\0').filter(path => path !== '').map(normalizeChangedPath)
+}
+
+/**
+ * Accept a repository-relative or absolute path as a repository-relative slash path.
+ * @param file - path supplied on the command line or by Git.
+ * @returns the path relative to the repository root.
+ */
+function normalizeChangedPath(file: string): string {
+  const normalized = file.replaceAll('\\', '/')
+  if (!normalized.startsWith('/')) return normalized
+  const fromRoot = relative(root, normalized).replaceAll('\\', '/')
+  if (fromRoot.startsWith('..')) throw new Error(`run-gates: changed file is outside the repository: ${file}`)
+  return fromRoot
+}
+
+/**
+ * Path patterns a gate reads. A gate absent from this table always runs.
+ * Patterns use `*` inside one segment and `**` across segments.
+ */
+function gateInputs(): Readonly<Record<string, readonly string[]>> {
+  return {
+    'package-dependencies': ['**/package.json', '**/*.{ts,tsx,mts,cts}', '**/tsdown.config.ts'],
+    'dsh-package-licenses': ['**/package.json'],
+    'no-bare-dispatcher': ['packages/*/*/src/**/*.ts', 'apps/*/src/**/*.ts'],
+    'export-jsdoc': ['packages/*/*/src/**/*.ts'],
+    'doc-refs': ['packages/**/*.ts'],
+    'package-paths': ['**/*.md', 'packages/**/*.ts'],
+    'workflow-guest': ['packages/workflow/workflow-ptc/src/**/*.ts'],
+    'config-source-ownership': ['**/*.{yml,yaml}'],
+    'markdown-links': ['**/*.md'],
+    'markdown-wrap': ['**/*.md'],
+    'mermaid': ['**/*.md'],
+    'translation-pairing': ['**/*.md', '**/*.i18n.yaml'],
+    'package-readme-summaries': ['packages/**/README.md'],
+    'package-readme-model-experience': ['packages/*/*/package.json', 'packages/*/*/README.md'],
+    'package-readme-limitations': ['packages/*/*/package.json', 'packages/*/*/README.md'],
+    'subsystem-pages': ['packages/*/README.md', 'packages/*/*/package.json'],
+    'agent-note-classification': ['.agents/notes/**'],
+    'agent-note-format': ['.agents/notes/**'],
+    'archived-agent-notes': ['.agents/notes/archived/**'],
+    'skill-invocation-metadata': ['.agents/skills/**'],
+    'translation-prompt': ['docs/i18n/**', 'scripts/fixtures/translation-prompt/**'],
+    'doc-budgets': ['scripts/doc-budgets.manifest.json'],
+    'upgrade-guides': ['docs/upgrade-guide/**'],
+    'persistence-releases': ['docs/persistence-changes/releases/**'],
+    'cli-help': ['apps/cli/**', 'docs/cli-help.md', 'docs/cli-help.zh.md', 'docs/cli-help.i18n.yaml'],
+    'dependency-catalog': ['scripts/dependency-catalog/**', 'docs/dependency-catalog.json'],
+    'preset-table': ['packages/bundle/base/cordis.patch.yml', 'docs/panedesk/architecture.md', 'docs/panedesk/architecture.zh.md'],
+    'session-format-catalog': ['packages/session/session-format-v*-to-v*/package.json', 'packages/session/session-format-catalog/package.json', 'packages/core/session/src/types.ts'],
+    'built-bin-smoke': ['apps/**', 'packages/**'],
+  }
+}
+
+/**
+ * Keep gates whose declared inputs meet the changed files, then keep every
+ * dependency those gates need. Undeclared gates always stay.
+ * @param gates - complete aggregate.
+ * @param changedFiles - repository-relative changed paths, or undefined to keep every gate.
+ * @returns gates in their original order.
+ */
+export function selectGates(gates: readonly Gate[], changedFiles: readonly string[] | undefined): Gate[] {
+  if (changedFiles === undefined) return [...gates]
+  const selected = new Set(gates.filter(gate => gateSelected(gate.id, changedFiles)).map(gate => gate.id))
+  const byId = new Map(gates.map(gate => [gate.id, gate]))
+  const pending = [...selected]
+  while (pending.length > 0) {
+    const id = pending.pop()
+    if (id === undefined) break
+    for (const dependency of byId.get(id)?.needs ?? []) {
+      if (selected.has(dependency)) continue
+      selected.add(dependency)
+      pending.push(dependency)
+    }
+  }
+  return gates.filter(gate => selected.has(gate.id))
+}
+
+/**
+ * Decide whether one gate's declared inputs meet the changed files.
+ * @param id - gate id.
+ * @param changedFiles - repository-relative changed paths.
+ * @returns true when the gate has no declared inputs or one input matches.
+ */
+function gateSelected(id: string, changedFiles: readonly string[]): boolean {
+  const patterns = gateInputs()[id]
+  if (patterns === undefined) return true
+  return changedFiles.some(file => patterns.some(pattern => pathMatches(pattern, file)))
+}
+
+/**
+ * Match one repository path against a gate input pattern.
+ * @param pattern - pattern from {@link gateInputs}.
+ * @param file - repository-relative path.
+ * @returns whether the path is inside the gate input.
+ */
+function pathMatches(pattern: string, file: string): boolean {
+  let source = ''
+  for (let index = 0; index < pattern.length;) {
+    if (pattern.startsWith('**/', index)) {
+      source += '(?:.*/)?'
+      index += 3
+      continue
+    }
+    if (pattern.startsWith('**', index)) {
+      source += '.*'
+      index += 2
+      continue
+    }
+    if (pattern[index] === '*') {
+      source += '[^/]*'
+      index += 1
+      continue
+    }
+    if (pattern[index] === '{') {
+      const end = pattern.indexOf('}', index)
+      const body = end === -1 ? undefined : pattern.slice(index + 1, end)
+      if (body !== undefined) {
+        source += `(?:${body.split(',').map(part => part.replace(/[.+?^${}()|[\]\\]/gu, '\\$&')).join('|')})`
+        index = end + 1
+        continue
+      }
+    }
+    source += (pattern[index] ?? '').replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
+    index += 1
+  }
+  return new RegExp(`^${source}$`, 'u').test(file)
+}
+
+/**
+ * Print which gates would run and which declared inputs miss the changed files.
+ * @param gates - complete aggregate.
+ * @param selected - gates {@link selectGates} kept.
+ */
+function printGateSelection(gates: readonly Gate[], selected: readonly Gate[]): void {
+  const kept = new Set(selected.map(gate => gate.id))
+  console.log(`run-gates: dry-run selected ${selected.map(gate => gate.id).join(', ')}`)
+  for (const gate of gates) {
+    if (!kept.has(gate.id)) console.log(`跳过 ${gate.id}:改动面不涉`)
+  }
+}
+
 
 function parseMode(raw: string | undefined): Mode {
   switch (raw) {

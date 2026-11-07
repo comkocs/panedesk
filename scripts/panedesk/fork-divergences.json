@@ -16589,6 +16589,19 @@
           "scripts/check-workspace-constraints.ts"
         ]
       }
+    },
+    {
+      "id": "gate-runner-changed-path-selection",
+      "description": "Skip a quality gate whose declared inputs miss the changed paths",
+      "origin": "Local quality-gate selection",
+      "reason": "The gate runner accepts a baseline revision or an explicit path list and skips a gate only when every changed path misses that gate's declared inputs. Gates without a declared input still run, and selecting a gate also selects the gates it needs. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "scripts/run-gates.ts",
+          "scripts/run-gates.spec.ts"
+        ]
+      }
     }
   ]
 }

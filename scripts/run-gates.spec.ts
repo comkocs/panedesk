@@ -10,6 +10,7 @@ import {
   parsePidPpidLines,
   runGate,
   runGates,
+  selectGates,
   taskkillArgs,
   type Gate,
   type GateResult,
@@ -372,6 +373,52 @@ describe('gate graph validation', () => {
     const ids = withPnpmEntrypoint(() => gatesForMode('doc-sync').map(subject => subject.id))
 
     expect(ids).toContain('package-readme-summaries')
+  })
+
+  it('runs every gate when no changed files are given', () => {
+    for (const mode of ['hygiene', 'doc-quick', 'doc-sync', 'ci-artifacts'] as const) {
+      const gates = withPnpmEntrypoint(() => gatesForMode(mode))
+      expect(selectGates(gates, undefined).map(gate => gate.id)).toEqual(gates.map(gate => gate.id))
+    }
+  })
+
+  it('skips declared code gates for a markdown-only change and keeps undeclared gates', () => {
+    const hygiene = withPnpmEntrypoint(() => gatesForMode('hygiene'))
+    const selected = selectGates(hygiene, ['README.md'])
+    const ids = selected.map(gate => gate.id)
+
+    expect(ids).not.toContain('package-dependencies')
+    expect(ids).not.toContain('dsh-package-licenses')
+    expect(ids).toContain('constraints')
+    expect(ids).toContain('runtime-closure')
+  })
+
+  it('selects declared dependency gates when only package manifests change', () => {
+    const hygiene = withPnpmEntrypoint(() => gatesForMode('hygiene'))
+    const ids = selectGates(hygiene, ['packages/core/session/package.json']).map(gate => gate.id)
+
+    expect(ids).toContain('package-dependencies')
+    expect(ids).toContain('dsh-package-licenses')
+    expect(ids).not.toContain('no-bare-dispatcher')
+  })
+
+  it('keeps a dependency when a selected gate needs it', () => {
+    const artifacts = withPnpmEntrypoint(() => gatesForMode('ci-artifacts'))
+    const selected = selectGates(artifacts, ['apps/cli/tests/built-bin.e2e.ts'])
+
+    expect(selected.map(gate => gate.id)).toEqual(expect.arrayContaining(['built-bin-smoke', 'build']))
+    expect(selected.find(gate => gate.id === 'built-bin-smoke')?.needs).toEqual(['build'])
+  })
+
+  it('selects markdown documentation gates and skips source documentation gates for markdown', () => {
+    const docs = withPnpmEntrypoint(() => gatesForMode('doc-sync'))
+    const ids = selectGates(docs, ['docs/guide.md']).map(gate => gate.id)
+
+    expect(ids).toContain('markdown-links')
+    expect(ids).toContain('translation-pairing')
+    expect(ids).not.toContain('doc-refs')
+    expect(ids).not.toContain('export-jsdoc')
+    expect(ids).toContain('doc-typecheck')
   })
 
   it('derives the quick documentation aggregate from marked doc-sync leaves', () => {
