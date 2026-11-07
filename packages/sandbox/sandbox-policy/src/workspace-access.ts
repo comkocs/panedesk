@@ -53,7 +53,7 @@ export class WorkspaceWriteAccess {
   beginGrant(workspace: string): () => void {
     this.advance(workspace)
     if (this.issued.has(canonicalPath(workspace))) {
-      throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing')
+      throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing. / 先前发出的工作区写能力没有完成证明；请重启宿主后再授权。')
     }
     return this.checkpoint(workspace)
   }
@@ -305,7 +305,7 @@ export class WorkspaceWriteAccess {
       assertWindowsStateTrusted(path, canonical)
       if (this.revocationPending(path)) throw new WorkspaceWriteRuleError('Workspace revocation is incomplete; retry revocation before authorizing')
       if (current === undefined && this.issued.has(canonical)) {
-        throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing')
+        throw new WorkspaceWriteRuleError('Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing. / 先前发出的工作区写能力没有完成证明；请重启宿主后再授权。')
       }
       // Direct consent carries no earlier capture; queued work keeps its supplied guard.
       const commitCurrent = current ?? this.checkpoint(canonical)

@@ -67,6 +67,7 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
         native.active.add(path)
         if (!standing) this.temporary.push(path)
       }
+      protect() {}
       has(path: string) { return native.active.has(path) }
       hasEffectiveWrite(path: string) { return native.active.has(path) }
       revokeTree(path: string) { native.active.delete(path) }
@@ -547,9 +548,103 @@ describe('Windows first workspace write confirmation', () => {
     expect(native.additions).toHaveLength(count)
     expect(native.active.has(workspace)).toBe(false)
     expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+    await expect(ctx.sandboxPolicy.workspaceAccess.authorize(workspace, 'settings-preauthorization')).rejects.toThrow(
+      'Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing. / 先前发出的工作区写能力没有完成证明；请重启宿主后再授权。',
+    )
+    expect(() => ctx.sandboxPolicy.workspaceAccess.beginGrant(workspace)).toThrow(
+      'Previously issued workspace capabilities have no completion proof; restart the host before reauthorizing. / 先前发出的工作区写能力没有完成证明；请重启宿主后再授权。',
+    )
+    await expect(provider.confine(['test-only'], stale)).rejects.toThrow('authorization')
+    expect(native.additions).toHaveLength(count)
+    expect(native.active.has(workspace)).toBe(false)
+    expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+  })
+
+  it('reauthorizes a revoked workspace in a restarted host without issuing capabilities before capture and authorization complete', async () => {
+    const { ctx, agent, workspace, sandbox, settings } = await fixture()
     await ctx.sandboxPolicy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
-    await provider.confine(['test-only'], stale)
+    const previous = ctx.sandboxPolicy.resolve({ session: agent.session })
+    const previousAccess = ctx.sandboxPolicy.workspaceAccess
+    if (previous.mode !== 'workspace-write') throw new Error('Expected authorized workspace mode')
+    await sandbox.confine(['test-only'], { ...previous, mode: previous.mode })
+    await (await settings()).revoke()
+    await ctx.fiber.dispose()
+    contexts.splice(contexts.indexOf(ctx), 1)
+    const count = native.additions.length
+    const restarted = new Context()
+    contexts.push(restarted)
+    await mountAgentLoopTestDependencies(restarted)
+    provideWorkingDirectoryFixture(restarted)
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    try {
+      await restarted.plugin(SandboxPolicyService, { workspaceRoot: workspace })
+      await restarted.plugin(LocalSandboxProvider, {})
+    } finally { platform.mockRestore() }
+    const provider = restarted.sandbox
+    if (!(provider instanceof LocalSandboxProvider)) throw new Error('Expected a restarted local sandbox')
+    provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['test-only-runner'] }
+    const home = join(workspace, '..')
+    const dir = join(workspace, 'profile')
+    mkdirSync(dir)
+    const patch = join(dir, 'cordis.patch.yml')
+    writeFileSync(patch, 'approved input')
+    restarted.provide('profileContext', {
+      name: 'test', dir, patchPath: patch, home, cwd: workspace,
+      installAnchor: join(workspace, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    })
+    restarted.provide('shell', { sandboxMode: restarted.sandboxPolicy.defaultMode })
+    await restarted.plugin(ApprovalService, { policy: 'ask' })
+    await restarted.plugin(PermissionPresetService, { presets: {
+      'read-only': { sandbox: 'read-only', approval: 'ask' },
+      'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
+    } })
+    Object.defineProperty(restarted, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } } } })
+    const access = restarted.sandboxPolicy.workspaceAccess
+    expect(access).not.toBe(previousAccess)
+    expect(provider).not.toBe(sandbox)
+    expect(restarted.sandboxPolicy.resolve({ session: agent.session }).mode).toBe('read-only')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const holding = withFileLock(access.recordPath(workspace), async () => {
+      entered.resolve(undefined)
+      await release.promise
+    })
+    await entered.promise
+    const authorize = vi.spyOn(access, 'authorize')
+    vi.spyOn(await import('@panedesk/dsh-sandbox-windows-acl'), 'assertWindowsStateTrusted').mockImplementation(() => {})
+    const authorizing = (async () => {
+      const windows = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+      try { await restarted.permissionPresets.authorizeWorkspaceWrite(workspace) } finally { windows.mockRestore() }
+    })()
+    const settled = Promise.allSettled([authorizing])
+    try {
+      const reader = [...restarted.profileContext.inputIntegrities?.values() ?? []][0]
+      if (reader === undefined) throw new Error('Expected a new host input reader')
+      expect(reader.covers(patch)).toBe(false)
+      expect(access.list()).toEqual([])
+      expect(native.additions).toHaveLength(count)
+      expect(native.active.has(workspace)).toBe(false)
+      await vi.waitFor(() => { expect(authorize).toHaveBeenCalledOnce() })
+      expect(reader.covers(patch)).toBe(true)
+      expect(access.list()).toEqual([])
+      expect(restarted.sandboxPolicy.resolve({ session: agent.session }).mode).toBe('read-only')
+      await expect(provider.materializeWorkspaceWriteGrant(restarted.sandboxPolicy.resolve({ session: agent.session }))).rejects.toThrow('approved session policy')
+      expect(native.additions).toHaveLength(count)
+      expect(native.active.has(workspace)).toBe(false)
+    } finally {
+      release.resolve(undefined)
+      await holding
+      await settled
+    }
+    await authorizing
+    expect(access.isAuthorized(workspace)).toBe(true)
+    expect(native.additions).toHaveLength(count)
+    const granted = restarted.sandboxPolicy.resolve({ session: agent.session })
+    expect(granted.mode).toBe('workspace-write')
+    if (granted.mode !== 'workspace-write') throw new Error('Expected reauthorized workspace mode')
+    await provider.confine(['test-only'], { ...granted, mode: granted.mode })
     expect(native.active.has(workspace)).toBe(true)
+    expect(native.additions.slice(count).filter(path => path === workspace)).toEqual([workspace])
   })
 
   it('waits for the authorization record lock before materializing native write permissions', async () => {

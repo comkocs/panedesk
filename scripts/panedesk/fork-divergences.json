@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "revoked-workspace-reauthorization-requires-host-restart",
+      "description": "Document and test host restart before reauthorizing revoked workspace capabilities",
+      "origin": "Workspace write capability lifecycle",
+      "reason": "Preserve issued-capability and completion-proof guards. Assert same-host reauthorization is refused, report bilingual restart guidance through both grant entry points, and verify a fresh host can reauthorize only after protected-input capture and authorization complete. Document the host restart requirement in the filesystem and policy package READMEs. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
+          "packages/fs/tool-fs/README*",
+          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
+          "packages/sandbox/sandbox-policy/README*"
+        ]
+      }
+    },
+    {
       "id": "path-local-protected-module-loads",
       "description": "Avoid repeated protected-root traversal during module loading",
       "origin": "Protected module startup performance",
