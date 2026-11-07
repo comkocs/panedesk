@@ -34,12 +34,7 @@ export async function acceptAutomatic(h: Awaited<ReturnType<typeof harness>>) {
   h.engine.registerPreopenRetention({ sourceId, sourceOwnerNodeId: owner, limitMs: 900000 })
   h.engine.registerLocalAccess({ list: () => h.seatProvider.list(), close: request => h.seatProvider.close(request),
     freeze: async definition => ({ definition, title: 'Frozen opening', openingMode: 'auto' }), recheck: async () => null })
-  const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-    origin: 'remote', sourceNodeId: owner, seat, taskIds: snapshot.taskIds, policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-  const grant = await entry.issuer.check({ operationId: sourceOperation, requestDigest: digest(input) })
-  if ('status' in grant) throw new Error('Expected admission grant')
-  const accepted = await h.engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote', authorization: grant })
+  const accepted = await h.engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote' })
   if (accepted.status !== 'accepted') throw new Error('Expected automatic acceptance')
   return input
 }

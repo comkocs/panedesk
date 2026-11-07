@@ -12,8 +12,7 @@ import type * as T from '@panedesk/dsh-seat'
 import type { SeatEngine } from '@panedesk/dsh-seat-engine/src/engine.ts'
 import { canonical } from '@panedesk/dsh-seat-engine/src/journal.ts'
 import { queryRoutedCallback } from '@panedesk/dsh-seat-engine/src/routed-callback.ts'
-import { seat } from '../../seat-engine/tests/fixtures.ts'
-import { principalId, owner } from '../../seat-engine/tests/routed-callback-fixture.ts'
+import { owner, callbackIssuer } from '../../seat-engine/tests/routed-callback-fixture.ts'
 export { admittedDefinition, persistCallback } from '../../seat-engine/tests/routed-callback-fixture.ts'
 
 export async function loopback(root: string, nodeId: T.SeatNodeId,
@@ -46,9 +45,7 @@ export function services(engine: () => SeatEngine, calls: T.SeatAuthorizationChe
       if (request.method !== 'source.deliverCallback') return undefined
       const retained = await queryRoutedCallback(engine(), { key: chainKey(request), payloadDigest: request.payloadDigest })
       if (!retained || canonical(retained) !== canonical(request.payload)) return undefined
-      const issuer = engine().authorizationIssuers.register({ identity: { kind: 'human', principalId,
-        nodeId: engine().options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-      current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer
+      const issuer = (await callbackIssuer(engine().options.nodeId).outboxIssuer!(request))!
       return { check: async (input) => { calls.push(input); return issuer.check(input) } }
     } }
 }

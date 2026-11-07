@@ -1,4 +1,4 @@
-/** Owner checks run before ledger reads, including the real Loader composition. */
+/** Ledger reads retain cancellation and real Loader composition. */
 import { afterEach, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
@@ -30,17 +30,7 @@ it('reads a coverage-aware snapshot without requiring or starting a ledger write
   expect(h.reads).toHaveBeenCalledWith(request)
   expect(h.ctx.get('sessionLedger')).toBeUndefined()
 })
-it.each(['guest', 'anonymous', 'session'])('refuses %s before accessing any ledger data', async (kind) => {
-  const h = setup()
-  Object.defineProperty(h.ctx, 'invocation', { value: { peer: { principal: { kind } }, signal: h.controller.signal } })
-  await expect(h.stats.read(request)).rejects.toMatchObject({ code: 'stats/unauthorized' })
-  expect(h.reads).not.toHaveBeenCalled()
-})
-it('rejects missing caller, disabled configuration and cancelled invocations without reading', async () => {
-  const h = setup()
-  Object.defineProperty(h.ctx, 'invocation', { value: undefined })
-  await expect(h.stats.read(request)).rejects.toMatchObject({ code: 'stats/unauthorized' })
-  expect(h.reads).not.toHaveBeenCalled()
+it('rejects disabled configuration and cancelled invocations without reading', async () => {
   const disabled = setup(false)
   await expect(disabled.stats.read(request)).rejects.toMatchObject({ code: 'stats/disabled' })
   expect(disabled.reads).not.toHaveBeenCalled()

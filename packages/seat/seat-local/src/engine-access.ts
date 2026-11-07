@@ -7,7 +7,6 @@ import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
 import { rejected, refuse } from './errors.ts'
 import type { OpeningContexts } from './opening-contexts.ts'
-import { digest } from './store.ts'
 
 /** Register only self-owned wait and report operations for live tool callers.
  * @param ctx - provider lifecycle and live agent registry.
@@ -56,40 +55,12 @@ export function registerLocalWindowsAccess(ctx: Context, service: T.SeatService,
           refuse('unauthorized', 'Only the calling live session may invoke window tools.', 'Use the current tool invocation.')
         }
       }
-      const invoke = async <R>(request: { operationId: T.SeatOperationId; sessionId?: import('@panedesk/dsh-session').SessionId; seat?: T.SeatName },
-        run: (scoped: T.SeatService) => Promise<R>): Promise<R | T.SeatRejected> => {
-        const issuers = ctx.get('seatAuthorizationIssuers')
-        if (!issuers) return run(internal)
-        const binding = request.sessionId ? await internal.binding({ sessionId: request.sessionId }) : null
-        if (binding && 'status' in binding) return binding
-        const registration = issuers.register({ identity: { kind: 'model-tool-call', principalId: authority.principalId,
-          origin: authority.origin, nodeId: authority.nodeId, sessionId, callId,
-          ...(request.seat ? { seat: request.seat } : binding?.kind === 'seat' ? { seat: binding.seat } : {}),
-          taskIds: binding?.kind === 'seat' ? binding.relatedTaskIds : [], policyRevision: 0 },
-        current: () => active && ctx.get('agents')?.get(sessionId)?.session === session
-          ? { decision: 'allowed', reasonCode: 'live-model-invocation', policyRevision: 0 } : null })
-        try {
-          const grant = await registration.issuer.check({ operationId, requestDigest: digest(request), callId })
-          if ('status' in grant) return grant
-          return await run(service.withAuthority({ ...authority, authorization: grant }))
-        } finally { registration.dispose() }
-      }
+      const invoke = async <R>(_request: { operationId: T.SeatOperationId; sessionId?: import('@panedesk/dsh-session').SessionId; seat?: T.SeatName },
+        run: (scoped: T.SeatService) => Promise<R>): Promise<R | T.SeatRejected> => run(internal)
       return Object.freeze({
         open: async (request: T.OpenSeatRequest) => {
           authorize()
-          const issuers = ctx.get('seatAuthorizationIssuers')
-          if (!issuers) return internal.open({ ...request, operationId, origin: 'manual' })
-          const input: T.OpenSeatRequest = { ...request, operationId, origin: 'manual', openingMode: request.openingMode ?? 'auto' }
-          const registration = issuers.register({ identity: { kind: 'model-tool-call', principalId: authority.principalId,
-            origin: authority.origin, nodeId: authority.nodeId, sessionId, callId, seat: request.seat,
-            taskIds: request.taskId ? [request.taskId] : [], policyRevision: 0 },
-          current: () => active && ctx.get('agents')?.get(sessionId)?.session === session
-            ? { decision: 'allowed', reasonCode: 'live-model-invocation', policyRevision: 0 } : null })
-          try {
-            const grant = await registration.issuer.check({ operationId, requestDigest: digest(input), callId })
-            if ('status' in grant) return grant
-            return await service.withAuthority({ ...authority, authorization: grant }).open(input)
-          } finally { registration.dispose() }
+          return internal.open({ ...request, operationId, origin: 'manual' })
         },
         renew: async (request: T.RenewSeatRequest) => {
           authorize()
@@ -152,21 +123,7 @@ export function createEngineAccess(service: T.SeatService, options: LocalSeatOpt
     requiresRecheck: () => contexts?.requiresRecheck() ?? false,
     ...(contexts ? { recheck: (item: T.PendingSeatItem) => contexts.recheck(item) } : {}),
     list: request => internal.list(request),
-    close: async (request) => {
-      const issuers = service['ctx'].get('seatAuthorizationIssuers')
-      if (!issuers) return internal.close(request)
-      const binding = await internal.binding({ sessionId: request.sessionId })
-      if (!binding || 'status' in binding || binding.kind !== 'seat') return rejected('unauthorized',
-        'Engine close requires a current seat binding.', 'Reconcile the target window.')
-      const registration = issuers.register({ identity: { kind: 'engine', principalId: authority.principalId,
-        origin: 'engine', nodeId: options.nodeId, seat: binding.seat, taskIds: binding.relatedTaskIds, policyRevision: 0 },
-      current: () => service['ctx'].get('seatAuthorizationIssuers') === issuers
-        ? { decision: 'allowed', reasonCode: 'local-engine-owner', policyRevision: 0 } : null })
-      try {
-        const grant = await registration.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
-        return 'status' in grant ? grant : await service.withAuthority({ ...authority, authorization: grant }).close(request)
-      } finally { registration.dispose() }
-    },
+    close: request => internal.close(request),
     freezeContext: async (definition, trigger) => {
       if (!contexts || !trigger.openingContext || !trigger.relatedTaskIds) return rejected('unavailable',
         'Opening context is unavailable.', 'Restore the provider and task associations.')

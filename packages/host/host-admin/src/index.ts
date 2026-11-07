@@ -48,22 +48,16 @@ export type HostAdminCallbackResolveRequest = Seat.CallbackResolveRequest
 export type HostAdminCallbackResolveResult = Seat.CallbackResolveResult
 /** Optional running-engine capability; absence refuses the administrative write. */
 export interface HostAdminCallbackResolver {
-  /** Resolve using the engine's current local-operator grant.
+  /** Resolve one paused callback.
    * @param request - Frozen callback action and expected attempt.
-   * @param grant - Exact request authority issued by this engine.
    * @returns Current delivery state or a fixed refusal.
    */
-  callbackResolve(request: HostAdminCallbackResolveRequest, grant: Seat.SeatAuthorizationGrant): Promise<HostAdminCallbackResolveResult>
+  callbackResolve(request: HostAdminCallbackResolveRequest): Promise<HostAdminCallbackResolveResult>
 }
-/** Effect and authorization scans have independent exclusive cursors. */
-export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {
-  authorizationCursor?: Seat.EngineCursor
-  kind?: Seat.SeatIssuedAuthorizationKind
-}
-/** Legacy executors may omit authorization pages; the installed engine adapter always supplies one. */
-export interface HostAdminQueryResult extends Seat.EngineQueryResult {
-  authorizations?: Seat.SeatIssuedAuthorizationQueryResult
-}
+/** Task and effect scans share the engine's exclusive cursor. */
+export type HostAdminQueryRequest = Seat.SeatTaskQueryRequest
+/** Administration exposes the engine's business effects without authorization pages. */
+export type HostAdminQueryResult = Seat.EngineQueryResult
 /** A process epoch rejects stale metadata and PID reuse; it is not a credential. */
 export interface HostAdminEndpoint {
   nodeId: Seat.SeatNodeId
@@ -115,10 +109,10 @@ export interface HostAdminAuthority {
 }
 /** Administration is optional and never starts a second engine to answer a query. */
 export interface HostAdminService {
-  /** Dispatch a fixed method after transport authentication and epoch validation.
+  /** Dispatch a fixed method with the transport's permitted methods.
    * @param request - Bounded validated request without caller-defined authority.
    * @param authority - Authenticated operator role narrowed to permitted methods.
-   * @returns Provider evidence; approval records authorization before engine admission.
+   * @returns Provider evidence from the running engine or installed capability.
    */
   dispatch(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
 }
@@ -129,12 +123,12 @@ declare module '@panedesk/cordis' {
     hostAdmin: HostAdminService
   }
 }
-/** Local executors own authorization facts and must durably record approval before admission. */
+/** Local executors delegate business operations to the running engine and installed providers. */
 export interface HostAdminExecutor {
   /** Invoke only a locally authenticated capability, never another router.
    * @param request - Validated fixed-method request.
    * @param authority - Transport-derived narrowed authority.
-   * @returns Provider evidence after required authorization persistence.
+   * @returns Provider evidence for the requested business operation.
    */
   execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
 }

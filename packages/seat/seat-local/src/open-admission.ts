@@ -22,8 +22,6 @@ export const localSourceId = 'seat-local-manual' as T.SeatSourceId
 export async function admitLocalOpen(engine: T.SeatEngineService, state: LocalEngineState,
   input: T.SeatLocalOpenRequest, nodeName: string): Promise<T.OpenSeatResult> {
   if (engine.openWindow) return engine.openWindow(input)
-  if (input.authority.authorization || input.authority.localWake) return rejected('unavailable',
-    'This engine does not support authorized opening admission.', 'Install compatible opening admission.')
   const { request, definition } = input
   if (request.origin === 'engine') return rejected('invalid-request',
     'Engine openings require their registered trigger source.', 'Submit the original automatic trigger.')

@@ -144,14 +144,6 @@ describe('seat source preparation', () => {
       expect(await readdir(f.cwd)).toEqual([])
     } finally { await f.ctx.fiber.dispose() }
   })
-  it('rejects non-owner calls before any source write', async () => {
-    const f = await fixture()
-    try {
-      Object.defineProperty(f.ctx, 'invocation', { value: { peer: { principal: { kind: 'anonymous' } } } })
-      await expect(f.ui.prepareAdd(f.request)).rejects.toThrow('authenticated owner')
-      await expect(readdir(join(f.home, 'seats'))).rejects.toThrow()
-    } finally { await f.ctx.fiber.dispose() }
-  })
   it('rejects a missing directory and an existing name without changing the catalog', async () => {
     const f = await fixture()
     try {

@@ -263,12 +263,11 @@ export abstract class SeatEngineService extends Service {
    * @returns Detached live observations; absence means this provider has no callback observation capability.
    */
   callbackObservations?: (request: { limit: number; phase?: T.SeatCallbackDelivery['phase'] }) => Promise<{ items: readonly T.SeatCallbackDelivery[]; complete: boolean }>
-  /** Resolve a parked callback under current local-operator authority; absence refuses resolution.
+  /** Resolve a parked callback; absence refuses resolution.
    * @param request - Callback identity, expected attempt and operator action.
-   * @param grant - Live authority bound to this exact request.
    * @returns Current delivery state or a fixed zero-frame refusal.
    */
-  callbackResolve?: (request: T.CallbackResolveRequest, grant: import('./authorization.ts').SeatAuthorizationGrant) => Promise<T.CallbackResolveResult>
+  callbackResolve?: (request: T.CallbackResolveRequest) => Promise<T.CallbackResolveResult>
   /** Register trusted local capabilities for engine-only calls; external seats still require authority.
    * @param access - provider-owned closures, captured under internal authority.
    * @returns disposer draining the current engine drive before detaching.
@@ -311,9 +310,9 @@ export abstract class SeatEngineService extends Service {
    * @returns Durable wake receipt, refusal, or absence when opening ingress remains selected.
    */
   wakeSource?: (envelope: T.TriggerEnvelope) => Promise<T.WakeSeatResult | undefined>
-  /** Commit frozen admission and its live grant together; never route again.
+  /** Commit frozen admission; never route again.
    * @param request - Frozen source input, route and expected local definition revision.
-   * @param authority - Independently verified process-local authority with the exact grant.
+   * @param authority - Process-local caller identity.
    * @returns Durable acceptance or refusal without source-side execution resources.
    */
   acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>

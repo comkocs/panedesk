@@ -20,13 +20,9 @@ import { openLocalWindow } from './local-open.ts'
 import { closeEffects } from './closing.ts'
 import { queueReplacement, ReplacementDriver } from './replacement.ts'
 import { KeepAliveScheduler, type KeepAliveRuntime } from './keepalive.ts'
-import { AuthorizationIssuers, authorizationEffect } from './authorization-issuer.ts'
-import { AuthorizationTransactions } from './authorization-transactions.ts'
-import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
-import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
-import { exportAuthorizations } from './authorization-export.ts'
+import { queryTasks } from './task-query.ts'
 import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-evidence.ts'
-import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen, recheckFrozenDefinition } from './frozen-admission.ts'
+import { frozenEffects, frozenIdentity, queryFrozen, recheckFrozenDefinition } from './frozen-admission.ts'
 import { FrozenWriteBarrier, installFrozenBusiness } from './frozen-business.ts'
 import { validChainAccepted } from './chain-storage.ts'
 import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
@@ -62,45 +58,35 @@ export interface EngineDependencies {
 export class SeatEngine extends SeatEngineService {
   /** Single durable decision owner shared by all engine operations. */
   readonly journal: EngineJournal
-  /** Host-only entry registration is scoped to this engine lifecycle. */
-  readonly authorizationIssuers = new AuthorizationIssuers()
-  /** Required-capability admission shares the legacy journal owner. */
-  readonly authorizations: AuthorizationTransactions
   /** Private wake intents share this journal's writer and recovery. */
   readonly wakeDeliveries: WakeDeliveries
   /** Registration readiness and withdrawal cover complete frozen and batch admissions. */
   readonly frozenWrites = new FrozenWriteBarrier()
   private readonly approvalAbsorption = new AsyncLocalStorage<{
     operationId: T.SeatOperationId
-    grant: T.SeatAuthorizationGrant
     items: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'stateVersion'>[]
     active: boolean
   }>()
-  /** Bind a host-verified human opening to exact approval revisions; acceptance owns the atomic commit.
-   * @param grant - Live issuer-owned human opening authorization.
+  /** Fold exact same-task reminder approvals into a human opening; acceptance owns the commit.
+   * @param operationId - Opening operation the approvals belong to.
    * @param items - Same-ticket approvals observed by the scope owner.
    * @param execute - Existing opening path, including every version and scope check.
-   * @returns The original opening result; refusal leaves approvals untouched.
+   * @returns The original opening result; a revision conflict leaves approvals untouched.
    */
-  withApprovalAbsorption<R>(grant: T.SeatAuthorizationGrant,
+  withApprovalAbsorption<R>(operationId: T.SeatOperationId,
     items: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'stateVersion'>[], execute: () => Promise<R>): Promise<R> {
-    const state = { operationId: grant.fact.operationId, grant, items: structuredClone(items), active: true }
+    const state = { operationId, items: structuredClone(items), active: true }
     return this.approvalAbsorption.run(state, execute).finally(() => { state.active = false })
   }
   private absorbedApprovals(view: import('./projection.ts').EngineProjection, input: T.SeatLocalOpenRequest): T.EngineEffect[] {
     const state = this.approvalAbsorption.getStore()
     if (!state?.active) return []
-    if (state.operationId !== input.request.operationId || state.grant !== input.authority.authorization) {
-      throw new EngineError('unauthorized', 'Approval absorption belongs to another opening')
+    if (state.operationId !== input.request.operationId) {
+      throw new EngineError('invalid-request', 'Approval absorption belongs to another opening')
     }
-    const grant = state.grant, data = this.authorizationIssuers.verify(grant, {
-      operationId: state.operationId, requestDigest: grant.fact.requestDigest,
-      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
     const tasks = input.openingContext?.taskIds ?? (input.request.taskId ? [input.request.taskId] : [])
     const taskId = tasks[0]
-    if (data.kind !== 'human' || data.decision !== 'allowed' || data.seat !== input.request.seat
-      || tasks.length !== 1 || !taskId || !data.taskIds.includes(taskId)) throw new EngineError('unauthorized', 'Human task authorization required')
+    if (tasks.length !== 1 || !taskId) throw new EngineError('invalid-request', 'Approval absorption covers one task')
     return state.items.map((expected) => {
       const item = view.pending.get(expected.queueItemId)
       if (!item || item.stateVersion !== expected.stateVersion || view.approved.has(item.queueItemId)
@@ -110,7 +96,7 @@ export class SeatEngine extends SeatEngineService {
         throw new EngineError('revision-conflict', 'Pending approval changed before absorption')
       }
       return fact({ kind: 'queue/cancelled', operationId: state.operationId, seat: item.seat,
-        data: { pending: { ...item, stateVersion: item.stateVersion + 1 }, principalId: data.principalId,
+        data: { pending: { ...item, stateVersion: item.stateVersion + 1 }, principalId: input.authority.principalId,
           previousRevision: item.stateVersion, revision: item.stateVersion + 1 } })
     })
   }
@@ -203,25 +189,10 @@ export class SeatEngine extends SeatEngineService {
     () => { ctx.emit('seat/diagnostics-changed') })
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
-    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
+    this.wakeDeliveries = new WakeDeliveries(this.journal,
       options.config.frozenWakeContext ? options.config.maxSourceBytes : undefined)
-    this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
-      () => this.ready(), () => this.publish(), options.config.nodeName, () => this.outbox.observations())
-    ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
-    ctx.provide('seatAuthorizationTransactions', this.authorizations)
-    ctx.provide('seatAuthorizationExports', {
-      export: async request => exportAuthorizations(await this.authorizations.query(request)),
-    })
-    ctx.provide('seatAuthorizedEngineActions', {
-      cancel: (request, grant) => this.authorizations.cancel(request, grant),
-      renew: (request, grant) => this.renewAuthorized(request, grant),
-      replace: (request, grant) => this.replaceAuthorized(request, grant),
-    })
     ctx.provide('seatAuthorizationQueries', {
-      query: async (request) => {
-        await this.ready()
-        return queryLegacyAuthorizations(this.journal.projection.authorizationDecisions, request)
-      },
+      query: async () => rejected('unavailable', 'Authorization queries are retired'),
       tasks: async (request) => { await this.ready(); return queryTasks(this.journal.projection.decisions, request) },
     })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
@@ -298,13 +269,11 @@ export class SeatEngine extends SeatEngineService {
   }
   /** Resolve a parked callback without replacing its payload or chain operation.
    * @param request - Callback identity, expected attempt and operator action.
-   * @param grant - Current local operator authority for this exact request.
    * @returns Retained state or a fixed refusal with no mutation.
    */
-  override callbackResolve = async (request: T.CallbackResolveRequest,
-    grant: T.SeatAuthorizationGrant): Promise<T.CallbackResolveResult> => {
+  override callbackResolve = async (request: T.CallbackResolveRequest): Promise<T.CallbackResolveResult> => {
     await this.ready()
-    const result = await resolveCallback(this.journal, this.authorizationIssuers, request, grant)
+    const result = await resolveCallback(this.journal, request)
     await this.publish()
     return result
   }
@@ -337,7 +306,6 @@ export class SeatEngine extends SeatEngineService {
     this.stopped = true
     this.failures.close()
     await Promise.all([drained, this.sourceProxy?.close()])
-    this.authorizationIssuers.close()
     if (this.timer) clearTimeout(this.timer)
     await this.localOpenChain
     await this.activeDrive
@@ -377,28 +345,18 @@ export class SeatEngine extends SeatEngineService {
       const result = this.localOpenChain.then(async () => {
         await this.ready()
         return work(async (input) => {
-          if (!input.nodeWorkChain && input.authority.localWake && input.request.operationId === operationId) {
-            const grant = input.authority.authorization
-            if (!grant || grant !== input.authority.localWake.opening || grant.fact.kind !== 'node-delegation'
-              || grant.fact.sourceNodeId !== this.options.nodeId || grant.fact.origin !== 'manual'
-              || grant.fact.reasonCode !== 'trusted-local-owner') return rejected('unauthorized', 'Local wake fallback requires its owner grant')
-            this.authorizationIssuers.verify(grant, { operationId, requestDigest: digest(input.request) }, this.options.nodeId)
+          if (!input.nodeWorkChain && input.request.operationId === operationId) {
             const view = this.journal.projection
-            const retained = view.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'authorization/checked'
-              && effect.data.operationId === operationId && effect.data.principalId === grant.fact.principalId
-              && effect.data.requestDigest === digest(input.request) && effect.data.seat === input.request.seat
-              && effect.data.kind === 'node-delegation' && effect.data.sourceNodeId === this.options.nodeId
-              && effect.data.origin === 'manual' && effect.data.reasonCode === 'trusted-local-owner' && effect.data.decision === 'allowed')
-              && frame.effects.some(effect => effect.kind === 'trigger/accepted'
-                && effect.data.trigger.evidence.kind === 'manual' && effect.data.trigger.evidence.operationId === operationId
-                && effect.data.trigger.seat === input.request.seat && effect.data.trigger.kind === 'manual'))
+            const retained = view.decisions.some(frame => frame.effects.some(effect => effect.kind === 'trigger/accepted'
+              && effect.data.trigger.evidence.kind === 'manual' && effect.data.trigger.evidence.operationId === operationId
+              && effect.data.trigger.seat === input.request.seat && effect.data.trigger.kind === 'manual'))
             if (!retained && ([...view.pending.values()].some(item => item.seat === input.request.seat)
               || [...view.opens.values()].some(item => item.binding.kind === 'seat' && item.binding.seat === input.request.seat
                 && !view.closed.has(item.sessionId)
                 && !(item.phase === 'opening-failed' && item.failure?.effectState === 'none' && !view.resources.has(item.sessionId))))) {
               return rejected('session-busy', 'A window opening for this seat is already admitted')
             }
-            return this.openLocal(input, true)
+            return this.openLocal(input)
           }
           if (!input.nodeWorkChain || input.request.operationId !== operationId
             || input.nodeWorkChain.operationKey.method !== 'seat.wakeFrozen') {
@@ -421,12 +379,9 @@ export class SeatEngine extends SeatEngineService {
       return result
     })
   }
-  private async openLocal(input: T.SeatLocalOpenRequest, checkedLocalWake = false): Promise<T.OpenSeatResult> {
+  private async openLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     await this.ready()
     if (input.nodeWorkChain) return this.openFrozenLocal(input)
-    if (input.authority.localWake && !checkedLocalWake) {
-      return rejected('unauthorized', 'Local wake opening requires the checked wake entry')
-    }
     return openLocalWindow(this, input, async (envelope) => {
       if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
       if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {
@@ -441,25 +396,15 @@ export class SeatEngine extends SeatEngineService {
         frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto',
         ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
-      const grant = input.authority.authorization
-      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen, grant ? (effects, view) => {
-        const data = this.authorizationIssuers.verify(grant, { operationId: input.request.operationId,
-          requestDigest: digest(input.request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-          ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
-        if (data.decision !== 'allowed' || data.principalId !== input.authority.principalId || data.seat !== input.request.seat
-          || input.request.taskId && !data.taskIds.includes(input.request.taskId)
-          || input.openingContext?.taskIds.some(task => !data.taskIds.includes(task))) {
-          throw new EngineError('unauthorized', 'Opening attribution does not authorize this seat and task')
-        }
-        return [...this.absorbedApprovals(view, input), ...effects, authorizationEffect(data)]
-      } : undefined)
+      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen, (effects, view) =>
+        [...this.absorbedApprovals(view, input), ...effects])
       await this.publish()
       return result
     })
   }
   private async openFrozenLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
-    const chain = input.nodeWorkChain, grant = input.authority.authorization
-    if (!chain || !grant) return rejected('unauthorized', 'Frozen opening requires admission identity')
+    const chain = input.nodeWorkChain
+    if (!chain) return rejected('invalid-request', 'Frozen opening requires its retained chain')
     const retained = queryFrozen(this.journal.projection, { key: chain.operationKey, payloadDigest: chain.payloadDigest })
     if (retained.status === 'rejected') return retained
     if (retained.status === 'settled') {
@@ -474,7 +419,7 @@ export class SeatEngine extends SeatEngineService {
       return rejected('cross-node-unsupported', 'Frozen admission cannot route to another node')
     }
     if (!validChainAccepted(chain) || !['seat.openFrozen', 'seat.wakeFrozen'].includes(chain.operationKey.method)
-      || input.request.operationId !== chain.operationKey.operationId || input.authority.principalId !== grant.fact.principalId
+      || input.request.operationId !== chain.operationKey.operationId
       || digest(input.definition) !== digest(definition) || input.opening.text !== chain.openingContext.snapshot.text
       || input.opening.digest !== chain.openingContext.snapshot.digest) {
       return rejected('invalid-request', 'Frozen local action differs from its retained wire intent')
@@ -488,7 +433,7 @@ export class SeatEngine extends SeatEngineService {
         ...(input.request.nodeId ? { nodeId: input.request.nodeId } : {}) }
     if (digest({ request: originalRequest, openingContext: chain.openingContext,
       expectedSeatRevision: chain.expectedSeatRevision, route: chain.route }) !== chain.payloadDigest) {
-      return rejected('unauthorized', 'Derived local opening does not match the authorized frozen request')
+      return rejected('invalid-request', 'Derived local opening does not match its retained frozen request')
     }
     const snapshot = chain.openingContext.snapshot
     const envelope: T.TriggerEnvelope = { triggerId: digest(chain.operationKey) as string as T.TriggerId,
@@ -508,16 +453,15 @@ export class SeatEngine extends SeatEngineService {
           else if (original.method === 'seat.wakeFrozen' && original.result.status === 'opened') result = original.result.result
           return []
         }
-        const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId)
         const resolved = this.triggers.resolveProjectPolicy(view, definition)
-        const effects = frozenEffects(view, chain, envelope, frozen, undefined, authorization.data, resolved.policy)
+        const effects = frozenEffects(view, chain, envelope, frozen, undefined, undefined, resolved.policy)
         if ('status' in effects) { result = effects; return resolved.effects }
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
         const pending = intent.data.pending
         result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
           reason: pending.reason, blockedBy: pending.blockedBy }
-        return [...resolved.effects, ...this.absorbedApprovals(view, input), ...effects, authorization]
+        return [...resolved.effects, ...this.absorbedApprovals(view, input), ...effects]
       })
     } catch (error) {
       return this.frozenCommitFailure(error)
@@ -525,7 +469,7 @@ export class SeatEngine extends SeatEngineService {
     await this.publish()
     return result
   }
-  /** Admit one batch member against the original wire grant without issuing broader authority.
+  /** Admit one batch member of the original explicit batch.
    * @param input - Locally frozen member action.
    * @param request - Original complete batch payload.
    * @param sourceNodeId - Authenticated sender captured by node admission.
@@ -538,12 +482,10 @@ export class SeatEngine extends SeatEngineService {
   private async openBatchMemberResolved(input: T.SeatLocalOpenRequest, request: T.OpenSeatBatchRequest,
     sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatResult> {
     await this.ready()
-    const grant = input.authority.authorization
-    if (!grant || input.authority.nodeId !== this.options.nodeId || input.authority.principalId !== grant.fact.principalId
-      || input.authority.origin !== request.origin || grant.fact.origin !== request.origin
+    if (input.authority.nodeId !== this.options.nodeId || input.authority.origin !== request.origin
       || input.request.seat !== input.definition.seat || !request.seats.includes(input.request.seat)
       || input.request.operationId !== batchMemberId(request, sourceNodeId, input.authority.principalId, input.request.seat)) {
-      return rejected('unauthorized', 'Batch member attribution does not match')
+      return rejected('invalid-request', 'Batch member does not match its original batch')
     }
     const original = queryBatchMember(this.journal.projection, request, sourceNodeId, input.authority.principalId, input.request.seat)
     if (original) return original
@@ -560,21 +502,14 @@ export class SeatEngine extends SeatEngineService {
       await this.journal.commitAuthorization((view) => {
         const retained = queryBatchMember(view, request, sourceNodeId, input.authority.principalId, input.request.seat)
         if (retained) { result = retained; return [] }
-        const data = this.authorizationIssuers.verify(grant, { operationId: request.operationId, requestDigest: digest(request),
-          ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-          ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
-        if (data.kind !== 'node-delegation' || data.decision !== 'allowed'
-          || data.seat !== undefined && data.seat !== input.request.seat
-          || data.sourceNodeId !== undefined && data.sourceNodeId !== sourceNodeId) {
-          throw new EngineError('unauthorized', 'Batch grant does not cover this member')
-        }
-        const effects = batchMemberEffects(view, input, request, sourceNodeId, data, this.localAccess?.requiresRecheck?.() === true)
+        const recheck = this.localAccess?.requiresRecheck?.() === true
+        const effects = batchMemberEffects(view, input, request, sourceNodeId, input.authority.principalId, recheck)
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Batch member intent is unavailable')
         const pending = intent.data.pending
         result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
           reason: pending.reason, blockedBy: [...pending.blockedBy] }
-        return [...effects, authorizationEffect(data)]
+        return [...effects]
       })
     } catch (error) { return this.frozenCommitFailure(error) }
     await this.publish()
@@ -764,12 +699,9 @@ export class SeatEngine extends SeatEngineService {
     let result: T.AcceptTriggerResult = rejected('unavailable', 'Frozen admission did not commit')
     try {
       await this.journal.commitAuthorization((view) => {
-        const grant = authority.authorization
-        if (!grant) throw new EngineError('unauthorized', 'Frozen admission requires a live grant')
         const original = queryFrozen(view, { key: input.operationKey, payloadDigest: input.payloadDigest })
         if (original.status === 'rejected') { result = original; return [] }
         if (original.status === 'settled' && original.method === 'engine.acceptFrozen') { result = structuredClone(original.result); return [] }
-        const authorization = authorizeFrozen(this.authorizationIssuers, grant, input, definition, this.options.nodeId)
         const resolved = this.triggers.resolveProjectPolicy(view, definition)
         const effects = frozenEffects(view, input, envelope, frozen,
           externalRuleMiss(definition, envelope) ? 'off' : triggerRule(definition, envelope)?.mode, undefined, resolved.policy)
@@ -780,7 +712,7 @@ export class SeatEngine extends SeatEngineService {
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
         result = { status: 'accepted', triggerId: envelope.triggerId, queueItemId: intent.data.pending.queueItemId,
           sequence: intent.data.pending.sequence }
-        return [...resolved.effects, ...effects, authorization]
+        return [...resolved.effects, ...effects]
       })
     } catch (error) {
       return this.frozenCommitFailure(error)
@@ -891,22 +823,13 @@ export class SeatEngine extends SeatEngineService {
     if (!Number.isSafeInteger(request.limit) || request.limit < 1) throw new EngineError('invalid-request',
       'Pending limit must be positive')
     const now = Date.now(), view = this.journal.projection
-    const candidates: { item: T.PendingSeatItem; error?: T.SeatFailure }[] = [...view.pending.values()].map(item => ({ item }))
-    if (request.includeRejected) for (const decision of view.decisions) {
-      const refusal = decision.effects.find(effect => effect.kind === 'open/rejected')
-      if (refusal?.kind !== 'open/rejected' || refusal.data.error.message !== 'Pre-open retention limit reached') continue
-      for (const effect of decision.effects) {
-        if (effect.kind === 'queue/cancelled') candidates.push({ item: effect.data.pending, error: refusal.data.error })
-      }
-    }
+    const candidates = [...view.pending.values()].map(item => ({ item }))
     const all = candidates.filter(({ item }) => (!request.projectId || item.projectId === request.projectId)
       && (!request.seat || item.seat === request.seat) && (!request.cursor || item.sequence > request.cursor.sequence))
       .sort((a, b) => a.item.sequence - b.item.sequence)
     const page = all.slice(0, request.limit), items: T.PendingSeatObservation[] = []
-    const rejected: NonNullable<T.ListPendingSeatsResult['rejected']>[number][] = []
-    for (const { item, error } of page) {
+    for (const { item } of page) {
       const metadata = redactPending(item)
-      if (error) { rejected.push({ item: metadata, error }); continue }
       const source = item.sources[0], definition = item.frozenOpen?.definition
       const ruleMode = definition && source && externalRuleMiss(definition, source) ? 'off'
         : definition && source ? triggerRule(definition, source)?.mode : undefined
@@ -920,7 +843,7 @@ export class SeatEngine extends SeatEngineService {
         phase: remainingMs === 0 ? 'expired' : remainingMs <= 300000 ? 'expiring' : 'retained' } })
     }
     const last = page.at(-1)?.item
-    return { items, ...(request.includeRejected ? { rejected } : {}), complete: all.length <= request.limit, watermark: view.sequence,
+    return { items, complete: all.length <= request.limit, watermark: view.sequence,
       ...(last ? { nextCursor: { nodeId: this.options.nodeId, sequence: last.sequence, effectIndex: 0 } } : {}) }
   }
   private async mutatePending(request: T.ApprovePendingSeatRequest, kind: 'queue/approved' | 'queue/cancelled'): Promise<T.PendingSeatMutationResult> {
@@ -1047,54 +970,20 @@ export class SeatEngine extends SeatEngineService {
     })
     await this.publish(); return result
   }
-  private actionCommit(request: T.RenewSeatRequest | T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): ActionCommit {
-    return authorizedCommit(this.journal, this.authorizations, { operationId: request.operationId,
-      requestDigest: digest(request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
-  }
-  private async replaceAuthorized(request: T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): Promise<T.ReplaceSeatResult> {
-    try {
-      await this.checkActionTarget(request, grant)
-      return await this.replaceAction(request, this.actionCommit(request, grant))
-    }
-    catch (error) { if (!(error instanceof EngineError)) throw error; return rejected(error.code, error.message) }
-  }
-  private async checkActionTarget(request: T.RenewSeatRequest | T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): Promise<void> {
-    await this.ready()
-    const data = this.authorizationIssuers.verify(grant, { operationId: request.operationId, requestDigest: digest(request),
-      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
-    if (data.decision !== 'allowed') throw new EngineError('unauthorized', 'Action policy denied the operation')
-    const binding = this.journal.projection.opens.get(request.sessionId)?.binding
-    if (binding?.kind !== 'seat' || grant.fact.seat !== binding.seat
-      || binding.relatedTaskIds.some(task => !grant.fact.taskIds.includes(task))) {
-      throw new EngineError('unauthorized', 'Action attribution does not cover the target seat and tasks')
-    }
-  }
-  private async renewAuthorized(request: T.RenewSeatRequest, grant: T.SeatAuthorizationGrant): Promise<T.RenewSeatResult> {
-    try {
-      await this.checkActionTarget(request, grant)
-      return await this.renewAction(request, this.actionCommit(request, grant))
-    } catch (error) {
-      if (!(error instanceof EngineError)) throw error
-      return { ...rejected(error.code, error.message), cacheEvidence: { lastActivityAt: null, cacheTtlMs: null,
-        prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
-    }
-  }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     return this.replaceAction(request)
   }
-  private async replaceAction(request: T.ReplaceSeatRequest, commit?: ActionCommit): Promise<T.ReplaceSeatResult> {
+  private async replaceAction(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     await this.ready()
     if (request.nodeId && request.nodeId !== this.options.nodeId) return rejected('cross-node-unsupported', 'Replacement is node-local')
-    const result = await queueReplacement(this.journal, request, commit)
+    const result = await queueReplacement(this.journal, request)
     await this.publish()
     return result
   }
   async renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
     return this.renewAction(request)
   }
-  private async renewAction(request: T.RenewSeatRequest, commit?: ActionCommit): Promise<T.RenewSeatResult> {
+  private async renewAction(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
     await this.ready()
     const evidence = await this.dependencies.keepalive?.remaining(request.sessionId)
     const cacheEvidence: T.SeatCacheEvidence = { lastActivityAt: evidence?.kind === 'estimated'
@@ -1109,7 +998,7 @@ export class SeatEngine extends SeatEngineService {
       ...rejected('budget-stopped', 'Maintenance is blocked by window admission'), cacheEvidence }
     let result: T.EngineKeepAliveData
     try { result = await this.keepalive.renew(request.sessionId, request.operationId, 'manual',
-      evidence?.kind === 'estimated' ? evidence.evidenceAt : null, null, Date.now(), commit) }
+      evidence?.kind === 'estimated' ? evidence.evidenceAt : null, null) }
     catch (error) {
       if (!(error instanceof EngineError)) throw error
       return { ...rejected(error.code, error.message), cacheEvidence }
@@ -1248,13 +1137,10 @@ export class SeatEngine extends SeatEngineService {
           : source ? triggerRule(definition, source)?.mode : undefined
         const mode = effectiveMode(effectiveMode(view.policies.get(current.projectId)?.mode ?? 'remind', ruleMode), route.modeCeiling.mode)
         if (mode === 'off') return []
-        const registered = this.registeredRetentionLimit(current) !== undefined
         const limit = this.retentionLimit(current)
-        if (registered && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
-        if (!registered || !this.executor || !this.localAccess?.recheck) {
-          if (!registered) this.failures.record('preopen-retention',
-            new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous'), 'preopen-retention-unconfirmed')
-          if ((!registered || !transientCategory(current)) && transientCategory(current) !== 'provider-unavailable') {
+        if (!transientCategory(current) && current.reason !== 'provider-unavailable') return []
+        if (!this.executor || !this.localAccess?.recheck) {
+          if (!transientCategory(current)) {
             return [fact({ kind: 'queue/pending', seat: current.seat, data: { ...current,
               reason: 'provider-unavailable', blockedBy: ['provider-unavailable'], stateVersion: current.stateVersion + 1 } })]
           }
@@ -1319,17 +1205,12 @@ export class SeatEngine extends SeatEngineService {
       alternative: 'Restore the execution policy and recheck.', retryable: true, effectState: 'unknown' } }
   }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
-    if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(item) === undefined) return
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
     const rule = source ? triggerRule(definition, source) : undefined
     const chain = item.frozenOpen?.nodeWorkChain
-    const manual = item.triggerKind === 'manual' && (!chain || chain.operationKey.method !== 'engine.acceptFrozen'
-      && this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'
-        && effect.data.authorizationRef === chain.authorizationRef && digest(effect.data) === digest(chain))
-        && frame.effects.some(effect => effect.kind === 'authorization/checked' && effect.data.authorizationId === chain.authorizationRef
-          && effect.data.origin === 'manual' && effect.data.decision === 'allowed')))
+    const manual = item.triggerKind === 'manual' && (!chain || chain.operationKey.method !== 'engine.acceptFrozen')
     const livePolicy = manual ? undefined : await this.dependencies.seats()?.resolve(item.seat)
     const currentDefinition = livePolicy && !('status' in livePolicy) ? livePolicy : definition
     const ruleMode = source && externalRuleMiss(currentDefinition, source) ? 'off'
@@ -1350,9 +1231,6 @@ export class SeatEngine extends SeatEngineService {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
         return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
-      }
-      if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(current) === undefined) {
-        return pending('provider-unavailable', ['provider-unavailable'])
       }
       if (item.frozenOpen?.nodeWorkChain && mode === 'off') return pending('project-off')
       if (refusal) {

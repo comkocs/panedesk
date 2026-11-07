@@ -4,7 +4,7 @@ import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, HOST_ADMIN_ERROR_CODES, HOST_AD
 import type { HostAdminRequest, HostAdminResponse } from './index.ts'
 import { object, identifier, digest } from './json.ts'
 import { SEAT_ENGINE_EVENT_NAMES, type EngineEventKind } from '@panedesk/dsh-seat'
-import { validEffect, validAuthorization } from '@panedesk/dsh-seat-engine'
+import { validEffect } from '@panedesk/dsh-seat-engine'
 
 /** Decode only the frozen administrative method set.
  * @param value - Bounded JSON request.
@@ -57,14 +57,12 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     case 'engine.query': {
       const params = value.params
       if (!object(params) || !Number.isSafeInteger(params.limit) || Number(params.limit) < 1
-        || Object.keys(params).some(key => !['limit', 'cursor', 'authorizationCursor', 'kind', 'nodeId', 'seat', 'kinds', 'from', 'to', 'taskId'].includes(key))
-        || Object.entries(params).some(([key, entry]) => !['limit', 'cursor', 'authorizationCursor', 'kinds'].includes(key) && !identifier(entry))
-        || params.kind !== undefined && (typeof params.kind !== 'string'
-          || !['human', 'engine', 'model-tool-call', 'local-operator', 'node-delegation', 'plugin'].includes(params.kind))
+        || Object.keys(params).some(key => !['limit', 'cursor', 'nodeId', 'seat', 'kinds', 'from', 'to', 'taskId'].includes(key))
+        || Object.entries(params).some(([key, entry]) => !['limit', 'cursor', 'kinds'].includes(key) && !identifier(entry))
         || (params.kinds !== undefined && (!Array.isArray(params.kinds) || !params.kinds.every(identifier)))) {
         throw new Error('Administration query rejected')
       }
-      for (const cursor of [params.cursor, params.authorizationCursor]) {
+      for (const cursor of [params.cursor]) {
         if (cursor !== undefined && !validCursor(cursor)) throw new Error('Administration cursor rejected')
       }
       break
@@ -155,18 +153,6 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       if (!object(value.result) || !Array.isArray(value.result.effects) || typeof value.result.complete !== 'boolean'
         || !Number.isSafeInteger(value.result.watermark) || Number(value.result.watermark) < 0
         || value.result.effects.length > request.params.limit) throw new Error('Administration query result rejected')
-      if (value.result.authorizations !== undefined) {
-        const page = value.result.authorizations
-        if (!object(page) || !Array.isArray(page.facts) || page.facts.length > request.params.limit
-          || !page.facts.every(validAuthorization) || typeof page.complete !== 'boolean'
-          || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0
-          || !['none', 'legacy-unknown'].includes(String(page.legacyAttribution))
-          || page.nextCursor !== undefined && (!validCursor(page.nextCursor)
-            || Number(page.nextCursor.sequence) > Number(page.watermark)
-            || request.params.nodeId !== undefined && page.nextCursor.nodeId !== request.params.nodeId)) {
-          throw new Error('Administration authorization page rejected')
-        }
-      }
       for (const effect of value.result.effects) {
         if (!object(effect) || !identifier(effect.eventId) || typeof effect.kind !== 'string'
           || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !object(effect.data)

@@ -4,10 +4,10 @@ import type * as T from '@panedesk/dsh-seat'
 import { queryOperation } from '../src/operation.ts'
 import { CallbackOutbox } from '../src/outbox.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
-import type { CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
+import type { CallbackRouterPort } from '../src/routed-callback-types.ts'
 import { SourceRegistry } from '../src/sources.ts'
 import { harness, seat } from './fixtures.ts'
-import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+import { admittedDefinition, persistCallback, callbackIssuer } from './routed-callback-fixture.ts'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanups.splice(0).reverse()) await close(); vi.useRealTimers() })
@@ -19,9 +19,7 @@ test('folds one hundred real routed dispatch failures into one barrier and one c
   const body = await persistCallback(h.engine), sources = new SourceRegistry()
   cleanups.push(() => sources.close())
   let dispatches = 0
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(h.engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: { status: 'missing' } }
     dispatches++
@@ -59,9 +57,7 @@ test('keeps failed query times when the original dispatch returns pending direct
   const body = await persistCallback(h.engine), sources = new SourceRegistry()
   cleanups.push(() => sources.close())
   let connected = false
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(h.engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     if (!connected) return { method: request.method, status: 'rejected', error: {
       code: 'unavailable', effectState: 'none', retryable: true } }
@@ -93,9 +89,7 @@ test('accounts for transport folding, shutdown, send barrier and terminal delive
   const body = await persistCallback(h.engine), sources = new SourceRegistry()
   cleanups.push(() => sources.close())
   let engine = h.engine, connected = false, dispatches = 0
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     if (!connected) return { method: request.method, status: 'rejected', error: {
       code: 'unavailable', effectState: 'none', retryable: true } }

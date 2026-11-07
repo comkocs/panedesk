@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import type * as T from '@panedesk/dsh-seat'
 import type { EngineProjection } from './projection.ts'
 import { digest, EngineError } from './journal.ts'
-import { authorizationEffect, type AuthorizationIssuers } from './authorization-issuer.ts'
 import type { ChainAcceptedEffect } from './chain-storage.ts'
 import type { AuthorizationDecision } from './authorization-storage.ts'
 import { effectiveMode } from './admission.ts'
@@ -45,20 +44,15 @@ export function queryFrozen(view: EngineProjection, request: T.NodeWorkChainOper
  */
 export function frozenIdentity(request: T.AcceptFrozenTriggerRequest | T.OpenFrozenSeatRequest | T.WakeFrozenSeatRequest,
   authority: T.SeatCallContext, method: T.SeatRemoteOpeningMethod): T.NodeWorkChainAcceptedData | T.SeatRejected {
-  const grant = authority.authorization, data = grant?.fact
-  if (!data || data.kind !== 'node-delegation' || !data.sourceNodeId || data.principalId !== authority.principalId
-    || data.nodeId !== authority.nodeId || data.requestDigest !== digest(request)) {
-    return rejected('unauthorized', 'Frozen admission requires authenticated sending-node attribution')
-  }
+  const operationId = 'request' in request ? request.request.operationId : request.route.originalOperationId
   const input: T.NodeWorkChainAcceptedData = { capability: 'node-work-chain/v1', route: structuredClone(request.route),
     openingContext: structuredClone(request.openingContext), expectedSeatRevision: request.expectedSeatRevision,
-    authorizationRef: data.authorizationId, payloadDigest: data.requestDigest,
-    operationKey: { sourceNodeId: data.sourceNodeId, principalId: data.principalId, sourceId: request.route.sourceId,
-      ownerEpoch: request.route.ownerEpoch, method, operationId: data.operationId },
+    payloadDigest: digest(request),
+    operationKey: { sourceNodeId: request.route.sourceOwnerNodeId, principalId: authority.principalId,
+      sourceId: request.route.sourceId, ownerEpoch: request.route.ownerEpoch, method, operationId },
     trigger: 'envelope' in request ? structuredClone(request.envelope) : null }
-  if (request.route.originalOperationId !== data.operationId || request.route.targetNodeId !== authority.nodeId
-    || 'request' in request && (request.request.operationId !== data.operationId
-      || request.request.nodeId !== undefined && request.request.nodeId !== authority.nodeId)) {
+  if (request.route.originalOperationId !== operationId || request.route.targetNodeId !== authority.nodeId
+    || 'request' in request && request.request.nodeId !== undefined && request.request.nodeId !== authority.nodeId) {
     return rejected('invalid-request', 'Frozen input does not match its original business identity')
   }
   return input
@@ -74,53 +68,21 @@ export function recheckFrozenDefinition(input: T.NodeWorkChainAcceptedData, defi
   return null
 }
 
-/** Recheck target policy and live issuer ownership inside the journal transaction.
- * @param issuers - Journal owner's live grant registry.
- * @param grant - Original process-local authorization.
- * @param input - Complete frozen admission.
- * @param definition - Target-local definition, never source configuration.
- * @param nodeId - Executing journal node.
- * @returns Verified authorization effect for a previously unaccepted operation.
- */
-export function authorizeFrozen(issuers: AuthorizationIssuers, grant: T.SeatAuthorizationGrant,
-  input: T.NodeWorkChainAcceptedData, definition: T.SeatDefinition, nodeId: T.SeatNodeId): ReturnType<typeof authorizationEffect> {
-  const data = issuers.verify(grant, { operationId: input.operationKey.operationId, requestDigest: input.payloadDigest,
-    ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-    ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, nodeId)
-  if (data.decision !== 'allowed' || data.kind !== 'node-delegation' || data.sourceNodeId !== input.operationKey.sourceNodeId
-    || data.principalId !== input.operationKey.principalId || data.seat !== definition.seat
-    || input.openingContext.snapshot.taskIds.some(task => !data.taskIds.includes(task))) {
-    throw new EngineError('unauthorized', 'Frozen operation requires matching live authority')
-  }
-  const policy = definition.remoteAdmission
-  if (!policy?.allowOpen || !policy.sourceNodeIds.includes(input.operationKey.sourceNodeId)
-    || !policy.sourceIds.includes(input.route.sourceId) || !policy.principalIds.includes(input.operationKey.principalId)
-    || !policy.methods.includes(input.operationKey.method as T.SeatRemoteOpeningMethod)) {
-    throw new EngineError('unauthorized', 'Remote opening is not allowed for this source, principal and method')
-  }
-  const refusal = recheckFrozenDefinition(input, definition)
-  if (refusal) throw new EngineError(refusal.error.code, refusal.error.message)
-  if (input.openingContext.staffBinding && input.openingContext.staffBinding.seat !== definition.seat) {
-    throw new EngineError('unauthorized', 'Frozen staff binding targets another seat')
-  }
-  return authorizationEffect(data)
-}
-
 /** Build an indivisible accepted trigger and route without consulting a source provider.
  * @param view - Latest journal state inside its serialized writer.
  * @param input - Verified frozen admission.
  * @param envelope - Retained original or locally derived trigger.
  * @param frozen - Target-local frozen configuration and original source text.
  * @param ruleMode - Current local trigger restriction.
- * @param authorization - Same-transaction verified fact; only explicit opening methods may bypass automatic modes.
+ * @param _authorization - Retained for callers; explicit opening no longer consults an issued fact.
  * @param policy - project policy resolved inside the same admission transaction.
  * @returns Complete intent and route effects, or a policy refusal.
  */
 export function frozenEffects(view: EngineProjection, input: T.NodeWorkChainAcceptedData, envelope: T.TriggerEnvelope,
-  frozen: T.SeatFrozenOpen, ruleMode?: T.EngineMode, authorization?: T.SeatIssuedAuthorizationFact,
+  frozen: T.SeatFrozenOpen, ruleMode?: T.EngineMode, _authorization?: T.SeatIssuedAuthorizationFact,
   policy?: T.SeatProjectPolicy): AuthorizationDecision['effects'] | T.SeatRejected {
-  const manual = input.operationKey.method !== 'engine.acceptFrozen' && authorization?.origin === 'manual'
-    && authorization.authorizationId === input.authorizationRef && authorization.decision === 'allowed'
+  const manual = input.operationKey.method !== 'engine.acceptFrozen'
+    && input.openingContext.openingMode === 'auto'
   const mode = manual ? 'auto' : effectiveMode(effectiveMode((policy ?? view.policies.get(envelope.projectId))?.mode ?? 'remind', ruleMode),
     input.route.modeCeiling.mode)
   if (mode === 'off') return rejected('disabled', 'Automatic triggering is disabled')

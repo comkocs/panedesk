@@ -24,8 +24,9 @@ const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen']
  */
 export function validChainAccepted(value: unknown): value is NodeWorkChainAcceptedData {
   if (!object(value) || !fields(value, ['capability', 'route', 'openingContext', 'expectedSeatRevision',
-    'authorizationRef', 'payloadDigest', 'operationKey', 'trigger']) || value.capability !== NODE_WORK_CHAIN_CAPABILITY
-    || !positive(value.expectedSeatRevision) || !id(value.authorizationRef) || !id(value.payloadDigest)) return false
+    'payloadDigest', 'operationKey', 'trigger'], ['authorizationRef']) || value.capability !== NODE_WORK_CHAIN_CAPABILITY
+    || !positive(value.expectedSeatRevision) || value.authorizationRef !== undefined && !id(value.authorizationRef)
+    || !id(value.payloadDigest)) return false
   const route = value.route, context = value.openingContext, key = value.operationKey
   if (!object(route) || !object(context) || !object(key)
     || !fields(key, ['sourceNodeId', 'principalId', 'sourceId', 'ownerEpoch', 'method', 'operationId'])
@@ -103,16 +104,18 @@ export function validateChainFrame(decision: AuthorizationDecision): void {
     if (!validChainAccepted(effect.data) || effect.operationId !== effect.data.operationKey.operationId
       || decision.nodeId !== effect.data.route.targetNodeId) throw new EngineError('engine-store-corrupt', 'Invalid required route evidence')
     const data = effect.data
-    const authorization = decision.effects.find(item => item.kind === 'authorization/checked'
-      && item.data.authorizationId === data.authorizationRef)
-    if (authorization?.kind !== 'authorization/checked' || authorization.data.kind !== 'node-delegation'
-      || authorization.data.decision !== 'allowed' || authorization.data.requestDigest !== data.payloadDigest
-      || authorization.data.operationId !== data.operationKey.operationId
-      || authorization.data.principalId !== data.operationKey.principalId
-      || authorization.data.sourceNodeId !== data.operationKey.sourceNodeId
-      || authorization.data.nodeId !== decision.nodeId || authorization.data.seat !== effect.seat
-      || data.openingContext.snapshot.taskIds.some(task => !authorization.data.taskIds.includes(task))) {
-      throw new EngineError('engine-store-corrupt', 'Required route authorization does not match')
+    if (data.authorizationRef !== undefined) {
+      const authorization = decision.effects.find(item => item.kind === 'authorization/checked'
+        && item.data.authorizationId === data.authorizationRef)
+      if (authorization?.kind !== 'authorization/checked' || authorization.data.kind !== 'node-delegation'
+        || authorization.data.decision !== 'allowed' || authorization.data.requestDigest !== data.payloadDigest
+        || authorization.data.operationId !== data.operationKey.operationId
+        || authorization.data.principalId !== data.operationKey.principalId
+        || authorization.data.sourceNodeId !== data.operationKey.sourceNodeId
+        || authorization.data.nodeId !== decision.nodeId || authorization.data.seat !== effect.seat
+        || data.openingContext.snapshot.taskIds.some(task => !authorization.data.taskIds.includes(task))) {
+        throw new EngineError('engine-store-corrupt', 'Required route authorization does not match')
+      }
     }
     const intent = decision.effects.find(item => (item.kind === 'trigger/accepted' || item.kind === 'trigger/coalesced')
       && item.operationId === effect.operationId && item.seat === effect.seat)

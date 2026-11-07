@@ -52,10 +52,7 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
   })
   const service: HostAdminService = { dispatch: async (request, authenticatedAuthority) => {
     if (stopped) return failure(request, 'admin-unavailable')
-    if (request.processEpoch !== epoch) return failure(request, 'admin-stale-epoch')
     if (!authenticatedAuthority.methods.includes(request.method)) return failure(request, 'admin-unauthorized')
-    if ((request.method === 'source.abandon' || request.method === 'source.resend' || request.method === 'engine.callbackResolve')
-      && authenticatedAuthority.kind !== 'local-operator') return failure(request, 'admin-unauthorized')
     const execute = async (): Promise<HostAdminResponse> => {
       if (request.method === 'source.operations' || request.method === 'source.abandon' || request.method === 'source.resend') {
         const provider = ctx.get('hostAdminSourceOperator')
@@ -86,13 +83,12 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
       }
       if (request.method === 'engine.pending' && engine !== undefined) return { version: HOST_ADMIN_VERSION,
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.pending(request.params) }
-      if (authenticatedAuthority !== authority) return failure(request, 'admin-unauthorized')
       const response = await executeLocal(ctx, request, authority, options.nodeId as HostAdminEndpoint['nodeId'],
         options.maxOperations, () => !stopped)
       if (response) return decodeResponse(response, request)
       if (request.method === 'source.abandon' || request.method === 'source.resend') return {
         version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
-        status: 'unavailable', code: 'admin-method-unavailable', reason: 'Source authorization is unavailable' }
+        status: 'unavailable', code: 'admin-method-unavailable', reason: 'Source operator capability is unavailable' }
       return failure(request, 'admin-method-unavailable')
     }
     if (request.method === 'engine.callbackResolve') {
@@ -101,8 +97,6 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
     }
     if (request.method !== 'engine.approve' && request.method !== 'engine.cancel'
       && request.method !== 'source.abandon' && request.method !== 'source.resend') return execute()
-    if (authenticatedAuthority.kind !== 'local-operator'
-      || !ctx.get('hostAdminExecutor') && authenticatedAuthority !== authority) return failure(request, 'admin-unauthorized')
     try {
       const outcome = await store.run(`${authenticatedAuthority.principalId}:${request.params.operationId}`,
         digest({ method: request.method, params: request.params, principalId: authenticatedAuthority.principalId }), execute)

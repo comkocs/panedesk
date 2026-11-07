@@ -1,3 +1,4 @@
+import { queryOperation } from '@panedesk/dsh-seat-engine/src/operation.ts'
 /** Callback attempts use the real chain router and a deterministic source-owner substitute. */
 import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
@@ -117,7 +118,8 @@ test.each(['missing', 'pending', 'committed'] as const)('queries an unknown tran
     expect(f.seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback', 'chain.operation'])
     if (kind !== 'committed') {
       expect(f.delivery().responseClass).toBe('unknown')
-      expect(await f.h.engine.authorizations.operation({ operationId: f.body.route.originalOperationId })).toMatchObject({
+      expect(queryOperation(f.h.engine.journal.projection,
+        { operationId: f.body.route.originalOperationId }, f.h.engine.options.nodeId)).toMatchObject({
         status: 'pending', progress: { kind: 'pending', blockedBy: ['callback-outcome-unknown'] },
       })
       const barrier = structuredClone(f.delivery()), sequence = f.h.engine.journal.projection.sequence

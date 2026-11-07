@@ -104,9 +104,6 @@ export default class SeatUi extends TypertRemoteService {
   }
 
   private async service(): Promise<SeatService | undefined> {
-    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('seat-ui/unauthorized', 'Seat UI requires the authenticated owner.', {})
-    }
     const seats = this.ctx.get('seats')
     const engine = this.ctx.get('seatEngine')
     if (!seats || !engine) return undefined

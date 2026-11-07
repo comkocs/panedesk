@@ -1,8 +1,4 @@
 /** Optional source operations retain provider-owned audit and delivery semantics. */
-import type { SeatAuthorizationGrant } from '@panedesk/dsh-seat'
-
-/** The original process-local cancellation grant, never reconstructed from wire facts. */
-export type HostAdminGrant = SeatAuthorizationGrant
 /** Exact provider key and operator reason bound to one operation. */
 export interface SourceOperatorWriteParams { operationId: string; key: string; reason: string }
 /** Provider evidence for work requiring an operator decision. */
@@ -42,16 +38,14 @@ export interface HostAdminSourceOperator {
    * @returns At most 200 provider items, preserving their full keys.
    */
   list(params: { limit?: number }): Promise<{ items: SourceOperatorItem[] }>
-  /** Delegate abandonment to the source owner after exact-operation authorization.
+  /** Delegate abandonment to the source owner.
    * @param params - Operation identity, original key and bounded reason.
-   * @param grant - Original local-operator grant, including audit attribution.
-   * @returns Provider result after its audit and release decisions.
+   * @returns Provider result after its release decisions.
    */
-  abandon(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+  abandon(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>
   /** Delegate directed resend when the source owner supplies this capability.
    * @param params - Operation identity, original key and bounded reason.
-   * @param grant - Original local-operator grant, including audit attribution.
    * @returns Provider result after its admission and generation decisions.
    */
-  resend?(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+  resend?(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>
 }

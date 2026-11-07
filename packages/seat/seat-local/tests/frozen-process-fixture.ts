@@ -5,7 +5,7 @@ import Include from '@panedesk/cordis-plugin-include'
 import Storage from '@panedesk/dsh-storage'
 import { DomainFacility } from '@panedesk/dsh-storage-domain'
 import { JsonStorageBackend } from '@panedesk/dsh-storage-json'
-import { SeatEngine, digest } from '@panedesk/dsh-seat-engine'
+import { SeatEngine } from '@panedesk/dsh-seat-engine'
 import * as Local from '@panedesk/dsh-seat-local'
 import { ChainBusinessRegistry } from '@panedesk/dsh-node-link/src/chain-business.ts'
 import type * as T from '@panedesk/dsh-seat'
@@ -84,14 +84,9 @@ export async function processFixture(root: string) {
       const saved = await seats.save({ definition, expectedRevision: 1, operationId: 'catalog-save' as T.SeatOperationId })
       if (saved.status !== 'saved') throw new Error(JSON.stringify(saved))
     }
-    const authorize = async (payload: object, operationId: T.SeatOperationId, batch = false) => {
-      const entry = current.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-        sourceNodeId: sender, origin: 'remote', ...(batch ? {} : { seat: definition.seat }), taskIds: [], policyRevision: 1 },
-      current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-      const grant = await entry.issuer.check({ operationId, requestDigest: digest(payload) })
-      if ('status' in grant) throw new Error('Expected fresh grant')
-      return { principalId, nodeId, origin: 'remote' as const, authorization: grant }
-    }
+    const authorize = async (_payload: object, _operationId: T.SeatOperationId, _batch = false) => ({
+      principalId, nodeId, origin: 'remote' as const,
+    })
     // Startup now starts local readiness itself; observe its completion rather than a scheduling race.
     await registry.ready(methods)
     return { ctx, engine: current, registry, definition, authorize,

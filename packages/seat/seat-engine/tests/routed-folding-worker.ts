@@ -7,9 +7,9 @@ import { SeatEngine } from '../src/engine.ts'
 import { CallbackOutbox } from '../src/outbox.ts'
 import { SourceRegistry } from '../src/sources.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
-import type { CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
-import { config, nodeId, seat } from './fixtures.ts'
-import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+import type { CallbackRouterPort } from '../src/routed-callback-types.ts'
+import { config, nodeId } from './fixtures.ts'
+import { admittedDefinition, persistCallback, callbackIssuer, principalId } from './routed-callback-fixture.ts'
 
 async function main() {
   const [home, stage] = process.argv.slice(2)
@@ -28,9 +28,7 @@ async function main() {
   let receipt: T.DeliverSourceCallbackRequest | undefined
   try { receipt = JSON.parse(await readFile(path, 'utf8')) as T.DeliverSourceCallbackRequest }
   catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error }
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     seen.push(request.method)
     if (request.method === 'chain.operation') {

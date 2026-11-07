@@ -669,11 +669,11 @@ export interface CancelPendingSeatRequest {
   operationId: SeatOperationId
   reason?: string
 }
-/** Authorized cancellation evidence; redacted exports retain only reason presence. */
+/** Cancellation evidence; a new record carries no issued authorization. */
 export interface SeatCancellationRecord {
-  authorizationId: AuthorizationRef
+  authorizationId?: AuthorizationRef
   principalId: SeatPrincipalId
-  kind: import('./authorization.ts').SeatIssuedAuthorizationKind
+  kind: SeatIssuedAuthorizationKind
   operationId: SeatOperationId
   queueItemId: QueueItemId
   cancelledAt: SeatTimestamp
@@ -1167,6 +1167,19 @@ export interface SeatAuthorizationQueryResult {
   nextCursor?: EngineCursor
   legacyAttribution: 'legacy-unknown' | 'none'
 }
+/** Plugin attribution stays distinct from the closed vocabulary recorded before it existed. */
+export type SeatIssuedAuthorizationKind = SeatAuthorizationKind | 'plugin'
+/** Issued facts describe past decisions; they grant nothing and cannot be replayed. */
+export interface SeatIssuedAuthorizationFact extends Omit<SeatAuthorizationFact, 'kind'> {
+  kind: SeatIssuedAuthorizationKind
+}
+/** Approval registration and later admission are separate durable observations. */
+export type SeatEngineOperationResult = SeatOperationResult & {
+  approval?: { queueItemId: QueueItemId; stateVersion: number }
+  progress?: { kind: 'pending'; reason: PendingReason; blockedBy: readonly string[] }
+    | { kind: 'open'; phase: OpenPhase; sessionId: SessionId }
+    | { kind: 'cancelled' }
+}
 /** Task filtering is a separate projection request until providers explicitly support it. */
 export interface SeatTaskQueryRequest extends EngineQueryRequest { taskId?: SeatTaskId }
 /** Node entry delegation is narrowed again at the receiving node and cannot authorize another hop. */
@@ -1485,7 +1498,7 @@ export interface NodeDelegationEvidenceRequest {
 }
 /** A retained original fact is independently fetched, never trusted from the execution request. */
 export type NodeDelegationEvidenceResult =
-  | { status: 'retained'; request: NodeDelegationEvidenceRequest; fact: import('./authorization.ts').SeatIssuedAuthorizationFact; expiresAt: SeatTimestamp; revoked: false }
+  | { status: 'retained'; request: NodeDelegationEvidenceRequest; fact: SeatIssuedAuthorizationFact; expiresAt: SeatTimestamp; revoked: false }
   | { status: 'rejected'; cause: SeatFailureCause }
 /** Required extension data commits beside the original trigger and issued authorization. */
 export interface NodeWorkChainAcceptedData {
@@ -1493,7 +1506,7 @@ export interface NodeWorkChainAcceptedData {
   route: NodeWorkChainRoute
   openingContext: NodeWorkChainOpeningContext
   expectedSeatRevision: number
-  authorizationRef: AuthorizationRef
+  authorizationRef?: AuthorizationRef
   payloadDigest: SeatDigest
   operationKey: NodeWorkChainOperationKey
   trigger: TriggerEnvelope | null

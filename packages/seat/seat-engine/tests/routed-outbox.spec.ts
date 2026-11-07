@@ -233,18 +233,10 @@ test.each(['none', 'partial', 'committed', 'unknown'] as const)('contains an iss
       seat, code: 'unauthorized' }] })
     expect(changed).toHaveBeenCalled()
     const resolution: T.CallbackResolveRequest = { callbackId: request.callback.callbackId, expectedAttempt: 1, action: 'abandon' }
-    const operationId = 'abandon-refused-callback' as T.SeatOperationId
-    const entry = engine.authorizationIssuers.register({ identity: { kind: 'local-operator', origin: 'manual', nodeId,
-      principalId: 'operator' as T.SeatPrincipalId, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'operator', policyRevision: 1 }) })
-    try {
-      const grant = await entry.issuer.check({ operationId, requestDigest: digest(resolution) })
-      if ('status' in grant) throw new Error('Operator refused')
-      expect(await engine.callbackResolve(resolution, grant)).toMatchObject({ status: 'ok', phase: 'abandoned' })
-      expect((await engine.nodeStatus())).not.toHaveProperty('callbackFailures')
-      await engine.drive()
-      expect(seen).toHaveLength(2)
-    } finally { entry.dispose() }
+    expect(await engine.callbackResolve(resolution)).toMatchObject({ status: 'ok', phase: 'abandoned' })
+    expect((await engine.nodeStatus())).not.toHaveProperty('callbackFailures')
+    await engine.drive()
+    expect(seen).toHaveLength(2)
   } finally { await engine.shutdown(); await ctx.fiber.dispose(); log.mockRestore(); await rm(home, { recursive: true, force: true }) }
 })
 

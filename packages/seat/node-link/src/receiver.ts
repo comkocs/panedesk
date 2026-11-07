@@ -28,7 +28,8 @@ export class NodeReceiver {
    */
   async receive(request: NodeWireRequest): Promise<NodeWireResponse> {
     if (request.sourceNodeId !== this.peerId || request.targetNodeId !== this.nodeId) return failure(request, 'node-authentication-failed')
-    if (Date.parse(request.deadline) <= Date.now() || Date.parse(request.delegation.expiresAt) <= Date.now()) {
+    if (Date.parse(request.deadline) <= Date.now()
+      || !request.method.startsWith('messages.') && Date.parse(request.delegation.expiresAt) <= Date.now()) {
       return failure(request, 'node-deadline-exceeded')
     }
     const executor = this.executor()
@@ -46,7 +47,8 @@ export class NodeReceiver {
       const result = await this.store.run(key(request.operationId), digest({ method: request.method,
         payload: request.payload, principalId: request.delegation.principalId, seat: request.delegation.seat ?? null,
         sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds }), async () => {
-        if (Date.parse(request.deadline) <= Date.now() || Date.parse(request.delegation.expiresAt) <= Date.now()) {
+        if (Date.parse(request.deadline) <= Date.now()
+          || !request.method.startsWith('messages.') && Date.parse(request.delegation.expiresAt) <= Date.now()) {
           return failure(request, 'node-deadline-exceeded')
         }
         if (!await executor.authorize(request)) return failure(request, 'node-delegation-rejected')

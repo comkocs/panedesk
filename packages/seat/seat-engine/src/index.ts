@@ -24,6 +24,8 @@ export { validEffect } from './validation.ts'
 export { validAuthorization } from './authorization-storage.ts'
 export { validSourceProxy } from './source-proxy-storage.ts'
 export { redact } from './query.ts'
+export { queryTasks } from './task-query.ts'
+export { queryOperation } from './operation.ts'
 /** Loader plugin identity. */
 export const name = 'seat-engine'
 /** Optional dependencies are resolved through the service store. */

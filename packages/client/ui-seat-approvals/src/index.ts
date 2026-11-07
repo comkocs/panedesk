@@ -1,7 +1,6 @@
 /** Opt-in owner-only approval adapter for the running seat engine. */
 import type { Context } from '@panedesk/cordis'
 import type Schema from '@panedesk/schemastery'
-import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Remote, RemoteError, TypertRemoteService, observationConfig } from '@panedesk/dsh-typert-protocol'
 import type * as Seat from '@panedesk/dsh-seat'
@@ -35,11 +34,8 @@ export default class SeatApprovals extends TypertRemoteService {
     })
   }
 
-  private owner(): void {
-    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('seat-approvals/unauthorized', 'Authenticated owner required', {})
-    }
-    if (!this.config.enabled || this.lifetime.signal.aborted || this.ctx.invocation.signal.aborted) {
+  private ready(): void {
+    if (!this.config.enabled || this.lifetime.signal.aborted) {
       throw new RemoteError('seat-approvals/unavailable', 'Seat approvals are not enabled', {})
     }
   }
@@ -74,7 +70,7 @@ export default class SeatApprovals extends TypertRemoteService {
     if (!this.config.enabled) { yield { enabled: false, items: [], complete: true }; return }
     const combined = AbortSignal.any([signal, this.lifetime.signal])
     while (!combined.aborted) {
-      this.owner()
+      this.ready()
       yield await this.queue()
       try { await delay(this.config.pollIntervalMs, undefined, { signal: combined }) }
       catch (error) { if (error instanceof Error && error.name === 'AbortError') return; throw error }
@@ -100,7 +96,7 @@ export default class SeatApprovals extends TypertRemoteService {
   }
 
   private mutate(request: Seat.ApprovePendingSeatRequest, action: 'approve' | 'cancel'): Promise<Seat.PendingSeatMutationResult> {
-    this.owner()
+    this.ready()
     const operation = this.commit(request, action)
     this.active.add(operation)
     void operation.then(() => { this.active.delete(operation) }, (_error: unknown) => {
@@ -111,37 +107,11 @@ export default class SeatApprovals extends TypertRemoteService {
   }
 
   private async commit(request: Seat.ApprovePendingSeatRequest, action: 'approve' | 'cancel'): Promise<Seat.PendingSeatMutationResult> {
-    const engine = this.ctx.get('seatEngine'), transactions = this.ctx.get('seatAuthorizationTransactions')
-    const issuers = this.ctx.get('seatAuthorizationIssuers')
-    if (!engine || !transactions || !issuers || action === 'cancel' && !transactions.cancel) return this.unavailable()
-    const node = await engine.nodeStatus()
-    let pending: Seat.PendingSeatItem | undefined
-    let cursor: Seat.EngineCursor | undefined
-    do {
-      const page = await engine.pending({ limit: this.config.pageSize, ...(cursor ? { cursor } : {}) })
-      pending = page.items.find(item => item.queueItemId === request.queueItemId)
-      if (pending || page.complete || !page.nextCursor) break
-      cursor = page.nextCursor
-    } while (!this.lifetime.signal.aborted)
-    this.owner()
-    // These are the complete mutation fields, in the engine's canonical key order.
+    const engine = this.ctx.get('seatEngine')
+    if (!engine) return this.unavailable()
     const params = { expectedStateVersion: request.expectedStateVersion,
       operationId: request.operationId, queueItemId: request.queueItemId }
-    const requestDigest = createHash('sha256').update(JSON.stringify(params)).digest('hex') as Seat.SeatDigest
-    const entry = issuers.register({ identity: { kind: 'local-operator', principalId: 'owner' as Seat.SeatPrincipalId,
-      nodeId: node.nodeId, origin: 'manual', ...(pending ? { seat: pending.seat } : {}), taskIds: pending?.relatedTaskIds ?? [], policyRevision: 0 },
-    current: () => this.config.enabled && !this.lifetime.signal.aborted && this.ctx.invocation?.peer.principal.kind === 'owner'
-      && !this.ctx.invocation.signal.aborted
-      ? { decision: 'allowed', reasonCode: 'authenticated-owner', policyRevision: 0 } : null })
-    try {
-      const grant = await entry.issuer.check({ operationId: params.operationId, requestDigest })
-      if ('status' in grant) return grant
-      if (action === 'cancel') {
-        if (!transactions.cancel) return this.unavailable()
-        return await transactions.cancel(params, grant)
-      }
-      return await transactions.approve(params, grant)
-    } finally { entry.dispose() }
+    return action === 'cancel' ? engine.cancel(params) : engine.approve(params)
   }
 
   /** Observe durable approval and correlated opening progress without replaying writes.
@@ -153,7 +123,7 @@ export default class SeatApprovals extends TypertRemoteService {
   async *watchOperation(request: Seat.SeatOperationQuery, signal: AbortSignal): AsyncIterable<Seat.SeatEngineOperationResult> {
     const combined = AbortSignal.any([signal, this.lifetime.signal])
     while (!combined.aborted) {
-      this.owner()
+      this.ready()
       const transactions = this.ctx.get('seatAuthorizationTransactions')
       if (!transactions?.operation) return this.unavailable()
       const value = await transactions.operation(request)

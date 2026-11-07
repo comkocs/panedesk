@@ -9,7 +9,7 @@ import { mountAdmin } from '../src/runtime.ts'
 import { PosixPrivateFiles } from '../src/private-files.ts'
 import { callAdmin } from '../src/client.ts'
 import { decodeRequest, decodeResponse } from '../src/codec.ts'
-import { HOST_ADMIN_VERSION, type HostAdminAuthority } from '../src/index.ts'
+import { HOST_ADMIN_VERSION } from '../src/index.ts'
 
 const limits = { maxFrameBytes: 65536, requestTimeoutMs: 5000, maxPending: 8 }
 async function fixture() {
@@ -36,19 +36,13 @@ test('C11-d resumes once, delivers the original callback, and replays current st
       .toMatchObject({ status: 'ok', result: { status: 'ok', phase: 'retry-due', attempt: 3 } })
     expect(h.engine.journal.projection.sequence).toBe(count + 1)
     const mutation = h.engine.journal.projection.authorizationDecisions.at(-1)!
-    expect(mutation.effects.map(effect => effect.kind)).toEqual(['callback/attempted', 'authorization/checked'])
-    expect(JSON.stringify(mutation)).toContain('operator-a')
+    expect(mutation.effects.map(effect => effect.kind)).toEqual(['callback/attempted'])
     await h.engine.drive(); await h.engine.shutdown()
     expect(h.engine.journal.projection.callbacks.get(h.payload.callbackId)).toMatchObject({ phase: 'delivered', attempt: 4, payload: h.payload })
     const restarted = await h.start()
-    const entry = restarted.authorizationIssuers.register({ identity: { kind: 'local-operator', principalId: 'operator-a' as T.SeatPrincipalId,
-      origin: 'manual', nodeId, taskIds: [], policyRevision: 0 }, current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 0 }) })
-    const grant = await entry.issuer.check({ operationId: 'replay' as T.SeatOperationId, requestDigest: digest(h.target) })
-    if ('status' in grant) throw new Error('Expected grant')
     const before = restarted.journal.projection.sequence
-    expect(await restarted.callbackResolve(h.target, grant)).toMatchObject({ status: 'ok', phase: 'delivered', attempt: 4 })
+    expect(await restarted.callbackResolve(h.target)).toMatchObject({ status: 'ok', phase: 'delivered', attempt: 4 })
     expect(restarted.journal.projection.sequence).toBe(before)
-    entry.dispose()
   } finally { await h.stop(); await h.close() }
 })
 
@@ -71,7 +65,7 @@ test('C11-d abandons once and permits the same-group ended callback on the next 
   } finally { await h.stop(); await h.close() }
 })
 
-test('refuses unknown, stale-attempt, non-paused and non-local requests without engine frames', async () => {
+test('refuses unknown, stale-attempt, non-paused requests without engine frames', async () => {
   const h = await fixture()
   try {
     const before = h.engine.journal.projection.sequence
@@ -80,13 +74,6 @@ test('refuses unknown, stale-attempt, non-paused and non-local requests without 
       expect(await callAdmin(h.files, 'engine.callbackResolve', { ...h.target, ...patch }, limits))
         .toMatchObject({ status: 'ok', result: { status: 'rejected', code } })
     }
-    const endpoint = JSON.parse((await h.files.read('endpoint.json', 4096))!) as { processEpoch: string }
-    const request = decodeRequest({ version: HOST_ADMIN_VERSION, requestId: 'request-a', nonce: 'nonce-a',
-      processEpoch: endpoint.processEpoch, method: 'engine.callbackResolve', params: h.target })
-    const authority: HostAdminAuthority = { principalId: 'operator-a' as T.SeatPrincipalId, authorizationRef: 'foreign' as T.AuthorizationRef,
-      kind: 'node-delegation', methods: ['engine.callbackResolve'] }
-    expect(await h.ctx.get('hostAdmin')!.dispatch(request, authority)).toMatchObject({ code: 'admin-unauthorized' })
-    expect(await h.ctx.get('hostAdmin')!.dispatch(request, { ...authority, kind: 'local-operator' })).toMatchObject({ code: 'admin-unauthorized' })
     expect(h.engine.journal.projection.sequence).toBe(before)
     await callAdmin(h.files, 'engine.callbackResolve', h.target, limits)
     const resumed = h.engine.journal.projection.sequence

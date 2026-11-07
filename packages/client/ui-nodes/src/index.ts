@@ -43,11 +43,8 @@ export default class NodesService extends TypertRemoteService {
 
   private invocation(): () => boolean {
     const invocation = this.ctx.invocation
-    if (invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('nodes/unauthorized', 'Authenticated owner required', {})
-    }
     if (!this.config.enabled) throw new RemoteError('nodes/disabled', 'Node settings are disabled', {})
-    const current = () => !this.lifetime.signal.aborted && !invocation.signal.aborted
+    const current = () => !this.lifetime.signal.aborted && !invocation?.signal.aborted
     if (!current()) throw new RemoteError('nodes/unavailable', 'Node settings are unavailable', {})
     return current
   }

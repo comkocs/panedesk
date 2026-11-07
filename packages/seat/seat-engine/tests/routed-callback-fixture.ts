@@ -8,6 +8,14 @@ import { definition, sourceId, projectId, seat, trigger } from './fixtures.ts'
 
 export const principalId = 'principal-a' as T.SeatPrincipalId
 export const owner = 'owner-a' as T.SeatNodeId
+export function callbackIssuer(nodeId: T.SeatNodeId): import('../src/routed-callback-types.ts').CallbackIssuerPort {
+  return { outboxIssuer: async () => ({ check: async request => ({ fact: {
+    authorizationId: 'callback-entry' as T.AuthorizationRef, kind: 'human', principalId,
+    nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1,
+    operationId: request.operationId, requestDigest: request.requestDigest, checkedAt: new Date().toISOString(),
+    decision: 'allowed', reasonCode: 'allowed',
+  } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant) }) }
+}
 export async function persistCallback(engine: SeatEngine, callbackOwner = owner) {
   const nodeId = engine.options.nodeId, envelope = trigger(), operationId = 'operation-a' as T.SeatOperationId
   const ownerEpoch = 'epoch-a' as T.OwnerEpoch
@@ -21,12 +29,7 @@ export async function persistCallback(engine: SeatEngine, callbackOwner = owner)
     route: { sourceId, sourceOwnerNodeId: callbackOwner, ownerEpoch, triggerId: envelope.triggerId, originalOperationId: operationId,
       targetNodeId: nodeId, snapshotDigest: snapshot.digest, callbackPath: { kind: 'source', sourceId },
       modeCeiling: { mode: 'remind', policy: { sourceId, projectId, revision: 1 } } } }
-  const entry = engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-    origin: 'remote', sourceNodeId: callbackOwner, seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-  const grant = await entry.issuer.check({ operationId, requestDigest: digest(input) })
-  if ('status' in grant) throw new Error('Missing admission grant')
-  const accepted = await engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote', authorization: grant })
+  const accepted = await engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote' })
   if (accepted.status !== 'accepted') throw new Error(`Admission failed: ${JSON.stringify(accepted)}`)
   const payload: T.SeatCallbackPayload = { kind: 'opened', callbackId: 'callback-a' as T.CallbackId,
     sourceId, triggerId: envelope.triggerId, stateVersion: 1, seat, title: 'Frozen title',

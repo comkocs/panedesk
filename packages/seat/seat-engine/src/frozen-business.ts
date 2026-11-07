@@ -3,7 +3,6 @@ import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import type { SeatEngine } from './engine.ts'
 import { queryFrozenExecution } from './frozen-terminal.ts'
-import { digest } from './journal.ts'
 import { rejected } from './triggers.ts'
 
 /** One admission owner rejects new writes before awaiting all previously admitted work. */
@@ -61,16 +60,11 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
       let recovery: Promise<void> | undefined
       const query = async (request: T.NodeWorkChainOperationRequest,
         context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
-        const grant = context.authorization, fact = grant?.fact
-        if (!grant || !fact || fact.kind !== 'node-delegation' || !fact.sourceNodeId
-          || request.key.method !== 'engine.acceptFrozen' || fact.sourceNodeId !== request.key.sourceNodeId
-          || fact.principalId !== request.key.principalId || context.principalId !== fact.principalId
-          || context.nodeId !== fact.nodeId) {
-          return rejected('unauthorized', 'Frozen query attribution does not match')
+        if (request.key.method !== 'engine.acceptFrozen' || context.principalId !== request.key.principalId
+          || context.nodeId !== request.key.sourceNodeId && context.nodeId !== engine.options.nodeId) {
+          return rejected('invalid-request', 'Frozen query does not match its caller')
         }
-        const refusal = await engine.authorizations.validate({ operationId: fact.operationId, requestDigest: digest(request),
-          ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-        return refusal ?? structuredClone(queryFrozenExecution(engine.journal.projection, request, context))
+        return structuredClone(queryFrozenExecution(engine.journal.projection, request))
       }
       const provider: T.NodeWorkChainBusinessProvider = { methods: ['engine.acceptFrozen'], ready: () => {
         recovery ??= engine.ready().then(async () => {

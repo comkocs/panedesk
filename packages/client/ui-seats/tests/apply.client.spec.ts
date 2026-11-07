@@ -218,7 +218,7 @@ it('releases an unpinned resource and keeps opening refusals in the injected not
   const c = await start()
   mock.unary('seatUi/overview', ok({ available: true, definitions: [], windows: [], complete: true }))
   mock.unary('seatUi/open', ok({ status: 'rejected', error: { code: 'invalid-request',
-    message: 'Directory is not registered.', alternative: 'Choose a registered directory.', retryable: false, effectState: 'none' } }))
+    message: 'Opening input is incomplete.', alternative: 'Review the opening request.', retryable: false, effectState: 'none' } }))
   const source = c.ctx.resources.source('dsh-resource://seats/local')
   const stop = source.subscribe(() => {})
   await vi.waitFor(() => { expect(source.getSnapshot().status).toBe('live') })
@@ -233,8 +233,7 @@ it('releases an unpinned resource and keeps opening refusals in the injected not
   expect(mock.log.calls('seatUi/open')).toHaveLength(1)
   expect(mock.log.calls('seatUi/open')[0]).toMatchObject({ args: [{ request: { startupDirectory: '/registered' } }] })
   expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('invalid-request')
-  expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('Directory is not registered.')
-  expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('Use profile directory')
+  expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('Opening input is incomplete.')
   injected.dismiss()
   expect(injected.hooks.seatNotice.getSnapshot()).toBeNull()
 }, 60_000)

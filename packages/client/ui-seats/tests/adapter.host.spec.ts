@@ -87,27 +87,6 @@ describe('manual seat UI adapter', () => {
       expect(f.definitions).not.toHaveBeenCalled()
     } finally { await f.ctx.fiber.dispose() }
   })
-  it('rejects callers without owner invocation before reading or mutating seats', async () => {
-    const f = fixture()
-    try {
-      Object.defineProperty(f.ctx, 'invocation', { value: undefined })
-      await expect(f.ui.overview()).rejects.toThrow('authenticated owner')
-      await expect(f.ui.open({ seat: 'seat-a' as never, operationId: 'op-a' as never, expectedSeatRevision: 1 })).rejects.toThrow('authenticated owner')
-      expect(f.definitions).not.toHaveBeenCalled()
-      expect(f.open).not.toHaveBeenCalled()
-    } finally { await f.ctx.fiber.dispose() }
-  })
-  it.each(['missing', 'anonymous'] as const)('rejects %s callers before dashboard or batch effects', async (caller) => {
-    const f = fixture()
-    const nodeStatus = vi.spyOn(f.ctx.get('seatEngine')!, 'nodeStatus')
-    try {
-      Object.defineProperty(f.ctx, 'invocation', { value: caller === 'missing' ? undefined : { peer: { principal: { kind: 'anonymous' } } } })
-      await expect(f.ui.dashboard()).rejects.toMatchObject({ code: 'seat-ui/unauthorized', message: 'Seat UI requires the authenticated owner.' })
-      await expect(f.ui.openBatch({ seats: [], operationId: 'op-a' as never })).rejects.toMatchObject({ code: 'seat-ui/unauthorized', message: 'Seat UI requires the authenticated owner.' })
-      expect(nodeStatus).not.toHaveBeenCalled()
-      expect(f.withAuthority).not.toHaveBeenCalled()
-    } finally { await f.ctx.fiber.dispose() }
-  })
   it('reports missing providers without constructing a runtime', async () => {
     const ctx = new Context()
     Object.defineProperty(ctx, 'invocation', { value: { peer: { principal: { kind: 'owner' } } } })

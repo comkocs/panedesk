@@ -45,14 +45,8 @@ export async function frozenHost(root?: string, engineConfig: Partial<T.SeatEngi
           kind: 'opening-context', reference: snapshot.reference, operationId },
         modeCeiling: { mode: 'remind', policy: { sourceId, projectId: definition.projectId, revision: 1 } } } }
   }
-  const authorize = async (payload: object, operationId: T.SeatOperationId, withSender = true) => {
-    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
-      nodeId: h.options.nodeId, origin: 'remote', seat: definition.seat, taskIds: [], policyRevision: 1,
-      ...(withSender ? { sourceNodeId: sender } : {}) },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-    const grant = await entry.issuer.check({ operationId, requestDigest: digest(payload) })
-    if ('status' in grant) throw new Error('Expected grant')
-    return { principalId, nodeId: h.options.nodeId, origin: 'remote' as const, authorization: grant }
-  }
+  const authorize = async (_payload: object, _operationId: T.SeatOperationId) => ({
+    principalId, nodeId: h.options.nodeId, origin: 'remote' as const,
+  })
   return { h, registry, request, authorize }
 }

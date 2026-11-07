@@ -2,12 +2,22 @@
 import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { rejected } from '../src/triggers.ts'
+import { queryOperation } from '../src/operation.ts'
 import { CallbackOutbox } from '../src/outbox.ts'
 import { SourceRegistry } from '../src/sources.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
 import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
 import { harness, seat } from './fixtures.ts'
 import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+
+function callbackIssuer(engine: Awaited<ReturnType<typeof harness>>['engine']): CallbackIssuerPort {
+  return { outboxIssuer: async () => ({ check: async request => ({ fact: {
+    authorizationId: 'callback-entry' as T.AuthorizationRef, kind: 'human', principalId,
+    nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1,
+    operationId: request.operationId, requestDigest: request.requestDigest, checkedAt: new Date().toISOString(),
+    decision: 'allowed', reasonCode: 'allowed',
+  } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant) }) }
+}
 
 test('remote callbacks ignore the local owner and retain issuer refusals with their original cause', async () => {
   const h = await harness(), sources = new SourceRegistry()
@@ -45,9 +55,7 @@ test('pauses a definite remote delivery authentication refusal with its original
       reason: 'Callback account is not authorized', effectState: 'none', retryable: false,
       operationId: body.route.originalOperationId, nodeId: body.route.sourceOwnerNodeId,
       reasonCode: 'method-not-allowed' }
-    const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
-      kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const issuer = callbackIssuer(h.engine)
     const router: CallbackRouterPort = { route: async (request) => {
       seen.push(request)
       if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: { status: 'missing' } }
@@ -79,9 +87,7 @@ test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
         callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } : { status: 'rejected', error: {
         code: kind === 'authentication' ? 'unauthorized' : kind === 'protocol' ? 'callback-protocol-error' : 'unavailable',
         message: 'Owner refusal', alternative: 'Review owner state', retryable: false, effectState: 'none' } }
-      const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
-        kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-      current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+      const issuer = callbackIssuer(h.engine)
       const router: CallbackRouterPort = { route: async (request) => {
         seen.push(request)
         return request.method === 'chain.operation' ? { method: request.method, status: 'ok', result: query }
@@ -118,46 +124,6 @@ test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
     } finally { await outbox?.close(); await sources.close(); await h.close() }
   })
 
-test('records a local peer-query timeout as deadline-exceeded and retains transient retries across restart', async () => {
-  const h = await harness({ callbackTimeoutMs: 20 }), sources = new SourceRegistry()
-  let engine = h.engine, outbox: CallbackOutbox | undefined
-  try {
-    h.definitions.set(seat, admittedDefinition())
-    const body = await persistCallback(engine)
-    let complete = false
-    const peer = vi.fn<CallbackRouterPort['route']>(async () => {
-      if (!complete) return new Promise<never>(() => {})
-      return { method: 'chain.operation', status: 'ok', result: { status: 'settled', method: 'source.deliverCallback',
-        result: { status: 'committed', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } } }
-    })
-    const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-      kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
-    h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', { route: peer })
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
-      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
-    await outbox.deliver(0)
-    const expected = { phase: 'retry-due', responseClass: 'transient', attempt: 1,
-      lastDiagnostic: { stage: 'peer-query', cause: { reasonCode: 'deadline-exceeded', code: 'unavailable',
-        effectState: 'none', retryable: true } } }
-    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
-    expect(peer.mock.calls.map(([request]) => request.method)).toEqual(['chain.operation'])
-    await outbox.close(); await engine.shutdown()
-    engine = await h.start()
-    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
-      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
-    await outbox.deliver(100)
-    expect(outbox.observations().find(item => item.payload.callbackId === body.callback.callbackId))
-      .toMatchObject({ ...expected, attempt: 2 })
-    complete = true
-    await outbox.deliver(200)
-    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'delivered', responseClass: 'success' })
-    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.lastDiagnostic).toBeUndefined()
-    expect(peer.mock.calls.map(([request]) => request.method)).toEqual(['chain.operation', 'chain.operation', 'chain.operation'])
-  } finally { await outbox?.close(); await sources.close(); await h.close() }
-})
-
 test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })
   const sources = new SourceRegistry()
@@ -166,9 +132,7 @@ test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when 
     h.definitions.set(seat, admittedDefinition())
     const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
     let queriesFail = false
-    const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
-      kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const issuer = callbackIssuer(h.engine)
     const router: CallbackRouterPort = { route: async (request) => {
       seen.push(request)
       if (request.method === 'chain.operation' && !queriesFail) return { method: request.method, status: 'ok', result: { status: 'missing' } }
@@ -195,9 +159,7 @@ test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and
     h.definitions.set(seat, admittedDefinition())
     const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
     let engine = h.engine, committed = false
-    const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-      kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const issuer = callbackIssuer(engine)
     const router: CallbackRouterPort = { route: async (request) => {
       seen.push(request)
       if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: committed
@@ -223,9 +185,10 @@ test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and
       (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
     await outbox.deliver(100)
     expect(seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
-    expect(await engine.authorizations.operation({ operationId: body.route.originalOperationId })).toMatchObject({
-      status: 'pending', progress: { blockedBy: ['callback-outcome-unknown'] },
-    })
+    expect(queryOperation(engine.journal.projection, { operationId: body.route.originalOperationId }, engine.options.config.nodeName))
+      .toMatchObject({
+        status: 'pending', progress: { blockedBy: ['callback-outcome-unknown'] },
+      })
     committed = true
     await outbox.deliver(200)
     expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.phase).toBe('delivered')

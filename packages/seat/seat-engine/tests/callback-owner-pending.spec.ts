@@ -7,9 +7,9 @@ import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { SeatEngine } from '../src/engine.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
-import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
-import { config, nodeId, seat } from './fixtures.ts'
-import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+import type { CallbackChainRequest, CallbackRouterPort } from '../src/routed-callback-types.ts'
+import { config, nodeId } from './fixtures.ts'
+import { admittedDefinition, persistCallback, callbackIssuer, principalId } from './routed-callback-fixture.ts'
 
 test.each([false, true])('queries a pending owner without stopping or resending across restart: %s', async (restart) => {
   const home = await mkdtemp(join(tmpdir(), 'callback-owner-pending-'))
@@ -31,9 +31,7 @@ test.each([false, true])('queries a pending owner without stopping or resending 
       deliverCallback: (input, observation) => deliverRoutedCallback(ctx, engine, input, observation),
     })
     contexts.push(ctx); engines.push(engine)
-    const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-      kind: 'human', principalId, nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const issuer = callbackIssuer(engine.options.nodeId)
     const router: CallbackRouterPort = { route: async (request) => {
       seen.push(structuredClone(request))
       if (request.method === 'chain.operation') {
@@ -103,9 +101,7 @@ test('a genuinely unknown owner outcome still stops the worker without another b
       close: async () => { throw new Error('Unused') } }), ledger: () => ({ snapshot: async () => ({ asOf: 1, watermarks: {}, complete: true, rows: [] }) }),
     deliverCallback: (input, observation) => deliverRoutedCallback(ctx, engine, input, observation),
   })
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: sent
       ? { status: 'pending', effectState: 'unknown', pendingReason: 'writeback-outcome-unknown' } : { status: 'missing' } }

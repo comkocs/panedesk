@@ -3,10 +3,10 @@ import { Context } from '@panedesk/cordis'
 import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
-import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
+import type { CallbackChainRequest, CallbackRouterPort } from '../src/routed-callback-types.ts'
 import { fact } from '../src/triggers.ts'
 import { harness, seat } from './fixtures.ts'
-import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+import { admittedDefinition, persistCallback, callbackIssuer, principalId } from './routed-callback-fixture.ts'
 
 for (const barrier of ['unknown', 'owner-unconfirmed'] as const) {
   test.each(['unknown', 'different-digest', 'different-callback', 'owner-recovering', 'settled-owner-recovering'] as const)(
@@ -27,9 +27,7 @@ for (const barrier of ['unknown', 'owner-unconfirmed'] as const) {
         expect(before).toMatchObject({ responseClass: barrier === 'unknown' ? 'unknown' : 'protocol',
           phase: barrier === 'unknown' ? 'retry-due' : 'paused' })
         const seen: CallbackChainRequest[] = []
-        const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-          kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-        current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+        const issuer = callbackIssuer(engine.options.nodeId)
         const result: T.NodeWorkChainOperationResult = mode === 'unknown' ? { status: 'pending', effectState: 'unknown' }
           : mode === 'owner-recovering' ? { status: 'pending', effectState: 'unknown', pendingReason: 'owner-recovering' }
             : mode === 'settled-owner-recovering' ? { status: 'settled', method: 'source.deliverCallback', result: {

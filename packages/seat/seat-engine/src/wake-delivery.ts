@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto'
 import type * as T from '@panedesk/dsh-seat'
 import type { EngineJournal } from './journal.ts'
 import { digest, EngineError } from './journal.ts'
-import { authorizationEffect, type AuthorizationIssuers } from './authorization-issuer.ts'
-import { authorizeFrozen, frozenIdentity } from './frozen-admission.ts'
+import { frozenIdentity } from './frozen-admission.ts'
+import type { WakeCaller } from './wake-storage.ts'
 import { rejected } from './triggers.ts'
 import { validChainAccepted } from './chain-storage.ts'
 import { wakeDeliveryId, wakeKey, wakeRecords, type WakeDeliveryRecord } from './wake-storage.ts'
@@ -16,8 +16,7 @@ export type WakeSender = (request: { sessionId: WakeDeliveryRecord['action']['se
   mode: 'queue' }) => Promise<{ messageId: Extract<T.WakeSeatResult, { status: 'sent' | 'stored-budget-stopped' }>['messageId'] }>
 /** This instance shares the engine's journal owner and serial admission slot. */
 export class WakeDeliveries {
-  constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers,
-    private readonly contextLimit?: number) {}
+  constructor(private readonly journal: EngineJournal, private readonly contextLimit?: number) {}
 
   /** Read an exact replay before evaluating any new-admission policy.
    * @param payload - Original wire payload.
@@ -26,22 +25,21 @@ export class WakeDeliveries {
    */
   find(payload: T.WakeSeatRequest | T.WakeFrozenSeatRequest,
     authority: T.SeatCallContext): WakeDeliveryRecord | T.SeatRejected | undefined {
-    const original = authority.authorization?.fact
-    if (!original || original.kind !== 'node-delegation' || !original.sourceNodeId
-      || original.principalId !== authority.principalId || original.nodeId !== authority.nodeId
-      || original.nodeId !== this.journal.nodeId || original.requestDigest !== digest(payload)
-      || original.sourceNodeId === original.nodeId && (original.origin !== 'manual' || original.reasonCode !== 'trusted-local-owner')) {
-      return rejected('unauthorized', 'Wake attribution does not match the receiving grant')
-    }
+    const caller = this.caller(payload, authority)
     const request = 'request' in payload ? payload.request : payload
-    if (request.operationId !== original.operationId || request.seat !== original.seat
-      || request.nodeId !== undefined && request.nodeId !== this.journal.nodeId) {
-      return rejected('unauthorized', 'Wake input does not match its authorized target')
+    if (request.nodeId !== undefined && request.nodeId !== this.journal.nodeId) {
+      return rejected('invalid-request', 'Wake input targets another node')
     }
     const record = wakeRecords(this.journal.projection.authorizationDecisions).get(wakeKey({
-      method: 'request' in payload ? 'seat.wakeFrozen' : 'seat.wake', payload, original }))
+      method: 'request' in payload ? 'seat.wakeFrozen' : 'seat.wake', payload, original: caller }))
     return record && record.original.requestDigest !== digest(payload)
       ? rejected('operation-id-conflict', 'Wake operation payload conflicts') : record
+  }
+  private caller(payload: T.WakeSeatRequest | T.WakeFrozenSeatRequest, authority: T.SeatCallContext): WakeCaller {
+    const request = 'request' in payload ? payload.request : payload
+    return { sourceNodeId: 'route' in payload ? payload.route.sourceOwnerNodeId : authority.nodeId,
+      principalId: authority.principalId, nodeId: authority.nodeId, seat: request.seat,
+      operationId: request.operationId, requestDigest: digest(payload) }
   }
 
   /** Bind current authorization and the frozen local action in one synchronized frame.
@@ -56,8 +54,6 @@ export class WakeDeliveries {
   async deliver(payload: T.WakeSeatRequest | T.WakeFrozenSeatRequest, authority: T.SeatCallContext,
     definition: T.SeatDefinition, binding: Extract<T.SeatBinding, { kind: 'seat' }>,
     action: Omit<WakeDeliveryRecord['action'], 'operationId'>, send: WakeSender): Promise<T.WakeSeatResult> {
-    const grant = authority.authorization
-    if (!grant) return rejected('unauthorized', 'Wake requires a receiving grant')
     try {
       await this.journal.commitAuthorization(() => {
         const existing = this.find(payload, authority)
@@ -66,16 +62,10 @@ export class WakeDeliveries {
         const input = 'request' in payload ? frozenIdentity(payload, authority, 'seat.wakeFrozen') : undefined
         if (input && 'status' in input) throw new EngineError(input.error.code, input.error.message)
         if (input && !validChainAccepted(input)) throw new EngineError('invalid-request', 'Frozen wake evidence is inconsistent')
-        const checked = input ? authorizeFrozen(this.issuers, grant, input, definition, this.journal.nodeId)
-          : authorizationEffect(this.issuers.verify(grant, { operationId: grant.fact.operationId, requestDigest: digest(payload),
-            ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-            ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.journal.nodeId))
-        const original = checked.data
-        if (original.decision !== 'allowed' || original.seat !== definition.seat || binding.seat !== definition.seat
-          || binding.nodeId !== this.journal.nodeId || action.sessionId !== binding.sessionId
-          || original.sessionId !== undefined && original.sessionId !== binding.sessionId
-          || binding.relatedTaskIds.some(task => !original.taskIds.includes(task))) {
-          throw new EngineError('unauthorized', 'Wake grant does not cover the selected window and tasks')
+        const original = this.caller(payload, authority)
+        if (original.seat !== definition.seat || binding.seat !== definition.seat
+          || binding.nodeId !== this.journal.nodeId || action.sessionId !== binding.sessionId) {
+          throw new EngineError('invalid-request', 'Wake does not cover the selected window')
         }
         const text = input && this.contextLimit !== undefined
           ? `${action.text}\n\n${input.openingContext.snapshot.text}` : action.text
@@ -84,7 +74,7 @@ export class WakeDeliveries {
         }
         const record: WakeDeliveryRecord = { method: input ? 'seat.wakeFrozen' : 'seat.wake', payload: structuredClone(payload),
           original, action: { ...action, text, operationId: wakeDeliveryId(original.operationId, action.sessionId) }, result: null }
-        return [checked, this.effect(record)]
+        return [this.effect(record)]
       })
       const record = this.find(payload, authority)
       if (!record) return rejected('unavailable', 'Wake intent is unavailable')
@@ -133,11 +123,8 @@ export class WakeDeliveries {
    * @returns First receipt, pending state, conflict, or absence.
    */
   query(request: T.NodeWorkChainOperationRequest, authority: T.SeatCallContext): T.NodeWorkChainOperationResult {
-    const fact = authority.authorization?.fact
-    if (!fact || fact.kind !== 'node-delegation' || fact.sourceNodeId !== request.key.sourceNodeId
-      || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId
-      || authority.nodeId !== fact.nodeId || fact.nodeId !== this.journal.nodeId) {
-      return rejected('unauthorized', 'Wake query attribution does not match')
+    if (authority.principalId !== request.key.principalId || authority.nodeId !== this.journal.nodeId) {
+      return rejected('invalid-request', 'Wake query does not match its caller')
     }
     for (const record of wakeRecords(this.journal.projection.authorizationDecisions).values()) {
       if (record.method !== 'seat.wakeFrozen' || !('route' in record.payload) || !record.original.sourceNodeId) continue
@@ -151,11 +138,8 @@ export class WakeDeliveries {
         if ((effect.kind === 'open/created' || effect.kind === 'open/configured')
           && effect.data.sessionId === record.action.sessionId) binding = effect.data.binding
       }
-      if (fact.seat !== record.payload.request.seat || binding?.kind !== 'seat' || binding.seat !== fact.seat
-        || binding.nodeId !== fact.nodeId || binding.relatedTaskIds.some(task => !fact.taskIds.includes(task))
-        || binding.taskId !== undefined && !fact.taskIds.includes(binding.taskId)
-        || record.payload.openingContext.snapshot.taskIds.some(task => !fact.taskIds.includes(task))) {
-        return rejected('unauthorized', 'Wake query attribution does not match')
+      if (binding?.kind !== 'seat' || binding.nodeId !== authority.nodeId) {
+        return rejected('invalid-request', 'Wake query does not match its caller')
       }
       if (record.original.requestDigest !== request.payloadDigest) return rejected('operation-id-conflict', 'Wake operation payload conflicts')
       return record.result ? { status: 'settled', method: 'seat.wakeFrozen', result: structuredClone(record.result) }

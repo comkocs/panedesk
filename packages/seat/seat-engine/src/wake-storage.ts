@@ -11,7 +11,7 @@ import { validChainAccepted } from './chain-storage.ts'
 export interface WakeDeliveryRecord {
   method: 'seat.wake' | 'seat.wakeFrozen'
   payload: T.WakeSeatRequest | T.WakeFrozenSeatRequest
-  original: T.SeatIssuedAuthorizationFact
+  original: T.SeatIssuedAuthorizationFact | WakeCaller
   action: { sessionId: SessionId
     operationId: T.SeatOperationId
     text: string
@@ -24,6 +24,19 @@ export interface WakeDeliveryEffect extends T.EngineEffectBase {
   kind: 'node-wake/updated'
   data: WakeDeliveryRecord
 }
+/** Caller identity retained for deliveries committed after authorization was retired. */
+export interface WakeCaller {
+  sourceNodeId: T.SeatNodeId
+  principalId: T.SeatPrincipalId
+  nodeId: T.SeatNodeId
+  seat: T.SeatName
+  operationId: T.SeatOperationId
+  requestDigest: T.SeatDigest
+}
+const isCaller = (value: unknown): value is WakeCaller => object(value)
+  && Object.keys(value).sort().join(',') === 'nodeId,operationId,principalId,requestDigest,seat,sourceNodeId'
+  && [value.sourceNodeId, value.principalId, value.nodeId, value.seat, value.operationId, value.requestDigest].every(id)
+
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 const id = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 
@@ -50,11 +63,11 @@ export function wakeKey(record: Pick<WakeDeliveryRecord, 'method' | 'payload' | 
  */
 export function validWakeDelivery(value: unknown): value is WakeDeliveryRecord {
   if (!object(value) || Object.keys(value).sort().join(',') !== 'action,method,original,payload,result'
-    || !validAuthorization(value.original) || !object(value.payload) || !object(value.action)
+    || !(validAuthorization(value.original) || isCaller(value.original)) || !object(value.payload) || !object(value.action)
     || !['seat.wake', 'seat.wakeFrozen'].includes(String(value.method))) return false
   const original = value.original, action = value.action, payload = value.payload
-  if (original.kind !== 'node-delegation' || original.decision !== 'allowed' || !original.sourceNodeId
-    || !original.seat || original.requestDigest !== digest(payload)
+  if (!original.sourceNodeId || !original.seat || original.requestDigest !== digest(payload)
+    || 'kind' in original && (original.kind !== 'node-delegation' || original.decision !== 'allowed')
     || Object.keys(action).sort().join(',') !== 'operationId,sessionId,status,text,title'
     || !id(action.sessionId) || typeof action.text !== 'string' || typeof action.title !== 'string'
     || !['sent', 'stored-budget-stopped'].includes(String(action.status))
@@ -66,7 +79,8 @@ export function validWakeDelivery(value: unknown): value is WakeDeliveryRecord {
     || Object.keys(request).some(key => !['seat', 'sessionId', 'operationId', 'nodeId'].includes(key))) return false
   if (value.method === 'seat.wakeFrozen' && (!object(payload.route) || !validChainAccepted({
     capability: 'node-work-chain/v1', route: payload.route, openingContext: payload.openingContext,
-    expectedSeatRevision: payload.expectedSeatRevision, authorizationRef: original.authorizationId,
+    expectedSeatRevision: payload.expectedSeatRevision,
+    ...('authorizationId' in original ? { authorizationRef: original.authorizationId } : {}),
     payloadDigest: original.requestDigest, trigger: null, operationKey: { method: 'seat.wakeFrozen',
       operationId: original.operationId, sourceNodeId: original.sourceNodeId, principalId: original.principalId,
       sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch },
@@ -89,8 +103,9 @@ export function validateWakeFrame(decision: AuthorizationDecision): void {
     if (!validWakeDelivery(record) || effect.operationId !== record.original.operationId
       || effect.seat !== record.original.seat || effect.sessionId !== record.action.sessionId
       || decision.nodeId !== record.original.nodeId) throw new EngineError('engine-store-corrupt', 'Invalid wake delivery record')
-    if (record.result === null && !decision.effects.some(item => item.kind === 'authorization/checked'
-      && digest(item.data) === digest(record.original))) {
+    if (record.result === null && 'authorizationId' in record.original
+      && !decision.effects.some(item => item.kind === 'authorization/checked'
+        && digest(item.data) === digest(record.original))) {
       throw new EngineError('engine-store-corrupt', 'Wake intent has no matching authorization')
     }
   }

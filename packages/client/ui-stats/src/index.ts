@@ -31,18 +31,15 @@ export default class StatsService extends TypertRemoteService {
     ctx.effect(() => () => { this.lifetime.abort() })
   }
 
-  /** Read one deduplicated ledger snapshot after authenticating the invocation owner.
+  /** Read one deduplicated ledger snapshot from the installed query provider.
    * @param request - Fixed time range, bucket, grouping and optional attribution filters.
    * @returns Five-tab projection plus the deployment's refresh cadence.
    */
   @Remote
   async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }> {
-    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('stats/unauthorized', 'Authenticated owner required', {})
-    }
     if (!this.config.enabled) throw new RemoteError('stats/disabled', 'Statistics are disabled', {})
-    const invocationSignal = this.ctx.invocation.signal
-    const cancelled = () => this.lifetime.signal.aborted || invocationSignal.aborted
+    const invocationSignal = this.ctx.invocation?.signal
+    const cancelled = () => this.lifetime.signal.aborted || invocationSignal?.aborted
     if (cancelled()) throw new RemoteError('stats/unavailable', 'Statistics are unavailable', {})
     const query = this.ctx.get('ledgerQuery')
     if (!query) throw new RemoteError('stats/unavailable', 'Ledger queries are unavailable', {})

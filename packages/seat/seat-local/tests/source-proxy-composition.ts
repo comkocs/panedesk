@@ -38,12 +38,16 @@ export function prepared<M extends T.SeatRemoteOpeningMethod>(method: M, input: 
   const { openingContext: _reference, relatedTaskIds: _tasks, ...request } = input as T.OpenSeatWithContextRequest
   return { ...common, request }
 }
+function wireGrant(identity: T.SeatAuthorizationEntry['identity'], request: T.SeatAuthorizationCheck): T.SeatAuthorizationGrant {
+  return { fact: { ...identity, ...request, authorizationId: randomUUID() as T.AuthorizationRef,
+    checkedAt: new Date().toISOString(), decision: 'allowed', reasonCode: 'fixture' },
+  } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant
+}
 export async function composition(engine: SeatEngine, facility: DomainFacility, ctx: Context) {
   const domain = await facility.open(spec), intents = domain.table('intents')
   const grants: T.SeatAuthorizationGrant[] = [], originals: T.SeatAuthorizationGrant[] = []
-  const entry = engine.authorizationIssuers.register({ identity: { kind: 'human', origin: 'manual', principalId: proxyPrincipal,
-    nodeId: engine.options.nodeId, seat: 'seat-a' as T.SeatName, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'local-entry', policyRevision: 1 }) })
+  const identity: T.SeatAuthorizationEntry['identity'] = { kind: 'human', origin: 'manual', principalId: proxyPrincipal,
+    nodeId: engine.options.nodeId, seat: 'seat-a' as T.SeatName, taskIds: [], policyRevision: 1 }
   const state = { sends: 0, prepares: 0, unknown: false, reject: false }
   const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 2,
     maxStoreBytes: 1048576, maxOperations: 100, staleMs: 20 }
@@ -90,29 +94,21 @@ export async function composition(engine: SeatEngine, facility: DomainFacility, 
     const { authorizationId: _id, operationId: _operation, requestDigest: _digest, checkedAt: _time,
       decision: _decision, reasonCode: _reason, ...identity } = input.original.fact
     await intents.put(digest(record.data.operationKey), { request: JSON.stringify(input.payload), identity: JSON.stringify(identity) })
-    const retained = intents.get(digest(record.data.operationKey))
-    const registration = engine.authorizationIssuers.register({ identity,
-      current: () => retained?.request === JSON.stringify(input.payload)
-        ? { decision: 'allowed', reasonCode: 'retained-intent', policyRevision: identity.policyRevision } : null })
-    try {
-      const grant = await registration.issuer.check({ operationId: input.operationId,
-        requestDigest: chainDigest(input.method, input.payload) })
-      if ('status' in grant) throw new Error('Missing wire grant')
-      const fact = grant.fact, expiresAt = new Date(Date.now() + 60000).toISOString()
-      const request = decodeChainRequest({ version: 'node-link/v1', requestId: randomUUID(), sourceNodeId: engine.options.nodeId,
-        targetNodeId: input.targetNodeId, operationId: input.operationId, method: input.method, payload: input.payload,
-        payloadDigest: fact.requestDigest, deadline: expiresAt, hop: 1,
-        delegation: { authorizationRef: fact.authorizationId, principalId: fact.principalId, sourceNodeId: engine.options.nodeId,
-          targetNodeId: input.targetNodeId, operationId: fact.operationId, requestDigest: fact.requestDigest,
-          seat: fact.seat, taskIds: fact.taskIds, expiresAt, hop: 1, kind: 'node-delegation' } })
-      grants.push(grant)
-      const response = await ctx.get('nodeWorkChainRouter')!.route(request, grant)
-      if (state.unknown || response.status !== 'ok') return { status: 'unknown' }
-      if (response.method !== 'engine.acceptFrozen' && response.method !== 'seat.openFrozen'
-        && response.method !== 'seat.wakeFrozen') throw new Error('Unexpected response method')
-      if (response.result.status === 'rejected') return { status: 'rejected', result: response.result }
-      return { status: 'committed', result: response.result }
-    } finally { registration.dispose() }
+    const grant = wireGrant(identity, { operationId: input.operationId, requestDigest: chainDigest(input.method, input.payload) })
+    const fact = grant.fact, expiresAt = new Date(Date.now() + 60000).toISOString()
+    const request = decodeChainRequest({ version: 'node-link/v1', requestId: randomUUID(), sourceNodeId: engine.options.nodeId,
+      targetNodeId: input.targetNodeId, operationId: input.operationId, method: input.method, payload: input.payload,
+      payloadDigest: fact.requestDigest, deadline: expiresAt, hop: 1,
+      delegation: { authorizationRef: fact.authorizationId, principalId: fact.principalId, sourceNodeId: engine.options.nodeId,
+        targetNodeId: input.targetNodeId, operationId: fact.operationId, requestDigest: fact.requestDigest,
+        seat: fact.seat, taskIds: fact.taskIds, expiresAt, hop: 1, kind: 'node-delegation' } })
+    grants.push(grant)
+    const response = await ctx.get('nodeWorkChainRouter')!.route(request, grant)
+    if (state.unknown || response.status !== 'ok') return { status: 'unknown' }
+    if (response.method !== 'engine.acceptFrozen' && response.method !== 'seat.openFrozen'
+      && response.method !== 'seat.wakeFrozen') throw new Error('Unexpected response method')
+    if (response.result.status === 'rejected') return { status: 'rejected', result: response.result }
+    return { status: 'committed', result: response.result }
   }
   async function reconcile(record: SourceProxyRecord): Promise<SourceProxyOutcome<T.SeatRemoteOpeningMethod>> {
     const retained = intents.get(digest(record.operationKey))
@@ -120,44 +116,36 @@ export async function composition(engine: SeatEngine, facility: DomainFacility, 
       decision: _decision, reasonCode: _reason, ...identity } = record.original
     if (retained?.request !== JSON.stringify(record.payload) || retained.identity !== JSON.stringify(identity)) return { status: 'unknown' }
     const payload = { key: record.operationKey, payloadDigest: chainDigest(record.method, record.payload) }
-    const registration = engine.authorizationIssuers.register({ identity,
-      current: () => intents.get(digest(record.operationKey))?.request === JSON.stringify(record.payload)
-        ? { decision: 'allowed', reasonCode: 'retained-query', policyRevision: identity.policyRevision } : null })
-    try {
-      const grant = await registration.issuer.check({ operationId: record.operationKey.operationId,
-        requestDigest: chainDigest('chain.operation', payload) })
-      if ('status' in grant) return { status: 'unknown' }
-      const fact = grant.fact, expiresAt = new Date(Date.now() + 60000).toISOString()
-      const request = decodeChainRequest({ version: 'node-link/v1', requestId: randomUUID(), sourceNodeId: engine.options.nodeId,
-        targetNodeId: record.targetNodeId, operationId: record.operationKey.operationId, method: 'chain.operation', payload,
-        payloadDigest: fact.requestDigest, deadline: expiresAt, hop: 1,
-        delegation: { authorizationRef: fact.authorizationId, principalId: fact.principalId, sourceNodeId: engine.options.nodeId,
-          targetNodeId: record.targetNodeId, operationId: fact.operationId, requestDigest: fact.requestDigest,
-          seat: fact.seat, taskIds: fact.taskIds, expiresAt, hop: 1, kind: 'node-delegation' } })
-      grants.push(grant)
-      const response = await ctx.get('nodeWorkChainRouter')!.route(request, grant)
-      if (response.status !== 'ok' || response.method !== 'chain.operation' || response.result.status !== 'settled'
-        || response.result.method !== record.method) return { status: 'unknown' }
-      const result = response.result.result
-      return result.status === 'rejected' ? { status: 'rejected', result } : { status: 'committed', result }
-    } finally { registration.dispose() }
+    const grant = wireGrant(identity, { operationId: record.operationKey.operationId,
+      requestDigest: chainDigest('chain.operation', payload) })
+    const fact = grant.fact, expiresAt = new Date(Date.now() + 60000).toISOString()
+    const request = decodeChainRequest({ version: 'node-link/v1', requestId: randomUUID(), sourceNodeId: engine.options.nodeId,
+      targetNodeId: record.targetNodeId, operationId: record.operationKey.operationId, method: 'chain.operation', payload,
+      payloadDigest: fact.requestDigest, deadline: expiresAt, hop: 1,
+      delegation: { authorizationRef: fact.authorizationId, principalId: fact.principalId, sourceNodeId: engine.options.nodeId,
+        targetNodeId: record.targetNodeId, operationId: fact.operationId, requestDigest: fact.requestDigest,
+        seat: fact.seat, taskIds: fact.taskIds, expiresAt, hop: 1, kind: 'node-delegation' } })
+    grants.push(grant)
+    const response = await ctx.get('nodeWorkChainRouter')!.route(request, grant)
+    if (response.status !== 'ok' || response.method !== 'chain.operation' || response.result.status !== 'settled'
+      || response.result.method !== record.method) return { status: 'unknown' }
+    const result = response.result.result
+    return result.status === 'rejected' ? { status: 'rejected', result } : { status: 'committed', result }
   }
   const port: SourceProxyPort = { target: async () => remoteNode, send,
     prepare: async ({ method, input, authority }) => {
       state.prepares++
       const operationId = 'operationId' in input ? input.operationId : 'trigger-operation' as T.SeatOperationId
-      const original = authority?.authorization ?? await entry.issuer.check({ operationId, requestDigest: digest(input) })
-      if ('status' in original) return original
+      const original = authority?.authorization ?? wireGrant(identity, { operationId, requestDigest: digest(input) })
       return { payload: prepared(method, input, engine.options.nodeId, operationId), original }
     } }
   const grant = async (input: T.OpenSeatWithContextRequest | T.WakeSeatWithContextRequest) => {
-    const authorization = await entry.issuer.check({ operationId: input.operationId, requestDigest: digest(input) })
-    if ('status' in authorization) throw new Error('Missing local grant')
+    const authorization = wireGrant(identity, { operationId: input.operationId, requestDigest: digest(input) })
     return { nodeId: engine.options.nodeId, principalId: proxyPrincipal, origin: 'manual' as const, authorization }
   }
   return { port, grant, reconcile, state, grants, originals, intents,
     close: async () => {
       withdraw(); await router.close(); await listener.close(); await store.close(); await evidence.close()
-      entry.dispose(); await domain.close()
+      await domain.close()
     } }
 }
