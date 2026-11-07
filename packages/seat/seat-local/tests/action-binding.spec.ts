@@ -32,47 +32,6 @@ async function fixture() {
 }
 
 for (const entry of ['close', 'renew', 'replace'] as const) {
-  test.each(['principal', 'node', 'seat', 'tasks'] as const)(`${entry} rejects a live grant with mismatched %s before any business effect`, async (binding) => {
-    const f = await fixture()
-    let dispose: (() => void) | undefined
-    try {
-      const request = { sessionId: f.sessionId, operationId: operation(`bound-${entry}`),
-        ...(entry === 'close' ? { expectedStateVersion: 1 } : {}) }
-      const registration = f.engine.authorizationIssuers.register({ identity: { kind: 'local-operator',
-        principalId: f.authority.principalId, origin: 'manual',
-        nodeId: binding === 'node' ? 'other-node' as T.SeatNodeId : f.authority.nodeId,
-        seat: binding === 'seat' ? 'other-seat' as T.SeatName : f.definition.seat,
-        taskIds: binding === 'tasks' ? tasks.slice(0, 1) : tasks, policyRevision: 1 },
-      current: () => ({ decision: 'allowed', reasonCode: 'authenticated-test-entry', policyRevision: 1 }) })
-      dispose = () => { registration.dispose() }
-      const grant = await registration.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
-      if ('status' in grant) throw new Error('Expected a live issued grant')
-      expect(f.engine.authorizationIssuers.verify(grant,
-        { operationId: request.operationId, requestDigest: digest(request) }, grant.fact.nodeId)).toEqual(grant.fact)
-      const caller = f.service.withAuthority({ ...f.authority, authorization: grant,
-        ...(binding === 'principal' ? { principalId: 'operator-b' as T.SeatPrincipalId } : {}) })
-      const before = await f.state.read()
-      const authorizations = await f.engine.authorizations.query({ limit: 100 })
-      const archive = vi.spyOn(f.ctx.workspaceRegistry, 'archiveSession')
-      const closed = vi.spyOn(f.engine, 'recordClosed')
-      const result = entry === 'close' ? await caller.close({ ...request, expectedStateVersion: 1 })
-        : entry === 'renew' ? await caller.renew(request) : await caller.replace(request)
-      const message = binding === 'principal' ? 'Action authorization does not match the calling principal.'
-        : binding === 'node' ? 'Authorization grant does not match this action'
-          : entry === 'close' ? 'Close attribution does not cover this window.'
-            : 'Action attribution does not cover the target seat and tasks'
-      expect(result).toMatchObject({ status: 'rejected', error: { code: 'unauthorized', message, effectState: 'none' } })
-      expect(await f.state.read()).toEqual(before)
-      expect(await f.engine.authorizations.query({ limit: 100 })).toEqual(authorizations)
-      expect(f.engine.journal.projection.closing.size).toBe(0)
-      expect(f.engine.journal.projection.replacements.size).toBe(0)
-      expect(f.engine.journal.projection.opens.has(f.sessionId)).toBe(true)
-      expect(f.ctx.workspaceRegistry.archivedSessionIds).not.toContain(f.sessionId)
-      expect(f.renewals).toEqual([])
-      expect(archive).not.toHaveBeenCalled()
-      expect(closed).not.toHaveBeenCalled()
-    } finally { dispose?.(); vi.restoreAllMocks(); await f.close() }
-  })
   test(`${entry} preserves the entirely unsigned trusted local entry`, async () => {
     const f = await fixture()
     try {

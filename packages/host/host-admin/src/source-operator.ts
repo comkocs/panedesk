@@ -1,8 +1,4 @@
 /** Optional source operations retain provider-owned audit and delivery semantics. */
-import type { SeatAuthorizationGrant } from '@panedesk/dsh-seat'
-
-/** The original process-local cancellation grant, never reconstructed from wire facts. */
-export type HostAdminGrant = SeatAuthorizationGrant
 /** Exact provider key and operator reason bound to one operation. */
 export interface SourceOperatorWriteParams { operationId: string; key: string; reason: string }
 /** Provider evidence for work requiring an operator decision. */

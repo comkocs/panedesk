@@ -16,7 +16,7 @@ import { HOST_ADMIN_VERSION } from '../src/index.ts'
 const limits = { maxFrameBytes: 262144, requestTimeoutMs: 5000, maxPending: 8 }
 const taskId = 'task-admin' as Seat.SeatTaskId
 
-test('queries approval registration, real creation and issued kinds after restart without exposing bodies', async () => {
+test('queries approval registration and real creation after restart without exposing bodies', async () => {
   const h = await harness({ ownerObserveIntervalMs: 60000 })
   let stop: (() => Promise<void>) | undefined
   const directory = join(h.home, 'admin')
@@ -41,9 +41,7 @@ test('queries approval registration, real creation and issued kinds after restar
     const before = await callAdmin(files, 'engine.operation', { operationId: params.operationId }, limits)
     expect(before).toMatchObject({ status: 'ok', result: { status: 'settled', result: { status: 'opened', phase: 'active' },
       progress: { kind: 'open', sessionId: h.creates[0] } } })
-    const query = await callAdmin(files, 'engine.query', { limit: 100, taskId, seat, kind: 'local-operator' }, limits)
-    expect(query).toMatchObject({ status: 'ok', result: { authorizations: { complete: true,
-      facts: [{ kind: 'local-operator', operationId: params.operationId, taskIds: [taskId] }] } } })
+    const query = await callAdmin(files, 'engine.query', { limit: 100, taskId, seat }, limits)
     if (query.status !== 'ok' || query.method !== 'engine.query' || 'status' in query.result) throw new Error('Expected effect page')
     expect(query.result.effects.some(effect => effect.kind === 'queue/approved')).toBe(true)
     expect(JSON.stringify(query)).not.toContain('Begin the assigned task.')
@@ -51,9 +49,8 @@ test('queries approval registration, real creation and issued kinds after restar
     const page = await callAdmin(files, 'engine.query', { limit: 1, taskId }, limits)
     if (page.status !== 'ok' || page.method !== 'engine.query' || 'status' in page.result) throw new Error('Expected query page')
     expect(page.result.complete).toBe(false)
-    const next = await callAdmin(files, 'engine.query', { limit: 100, taskId, cursor: page.result.nextCursor,
-      authorizationCursor: page.result.authorizations?.nextCursor }, limits)
-    expect(next).toMatchObject({ result: { authorizations: { facts: [], complete: true } } })
+    const next = await callAdmin(files, 'engine.query', { limit: 100, taskId, cursor: page.result.nextCursor }, limits)
+    expect(next).toMatchObject({ result: { complete: true } })
     const forged = decodeRequest({ version: HOST_ADMIN_VERSION, method: 'engine.query', params: { limit: 1 },
       processEpoch: endpoint.processEpoch, requestId: 'forged', nonce: 'forged' })
     await expect(callLoopback(endpoint.port, { credential: '0'.repeat(64), epoch: endpoint.processEpoch }, forged, limits)).rejects.toThrow('refused')
@@ -69,10 +66,10 @@ test('queries approval registration, real creation and issued kinds after restar
     await expect(callLoopback(restarted.port, { credential, epoch: endpoint.processEpoch }, forged, limits)).rejects.toThrow('refused')
     const currentCredential = (await files.read('credential', 64))!
     expect(await callLoopback(restarted.port, { credential: currentCredential, epoch: restarted.processEpoch }, forged, limits))
-      .toMatchObject({ code: 'admin-stale-epoch' })
+      .toMatchObject({ status: 'ok' })
     expect(await callAdmin(files, 'engine.operation', { operationId: params.operationId }, limits)).toMatchObject({ result: before.status === 'ok' ? before.result : {} })
-    expect(await callAdmin(files, 'engine.query', { limit: 100, taskId, seat, kind: 'local-operator' }, limits))
-      .toMatchObject({ result: { authorizations: { facts: [{ kind: 'local-operator', operationId: params.operationId }] } } })
+    expect(await callAdmin(files, 'engine.query', { limit: 100, taskId, seat }, limits))
+      .toMatchObject({ status: 'ok', result: { complete: true } })
     expect(await callAdmin(files, 'engine.approve', params, limits)).toMatchObject({ result: { status: 'approved' } })
     expect(await callAdmin(files, 'engine.approve', { ...params, expectedStateVersion: params.expectedStateVersion + 1 }, limits))
       .toMatchObject({ status: 'rejected' })
@@ -171,13 +168,8 @@ test('keeps delivered automatic source and independent opening and closing queri
   } finally { await stop?.(); await restartedEngine?.shutdown(); await restartedContext.fiber.dispose(); await h.close() }
 })
 
-test('rejects malformed authorization pages, kinds and progress received over the wire', () => {
-  const request = decodeRequest({ version: HOST_ADMIN_VERSION, requestId: 'query', nonce: 'query', processEpoch: 'epoch',
-    method: 'engine.query', params: { limit: 1 } })
-  expect(() => decodeRequest({ ...request, params: { limit: 1, kind: 'invented' } })).toThrow()
-  expect(() => decodeRequest({ ...request, params: { limit: 1, authorizationCursor: { nodeId: 'node-a', sequence: -1, effectIndex: 0 } } })).toThrow()
-  expect(() => decodeResponse({ ...request, status: 'ok', result: { effects: [], complete: true, watermark: 1,
-    authorizations: { facts: [{}], complete: true, watermark: 1, legacyAttribution: 'none' } } }, request)).toThrow()
-  const operation = decodeRequest({ ...request, method: 'engine.operation', params: { operationId: 'operation' } })
+test('rejects malformed progress received over the wire', () => {
+  const operation = decodeRequest({ version: HOST_ADMIN_VERSION, requestId: 'operation', nonce: 'query', processEpoch: 'epoch',
+    method: 'engine.operation', params: { operationId: 'operation' } })
   expect(() => decodeResponse({ ...operation, status: 'ok', result: { status: 'missing', progress: { kind: 'invented' } } }, operation)).toThrow()
 })

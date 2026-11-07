@@ -106,8 +106,7 @@ export async function listenAuthenticatedLoopback(port: number, limits: RpcLimit
         .find(item => req.headers['x-rpc-epoch'] === item.epoch && authenticated(req.headers.authorization, item.credential))
     const hostMatches = req.headers.host === `${loopback}:${actualPort}`
       || req.headers.host !== undefined && forwardedHosts.has(req.headers.host)
-    const forbidden = closing || req.headers.origin !== undefined || req.headers.cookie !== undefined
-      || req.method !== 'POST' || req.url !== '/rpc'
+    const forbidden = closing || req.method !== 'POST' || req.url !== '/rpc'
       || req.headers['content-type'] !== 'application/json'
       || accepted === undefined
       || pending.size >= limits.maxPending

@@ -1,4 +1,4 @@
-/** Owner checks precede observations and writes reuse the exact local-operator executor. */
+/** Node observations and writes reuse the running host's providers. */
 import { afterEach, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
@@ -22,14 +22,6 @@ function setup(enabled = true) {
   const nodes = new Nodes(ctx, { ...config, enabled })
   return { ctx, nodes, controller }
 }
-it.each(['guest', 'anonymous', 'session'])('refuses %s before reading any provider or rebuilding', async (kind) => {
-  const h = setup(), status = vi.fn(async () => [])
-  h.ctx.provide('hostAdminNodeHealth', { status })
-  Object.defineProperty(h.ctx, 'invocation', { value: { peer: { principal: { kind } }, signal: h.controller.signal } })
-  await expect(h.nodes.read()).rejects.toMatchObject({ code: 'nodes/unauthorized' })
-  expect(() => h.nodes.act({ kind: 'rebuild', peerNodeId: 'node-b' as Seat.SeatNodeId })).toThrow()
-  expect(status).not.toHaveBeenCalled()
-})
 it('reports disabled and cancelled reads without starting an engine', async () => {
   const disabled = setup(false)
   await expect(disabled.nodes.read()).rejects.toMatchObject({ code: 'nodes/disabled' })
@@ -37,17 +29,13 @@ it('reports disabled and cancelled reads without starting an engine', async () =
   await expect(h.nodes.read()).rejects.toMatchObject({ code: 'nodes/unavailable' })
   expect(h.ctx.get('seatEngine')).toBeUndefined()
 })
-it('binds source resolution to the authenticated owner and passes only the selected peer', async () => {
+it('passes source resolution to installed providers and only rebuilds the selected peer', async () => {
   const h = await harness(); cleanups.push(h.close)
   Object.defineProperty(h.ctx, 'invocation', { value: { peer: { principal: { kind: 'owner' } }, signal: new AbortController().signal } })
   const nodes = new Nodes(h.ctx, config)
   const rebuild = vi.fn(async () => ({ status: 'rebuilt' as const }))
   h.ctx.provide('hostAdminTransport', { rebuildTransport: rebuild })
-  const write = vi.fn(async (_params: { operationId: string; key: string; reason: string }, grant: Seat.SeatAuthorizationGrant) => {
-    expect(grant.fact).toMatchObject({ kind: 'local-operator', principalId: 'owner', nodeId: 'node-a',
-      operationId: _params.operationId, decision: 'allowed' })
-    return { status: 'ok' as const }
-  })
+  const write = vi.fn(async () => ({ status: 'ok' as const }))
   h.ctx.provide('hostAdminSourceOperator', { list: async () => ({ items: [] }), abandon: write, resend: write })
   expect(await nodes.act({ kind: 'rebuild', peerNodeId: 'node-b' as Seat.SeatNodeId })).toEqual({ status: 'ok' })
   expect(rebuild).toHaveBeenCalledExactlyOnceWith('node-b')

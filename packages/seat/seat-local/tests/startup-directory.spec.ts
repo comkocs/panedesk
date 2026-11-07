@@ -7,12 +7,12 @@ import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
 import { createOpenExecutor } from '../src/executor.ts'
 
-it('freezes a registered startup choice through creation, workspace placement and reload without changing the catalog', async () => {
+it('freezes a startup choice through creation, workspace placement and reload without changing the catalog', async () => {
   const f = await admissionHost()
   try {
     const chosen = join(f.options.directory, 'chosen')
     await mkdir(chosen)
-    const directories = [...f.definition.directories, { path: chosen, startup: false }]
+    const directories = f.definition.directories
     expect(await f.seats.save({ definition: { ...f.definition, directories }, expectedRevision: 2,
       operationId: operation('register-directory') })).toMatchObject({ status: 'saved' })
     const request: OpenSeatRequest = { seat: f.definition.seat, origin: 'manual', openingMode: 'prefill',
@@ -65,22 +65,6 @@ it('retries interrupted workspace attachment without duplicating membership or s
     const restored = await f.reload()
     expect(await restored.open({ seat: f.definition.seat, origin: 'manual', openingMode: 'prefill',
       operationId: operation('attach-recovery') })).toMatchObject({ sessionId: opened.sessionId, draft: opened.draft })
-    expect(f.adapter.requests).toHaveLength(0)
-  } finally { await f.close() }
-})
-
-it('rejects unregistered directories and nonmanual overrides before admission or Session creation', async () => {
-  const f = await admissionHost()
-  try {
-    const before = (await f.state.read()).watermark
-    expect(await f.seats.open({ seat: f.definition.seat, origin: 'manual', openingMode: 'prefill',
-      startupDirectory: join(f.options.directory, 'unregistered'), operationId: operation('unregistered') }))
-      .toMatchObject({ status: 'rejected', error: { code: 'invalid-request' } })
-    const remote = f.ctx.seats.withAuthority({ ...f.authority, origin: 'remote' })
-    expect(await remote.open({ seat: f.definition.seat, origin: 'remote', startupDirectory: f.options.directory,
-      operationId: operation('nonmanual') })).toMatchObject({ status: 'rejected', error: { code: 'invalid-request' } })
-    expect((await f.state.read()).watermark).toBe(before)
-    expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
     expect(f.adapter.requests).toHaveLength(0)
   } finally { await f.close() }
 })

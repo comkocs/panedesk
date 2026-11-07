@@ -11,7 +11,14 @@ import type * as T from '@panedesk/dsh-seat'
 import { harness, nodeId, sourceId, seat, trigger } from './fixtures.ts'
 import { digest, EngineJournal } from '../src/journal.ts'
 import { fact } from '../src/triggers.ts'
-import { authorizationEffect } from '../src/authorization-issuer.ts'
+import type { AuthorizationEffect } from '../src/authorization-storage.ts'
+import { queryOperation } from '../src/operation.ts'
+
+function authorizationEffect(data: T.SeatIssuedAuthorizationFact): AuthorizationEffect {
+  return { kind: 'authorization/checked', capability: 'seat-authorization/v1', eventId: data.authorizationId as string as T.EngineEventId,
+    operationId: data.operationId, ...(data.seat ? { seat: data.seat } : {}),
+    ...(data.sessionId ? { sessionId: data.sessionId } : {}), data }
+}
 import { frozenIdentity, queryFrozen } from '../src/frozen-admission.ts'
 import { retentionSince } from '../src/execution-recheck.ts'
 import { frozenItems, queryFrozenExecution, preopenCancelledReason } from '../src/frozen-terminal.ts'
@@ -38,13 +45,12 @@ async function setup() {
   h.definitions.get(seat)!.remoteAdmission = { allowOpen: true, sourceNodeIds: [sender], sourceIds: [sourceId],
     principalIds: [principalId], methods: ['engine.acceptFrozen'], policyRevision: 1 }
   const authorize = async (payload: T.AcceptFrozenTriggerRequest | T.OpenFrozenSeatRequest = input,
-    engine = h.engine, sourceNodeId: T.SeatNodeId | undefined = sender) => {
-    const entry = engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
-      nodeId, origin: 'remote', seat, taskIds: [], policyRevision: 1, ...(sourceNodeId ? { sourceNodeId } : {}) },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-    const grant = await entry.issuer.check({ operationId: payload.route.originalOperationId, requestDigest: digest(payload) })
-    if ('status' in grant) throw new Error('Expected grant')
-    return { principalId, nodeId, origin: 'remote' as const, authorization: grant }
+    _engine = h.engine, sourceNodeId: T.SeatNodeId | undefined = sender) => {
+    const fact: T.SeatIssuedAuthorizationFact = { authorizationId: 'historical-authorization' as T.AuthorizationRef,
+      kind: 'node-delegation', principalId, nodeId, origin: 'remote', seat, taskIds: [], policyRevision: 1,
+      operationId: payload.route.originalOperationId, requestDigest: digest(payload), checkedAt: new Date().toISOString(),
+      decision: 'allowed', reasonCode: 'allowed', ...(sourceNodeId ? { sourceNodeId } : {}) }
+    return { principalId, nodeId, origin: 'remote' as const, authorization: { fact } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant }
   }
   return { h, input, authorize }
 }
@@ -63,52 +69,11 @@ test.each(['off', 'remind', 'auto'] as const)('inherits saved %s in the frozen a
   } finally { await h.close() }
 })
 
-test.each(['manual', 'engine'] as const)('uses verified %s authority rather than claimed manual origin under off', async (origin) => {
-  const { h, input } = await setup()
-  try {
-    await h.engine.setProjectMode({ projectId: input.envelope.projectId, mode: 'off', expectedRevision: 0,
-      operationId: 'off-owner-test' as T.SeatOperationId })
-    input.route.modeCeiling.mode = 'off'
-    const payload: T.OpenFrozenSeatRequest = { request: { seat, operationId: input.route.originalOperationId,
-      origin: 'manual', openingMode: 'auto' }, expectedSeatRevision: 1, openingContext: input.openingContext,
-    route: { ...input.route, triggerId: null } }
-    h.definitions.get(seat)!.remoteAdmission!.methods = ['seat.openFrozen']
-    const principalId = 'principal' as T.SeatPrincipalId
-    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
-      nodeId, origin, seat, sourceNodeId: 'sending-node' as T.SeatNodeId, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'trusted-node-chain', policyRevision: 1 }) })
-    const grant = await entry.issuer.check({ operationId: payload.request.operationId, requestDigest: digest(payload) })
-    if ('status' in grant) throw new Error('Expected grant')
-    const authority: T.SeatCallContext = { nodeId, principalId, origin, authorization: grant }
-    const chain = frozenIdentity(payload, authority, 'seat.openFrozen')
-    if ('status' in chain) throw new Error('Expected frozen identity')
-    const result = await h.engine.openWindow({ request: payload.request, authority, nodeWorkChain: chain,
-      definition: structuredClone(h.definitions.get(seat)!), title: 'Owner opening', openingContext: payload.openingContext.snapshot,
-      opening: { text: payload.openingContext.snapshot.text, digest: payload.openingContext.snapshot.digest,
-        variables: { seat, date: '2026-01-01', taskId: null } } })
-    if (origin === 'engine') {
-      expect(result).toMatchObject({ status: 'rejected', error: { code: 'disabled' } })
-      expect(h.creates).toHaveLength(0)
-      return
-    }
-    expect(result).toMatchObject({ status: 'queued' })
-    entry.dispose()
-    await h.engine.shutdown()
-    const restarted = await h.start()
-    restarted.registerLocalAccess(executionAccess(h))
-    restarted.registerPreopenRetention({ projectId: input.envelope.projectId, sourceId: input.route.sourceId,
-      sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs: 900000 })
-    await restarted.drive()
-    await restarted.drive()
-    expect(h.creates).toHaveLength(1)
-  } finally { await h.close() }
-})
-
 test('admits a missing replay once and returns its result to the late original after restart', async () => {
   const { h, input, authorize } = await setup()
   try {
     const original = structuredClone(input), authority = await authorize()
-    const key: T.NodeWorkChainOperationKey = { sourceNodeId: authority.authorization.fact.sourceNodeId!,
+    const key: T.NodeWorkChainOperationKey = { sourceNodeId: input.route.sourceOwnerNodeId,
       principalId: authority.principalId, sourceId: input.route.sourceId, ownerEpoch: input.route.ownerEpoch,
       method: 'engine.acceptFrozen', operationId: input.route.originalOperationId }
     const query = { key, payloadDigest: digest(input) }
@@ -133,20 +98,18 @@ test('returns the original frozen acceptance on concurrent retry and after recov
     expect(results[1]).toEqual(results[0])
     expect(h.engine.journal.projection.authorizationDecisions).toHaveLength(1)
     expect(h.engine.journal.projection.authorizationDecisions[0]?.effects.map(effect => effect.kind))
-      .toEqual(['trigger/accepted', 'node-route/accepted', 'queue/reminded', 'authorization/checked'])
+      .toEqual(['trigger/accepted', 'node-route/accepted', 'queue/reminded'])
     const accepted = h.engine.journal.projection.authorizationDecisions[0]?.effects.find(effect => effect.kind === 'node-route/accepted')
     if (accepted?.kind !== 'node-route/accepted') throw new Error('Expected admission')
-    expect(accepted.data.operationKey.sourceNodeId).not.toBe(accepted.data.route.sourceOwnerNodeId)
+    expect(accepted.data.operationKey.sourceNodeId).toBe(accepted.data.route.sourceOwnerNodeId)
     const query = { key: accepted.data.operationKey, payloadDigest: digest(input) }
     expect(queryFrozen(h.engine.journal.projection, query)).toEqual({ status: 'settled', method: 'engine.acceptFrozen', result: results[0] })
     const changed = { ...input, envelope: { ...input.envelope, data: 'changed', dataDigest: digest('changed') } }
     expect(await h.engine.acceptFrozen(changed, await authorize(changed))).toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
     expect(queryFrozen(h.engine.journal.projection, { ...query, payloadDigest: digest(changed) })).toMatchObject({ status: 'rejected' })
     h.definitions.clear()
-    h.engine.authorizationIssuers.close()
     expect(await h.engine.acceptFrozen(input, authority)).toEqual(results[0])
-    expect(await h.engine.acceptFrozen(changed, { ...authority, authorization: {
-      ...authority.authorization, fact: { ...authority.authorization.fact, requestDigest: digest(changed) } } }))
+    expect(await h.engine.acceptFrozen(changed, authority))
       .toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
     await h.engine.shutdown()
     await writeFile(join(h.engine.journal.root, 'events', '9999999999999999-interrupted.jsonl'), '{"sequence":2')
@@ -315,7 +278,6 @@ test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen 
 test.each(['remote-source', 'owner-target'] as const)('executes unchanged frozen permission once without renewing the original grant for %s', async (kind) => {
   const { h, pending, query, original, recheck } = await admitForExecution(kind)
   try {
-    h.engine.authorizationIssuers.close()
     await approveForExecution(h, pending)
     await h.engine.drive()
     await h.engine.drive()
@@ -411,24 +373,9 @@ test('reports a cancelled frozen source as rejected while replaying its first re
     const pending = [...h.engine.journal.projection.pending.values()][0]!
     await h.engine.cancel({ queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
       operationId: 'terminal-query-cancel' as T.SeatOperationId })
-    expect(await h.engine.authorizations.operation({ operationId: input.route.originalOperationId }))
+    expect(queryOperation(h.engine.journal.projection, { operationId: input.route.originalOperationId }, 'node-a'))
       .toMatchObject({ status: 'settled', result: { status: 'rejected', error: { code: 'gate-denied', effectState: 'none' } } })
     expect(await h.engine.acceptFrozen(input, await authorize())).toEqual(receipt)
-  } finally { await h.close() }
-})
-
-test('keeps an unregistered frozen route queued and still permits manual cancellation', async () => {
-  const { h, pending, removeRetention } = await admitForExecution('remote-source')
-  try {
-    await removeRetention()
-    await approveForExecution(h, pending)
-    await h.engine.drive()
-    expect(h.creates).toHaveLength(0)
-    const current = h.engine.journal.projection.pending.get(pending.queueItemId)!
-    expect(current).toMatchObject({ reason: 'provider-unavailable', blockedBy: ['provider-unavailable'] })
-    await h.engine.cancel({ queueItemId: current.queueItemId, expectedStateVersion: current.stateVersion,
-      operationId: 'unregistered-cancel' as T.SeatOperationId })
-    expect([...h.engine.journal.projection.callbacks.values()]).toHaveLength(1)
   } finally { await h.close() }
 })
 
@@ -508,10 +455,11 @@ test('projects retention time and committed expiry without changing old journal 
   } finally { clock.mockRestore(); await h.close() }
 })
 
-test.each(['unregistered', 'ambiguous'] as const)('bounds %s frozen retention with one stable rejected callback at 900000 ms', async (kind) => {
+test.each(['unregistered', 'ambiguous'] as const)('bounds transient frozen retention for an %s route at 900000 ms', async (kind) => {
   const { h, input, authorize } = await setup(), clock = vi.spyOn(Date, 'now')
   try {
-    h.engine.registerLocalAccess(executionAccess(h))
+    h.engine.registerLocalAccess(executionAccess(h, vi.fn(async () => ({ status: 'rejected' as const, error: { code: 'unavailable' as const,
+      message: 'Provider unavailable', alternative: 'Restore provider', retryable: true, effectState: 'none' as const } }))))
     if (kind === 'ambiguous') {
       for (const limitMs of [60000, 1800000]) h.engine.registerPreopenRetention({
         sourceId: input.route.sourceId, sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs })
@@ -521,6 +469,7 @@ test.each(['unregistered', 'ambiguous'] as const)('bounds %s frozen retention wi
     const chain = pending.frozenOpen!.nodeWorkChain!
     const query = { key: chain.operationKey, payloadDigest: chain.payloadDigest }
     const originalFrames = h.engine.journal.projection.authorizationDecisions.map(frame => frame.digest)
+    await approveForExecution(h, pending)
     await h.engine.drive()
     const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
     const first = h.engine.journal.projection.decisions.find(frame => frame.effects.some(effect => effect.kind === 'queue/pending'))!
@@ -528,7 +477,6 @@ test.each(['unregistered', 'ambiguous'] as const)('bounds %s frozen retention wi
     const blocked = structuredClone(h.engine.journal.projection.pending.get(pending.queueItemId)!)
     expect(blocked).toMatchObject({ reason: 'provider-unavailable', blockedBy: ['provider-unavailable'],
       sources: pending.sources, frozenOpen: pending.frozenOpen, queuedAt: pending.queuedAt })
-    expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'unavailable' })
     for (const elapsed of [60000, 899999]) {
       clock.mockReturnValue(since + elapsed)
       await h.engine.drive()
@@ -609,30 +557,6 @@ test.each([60000, 1800000])('keeps the registered %s ms limit independent of the
     expect([...h.engine.journal.projection.callbacks.values()]).toMatchObject([
       { payload: { kind: 'rejected', reason: { code: 'gate-denied', retryable: false, effectState: 'none' } } } ])
     expect(h.creates).toHaveLength(0)
-  } finally { clock.mockRestore(); await h.close() }
-})
-
-test.each(['before-dispatch', 'during-recheck'] as const)('never opens an approved unregistered route after withdrawal %s', async (stage) => {
-  const { h, pending, recheck, removeRetention } = await admitForExecution('remote-source')
-  const clock = vi.spyOn(Date, 'now')
-  try {
-    await approveForExecution(h, pending)
-    if (stage === 'before-dispatch') await removeRetention()
-    else recheck.mockImplementation(async () => { void removeRetention(); return null })
-    await h.engine.drive()
-    expect(recheck).toHaveBeenCalledTimes(stage === 'before-dispatch' ? 0 : 1)
-    const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
-    for (const elapsed of [0, 1, 60000, 899999]) {
-      clock.mockReturnValue(since + elapsed)
-      await h.engine.drive()
-      expect(h.engine.journal.projection.pending.get(pending.queueItemId)?.blockedBy).toEqual(['provider-unavailable'])
-      expect(h.engine.journal.projection.opens.size).toBe(0)
-      expect(h.engine.journal.projection.resources.size).toBe(0)
-      expect(h.creates).toHaveLength(0)
-    }
-    clock.mockReturnValue(since + 900000)
-    await h.engine.drive()
-    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(false)
   } finally { clock.mockRestore(); await h.close() }
 })
 
@@ -837,26 +761,6 @@ test('starts a new retention segment only on a changed category and does not exp
   } finally { clock.mockRestore(); await h.close() }
 })
 
-test('withdraws ambiguous retention registrations without inheriting permission from another instance', async () => {
-  const { h, pending, input, removeRetention } = await admitForExecution('remote-source')
-  try {
-    const removeDuplicate = h.engine.registerPreopenRetention({ projectId: pending.projectId, sourceId: input.route.sourceId,
-      sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs: 1 })
-    await approveForExecution(h, pending)
-    await h.engine.drive()
-    expect(h.creates).toHaveLength(0)
-    expect(h.engine.journal.projection.pending.get(pending.queueItemId)?.blockedBy).toEqual(['provider-unavailable'])
-    await removeDuplicate()
-    await removeRetention()
-    await h.engine.drive()
-    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(true)
-    h.engine.registerPreopenRetention({ projectId: pending.projectId, sourceId: input.route.sourceId,
-      sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs: 900000 })
-    await h.engine.drive()
-    expect(h.creates).toHaveLength(1)
-  } finally { await h.close() }
-})
-
 test.each(['automatic', 'reserve', 'legacy', 'authorized'] as const)('recovers one rejected callback for old %s cancellation without rewriting history', async (kind) => {
   const { h, input, authorize } = await setup()
   try {
@@ -930,32 +834,6 @@ test.each(['oversized-notification', 'corrupt-history'] as const)('refuses readi
   } finally { await restarted?.shutdown(); await ctx.fiber.dispose(); await h.close() }
 })
 
-test('keeps authorized cancellation audit text out of the rejected callback and replays its receipt', async () => {
-  const { h, input, authorize } = await setup()
-  try {
-    await h.engine.acceptFrozen(input, await authorize())
-    const pending = [...h.engine.journal.projection.pending.values()][0]!
-    const request: T.CancelPendingSeatRequest = { queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
-      operationId: 'audited-terminal' as T.SeatOperationId, reason: 'Operator-only cancellation detail' }
-    const issuer = h.engine.authorizationIssuers.register({ identity: { kind: 'local-operator',
-      principalId: 'operator' as T.SeatPrincipalId, nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-    const grant = await issuer.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
-    if ('status' in grant) throw new Error('Expected grant')
-    const first = await h.engine.authorizations.cancel(request, grant)
-    expect(first).toMatchObject({ status: 'cancelled', stateVersion: pending.stateVersion + 1 })
-    const frame = h.engine.journal.projection.authorizationDecisions.at(-1)!
-    expect(frame.effects.map(effect => effect.kind)).toEqual(['queue/cancelled', 'callback/pending', 'authorization/checked'])
-    const callback = frame.effects.find(effect => effect.kind === 'callback/pending')!
-    expect(JSON.stringify(callback)).not.toContain(request.reason)
-    expect(callback).toMatchObject({ data: { payload: { reason: preopenCancelledReason() } } })
-    expect(await h.engine.authorizations.operation({ operationId: request.operationId })).toMatchObject({ status: 'settled',
-      result: { status: 'cancelled', cancellation: { reason: request.reason, stateVersion: pending.stateVersion + 1 } } })
-    expect(await h.engine.authorizations.cancel(request, grant)).toEqual(first)
-    expect(h.engine.journal.projection.authorizationDecisions.at(-1)).toBe(frame)
-  } finally { await h.close() }
-})
-
 test('invalidates an in-flight permanent refusal after manual cancellation wins the queue CAS', async () => {
   const { h, pending, recheck } = await admitForExecution('remote-source')
   try {
@@ -978,13 +856,13 @@ test('uses the current frozen queue version and keeps its proven terminal ahead 
     recheck.mockResolvedValue({ status: 'rejected', error: { ...preopenCancelledReason(), retryable: true } })
     await h.engine.drive()
     const current = h.engine.journal.projection.pending.get(pending.queueItemId)!
-    expect(await h.engine.authorizations.operation({ operationId: input.route.originalOperationId }))
+    expect(queryOperation(h.engine.journal.projection, { operationId: input.route.originalOperationId }, 'node-a'))
       .toMatchObject({ status: 'pending', stateVersion: current.stateVersion })
     await h.engine.cancel({ queueItemId: pending.queueItemId, expectedStateVersion: current.stateVersion,
       operationId: 'cancel-unknown-transport' as T.SeatOperationId })
     const delivery = [...h.engine.journal.projection.callbacks.values()][0]!
     await h.engine.journal.commit(() => [fact({ kind: 'callback/attempted', data: { ...delivery, responseClass: 'unknown' } })])
-    expect(await h.engine.authorizations.operation({ operationId: input.route.originalOperationId }))
+    expect(queryOperation(h.engine.journal.projection, { operationId: input.route.originalOperationId }, 'node-a'))
       .toMatchObject({ status: 'settled', result: { status: 'rejected', error: { code: 'gate-denied' } } })
   } finally { await h.close() }
 })
@@ -1098,7 +976,7 @@ test('keeps one stable rejection per original frozen source in a shared historic
           digest: chain.payloadDigest, receivedAt: second.envelope.receivedAt, bucket: null,
           sourceId, eventId: second.envelope.eventId ?? null } } }),
     { kind: 'node-route/accepted', eventId: fact({ kind: 'queue/pending', data: merged }).eventId,
-      operationId, seat, data: chain }, authorizationEffect(authority.authorization.fact)])
+      operationId, seat, data: chain }])
     await h.engine.cancel({ queueItemId: first.queueItemId, expectedStateVersion: merged.stateVersion,
       operationId: 'shared-cancel' as T.SeatOperationId })
     const deliveries = [...h.engine.journal.projection.callbacks.values()]
@@ -1204,19 +1082,3 @@ test.each(['before-append', 'after-append'] as const)('recovers one pre-open not
     await h.close()
   }
 }, 20000)
-
-test('refuses missing sender, forged grants and denied target policies without admission', async () => {
-  const { h, input, authorize } = await setup()
-  try {
-    const valid = await authorize()
-    const missing = { ...valid.authorization.fact }
-    delete missing.sourceNodeId
-    expect(await h.engine.acceptFrozen(input, { ...valid, authorization: { ...valid.authorization, fact: missing } }))
-      .toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
-    expect(await h.engine.acceptFrozen(input, { ...valid, authorization: { ...valid.authorization } }))
-      .toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
-    delete h.definitions.get(seat)!.remoteAdmission
-    expect(await h.engine.acceptFrozen(input, valid)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
-    expect(h.engine.journal.projection.sequence).toBe(0)
-  } finally { await h.close() }
-})

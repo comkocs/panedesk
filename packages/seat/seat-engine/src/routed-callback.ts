@@ -193,7 +193,7 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
     }
     if (barrier || result.status === 'pending') return unknown(attempt.diagnostic)
     if (result.status === 'missing') return undefined
-    if (result.status === 'rejected') return callbackObservation(body, { ...attempt, result }, queryStage)
+    if (result.status === 'rejected') return undefined
     return callbackFailure(body, queryStage, 'Callback settled identity did not match', 'callback-protocol-error', 'none', 'operation-payload-conflict')
   }
   const before = outcome(await read(), uncertain)

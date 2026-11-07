@@ -1,7 +1,8 @@
-/** Running-host assembly scopes entry-issued authority to one authenticated invocation. */
+/** Running-host assembly reads business projections without an authorization service. */
 import type { Context } from '@panedesk/cordis'
 import type * as Seat from '@panedesk/dsh-seat'
 import type {} from '@panedesk/dsh-seat-engine'
+import { SeatEngine, queryTasks, queryOperation } from '@panedesk/dsh-seat-engine'
 import { createHostAdminExecutor } from './executor.ts'
 import type { HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse } from './index.ts'
 
@@ -18,7 +19,6 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   nodeId: HostAdminEndpoint['nodeId'], _limit: number, current: () => boolean): Promise<HostAdminResponse | null> {
   const engine = ctx.get('seatEngine')
   if (!engine || !current()) return null
-  const authorization = ctx.get('seatAuthorizationTransactions'), queries = ctx.get('seatAuthorizationQueries')
   const sourceOperator = ctx.get('hostAdminSourceOperator')
   const resolve = engine.callbackResolve?.bind(engine)
   const callbackResolver = resolve ? {
@@ -26,7 +26,16 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   } : undefined
   const transport = ctx.get('hostAdminTransport')
   const optional = { ...(sourceOperator ? { sourceOperator } : {}), ...(callbackResolver ? { callbackResolver } : {}),
-    ...(authorization ? { authorization } : {}), ...(queries ? { queries } : {}),
+    ...(engine instanceof SeatEngine ? {
+      tasks: async (params: Seat.SeatTaskQueryRequest) => {
+        await engine.ready()
+        return queryTasks(engine.journal.projection.decisions, params)
+      },
+      operation: async (params: Seat.SeatOperationQuery) => {
+        await engine.ready()
+        return queryOperation(engine.journal.projection, params, engine.options.config.nodeName)
+      },
+    } : {}),
     ...(transport ? { rebuildTransport: (peerNodeId?: Seat.SeatNodeId) => transport.rebuildTransport(peerNodeId) } : {}) }
   const executor = createHostAdminExecutor({ nodeId, engine, ...optional })
   return executor.execute(request, authority)

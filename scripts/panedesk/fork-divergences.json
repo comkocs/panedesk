@@ -1819,30 +1819,17 @@
     },
     {
       "id": "owner-authorized-node-settings-and-live-callback-observations",
-      "description": "Owner-authorized node settings and live callback observations.",
+      "description": "Node settings and live callback observations.",
       "origin": "Node health settings integration",
-      "reason": "Add a secondary Settings-only node health page with process-local bounded link events, authenticated round-trip observations, peer-specific local tunnel rebuild and confirmed parked-callback operations through existing owner authorization. Expose optional live callback observations without persistence changes. Preserve legacy calls and decoding. Generic assembly, typing, localization and authorization coverage is upstream-compatible; seat and node administration remains downstream-owned.",
+      "reason": "Expose node health, bounded link observations, peer tunnel rebuild and parked callback operations through installed providers without an additional owner gate.",
       "match": {
         "type": "test-assertion",
         "paths": [
-          "apps/web/tsconfig.json",
-          "apps/web/tests/node-settings.e2e.ts",
-          "packages/bundle/web-app/cordis.patch.yml",
-          "packages/bundle/web-app/package.json",
-          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
-          "packages/test-support/client-runtime/src/assembly/test-client.ts",
-          "scripts/package-dependency-policy.ts",
-          "tsconfig.base.json",
-          "tsconfig.client.json",
-          "tsconfig.host.json",
-          "pnpm-lock.yaml",
           "packages/client/ui-nodes/**",
-          "packages/host/host-admin/**",
-          "packages/seat/node-link/**",
-          "packages/seat/seat/src/index.ts",
-          "packages/seat/seat-engine/src/engine.ts"
+          "packages/host/host-admin/src/node-health.ts",
+          "apps/web/tests/node-settings.e2e.ts"
         ],
-        "test": "node settings, health, transport and parked callback authorization"
+        "test": "node settings and live callback observations"
       }
     },
     {
@@ -1924,28 +1911,6 @@
           "packages/seat/seat-local/tests/trusted-wake.spec.ts"
         ],
         "test": "queries the executed frozen window while preserving its original queued receipt"
-      }
-    },
-    {
-      "id": "seat-authorized-opening-no-legacy-downgrade",
-      "description": "Refuse authorized opening downgrade and unchecked local wake admission.",
-      "origin": "Optional seat orchestration",
-      "reason": "Refuse authority-bearing legacy fallback and direct local-wake opening while preserving checked wake conversion, unsigned trusted admission and admitted receipt replay.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-local/src/open-admission.ts",
-          "packages/seat/seat-local/src/service.ts",
-          "packages/seat/seat-engine/src/engine.ts",
-          "packages/seat/seat-local/tests/open-authorization.spec.ts",
-          "packages/seat/seat-local/README.md",
-          "packages/seat/seat-local/README.zh.md",
-          "packages/seat/seat-local/README.i18n.yaml",
-          "packages/seat/seat-engine/README.md",
-          "packages/seat/seat-engine/README.zh.md",
-          "packages/seat/seat-engine/README.i18n.yaml"
-        ],
-        "test": "legacy engine rejects %s without calling accept"
       }
     },
     {
@@ -2683,77 +2648,18 @@
     },
     {
       "id": "owner-readonly-ledger-statistics",
-      "reason": "Upstreamable: add owner-authorized read-only ledger statistics with Beijing time selections, evidence-aware aggregates, unique unfinished child-session counts, and a secondary five-tab Client plugin; keep entries off the initial screen and the sidebar panel list.",
-      "description": "Owner-authorized read-only ledger statistics.",
+      "reason": "Read-only statistics retain time selections, evidence-aware aggregates, unfinished child-session counts and five tabs without an owner gate.",
+      "description": "Read-only ledger statistics.",
       "origin": "Callback and statistics integration",
       "match": {
         "type": "test-assertion",
         "paths": [
-          "docs/capability-seams.i18n.yaml",
-          "docs/capability-seams.md",
-          "docs/capability-seams.zh.md",
-          "docs/config-catalog.md",
-          "docs/config-catalog.zh.md",
-          "docs/module-graph.md",
-          "docs/module-graph.zh.md",
-          "docs/subsystems/session-telemetry.i18n.yaml",
-          "docs/subsystems/session-telemetry.md",
-          "docs/subsystems/session-telemetry.zh.md",
-          "packages/bundle/web-app/README.i18n.yaml",
-          "packages/bundle/web-app/README.md",
-          "packages/bundle/web-app/README.zh.md",
-          "packages/bundle/web-app/cordis.patch.yml",
-          "packages/bundle/web-app/package.json",
-          "packages/client/README.i18n.yaml",
-          "packages/client/README.md",
-          "packages/client/README.zh.md",
-          "packages/client/ui-stats/README.i18n.yaml",
-          "packages/client/ui-stats/README.md",
-          "packages/client/ui-stats/README.zh.md",
-          "packages/client/ui-stats/locale/en.json",
-          "packages/client/ui-stats/locale/zh.json",
-          "packages/client/ui-stats/package.json",
-          "packages/client/ui-stats/src/client/index.ts",
-          "packages/client/ui-stats/src/client/locales.ts",
-          "packages/client/ui-stats/src/client/panel.module.css",
-          "packages/client/ui-stats/src/client/panel.tsx",
-          "packages/client/ui-stats/src/client/selection.ts",
-          "packages/client/ui-stats/src/css-modules.d.ts",
-          "packages/client/ui-stats/src/index.ts",
-          "packages/client/ui-stats/src/types.ts",
-          "packages/client/ui-stats/tests/assembly.client.spec.tsx",
-          "packages/client/ui-stats/tests/mount.client.spec.ts",
-          "packages/client/ui-stats/tests/panel.client.spec.tsx",
-          "packages/client/ui-stats/tests/stats.host.spec.ts",
-          "packages/client/ui-stats/tsconfig.client.json",
-          "packages/client/ui-stats/tsconfig.host.json",
-          "packages/client/ui-stats/tsconfig.json",
-          "packages/client/ui-stats/tsdown.config.ts",
-          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
-          "packages/extensions/tool-cordis/src/api-catalog.ts",
-          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
-          "packages/session/ledger-query/README.i18n.yaml",
-          "packages/session/ledger-query/README.md",
-          "packages/session/ledger-query/README.zh.md",
-          "packages/session/ledger-query/package.json",
-          "packages/session/ledger-query/src/index.ts",
-          "packages/session/ledger-query/src/query.ts",
-          "packages/session/ledger-query/src/stats-types.ts",
+          "packages/client/ui-stats/**",
           "packages/session/ledger-query/src/stats.ts",
-          "packages/session/ledger-query/src/types.ts",
-          "packages/session/ledger-query/tests/stats.spec.ts",
-          "packages/test-support/client-runtime/README.i18n.yaml",
-          "packages/test-support/client-runtime/README.md",
-          "packages/test-support/client-runtime/README.zh.md",
-          "packages/test-support/client-runtime/src/assembly/test-client.ts",
-          "pnpm-lock.yaml",
-          "scripts/gen-cordis-catalog.ts",
-          "scripts/gen-doc-graphs.ts",
-          "tsconfig.base.json",
-          "tsconfig.client.json",
-          "tsconfig.host.json"
+          "packages/session/ledger-query/src/query.ts",
+          "packages/session/ledger-query/tests/stats.spec.ts"
         ],
-        "test": "stats.spec.ts"
+        "test": "reads a coverage-aware snapshot without requiring or starting a ledger writer"
       }
     },
     {
@@ -3181,42 +3087,19 @@
     },
     {
       "id": "seat-approval-close",
-      "description": "Seat approval close.",
+      "description": "Close approval-paused seat turns.",
       "origin": "Optional seat and host integration",
-      "reason": "Upstreamable: close approval-paused seat turns through owner-authorized cancellation, retain inbox refusals and durable manual close details, and expose localized owner UI controls.",
+      "reason": "Retain cancellation, inbox refusals, durable manual close details and UI controls without additional owner authorization.",
       "match": {
         "type": "test-assertion",
         "paths": [
-          "packages/seat/seat/src/events.ts",
-          "packages/seat/seat/src/types.ts",
-          "packages/seat/seat/README.md",
-          "packages/seat/seat/README.zh.md",
-          "packages/seat/seat/README.i18n.yaml",
           "packages/seat/seat-local/src/closing-service.ts",
-          "packages/seat/seat-local/src/index.ts",
-          "packages/seat/seat-local/README.md",
-          "packages/seat/seat-local/README.zh.md",
-          "packages/seat/seat-local/README.i18n.yaml",
           "packages/seat/seat-engine/src/closing.ts",
-          "packages/seat/seat-engine/src/validation.ts",
-          "packages/seat/seat-engine/tests/validation.spec.ts",
-          "packages/seat/seat-engine/README.md",
-          "packages/seat/seat-engine/README.zh.md",
-          "packages/seat/seat-engine/README.i18n.yaml",
           "packages/client/ui-seats/src/index.ts",
-          "packages/client/ui-seats/src/client/index.ts",
           "packages/client/ui-seats/src/client/Seats.tsx",
-          "packages/client/ui-seats/src/client/locales.ts",
-          "packages/client/ui-seats/tests/apply.client.spec.ts",
-          "packages/client/ui-seats/tests/seats.client.spec.tsx",
-          "packages/client/ui-seats/README.md",
-          "packages/client/ui-seats/README.zh.md",
-          "packages/client/ui-seats/README.i18n.yaml",
-          "packages/extensions/tool-cordis/src/api-catalog.ts",
-          "docs/event-producer-consumer.md",
-          "docs/event-producer-consumer.zh.md"
+          "packages/client/ui-seats/tests/approval-close.host.spec.ts"
         ],
-        "test": "retains optional approval close detail in %s frames"
+        "test": "closes a pending approval through the seat UI"
       }
     },
     {
@@ -3318,14 +3201,15 @@
     },
     {
       "id": "host-admin-safe-source-details-and-retryable-refusals",
-      "description": "Host admin safe source details and retryable refusals.",
+      "description": "Redacted source details and retryable no-effect results.",
       "origin": "Optional seat and host integration",
-      "reason": "Project registered source refusal details without leaking provider text; retain same-identity retryable no-effect refusals and fingerprints across restart. Suitable for upstream.",
+      "reason": "Retain registered diagnostic codes and same-identity retries without a source admission grant.",
       "match": {
         "type": "test-assertion",
         "paths": [
-          "packages/host/host-admin/**",
-          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/host/host-admin/src/source-operator.ts",
+          "packages/host/host-admin/src/codec.ts",
+          "packages/host/host-admin/src/operation-store.ts",
           "packages/host/host-admin/tests/source-operator.spec.ts"
         ],
         "test": "validates registered provider detail codes without accepting arbitrary error text"
@@ -3423,26 +3307,6 @@
           "docs/subsystems/seat.i18n.yaml"
         ],
         "test": "uses verified manual authority rather than claimed manual origin under off"
-      }
-    },
-    {
-      "id": "seat-opening-live-grant-binding",
-      "description": "Bind live opening grants to the calling principal, requested seat and complete task set; suitable for upstream submission.",
-      "origin": "Optional seat orchestration",
-      "reason": "Bind each live opening grant to the calling principal, requested seat and every requested or frozen-context task before committing business effects, without weakening trusted legacy admission, checked wake conversion or admitted replay.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-engine/src/engine.ts",
-          "packages/seat/seat-local/tests/open-authorization.spec.ts",
-          "packages/seat/seat-engine/README.md",
-          "packages/seat/seat-engine/README.zh.md",
-          "packages/seat/seat-engine/README.i18n.yaml",
-          "packages/seat/seat-local/README.md",
-          "packages/seat/seat-local/README.zh.md",
-          "packages/seat/seat-local/README.i18n.yaml"
-        ],
-        "test": "open rejects live grants with mismatched %s without business effects"
       }
     },
     {
@@ -4420,16 +4284,17 @@
     },
     {
       "id": "F02-preopen-retention-registration",
-      "description": "Bound transient frozen openings with registered route-wide limits, optional exact project overrides, and a 900000 ms fallback for unregistered or ambiguous routes.",
+      "description": "Bound transient frozen openings with route and project retention limits.",
       "origin": "Optional seat engine composition",
-      "reason": "registerPreopenRetention binds the frozen source and original source owner; optional projectId restricts the match to one project. A unique exact project match precedes a unique route-wide match. Missing or ambiguous registrations never authorize opening and use the 900000 ms fallback, retaining provider-unavailable and engine diagnostics until expiry. Every expiry uses the existing same-frame cancellation and rejected owner callback, including startup reconciliation. Timing starts at the first committed class frame without new public configuration keys or persistent fields and survives restart; expiry is checked without an executor. Public-only deployments can register another limit. Limits above the fallback require continuous registration across hot reload.",
+      "reason": "Retain exact-project and route-wide durations, the 900000 ms fallback and same-frame expiry reconciliation. Registration absence or ambiguity does not prevent opening.",
       "match": {
         "type": "test-assertion",
         "paths": [
+          "packages/seat/seat-engine/src/engine.ts",
           "packages/seat/seat-engine/tests/frozen-admission.spec.ts",
           "packages/seat/seat-engine/tests/execution-recheck.spec.ts"
         ],
-        "test": "bounds %s frozen retention with one stable rejected callback at 900000 ms"
+        "test": "bounds transient frozen retention for an %s route at 900000 ms"
       }
     },
     {
@@ -4694,12 +4559,13 @@
     },
     {
       "id": "F02-callback-query-unavailable",
-      "description": "Keep unknown callbacks query-only when the owner lookup throws or times out.",
+      "description": "Keep unknown callbacks query-only.",
       "origin": "Optional host integration",
-      "reason": "A failed owner lookup cannot authorize another callback business send.",
+      "reason": "Retain the durable uncertainty barrier after a possible business send; a failed initial owner lookup alone does not prevent sending.",
       "match": {
         "type": "test-assertion",
         "paths": [
+          "packages/seat/seat-engine/src/routed-callback.ts",
           "packages/seat/seat-engine/tests/routed-callback.spec.ts"
         ],
         "test": "keeps an unknown callback unsent when its exact query fails by %s"
@@ -5555,15 +5421,17 @@
     },
     {
       "id": "F03-host-admin-rpc",
-      "description": "Expose fixed administration methods over authenticated loopback without starting a second engine.",
+      "description": "Expose explicitly configured local administration methods.",
       "origin": "Optional host integration",
-      "reason": "Administration requires explicit runtime configuration and rejects browser requests and stale process identities.",
+      "reason": "Retain bounded loopback framing and configured methods without browser-header or administrative payload-epoch refusal. Shared transport credentials and SDK session authentication remain separately owned.",
       "match": {
         "type": "test-assertion",
         "paths": [
+          "packages/host/host-admin/src/runtime.ts",
+          "packages/host/host-admin/src/loopback.ts",
           "packages/host/host-admin/tests/security.spec.ts"
         ],
-        "test": "accepts authenticated loopback JSON and refuses stale epochs and browser headers"
+        "test": "accepts authenticated loopback JSON and keeps request framing checks"
       }
     },
     {
@@ -5645,71 +5513,6 @@
       }
     },
     {
-      "id": "F02-issued-authorization-contract",
-      "description": "Keep issued authorization grants separate from wire claims and legacy engine effects.",
-      "origin": "Optional host integration",
-      "reason": "Trusted entry registration and synchronous action builders are opt-in; absent services retain legacy entry behavior.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat/tests/authorization.spec.ts"
-        ],
-        "test": "requires issued facts in a synchronous action builder without activating a legacy writer"
-      }
-    },
-    {
-      "id": "F02-atomic-authorization-journal",
-      "description": "Commit issued authorization and its action in one recoverable engine journal frame.",
-      "origin": "Optional host integration",
-      "reason": "Audited actions require instance-owned grants and retain task, seat and kind evidence after restart without changing Session events.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-engine/tests/authorization.spec.ts"
-        ],
-        "test": "commits action and attribution in one frame and rebuilds task, seat and kind queries after restart"
-      }
-    },
-    {
-      "id": "F02-issued-authorization-query",
-      "description": "Advance legacy query cursors over plugin facts without relabeling their attribution.",
-      "origin": "Optional host integration",
-      "reason": "Issued authorization queries and exports include plugin facts separately while legacy effects retain their closed vocabulary.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-engine/tests/authorization.spec.ts"
-        ],
-        "test": "advances scanned cursors across filtered plugin facts without widening the legacy vocabulary"
-      }
-    },
-    {
-      "id": "F02-audited-engine-maintenance",
-      "description": "Bind renewal and replacement intents to live issued authorization before admission.",
-      "origin": "Optional host integration",
-      "reason": "Historical receipts cannot dispatch a new action; calls without grants retain the original local path.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-local/tests/authorization-wiring.spec.ts"
-        ],
-        "test": "commits renewal and replacement intents with grants and rejects forged or changed replay evidence"
-      }
-    },
-    {
-      "id": "F02-audited-close-admission",
-      "description": "Commit close admission and issued authorization together and export retained facts after restart.",
-      "origin": "Optional host integration",
-      "reason": "Failed admission retains neither a close barrier nor a detached authorization fact; legacy uncredentialed paths remain available.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-local/tests/authorization-wiring.spec.ts"
-        ],
-        "test": "commits close admission and exports issued facts after restarting the writer"
-      }
-    },
-    {
       "id": "F03-retained-node-delegation",
       "description": "Issue bounded node delegation from trusted retained evidence and narrow receiving permissions.",
       "origin": "Optional host integration",
@@ -5720,32 +5523,6 @@
           "packages/seat/node-link/tests/delegation-policy.spec.ts"
         ],
         "test": "limits expiry, checks retained evidence and rejects widened methods or mismatched peer identity"
-      }
-    },
-    {
-      "id": "F03-local-node-admission",
-      "description": "Route linked-node methods through exact local authorization admission or explicit unsupported refusals.",
-      "origin": "Optional host integration",
-      "reason": "Explicit executors remain authoritative; missing local services never enable another routing hop or bypass audited admission.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-local/tests/node-authorization-wiring.spec.ts"
-        ],
-        "test": "routes six methods through Loader peers with real admission or explicit unsupported refusal"
-      }
-    },
-    {
-      "id": "F03-transactional-local-approval",
-      "description": "Bind authenticated local administration approval to the original queue transition and issued fact.",
-      "origin": "Optional host integration",
-      "reason": "An authenticated local operator uses installed issuer and transaction services; self-declared operator identity cannot grant approval.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/host/host-admin/tests/authorization-wiring.spec.ts"
-        ],
-        "test": "authenticates local approval, rejects a self-declared operator and recovers attribution"
       }
     },
     {
@@ -5776,15 +5553,18 @@
     },
     {
       "id": "F03-persisted-admin-operations",
-      "description": "Serve durable approval progress and independently paginated authorization kinds over authenticated host administration.",
+      "description": "Read durable business operation progress and task effects.",
       "origin": "Optional host integration",
-      "reason": "Approval registration is distinct from real opening progress; restart retains both progress and issued attribution without exposing instruction bodies.",
+      "reason": "Use running-engine business projections without issued authorization kinds or a transaction issuer. Retain existing operation receipts and historical journal reading.",
       "match": {
         "type": "test-assertion",
         "paths": [
+          "packages/host/host-admin/src/local-executor.ts",
+          "packages/host/host-admin/src/executor.ts",
+          "packages/host/host-admin/src/query.ts",
           "packages/host/host-admin/tests/persisted-operations.spec.ts"
         ],
-        "test": "queries approval registration, real creation and issued kinds after restart without exposing bodies"
+        "test": "queries approval registration and real creation after restart without exposing bodies"
       }
     },
     {
@@ -5824,19 +5604,6 @@
           "packages/seat/seat-local/tests/manual-wake-composition.spec.ts"
         ],
         "test": "routes a missing-window wake through its trusted provider exactly once"
-      }
-    },
-    {
-      "id": "trusted-task-scope-admission",
-      "description": "Inject trusted owner scope admission before any batch member opens while preserving default gates.",
-      "origin": "Opt-in task scope admission",
-      "reason": "Private platform owners retain frozen scope reservations across restart without adding platform rules to public services.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-local/tests/scope-admission-composition.spec.ts"
-        ],
-        "test": "injects conflict, unknown and disjoint decisions before creating any batch member and drains disposal"
       }
     },
     {
@@ -6022,38 +5789,18 @@
       }
     },
     {
-      "id": "seat-memory-write-authorization",
-      "description": "Enforce canonical memory-root ownership for deterministic memory writes.",
-      "origin": "Seat workspace client surfaces",
-      "reason": "Binding snapshots restrict memory writes without restricting ordinary source edits outside registered memory roots.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-gates/src/policies.ts",
-          "packages/seat/seat-gates/src/consumers.ts",
-          "packages/seat/seat-gates/src/events.ts",
-          "packages/seat/seat-gates/tests/consumers.spec.ts",
-          "packages/api/remotes/src/client/index.ts",
-          "packages/api/remotes/tests/remote-events.host.spec.ts"
-        ],
-        "test": "checks bound-seat destinations against its own memory roots and emits a coded refusal"
-      }
-    },
-    {
       "id": "registered-startup-directory-selection",
-      "description": "Freeze explicitly registered startup-directory choices for manual openings.",
+      "description": "Freeze selected startup directories for seat openings.",
       "origin": "Seat workspace client surfaces",
-      "reason": "Manual selection must not authorize arbitrary directories or change catalog defaults.",
+      "reason": "Preserve selected working directory through creation, workspace attachment and replay without changing catalog defaults or requiring prior registration.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/client/ui-seats/src/client/Seats.tsx",
-          "packages/seat/seat/src/types.ts",
-          "packages/seat/seat-local/src/open-input.ts",
           "packages/seat/seat-local/src/service.ts",
           "packages/seat/seat-local/tests/startup-directory.spec.ts"
         ],
-        "test": "freezes a registered startup choice through creation, workspace placement and reload without changing the catalog"
+        "test": "freezes a startup choice through creation, workspace placement and reload without changing the catalog"
       }
     },
     {
@@ -6073,28 +5820,15 @@
     },
     {
       "id": "opt-in-seat-approval-ui",
-      "description": "Compose an optional owner-authorized seat approval interface.",
+      "description": "Compose an optional seat approval interface.",
       "origin": "Opt-in seat approval surfaces",
-      "reason": "Approval uses existing transactions and distinguishes committed confirmation from a durable opening result.",
+      "reason": "The interface delegates approval and cancellation directly to the engine without owner checks or grant issuance; committed confirmation remains distinct from real opening progress.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/client/ui-seat-approvals/src/index.ts",
-          "packages/client/ui-seat-approvals/src/client/index.ts",
           "packages/client/ui-seat-approvals/src/client/panel.tsx",
-          "packages/bundle/web-app/cordis.patch.yml",
-          "packages/client/ui-seat-approvals/tests/approval.host.spec.ts",
-          "docs/capability-seams.i18n.yaml",
-          "docs/capability-seams.md",
-          "docs/capability-seams.zh.md",
-          "packages/bundle/web-app/README.i18n.yaml",
-          "packages/bundle/web-app/README.md",
-          "packages/bundle/web-app/README.zh.md",
-          "packages/bundle/web-app/package.json",
-          "packages/test-support/client-runtime/src/assembly/remote-default-responses.ts",
-          "packages/test-support/client-runtime/src/assembly/test-client.ts",
-          "scripts/gen-cordis-catalog.ts",
-          "scripts/gen-doc-graphs.ts"
+          "packages/client/ui-seat-approvals/tests/approval.host.spec.ts"
         ],
         "test": "records version-bound approval and observes actual opening instead of inventing a receipt"
       }
@@ -6923,36 +6657,6 @@
           "packages/extensions/tool-cordis/src/api-catalog.ts"
         ],
         "test": "project-policy.spec.ts"
-      }
-    },
-    {
-      "id": "seat-action-and-receipt-live-scope-binding",
-      "description": "Bind live action callers and retained receipt queries to their principal, node, seat and tasks; suitable for upstream submission.",
-      "origin": "Optional seat orchestration",
-      "reason": "Bind live action callers and retained receipt queries to the independent principal, receiving node, actual seat and every business task before effects or disclosure, while retaining trusted unsigned admission and admitted replay. Suitable for upstream submission.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/seat/seat-engine/README.i18n.yaml",
-          "packages/seat/seat-engine/README.md",
-          "packages/seat/seat-engine/README.zh.md",
-          "packages/seat/seat-engine/src/frozen-business.ts",
-          "packages/seat/seat-engine/src/frozen-terminal.ts",
-          "packages/seat/seat-engine/src/wake-delivery.ts",
-          "packages/seat/seat-engine/tests/authorization.spec.ts",
-          "packages/seat/seat-local/README.i18n.yaml",
-          "packages/seat/seat-local/README.md",
-          "packages/seat/seat-local/README.zh.md",
-          "packages/seat/seat-local/src/frozen-admission.ts",
-          "packages/seat/seat-local/src/frozen-business.ts",
-          "packages/seat/seat-local/src/service.ts",
-          "packages/seat/seat-local/tests/action-binding.spec.ts",
-          "packages/seat/seat-local/tests/definition-revisions.spec.ts",
-          "packages/seat/seat-local/tests/frozen-query-binding.spec.ts",
-          "packages/seat/seat-local/tests/open-authorization.spec.ts",
-          "packages/seat/seat-local/tests/source-proxy.spec.ts"
-        ],
-        "test": "live scope binding"
       }
     },
     {

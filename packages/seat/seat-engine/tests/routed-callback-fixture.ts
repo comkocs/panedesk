@@ -21,12 +21,7 @@ export async function persistCallback(engine: SeatEngine, callbackOwner = owner)
     route: { sourceId, sourceOwnerNodeId: callbackOwner, ownerEpoch, triggerId: envelope.triggerId, originalOperationId: operationId,
       targetNodeId: nodeId, snapshotDigest: snapshot.digest, callbackPath: { kind: 'source', sourceId },
       modeCeiling: { mode: 'remind', policy: { sourceId, projectId, revision: 1 } } } }
-  const entry = engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-    origin: 'remote', sourceNodeId: callbackOwner, seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-  const grant = await entry.issuer.check({ operationId, requestDigest: digest(input) })
-  if ('status' in grant) throw new Error('Missing admission grant')
-  const accepted = await engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote', authorization: grant })
+  const accepted = await engine.acceptFrozen(input, { principalId, nodeId, origin: 'remote' })
   if (accepted.status !== 'accepted') throw new Error(`Admission failed: ${JSON.stringify(accepted)}`)
   const payload: T.SeatCallbackPayload = { kind: 'opened', callbackId: 'callback-a' as T.CallbackId,
     sourceId, triggerId: envelope.triggerId, stateVersion: 1, seat, title: 'Frozen title',

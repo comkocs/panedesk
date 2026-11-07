@@ -1146,13 +1146,10 @@ export class SeatEngine extends SeatEngineService {
           : source ? triggerRule(definition, source)?.mode : undefined
         const mode = effectiveMode(effectiveMode(view.policies.get(current.projectId)?.mode ?? 'remind', ruleMode), route.modeCeiling.mode)
         if (mode === 'off') return []
-        const registered = this.registeredRetentionLimit(current) !== undefined
         const limit = this.retentionLimit(current)
-        if (registered && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
-        if (!registered || !this.executor || !this.localAccess?.recheck) {
-          if (!registered) this.failures.record('preopen-retention',
-            new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous'), 'preopen-retention-unconfirmed')
-          if ((!registered || !transientCategory(current)) && transientCategory(current) !== 'provider-unavailable') {
+        if (!transientCategory(current) && current.reason !== 'provider-unavailable') return []
+        if (!this.executor || !this.localAccess?.recheck) {
+          if (!transientCategory(current)) {
             return [fact({ kind: 'queue/pending', seat: current.seat, data: { ...current,
               reason: 'provider-unavailable', blockedBy: ['provider-unavailable'], stateVersion: current.stateVersion + 1 } })]
           }
@@ -1217,7 +1214,6 @@ export class SeatEngine extends SeatEngineService {
       alternative: 'Restore the execution policy and recheck.', retryable: true, effectState: 'unknown' } }
   }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
-    if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(item) === undefined) return
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
@@ -1244,9 +1240,6 @@ export class SeatEngine extends SeatEngineService {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
         return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
-      }
-      if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(current) === undefined) {
-        return pending('provider-unavailable', ['provider-unavailable'])
       }
       if (item.frozenOpen?.nodeWorkChain && mode === 'off') return pending('project-off')
       if (refusal) {

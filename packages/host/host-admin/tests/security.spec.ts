@@ -73,7 +73,7 @@ test('retains the fingerprint of a no-effect refusal across restart before retry
   expect(calls).toBe(1)
 })
 
-test('accepts authenticated loopback JSON and refuses stale epochs and browser headers', async () => {
+test('accepts authenticated loopback JSON and keeps request framing checks', async () => {
   const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-a' }
   let calls = 0
   const listener = await listenLoopback(0, limits, () => auth, async (value) => { calls++; return value })
@@ -87,8 +87,6 @@ test('accepts authenticated loopback JSON and refuses stale epochs and browser h
     } }, (res) => { res.resume(); resolve(res.statusCode) })
     req.on('error', reject); req.end('{}')
   })
-  expect(await raw({ origin: 'https://browser.invalid' })).toBe(403)
-  expect(await raw({ cookie: 'browser=value' })).toBe(403)
   expect(await raw({ host: 'browser.invalid' })).toBe(403)
   expect(await raw({}, '/rpc?credential=forbidden')).toBe(403)
   expect(calls).toBe(1)

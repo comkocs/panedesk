@@ -9,9 +9,8 @@ import { PosixPrivateFiles } from '../src/private-files.ts'
 import { callHostAdmin } from '../src/sdk-client.ts'
 import { decodeRequest, decodeResponse } from '../src/codec.ts'
 import { createHostAdminExecutor } from '../src/executor.ts'
-import { digest } from '../src/json.ts'
 import { HOST_ADMIN_VERSION, HOST_ADMIN_METHODS, inject } from '../src/index.ts'
-import type { HostAdminAuthority, HostAdminGrant, HostAdminSourceOperator, SourceOperatorItem } from '../src/index.ts'
+import type { HostAdminAuthority, HostAdminSourceOperator, SourceOperatorItem } from '../src/index.ts'
 
 const params = { operationId: 'source-a', key: 'original:prepared:key', reason: 'Operator reviewed evidence' }
 const item: SourceOperatorItem = { key: params.key, state: 'awaiting-manual', eventId: 'event-a', target: 'seat-a',
@@ -24,18 +23,9 @@ const authority: HostAdminAuthority = { principalId: 'operator-a' as Seat.SeatPr
 const resultFrame = (request: ReturnType<typeof frame>, result: unknown) => ({ version: HOST_ADMIN_VERSION,
   requestId: request.requestId, method: request.method, status: 'ok', result })
 function setup(provider?: HostAdminSourceOperator) {
-  const fact: HostAdminGrant['fact'] = { authorizationId: authority.authorizationRef, kind: 'local-operator',
-    principalId: authority.principalId, origin: 'manual', nodeId: 'node-a' as Seat.SeatNodeId, taskIds: [],
-    operationId: params.operationId as Seat.SeatOperationId, policyRevision: 1, decision: 'allowed', reasonCode: 'allowed',
-    requestDigest: digest(params) as Seat.SeatDigest, checkedAt: new Date().toISOString() }
-  let grant = { fact } as HostAdminGrant
-  const check = vi.fn(async () => grant)
-  const authorize = vi.fn(async () => ({ check }))
-  const executor = createHostAdminExecutor({ nodeId: fact.nodeId, policy: { authorize },
-    engine: {} as Seat.SeatEngineService, authorization: {} as Seat.SeatAuthorizationTransactions,
-    queries: {} as Seat.SeatAuthorizationQueries, ...(provider ? { sourceOperator: provider } : {}) })
-  return { executor, check, authorize, fact, get grant() { return grant },
-    patch(patch: Partial<HostAdminGrant['fact']>) { grant = { fact: { ...fact, ...patch } } as HostAdminGrant } }
+  const executor = createHostAdminExecutor({ nodeId: 'node-a' as Seat.SeatNodeId,
+    engine: {} as Seat.SeatEngineService, ...(provider ? { sourceOperator: provider } : {}) })
+  return { executor }
 }
 
 test('lists provider items unchanged and returns unavailable without a provider', async () => {
@@ -48,7 +38,6 @@ test('lists provider items unchanged and returns unavailable without a provider'
   expect(response).toMatchObject({ status: 'ok', result })
   if (response.status === 'ok' && response.method === 'source.operations') expect(response.result).toBe(result)
   expect(list).toHaveBeenCalledWith({ limit: 200 })
-  expect(h.check).not.toHaveBeenCalled()
   expect(await h.executor.execute(request, { ...authority, methods: [] })).toMatchObject({ code: 'admin-unauthorized' })
   for (const method of ['source.operations', 'source.abandon', 'source.resend'] as const) {
     expect(await setup().executor.execute(frame(method, method === 'source.operations' ? {} : params), authority))
@@ -57,33 +46,17 @@ test('lists provider items unchanged and returns unavailable without a provider'
   expect(inject).not.toContain('hostAdminSourceOperator')
 })
 
-test.each(['source.abandon', 'source.resend'] as const)('%s requires every grant binding and passes the original grant', async (method) => {
-  const write = vi.fn(async (_params: typeof params, _grant: HostAdminGrant) => ({ status: 'ok' as const, generation: 2 }))
+test.each(['source.abandon', 'source.resend'] as const)('%s delegates the original parameters to the provider', async (method) => {
+  const write = vi.fn(async (_params: typeof params) => ({ status: 'ok' as const, generation: 2 }))
   const h = setup({ list: async () => ({ items: [] }), abandon: write, resend: write })
-  const request = frame(method)
-  for (const denied of [{ ...authority, kind: 'node-delegation' as const }, { ...authority, methods: [] }]) {
-    expect(await h.executor.execute(request, denied)).toMatchObject({ status: 'rejected', code: 'admin-unauthorized' })
-  }
-  expect(h.authorize).not.toHaveBeenCalled()
-  for (const patch of [{ nodeId: 'other' as Seat.SeatNodeId }, { principalId: 'other' as Seat.SeatPrincipalId },
-    { operationId: 'other' as Seat.SeatOperationId }, { requestDigest: 'other' as Seat.SeatDigest },
-    { kind: 'node-delegation' as const }, { decision: 'denied' as const }]) {
-    h.patch(patch)
-    expect(await h.executor.execute(request, authority)).toMatchObject({ code: 'admin-unauthorized' })
-  }
-  expect(write).not.toHaveBeenCalled()
-  h.patch({})
-  expect(await h.executor.execute(request, authority)).toMatchObject({ status: 'ok', result: { status: 'ok', generation: 2 } })
-  expect(h.check).toHaveBeenLastCalledWith({ operationId: params.operationId, requestDigest: digest(params) })
-  expect(write).toHaveBeenCalledWith(params, h.grant)
-  expect(write.mock.calls[0]?.[1]).toBe(h.grant)
+  expect(await h.executor.execute(frame(method), authority)).toMatchObject({ status: 'ok', result: { status: 'ok', generation: 2 } })
+  expect(write).toHaveBeenCalledWith(params)
 })
 
 test('returns unavailable when the source owner does not implement resend', async () => {
   const h = setup({ list: async () => ({ items: [] }), abandon: async () => ({ status: 'ok' }) })
   expect(await h.executor.execute(frame('source.resend'), authority))
     .toMatchObject({ status: 'unavailable', code: 'admin-method-unavailable' })
-  expect(h.check).not.toHaveBeenCalled()
 })
 
 test('rejects source request length limits and unknown fields without changing cancellation identifiers', () => {
@@ -161,11 +134,7 @@ test('calls a source provider through loopback and the running engine issuer wit
   const h = await harness({ ownerObserveIntervalMs: 60000 })
   let stop: (() => Promise<void>) | undefined
   const list = vi.fn(async () => ({ items: [item] }))
-  const write = vi.fn(async (_params: typeof params, grant: HostAdminGrant) => {
-    expect(grant.fact).toMatchObject({ kind: 'local-operator', nodeId: 'node-a', principalId: 'operator-a',
-      operationId: _params.operationId, requestDigest: digest(_params), decision: 'allowed' })
-    return { status: 'ok' as const, generation: 2 }
-  })
+  const write = vi.fn(async (_params: typeof params) => ({ status: 'ok' as const, generation: 2 }))
   try {
     h.ctx.provide('hostAdminSourceOperator', { list, abandon: write, resend: write })
     const directory = join(h.home, 'source-admin')
@@ -180,11 +149,6 @@ test('calls a source provider through loopback and the running engine issuer wit
       expect(await callHostAdmin(files, method, target, limits)).toMatchObject({ status: 'ok' })
     }
     expect(write).toHaveBeenCalledTimes(2)
-    const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { processEpoch: string }
-    const forged = decodeRequest({ ...frame('source.abandon'), processEpoch: endpoint.processEpoch })
-    expect(await h.ctx.get('hostAdmin')!.dispatch(forged, authority)).toMatchObject({ code: 'admin-unauthorized' })
-    expect(await h.ctx.get('hostAdmin')!.dispatch(forged, { ...authority, kind: 'node-delegation' }))
-      .toMatchObject({ code: 'admin-unauthorized' })
   } finally { await stop?.(); await h.close() }
 })
 
