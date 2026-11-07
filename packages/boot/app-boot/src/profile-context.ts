@@ -66,21 +66,23 @@ export function protectedInputCovered(context: ProfileContext, filename: string)
 }
 
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
+const PRODUCT_ANALYTICS_ROW_IDS = ['desktop-product-telemetry', 'product-analytics'] as const
 
 /**
- * Resolve the telemetry opt-out switch into its boot patch. ANY non-empty
- * value (including `'0'`/`'false'`) disables: a privacy switch prefers
- * off-by-mistake over on-by-mistake. A composition without the telemetry row
- * exports nothing, so the switch is then trivially satisfied and no patch is
- * generated — custom profiles need not mount telemetry to run with the
- * switch set.
+ * Resolve the telemetry opt-out switch into its last-layer boot patches. ANY
+ * non-empty value (including `'0'`/`'false'`) disables: a privacy switch prefers
+ * off-by-mistake over on-by-mistake. A composition without a matching row
+ * exports nothing for that row, so the switch is then trivially satisfied and
+ * no patch is generated for it — custom profiles need not mount telemetry to
+ * run with the switch set.
  * @param disabledEnv - the raw `PANEDESK_TELEMETRY_DISABLED` value (`undefined` when unset).
- * @param hasRow - whether the composition carries the telemetry row.
- * @returns the disable patch, or `undefined` when no hard-disable patch is required.
+ * @param presentIds - row ids the composition already carries.
+ * @returns last-layer disable patches for the present telemetry rows, or an empty list when the switch is unset.
  */
-export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: boolean): PatchOptions | undefined {
-  if ((disabledEnv ?? '') === '' || !hasRow) return undefined
-  return { id: TELEMETRY_ROW_ID, disabled: true }
+export function resolveTelemetryPatch(disabledEnv: string | undefined, presentIds: ReadonlySet<string>): PatchOptions[] {
+  if ((disabledEnv ?? '') === '') return []
+  const ids = [TELEMETRY_ROW_ID, ...PRODUCT_ANALYTICS_ROW_IDS].filter(id => presentIds.has(id))
+  return ids.map(id => ({ id, disabled: true }))
 }
 
 /** Read the selected bundles' patches, which apply before the profile patch file.
@@ -118,8 +120,8 @@ export function readProfilePatches(binName: string, context: ProfileContext, ini
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME), integrity) ?? []),
     ...context.overlays,
   ])
-  const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
-    composeEntries([patches]).some(row => row.id === TELEMETRY_ROW_ID))
-  if (telemetryPatch !== undefined) patches.push(telemetryPatch)
+  const composed = composeEntries([patches])
+  const presentIds = new Set(composed.map(row => row.id))
+  patches.push(...resolveTelemetryPatch(context.telemetryDisabledEnv, presentIds))
   return patches
 }

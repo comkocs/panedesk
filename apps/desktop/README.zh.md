@@ -30,7 +30,7 @@ Desktop 在原生应用中运行 Harness 工作区。本参考文档说明应用
 
 ## 应用概览
 
-桌面外壳禁用会话遥测，也不发送原生产品事件。共享产品分析插件仍可在 Host 中使用，并遵循其[产品采集策略](../../packages/client/product-analytics/README.zh.md)。
+桌面外壳禁用会话遥测，也不发送原生产品事件。`PANEDESK_TELEMETRY_DISABLED` 非空时，还会在每一个更后的补丁层之后禁用 Host 产品遥测行与客户端产品分析行，包括把它们打开的层；profile 重载读取同一最后一层。
 
 桌面应用是完整 dsh Web 应用外的一层 Electron 壳。Electron RunAsNode 子进程启动共享 profile runner，Electron 立即从 `dsh-app://app/` 加载打包内的 Web 入口。共享加载页等待 Host 启动注入，然后在同一文档中启动客户端。Electron 将应用 HTTP 请求转发给已认证的 Web Host，转发时丢弃描述 Node fetch 连接而非资源本身的响应头（`transfer-encoding`、`connection`、`keep-alive`），并把插件 bundle 响应标记为 `no-store`，因为其每次启动都变化的 revision 只会在 Chromium 磁盘缓存中累积；WebSocket 流连接到该 Host，仅为归属的应用窗口附加凭据。Node IPC 承载启动注入、就绪与关闭。Desktop 默认监听系统分配的端口，因此不会与 Web 的 `3080` 或系统保留端口冲突；可通过 `webserver.config.port` patch 覆盖。
 

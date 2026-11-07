@@ -282,6 +282,30 @@ it('composes current files from profile data and retains launch overlay and tele
   expect(composeEntries([readProfilePatches('test', context)])[0]?.disabled).toBe(true)
   const enabled = { ...context, telemetryDisabledEnv: undefined }
   expect(composeEntries([readProfilePatches('test', enabled)])[0]?.disabled).toBe(false)
+  const productInstall = stageInstallation({
+    base: {
+      patch: '- insert:\n'
+        + '  - id: desktop-product-telemetry\n    name: host-telemetry\n    disabled: false\n'
+        + '  - id: product-analytics\n    name: client-analytics\n    config:\n      enabled: false\n',
+    },
+  })
+  const productDir = resolveProfileDir('product', home)
+  initProfile(productDir, ['base'])
+  const productContext = {
+    name: 'product', dir: productDir, patchPath: join(productDir, PROFILE_PATCH_FILENAME),
+    installAnchor: productInstall, home, cwd: home, startedBundles: ['base'],
+    overlays: [
+      { id: 'desktop-product-telemetry', disabled: false },
+      { id: 'product-analytics', config: { enabled: true } },
+    ],
+    telemetryDisabledEnv: '1',
+  }
+  const productRows = composeEntries([readProfilePatches('test', productContext)])
+  expect(productRows.find(row => row.id === 'desktop-product-telemetry')?.disabled).toBe(true)
+  expect(productRows.find(row => row.id === 'product-analytics')?.disabled).toBe(true)
+  const productOpen = composeEntries([readProfilePatches('test', { ...productContext, telemetryDisabledEnv: undefined })])
+  expect(productOpen.find(row => row.id === 'desktop-product-telemetry')?.disabled).toBe(false)
+  expect(productOpen.find(row => row.id === 'product-analytics')?.disabled).toBeUndefined()
   const patches = readProfilePatches('test', enabled)
   patches.at(-1)!.disabled = true
   expect(context.overlays[0]?.disabled).toBe(false)

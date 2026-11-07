@@ -4,7 +4,7 @@
       "id": "desktop-session-telemetry-disabled",
       "description": "Disable desktop session telemetry and native product events",
       "origin": "Desktop telemetry policy",
-      "reason": "The desktop shell forces the existing session telemetry opt-out before startup and suppresses native product events independent of the live policy. Shared product analytics plugins retain their existing behavior.",
+      "reason": "The desktop shell forces the existing session telemetry opt-out before startup and suppresses native product events independent of the live policy. A non-empty PANEDESK_TELEMETRY_DISABLED also appends a last-layer disable for the desktop product-telemetry and product-analytics rows, including after a later layer turns them on and on profile reload.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -12,7 +12,10 @@
           "apps/desktop/tests/main-startup.spec.ts",
           "apps/desktop/README.md",
           "apps/desktop/README.zh.md",
-          "apps/desktop/README.i18n.yaml"
+          "apps/desktop/README.i18n.yaml",
+          "packages/boot/app-boot/src/profile-context.ts",
+          "packages/boot/app-boot/tests/profile.spec.ts",
+          "apps/cli/tests/telemetry-switch.spec.ts"
         ]
       }
     },

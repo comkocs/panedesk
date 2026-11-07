@@ -30,7 +30,7 @@ Desktop runs the Harness workspace in a native application. This reference cover
 
 ## Application overview
 
-The desktop shell disables session telemetry and does not send native product events. The shared product analytics plugins remain available in the Host and follow their [product collection policy](../../packages/client/product-analytics/README.md).
+The desktop shell disables session telemetry and does not send native product events. A non-empty `PANEDESK_TELEMETRY_DISABLED` also disables the Host product-telemetry and client product-analytics rows after every later patch layer, including a layer that turns them on; profile reload reads the same last layer.
 
 The desktop application is an Electron shell around the complete dsh Web application. An Electron RunAsNode child starts the shared profile runner, and Electron immediately loads the packaged Web entry at `dsh-app://app/`. Its shared loading page waits for Host boot injections, then starts the client without navigating to another document. Electron forwards application HTTP requests to the authenticated Web Host, dropping connection-level response headers (`transfer-encoding`, `connection`, `keep-alive`) that describe the Node fetch rather than the resource, and marking plugin bundle responses `no-store` because their per-launch revisions would only accumulate in Chromium's disk cache; WebSocket streams connect to that Host with credentials attached only for the owned application window. Node IPC carries boot injections, readiness, and shutdown. Desktop listens on an OS-assigned port by default, so it cannot collide with Web’s `3080` or a reserved port; a `webserver.config.port` patch can override it.
 
