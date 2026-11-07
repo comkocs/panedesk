@@ -18,6 +18,7 @@ export function InboxPanel({ sessionId, useSessions, useResource, t }: Props) {
   const [open, setOpen] = useState(false), [reasons, setReasons] = useState(false)
   const value = inbox.value
   const code = inbox.failure?.code
+  const reason = inbox.failure?.code === 'inbox/unavailable' ? inbox.failure.details.reason : undefined
   const state: InboxKey = code === 'inbox/unauthorized' ? 'unauthorized' : value?.enabled === false ? 'disabled'
     : inbox.status === 'failed' ? value ? 'failed' : 'error' : inbox.status === 'loading' ? 'loading'
       : !value ? 'idle' : !value.complete ? 'partial' : !value.items.length ? 'empty' : 'success'
@@ -28,7 +29,7 @@ export function InboxPanel({ sessionId, useSessions, useResource, t }: Props) {
       {t('quarantine', { count: value.quarantined.length })}
     </Button></span>}
     <Modal open={open} onClose={() => { setOpen(false) }} title={t(reasons ? 'reasons' : 'title')} closeLabel={t('close')}>
-      <p role={inbox.status === 'failed' ? 'alert' : 'status'}>{t(state)}</p>
+      <p role={inbox.status === 'failed' ? 'alert' : 'status'}>{reason?.code === 'home-permissions' ? t('homePermissions', { path: reason.path }) : t(state)}</p>
       {reasons ? <ul>{value?.quarantined.map(event => <li key={event.cursor}>
         <time dateTime={new Date(event.observedAt).toISOString()}>{new Date(event.observedAt).toISOString()}</time> {t(event.reason)}
       </li>)}</ul> : !!value?.items.length && <table className={css.table}>

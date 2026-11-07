@@ -232,6 +232,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  messageDeliveryUnavailable: 'optional local delivery refusal value — packages/session/message-delivery-local/README.md owns the API',
   linuxProductGroupOwner: 'private root-owned Linux identity lifetime — packages/subprocess/subprocess-local/README.md owns registration retention across provider reloads',
   windowsProductJobs: 'internal root-context identity owner — packages/subprocess/subprocess-local/README.md owns retained Windows Jobs',
   hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',

@@ -31,6 +31,15 @@ function props(locale: typeof en, value: InboxView | undefined,
   }
   return view as ComponentProps<typeof InboxPanel>
 }
+it.each([en, zh])('shows the home permissions reason', (locale) => {
+  const view = props(locale, undefined, 'failed', 'inbox/unavailable')
+  view.useResource = () => ({ status: 'failed', value: undefined, failure: {
+    code: 'inbox/unavailable', message: 'unavailable', details: { reason: { code: 'home-permissions', path: '/data/home' } },
+  } })
+  render(<InboxPanel {...view} />)
+  fireEvent.click(screen.getByRole('button', { name: locale.title }))
+  expect(screen.getByText(locale.homePermissions.replace('{path}', '/data/home'))).toBeTruthy()
+})
 it.each([en, zh])('shows all existing message states and the received metadata columns in both locales', (locale) => {
   render(<InboxPanel {...props(locale, { enabled: true, items, quarantined: [], complete: true })} />)
   expect(screen.queryByRole('alert')).toBeNull()
