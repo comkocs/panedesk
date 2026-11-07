@@ -50,6 +50,8 @@ export interface ModelsSectionInjected {
   operations: ModelsOperations
   /** Settings schema and immutable path callbacks. */
   schema: SettingsSchemaOperations
+  /** Open the add card on the first visit. */
+  initialAddOpen: boolean
   /** Section copy. */
   t: (key: keyof typeof en) => string
 }
@@ -259,12 +261,13 @@ export function providerCopy(template: string, target: ProviderIdentity): string
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ModelsSection(props: ModelsSectionProps): ReactNode {
-  const { controller, useSnapshot, operations, schema, t, renderSlot } = props
+  const { controller, useSnapshot, operations, schema, t, initialAddOpen, renderSlot } = props
   if (
     controller === undefined || useSnapshot === undefined || operations === undefined
     || schema === undefined || t === undefined
   ) return null
-  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }} renderSlot={renderSlot} />
+  return <Loaded injected={{ controller, useSnapshot, operations, schema, t, initialAddOpen: initialAddOpen === true }}
+    renderSlot={renderSlot} />
 }
 
 function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderSlot: ModelsRenderSlot }): ReactNode {
@@ -277,7 +280,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   if (state.status === 'ready' && !hasReadySnapshot) setHasReadySnapshot(true)
   if (state.status === 'error' && hasReadySnapshot) setHasReadySnapshot(false)
   const [editing, setEditing] = useState<EditorTarget | undefined>(undefined)
-  const [addOpen, setAddOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(injected.initialAddOpen)
   const [addMode, setAddMode] = useState<AddMode>('catalog')
   /** The modes shown since the add card opened; each keeps its panel mounted. */
   const [visited, setVisited] = useState<ReadonlySet<AddMode>>(() => new Set())

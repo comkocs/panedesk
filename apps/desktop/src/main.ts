@@ -1135,10 +1135,12 @@ async function main(): Promise<void> {
     })
     return window
   }
-  const enterWorkspace = async ({ activate = true }: { activate?: boolean } = {}): Promise<void> => {
+  const enterWorkspace = async (
+    { activate = true, modelsAdd = false }: { activate?: boolean; modelsAdd?: boolean } = {},
+  ): Promise<void> => {
     if (quitting) return
     const window = mainWindow ?? createMainWindow()
-    await navigateMain(applicationUrl)
+    await navigateMain(modelsAdd ? `${applicationUrl}?settings=models-add` : applicationUrl)
     if (isQuitting() || recovery.active || window.isDestroyed()) return
     if (activate) window.show()
     else window.showInactive()
@@ -1197,7 +1199,7 @@ async function main(): Promise<void> {
           await enterWorkspace()
           return { ok: true }
         },
-        skip: enterWorkspace,
+        skip: destination => enterWorkspace({ modelsAdd: destination === 'models-add' }),
       })
       const window = welcomeWindow
       window.once('closed', () => {

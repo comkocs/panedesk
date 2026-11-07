@@ -94,6 +94,30 @@ describe('ui-settings-models apply', () => {
     }
   })
 
+  it('opens model setup from a desktop URL and removes the request', async () => {
+    vi.stubGlobal('dshDesktop', {})
+    vi.stubGlobal('location', { href: 'https://example.test/?settings=models-add&keep=1' })
+    const replaceState = vi.fn()
+    vi.stubGlobal('history', { replaceState })
+    const b = await bench()
+    declare(b.slots)
+    b.ctx.provide('settingsNavigation', { openSection: vi.fn() } as never)
+    const navigation = b.ctx.get('settingsNavigation')!
+    const openSection = vi.spyOn(navigation, 'openSection')
+    try {
+      await b.ctx.plugin({ inject: [...inject], apply }).await()
+      expect(openSection).toHaveBeenCalledWith('models')
+      const entry = b.slots.entries('settings.section')[0]!
+      const injected = entry.inject!() as import('../src/client/ModelsSection.tsx').ModelsSectionInjected
+      expect(injected.initialAddOpen).toBe(true)
+      expect((entry.inject!() as import('../src/client/ModelsSection.tsx').ModelsSectionInjected).initialAddOpen).toBe(false)
+      expect(replaceState).toHaveBeenCalledOnce()
+      expect(String(replaceState.mock.calls[0]![2])).toBe('https://example.test/?keep=1')
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
+  })
+
   it('defaults to browser onboarding and rejects malformed bootstrap options', async () => {
     expect(hostPlugin.Config({})).toEqual({ credentialOnboarding: true })
     expect(hostPlugin.Config['~standard'].validate({ credentialOnboarding: 'false' })).toHaveProperty('issues')

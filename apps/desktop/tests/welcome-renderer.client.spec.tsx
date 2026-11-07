@@ -24,7 +24,7 @@ function mount(language = 'zh-CN', takeNotice = vi.fn<() => Promise<WelcomeNotic
     copySignInLink: vi.fn(async () => undefined),
     ...resolveDesktopLocale(language),
     saveApiKey: vi.fn<(value: string) => Promise<WelcomeSaveResult>>().mockResolvedValue({ ok: true }),
-    skip: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    skip: vi.fn<(destination?: 'models-add') => Promise<void>>().mockResolvedValue(undefined),
   }
   const mounted = render(<Welcome api={api} />)
   const input = document.querySelector('input')!
@@ -104,6 +104,13 @@ describe('desktop welcome presentation', () => {
     view.api.saveApiKey.mockResolvedValue({ ok: true })
     view.submit()
     await vi.waitFor(() => { expect(view.input.value).toBe('') })
+  })
+
+  it('opens model provider setup after skipping welcome', async () => {
+    const view = mount()
+    fireEvent.click(view.button('#other-provider'))
+    await vi.waitFor(() => { expect(view.api.skip).toHaveBeenCalledExactlyOnceWith('models-add') })
+    expect(view.api.saveApiKey).not.toHaveBeenCalled()
   })
 
   it('skips without saving and starts a fresh renderer at the entry again', async () => {

@@ -1,6 +1,30 @@
 {
   "divergences": [
     {
+      "id": "desktop-welcome-other-provider",
+      "description": "Open model provider setup from the welcome page",
+      "origin": "Desktop welcome flow",
+      "reason": "The welcome page offers another provider and opens the existing model provider setup after entering the workspace.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/src/client/WelcomePage.tsx",
+          "apps/desktop/src/locale.ts",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/src/preload-welcome.ts",
+          "apps/desktop/src/welcome-api.ts",
+          "apps/desktop/src/welcome-window.ts",
+          "apps/desktop/tests/expected/welcome/en.expected.txt",
+          "apps/desktop/tests/expected/welcome/zh-CN.expected.txt",
+          "apps/desktop/tests/welcome-renderer.client.spec.tsx",
+          "apps/desktop/tests/welcome-window.spec.ts",
+          "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "packages/client/ui-settings-models/src/client/index.ts",
+          "packages/client/ui-settings-models/tests/apply.client.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "desktop-runtime-verification-build-version",
       "description": "Support stable product versions in the packaged runtime verification test",
       "origin": "Desktop product release",

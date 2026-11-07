@@ -142,6 +142,19 @@ describe('desktop welcome window', () => {
     expect(electron.handlers.size).toBe(0)
   })
 
+  it('passes the model setup destination and rejects other destinations', async () => {
+    const window = createWindow()
+    electron.create.mockReturnValue(window)
+    const skip = vi.fn(operations.skip)
+    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, skip })
+    const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+    const handler = electron.handlers.get(WELCOME_IPC.skip)!
+    await handler(own, 'models-add')
+    expect(skip).toHaveBeenCalledExactlyOnceWith('models-add')
+    await expect(handler(own, 'other')).rejects.toThrow('invalid destination')
+    expect(skip).toHaveBeenCalledOnce()
+  })
+
   it('does not show a superseded window when its delayed document finishes loading', async () => {
     const previous = createWindow()
     const current = createWindow()

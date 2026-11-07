@@ -98,9 +98,10 @@ export async function openWelcomeWindow(locale: DesktopLocale, operations: Welco
     if (typeof value !== 'string' || !/^[\x21-\x7e]+$/.test(value)) return { ok: false }
     return operations.saveApiKey(value)
   })
-  ipcMain.handle(WELCOME_IPC.skip, async (event) => {
+  ipcMain.handle(WELCOME_IPC.skip, async (event, destination: unknown) => {
     assertSender(event)
-    await operations.skip()
+    if (destination !== undefined && destination !== 'models-add') throw new Error('desktop welcome: invalid destination')
+    await operations.skip(destination)
   })
   ipcMain.handle(WELCOME_IPC.start, async (event) => { assertSender(event); return operations.startSignIn() })
   ipcMain.handle(WELCOME_IPC.cancel, async (event, id: unknown) => {
