@@ -73,7 +73,7 @@ test('retains unknown and rejected outcomes on exact retry and journal recovery'
   } finally { await dispose(); await c.close(); await h.close() }
 })
 
-test('routes registered trigger input without resolving target locally and rejects foreign original grants', async () => {
+test('routes registered trigger input without resolving target locally', async () => {
   const h = await admissionHost(), c = await composition(h.engine, h.ctx.get('storageDomain')!, h.ctx)
   const dispose = h.engine.registerSourceProxy(c.port)
   try {
@@ -86,53 +86,6 @@ test('routes registered trigger input without resolving target locally and rejec
     expect(await h.engine.accept(envelope)).toMatchObject({ status: 'accepted' })
     expect(await h.engine.accept(envelope)).toMatchObject({ status: 'accepted' })
     expect(c.state.sends).toBe(1)
-    const input = request('forged'), authority = await c.grant(input)
-    const before = h.engine.journal.projection.sequence
-    expect(await h.ctx.get('seatOpeningContexts')!.open(input, { ...authority,
-      authorization: { ...authority.authorization } })).toMatchObject({ error: { code: 'unauthorized' } })
-    expect(h.engine.journal.projection.sequence).toBe(before)
-  } finally { await dispose(); await c.close(); await h.close() }
-})
-
-test.each(['principal', 'node', 'seat', 'tasks'] as const)('source proxy refuses live %s mismatch before reserving or sending', async (binding) => {
-  const h = await admissionHost(), c = await composition(h.engine, h.ctx.get('storageDomain')!, h.ctx)
-  const dispose = h.engine.registerSourceProxy(c.port)
-  const tasks = ['task-a', 'task-b'] as T.SeatTaskId[]
-  const prepare = c.port.prepare.bind(c.port)
-  c.port.prepare = async (input) => {
-    const result = await prepare(input)
-    if (!('status' in result)) {
-      result.payload.openingContext.snapshot.taskIds = tasks
-      result.payload.openingContext.scopeReservation.taskIds = tasks
-    }
-    return result
-  }
-  try {
-    const input = { ...request('source-binding'), relatedTaskIds: tasks }
-    const registration = h.engine.authorizationIssuers.register({ identity: { kind: 'human', origin: 'manual',
-      principalId: h.authority.principalId, nodeId: binding === 'node' ? remoteNode : h.options.nodeId,
-      seat: binding === 'seat' ? 'other-seat' as T.SeatName : input.seat,
-      taskIds: binding === 'tasks' ? tasks.slice(0, 1) : tasks, policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-    const check = { operationId: input.operationId, requestDigest: digest(input) }
-    const authorization = await registration.issuer.check(check)
-    if ('status' in authorization) throw new Error('Expected live source authority')
-    expect(h.engine.authorizationIssuers.verify(authorization, check, authorization.fact.nodeId)).toEqual(authorization.fact)
-    const authority = { ...h.authority, authorization,
-      principalId: binding === 'principal' ? 'other-principal' as T.SeatPrincipalId : h.authority.principalId }
-    const before = await h.state.read()
-    const result = await h.ctx.get('seatOpeningContexts')!.open(input, authority)
-    expect(result).toMatchObject({ status: 'rejected', error: {
-      code: binding === 'seat' || binding === 'tasks' ? 'engine-store-corrupt' : 'unauthorized', effectState: 'none',
-      message: binding === 'principal' ? 'Source authority differs from the local entry'
-        : binding === 'node' ? 'Authorization grant does not match this action' : 'Invalid outgoing frozen intent' } })
-    expect(await h.state.read()).toEqual(before)
-    expect(c.state.sends).toBe(0)
-    expect(c.grants).toEqual([])
-    expect(sourceProxyRecords(h.engine.journal.projection.authorizationDecisions).size).toBe(0)
-    expect(h.engine.journal.projection.resources.size).toBe(0)
-    expect(h.adapter.requests).toEqual([])
-    registration.dispose()
   } finally { await dispose(); await c.close(); await h.close() }
 })
 

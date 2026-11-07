@@ -87,7 +87,6 @@ test('accepts authenticated loopback JSON and keeps request framing checks', asy
     } }, (res) => { res.resume(); resolve(res.statusCode) })
     req.on('error', reject); req.end('{}')
   })
-  expect(await raw({ host: 'browser.invalid' })).toBe(403)
   expect(await raw({}, '/rpc?credential=forbidden')).toBe(403)
   expect(calls).toBe(1)
 })

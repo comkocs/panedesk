@@ -107,23 +107,14 @@ test.each(['none', 'partial', 'committed', 'unknown', undefined] as const)('cont
   expect(h.engine.journal.projection.callbacks.get(payload.callbackId)).toMatchObject({ phase: 'paused',
     nextDue: null, lastDiagnostic: { cause: { effectState: 'none' } } })
   const resolution: T.CallbackResolveRequest = { callbackId: payload.callbackId, expectedAttempt: 2, action: 'abandon' }
-  const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'local-operator', origin: 'manual', nodeId,
-    principalId: 'operator' as T.SeatPrincipalId, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'operator', policyRevision: 1 }) })
-  try {
-    const resume: T.CallbackResolveRequest = { ...resolution, expectedAttempt: 1, action: 'resume' }
-    const resumeGrant = await entry.issuer.check({ operationId: 'resume-callback' as T.SeatOperationId, requestDigest: digest(resume) })
-    if ('status' in resumeGrant) throw new Error('Operator refused')
-    expect(await h.engine.callbackResolve(resume, resumeGrant)).toMatchObject({ status: 'ok', phase: 'retry-due' })
-    await h.engine.drive()
-    expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'running', callbackFailures: [
-      { callbackId: payload.callbackId, seat, code: 'callback-authentication-failed' },
-    ] })
-    const grant = await entry.issuer.check({ operationId: 'abandon-callback' as T.SeatOperationId, requestDigest: digest(resolution) })
-    if ('status' in grant) throw new Error('Operator refused')
-    expect(await h.engine.callbackResolve(resolution, grant)).toMatchObject({ status: 'ok', phase: 'abandoned' })
-    expect((await h.engine.nodeStatus()).callbackFailures).toBeUndefined()
-  } finally { entry.dispose() }
+  const resume: T.CallbackResolveRequest = { ...resolution, expectedAttempt: 1, action: 'resume' }
+  expect(await h.engine.callbackResolve(resume)).toMatchObject({ status: 'ok', phase: 'retry-due' })
+  await h.engine.drive()
+  expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'running', callbackFailures: [
+    { callbackId: payload.callbackId, seat, code: 'callback-authentication-failed' },
+  ] })
+  expect(await h.engine.callbackResolve(resolution)).toMatchObject({ status: 'ok', phase: 'abandoned' })
+  expect((await h.engine.nodeStatus()).callbackFailures).toBeUndefined()
 })
 
 test('does not erase earlier unknown effects with a later callback authentication refusal', async () => {
@@ -228,15 +219,8 @@ test.each([
           attempt: missing + 1, nextDue: null, lastDiagnostic: { cause: { effectState: 'none' } } })
         expect(changed).toHaveBeenCalled()
         const request: T.CallbackResolveRequest = { callbackId: payload.callbackId, expectedAttempt: missing + 1, action: 'abandon' }
-        const entry = engine.authorizationIssuers.register({ identity: { kind: 'local-operator', origin: 'manual',
-          nodeId: engine.journal.nodeId, principalId: 'operator' as T.SeatPrincipalId, taskIds: [], policyRevision: 1 },
-        current: () => ({ decision: 'allowed', reasonCode: 'operator', policyRevision: 1 }) })
-        try {
-          const grant = await entry.issuer.check({ operationId: 'abandon-retained-callback' as T.SeatOperationId, requestDigest: digest(request) })
-          if ('status' in grant) throw new Error('Operator refused')
-          expect(await engine.callbackResolve(request, grant)).toMatchObject({ status: 'ok', phase: 'abandoned' })
-          expect((await engine.nodeStatus()).callbackFailures).toBeUndefined()
-        } finally { entry.dispose() }
+        expect(await engine.callbackResolve(request)).toMatchObject({ status: 'ok', phase: 'abandoned' })
+        expect((await engine.nodeStatus()).callbackFailures).toBeUndefined()
       }
     }
     await dispose()

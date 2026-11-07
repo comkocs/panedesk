@@ -5,7 +5,6 @@ import { CallbackOutbox } from '../src/outbox.ts'
 import { callbackRetentions } from '../src/callback-retention.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
 import { SourceRegistry } from '../src/sources.ts'
-import { digest } from '../src/journal.ts'
 import { fact } from '../src/triggers.ts'
 import { harness, nodeId, seat } from './fixtures.ts'
 import { admittedDefinition, owner, persistCallback } from './routed-callback-fixture.ts'
@@ -178,19 +177,14 @@ test('an absent local owner reaches the transient limit without link classificat
 
 test.each([true, false])('automatic resume and operator abandon serialize with abandonFirst=%s', async (abandonFirst) => {
   const h = await fixture(); let ready = false
-  const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'local-operator',
-    principalId: 'operator-a' as T.SeatPrincipalId, origin: 'manual', nodeId, taskIds: [], policyRevision: 0 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 0 }) })
   const request: T.CallbackResolveRequest = { callbackId: h.body.callback.callbackId, action: 'abandon', expectedAttempt: 1 }
-  const grant = await entry.issuer.check({ operationId: 'competing-resolution' as T.SeatOperationId, requestDigest: digest(request) })
-  if ('status' in grant) throw new Error('Expected operator grant')
   let resolution: T.CallbackResolveResult | undefined
   const send = vi.fn(async (body: T.DeliverSourceCallbackRequest) => {
-    if (ready && !abandonFirst) resolution = await h.engine.callbackResolve(request, grant)
+    if (ready && !abandonFirst) resolution = await h.engine.callbackResolve(request)
     return transport(body)
   })
   const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, send, async () => {
-    if (ready && abandonFirst) resolution = await h.engine.callbackResolve(request, grant)
+    if (ready && abandonFirst) resolution = await h.engine.callbackResolve(request)
     return ready
   })
   cleanups.push(() => outbox.close())
@@ -205,7 +199,6 @@ test.each([true, false])('automatic resume and operator abandon serialize with a
     : { status: 'rejected', code: 'callback-not-paused' })
   expect(h.current().phase).toBe(abandonFirst ? 'abandoned' : 'retry-due')
   expect(send).toHaveBeenCalledTimes(abandonFirst ? 1 : 2)
-  entry.dispose()
 })
 
 test('a late owner committed receipt does not clear other-class seat parking', async () => {

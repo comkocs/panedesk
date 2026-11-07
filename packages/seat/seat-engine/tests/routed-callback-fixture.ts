@@ -8,6 +8,14 @@ import { definition, sourceId, projectId, seat, trigger } from './fixtures.ts'
 
 export const principalId = 'principal-a' as T.SeatPrincipalId
 export const owner = 'owner-a' as T.SeatNodeId
+export function callbackIssuer(nodeId: T.SeatNodeId): import('../src/routed-callback-types.ts').CallbackIssuerPort {
+  return { outboxIssuer: async () => ({ check: async request => ({ fact: {
+    authorizationId: 'callback-entry' as T.AuthorizationRef, kind: 'human', principalId,
+    nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1,
+    operationId: request.operationId, requestDigest: request.requestDigest, checkedAt: new Date().toISOString(),
+    decision: 'allowed', reasonCode: 'allowed',
+  } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant) }) }
+}
 export async function persistCallback(engine: SeatEngine, callbackOwner = owner) {
   const nodeId = engine.options.nodeId, envelope = trigger(), operationId = 'operation-a' as T.SeatOperationId
   const ownerEpoch = 'epoch-a' as T.OwnerEpoch

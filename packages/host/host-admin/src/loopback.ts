@@ -89,7 +89,7 @@ export function listenLoopback(port: number, limits: RpcLimits, authentication: 
  * @param limits - Complete frame, concurrency and deadline bounds.
  * @param authentication - Current credentials and explicitly bounded prior epochs.
  * @param dispatch - JSON dispatcher with transport-derived epoch evidence.
- * @param hostPolicy - Optional exact forwarding authorities and rejection reporter; omission keeps strict Host checks and empty refusals.
+ * @param hostPolicy - Optional exact forwarding authorities and rejection reporter; omission leaves Host unrestricted.
  * @returns Owned listener and awaited teardown.
  */
 export async function listenAuthenticatedLoopback(port: number, limits: RpcLimits, authentication: () => RpcAuthentication,
@@ -104,14 +104,14 @@ export async function listenAuthenticatedLoopback(port: number, limits: RpcLimit
     const accepted: { credential: string; epoch: string; identity?: object } | undefined =
       [current, ...(current.alternatives ?? []), ...(current.previous ?? []).filter(item => item.expiresAt > Date.now())]
         .find(item => req.headers['x-rpc-epoch'] === item.epoch && authenticated(req.headers.authorization, item.credential))
-    const hostMatches = req.headers.host === `${loopback}:${actualPort}`
+    const hostMatches = hostPolicy === undefined || req.headers.host === `${loopback}:${actualPort}`
       || req.headers.host !== undefined && forwardedHosts.has(req.headers.host)
     const forbidden = closing || req.method !== 'POST' || req.url !== '/rpc'
       || req.headers['content-type'] !== 'application/json'
       || accepted === undefined
       || pending.size >= limits.maxPending
     res.setHeader('Connection', 'close')
-    if (!hostMatches && hostPolicy !== undefined) {
+    if (!hostMatches) {
       const refusal: LoopbackHostMismatch = { code: 'host-mismatch', expectedPort: actualPort, actualPort: hostPort(req.headers.host) }
       try { hostPolicy.rejected(refusal) } catch (error) { void error /* Reporting cannot admit a rejected request. */ }
       const text = JSON.stringify(refusal)

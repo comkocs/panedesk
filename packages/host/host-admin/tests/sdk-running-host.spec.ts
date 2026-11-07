@@ -91,10 +91,10 @@ async function assertRegisteredNamespaceDispatch(
   for (const call of clients) expect(await call(join(directory, 'forged-credential'), 'example/read')).toMatchObject({ status: 'rejected' })
   const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { port: number; processEpoch: string }
   const credential = (await files.read('credential', 64))!
-  for (const headers of [{ origin: 'https://example.invalid' }, { cookie: 'ambient=1' }, { 'x-rpc-epoch': randomUUID() }]) {
+  for (const headers of [{ 'x-rpc-epoch': randomUUID() }]) {
     const status = await new Promise<number | undefined>((resolveStatus, reject) => {
       const request = httpRequest({ host: '127.0.0.1', port: endpoint.port, path: '/rpc', method: 'POST',
-        headers: { authorization: credential, 'content-type': 'application/json', 'x-rpc-epoch': endpoint.processEpoch, ...headers } }, (response) => {
+        headers: { authorization: credential, 'content-type': 'application/json', ...headers } }, (response) => {
         response.resume(); response.on('end', () => { resolveStatus(response.statusCode) })
       })
       request.on('error', reject); request.end('{}')

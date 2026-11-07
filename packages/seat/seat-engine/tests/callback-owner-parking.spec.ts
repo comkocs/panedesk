@@ -7,11 +7,11 @@ import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { SeatEngine } from '../src/engine.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
-import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
+import type { CallbackChainRequest, CallbackRouterPort } from '../src/routed-callback-types.ts'
 import { digest } from '../src/journal.ts'
 import { fact } from '../src/triggers.ts'
-import { config, nodeId, seat } from './fixtures.ts'
-import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+import { config, nodeId } from './fixtures.ts'
+import { admittedDefinition, persistCallback, callbackIssuer, principalId } from './routed-callback-fixture.ts'
 
 test.each([
   ['callback-desk-unreachable', 'resume'],
@@ -39,9 +39,7 @@ test.each([
           effectState: 'unknown', cause: { domain: 'desk', code: resolved ? 'callback-manually-abandoned' : code,
             reason: 'Owner retained original callback', operationId: body.route.originalOperationId,
             nodeId: body.route.sourceOwnerNodeId, retryable: false, effectState: 'unknown' } } }
-  const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
-    kind: 'human', principalId, nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const issuer = callbackIssuer(engine.options.nodeId)
   const router: CallbackRouterPort = { route: async (request) => {
     seen.push(structuredClone(request))
     if (request.method === 'chain.operation') {

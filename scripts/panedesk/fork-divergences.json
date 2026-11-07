@@ -1827,6 +1827,7 @@
         "paths": [
           "packages/client/ui-nodes/**",
           "packages/host/host-admin/src/node-health.ts",
+          "scripts/package-dependency-policy.ts",
           "apps/web/tests/node-settings.e2e.ts"
         ],
         "test": "node settings and live callback observations"
@@ -3068,10 +3069,23 @@
       }
     },
     {
+      "id": "seat-declared-remote-event-resources",
+      "description": "Retain declared seat event resource forwarding coverage.",
+      "origin": "Seat remote notification integration",
+      "reason": "Keep the existing seat notification resource reader assertion after removing the memory-write authorization implementation.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/api/remotes/tests/remote-events.host.spec.ts"
+        ],
+        "test": "attaches each declared resource reader to its forwarded notification"
+      }
+    },
+    {
       "id": "seat-human-approval-absorption",
       "description": "Seat human approval absorption.",
       "origin": "Optional seat and host integration",
-      "reason": "Atomically absorb exact same-task reminder approvals during an issuer-authorized human opening without pre-open cancellation callbacks.",
+      "reason": "Atomically absorb exact same-task reminder approvals during a human opening without pre-open cancellation callbacks.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -3082,7 +3096,7 @@
           "packages/seat/seat-engine/README.zh.md",
           "packages/seat/seat-engine/README.i18n.yaml"
         ],
-        "test": "absorbs only the authorized approval: %s"
+        "test": "absorbs matching pending approvals: %s"
       }
     },
     {
