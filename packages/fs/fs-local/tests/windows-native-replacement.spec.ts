@@ -4,12 +4,14 @@ import { createWindowsWriteApi } from '../src/win32-write-abi.ts'
 import { metadata } from './fixtures/windows-directory-api.ts'
 
 const state = vi.hoisted(() => ({ declarations: [] as string[], information: [] as number[], flags: [] as number[],
-  status: 0, target: 'old', paths: [] as string[], missing: '' }))
+  status: 0, target: 'old', paths: [] as string[], missing: '', createStatus: 0, access: 0, share: 0 }))
 vi.mock('koffi', async (original) => {
   const actual = await original<typeof import('koffi')>()
   return { default: { ...actual.default, load: (library: string) => ({ func: (declaration: string) => {
     state.declarations.push(`${library}:${declaration}`)
     if (state.missing && declaration.includes(state.missing)) throw new Error('missing export')
+    if (declaration.includes('NtCreateFile(')) return (_out: [object | null], access: number, _attributes: Buffer, _iosb: Buffer,
+      _size: null, _flags: number, share: number) => { state.access = access; state.share = share; return state.createStatus }
     if (declaration.includes('NtSetInformationFile(')) return (_handle: object, _iosb: Buffer, data: Buffer, _length: number, information: number) => {
       state.information.push(information); state.flags.push(data.readUInt32LE(0))
       if (state.status === 0) state.target = 'new'
@@ -32,7 +34,7 @@ beforeEach(() => {
   vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
   vi.spyOn(process, 'arch', 'get').mockReturnValue('x64')
   state.declarations.length = 0; state.information.length = 0; state.flags.length = 0
-  state.status = 0; state.target = 'old'; state.paths.length = 0; state.missing = ''
+  state.status = 0; state.target = 'old'; state.paths.length = 0; state.missing = ''; state.createStatus = 0; state.access = 0; state.share = 0
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -42,6 +44,20 @@ function replace(): void {
   if (!('replace' in api) || typeof api.replace !== 'function') throw new Error('Native replacement capability unavailable')
   api.replace(1, 2, 'target')
 }
+
+it('opens an existing directory without DELETE access', () => {
+  const api = createWindowsWriteApi(context)
+  expect(() => api.createDirectory(1, 'folder', false, null)).toThrow()
+  expect(state.access & 0x10000).toBe(0)
+  expect(state.share).toBe(3)
+})
+
+it('reports a create sharing violation with its path', () => {
+  state.createStatus = 0xc0000043
+  const api = createWindowsWriteApi(context)
+  expect(() => api.createFile(1, 'target.txt', null)).toThrow('File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试')
+  expect(() => api.createFile(1, 'target.txt', null)).toThrow('C:\\safe\\target.txt')
+})
 
 it('uses Native POSIX replacement with no Win32 rename or path fallback', () => {
   replace()

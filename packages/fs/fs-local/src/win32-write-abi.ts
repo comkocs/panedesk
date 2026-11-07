@@ -1,4 +1,5 @@
 /** Worker-local mutation bindings; replacement files inherit permissions in their destination directory. */
+import { win32 } from 'node:path'
 import koffi from 'koffi'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
@@ -105,7 +106,8 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
   let poisoned = false
   const available = () => { if (poisoned) throw new FsError('Native write capability unavailable / 原生写能力不可用', 'FS_IO_ERROR') }
   const winFailure = (syscall: string) => windowsWriteFailure('Win32', lastError(), syscall)
-  const complete = (status: number, handle: object, iosb: Buffer, syscall: string) => {
+  const complete = (status: number, handle: object, iosb: Buffer, syscall: string,
+    failure = (code: number, operation: string) => windowsWriteFailure('NTSTATUS', code, operation)) => {
     if ((status >>> 0) === 0x103) {
       poisoned = true
       // Pending kernel buffers cannot be abandoned. A successful publication still commits.
@@ -113,8 +115,8 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
       do { waited = wait(handle, 0, null) } while (waited !== 0 || iosb.readUInt32LE(0) === 0x103)
       status = iosb.readUInt32LE(0)
     }
-    if (status !== 0) throw windowsWriteFailure('NTSTATUS', status, syscall)
-    if (iosb.readUInt32LE(0) !== 0) throw windowsWriteFailure('NTSTATUS', iosb.readUInt32LE(0), `${syscall} IOSB`)
+    if (status !== 0) throw failure(status, syscall)
+    if (iosb.readUInt32LE(0) !== 0) throw failure(iosb.readUInt32LE(0), `${syscall} IOSB`)
   }
   const inspect = (token: number) => context.inspect(context.get(token))
   const relative = (parent: number, raw: string, access: number, share: number, disposition: number,
@@ -131,10 +133,13 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
     const out: [object | null] = [null]
     const iosb = Buffer.alloc(16)
     const status = create(out, access, object, iosb, null, 0, share, disposition, 0x200020 | (directory ? 1 : 0x40), null, 0)
+    const failure = (code: number, operation = 'NtCreateFile') => (code >>> 0) === 0xc0000043
+      ? new FsError(`File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试: ${win32.join(inspect(parent).identity.path, name)}`, 'FS_PERMISSION_DENIED', { cause: windowsWriteFailure('NTSTATUS', code, 'NtCreateFile') })
+      : windowsWriteFailure('NTSTATUS', code, operation)
     const handle = out[0]
-    if (handle === null) throw windowsWriteFailure('NTSTATUS', status || 0xc0000001, 'NtCreateFile')
+    if (handle === null) throw failure(status || 0xc0000001)
     try {
-      complete(status, handle, iosb, 'NtCreateFile')
+      complete(status, handle, iosb, 'NtCreateFile', failure)
       available()
     } catch (error) {
       if (!close(handle)) throw new AggregateError([error, winFailure('CloseHandle')], 'Open and cleanup failed')
@@ -169,7 +174,7 @@ export function createWindowsWriteApi(context: WindowsNativeContext): WindowsWri
     },
     createDirectory(parent, name, exclusive, descriptor) {
       if (exclusive && !descriptor) refuseWindowsWrite()
-      return relative(parent, name, 0x110087, exclusive ? 0 : 3, exclusive ? 2 : 3, true, descriptor)
+      return relative(parent, name, exclusive ? 0x110087 : 0x100087, exclusive ? 0 : 3, exclusive ? 2 : 3, true, descriptor)
     },
     createFile(parent, name, descriptor) { return relative(parent, name, descriptor ? 0x17019f : 0x13019f, 0, 2, false, descriptor).token },
     secureEmpty(token, descriptor) {

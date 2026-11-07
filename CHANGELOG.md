@@ -5,6 +5,7 @@
 ### Fixed
 
 - Windows startup failed with EPERM fsync when relocating a legacy credentials file.
+- Writing a new file on Windows failed with a sharing violation when a parent folder was open as another program's working directory; a file that is genuinely in use now reports which file to close.
 
 ## 1.1.0
 

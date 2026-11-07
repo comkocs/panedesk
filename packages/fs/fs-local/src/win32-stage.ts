@@ -1,5 +1,6 @@
 /** Worker-owned stages inherit in the destination directory and publish through retained handles. */
 import { randomUUID } from 'node:crypto'
+import { win32 } from 'node:path'
 import { FsError } from '@panedesk/dsh-fs'
 import { checkWindowsComponent, refuseWindowsWrite } from './directory-win32.ts'
 import type { HandleReply, HandleWriteRequest, WindowsWriteHandler } from './win32-handle-types.ts'
@@ -60,6 +61,9 @@ export function createStageHandler(api: WindowsWriteApi): WindowsWriteHandler {
           }
           try { replacement?.close() } catch (failure) { errors.push(failure) }
           if (errors.length > 1) throw new AggregateError(errors, 'Stage preparation and cleanup failed')
+          if (error instanceof FsError && error.code === 'FS_PERMISSION_DENIED' && error.message.startsWith('File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试: ')) {
+            throw new FsError(`File is in use by another program; close it and retry / 文件被其他程序占用，请关闭后重试: ${win32.join(api.inspect(request.parent).identity.path, name)}`, 'FS_PERMISSION_DENIED', { cause: error })
+          }
           throw error
         }
       }
