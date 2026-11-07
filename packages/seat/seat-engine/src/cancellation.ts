@@ -2,8 +2,6 @@
 import type * as T from '@panedesk/dsh-seat'
 import type { EngineProjection } from './projection.ts'
 import type { AuthorizationDecision } from './authorization-storage.ts'
-import { authorizationEffect } from './authorization-issuer.ts'
-import { digest } from './journal.ts'
 import { fact, rejected } from './triggers.ts'
 import { withPreopenCallbacks } from './preopen-callback.ts'
 import { preopenCancelledReason } from './frozen-terminal.ts'
@@ -23,22 +21,15 @@ export function validCancellationReason(value: unknown): boolean {
  * @returns Mutation reply and the effects committed together, or no effects on refusal.
  */
 export function cancelEffects(view: EngineProjection, request: T.CancelPendingSeatRequest,
-  data: T.SeatIssuedAuthorizationFact): { result: T.PendingSeatMutationResult; effects: AuthorizationDecision['effects'] } {
+  caller: { principalId: T.SeatPrincipalId; nodeId: T.SeatNodeId }): { result: T.PendingSeatMutationResult; effects: AuthorizationDecision['effects'] } {
   const refuse = (result: T.SeatRejected) => ({ result, effects: [] })
   if (!validCancellationReason(request.reason)) return refuse(rejected('invalid-request', 'Cancellation reason exceeds 512 UTF-8 bytes or contains controls'))
   const replay = view.authorizationDecisions.find(decision => decision.effects.some(effect =>
-    effect.kind === 'authorization/checked' && effect.data.operationId === request.operationId))
+    effect.kind === 'queue/cancelled' && effect.data.cancellation?.operationId === request.operationId))
   if (replay) {
-    const original = replay.effects.find(effect => effect.kind === 'authorization/checked')
     const cancelled = replay.effects.find(effect => effect.kind === 'queue/cancelled')
-    if (original?.kind !== 'authorization/checked' || original.data.requestDigest !== digest(request)
-      || original.data.principalId !== data.principalId || original.data.kind !== data.kind
-      || original.data.callId !== data.callId || original.data.rootCallId !== data.rootCallId) {
-      return refuse(rejected('operation-id-conflict', 'Cancellation identity conflicts'))
-    }
-    if (original.data.decision === 'denied') return refuse(rejected('unauthorized', 'Cancellation policy denied the operation'))
-    if (data.decision !== 'allowed') return refuse(rejected('unauthorized', 'Cancellation policy denied the operation'))
-    if (cancelled?.kind !== 'queue/cancelled' || !cancelled.data.cancellation) {
+    if (cancelled?.kind !== 'queue/cancelled' || !cancelled.data.cancellation
+      || cancelled.data.cancellation.principalId !== caller.principalId) {
       return refuse(rejected('operation-id-conflict', 'Cancellation identity conflicts'))
     }
     return { result: { status: 'cancelled', queueItemId: cancelled.data.pending.queueItemId,
@@ -47,8 +38,6 @@ export function cancelEffects(view: EngineProjection, request: T.CancelPendingSe
   if (view.decisions.some(decision => decision.effects.some(effect => effect.operationId === request.operationId))) {
     return refuse(rejected('operation-id-conflict', 'Cancellation identity conflicts'))
   }
-  if (data.decision !== 'allowed') return { result: rejected('unauthorized', 'Cancellation policy denied the operation'),
-    effects: [authorizationEffect(data)] }
   const previous = view.pending.get(request.queueItemId)
   if (!previous) {
     const dispatched = view.decisions.find(decision => decision.effects.some(effect => effect.kind === 'queue/cancelled'
@@ -60,19 +49,16 @@ export function cancelEffects(view: EngineProjection, request: T.CancelPendingSe
     const result = rejected('revision-conflict', 'Pending state changed')
     return refuse({ ...result, error: { ...result.error, cause: { domain: 'seat-engine', code: result.error.code,
       reason: 'Cancellation requires an undispatched queue item', reasonCode, effectState: 'none', retryable: false,
-      operationId: request.operationId, nodeId: data.nodeId } } })
+      operationId: request.operationId, nodeId: caller.nodeId } } })
   }
   if (previous.stateVersion !== request.expectedStateVersion) return refuse(rejected('revision-conflict', 'Pending state changed'))
-  if (data.seat !== previous.seat || previous.relatedTaskIds.some(task => !data.taskIds.includes(task))) {
-    return refuse(rejected('unauthorized', 'Cancellation attribution does not cover this pending seat and its tasks'))
-  }
   const pending = { ...previous, stateVersion: previous.stateVersion + 1 }
-  const cancellation: T.SeatCancellationRecord = { authorizationId: data.authorizationId, principalId: data.principalId,
-    kind: data.kind, operationId: request.operationId, queueItemId: pending.queueItemId,
+  const cancellation: T.SeatCancellationRecord = { principalId: caller.principalId,
+    kind: 'human', operationId: request.operationId, queueItemId: pending.queueItemId,
     cancelledAt: new Date().toISOString(), stateVersion: pending.stateVersion, reasonPresent: request.reason !== undefined,
     ...(request.reason !== undefined ? { reason: request.reason } : {}) }
   return { result: { status: 'cancelled', queueItemId: pending.queueItemId, stateVersion: pending.stateVersion },
     effects: [...withPreopenCallbacks(view, [fact({ kind: 'queue/cancelled', operationId: request.operationId, data: { pending, cancellation,
-      principalId: data.principalId, previousRevision: previous.stateVersion, revision: pending.stateVersion } })],
-    preopenCancelledReason(), data.nodeId), authorizationEffect(data)] }
+      principalId: caller.principalId, previousRevision: previous.stateVersion, revision: pending.stateVersion } })],
+    preopenCancelledReason(), caller.nodeId)] }
 }

@@ -347,9 +347,7 @@ export class LocalSeatService extends SeatService {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const authority = this.caller()
-    if (authority.localWake && !admit) return rejected('unauthorized',
-      'Local wake opening requires the checked wake entry', 'Use the authenticated wake entry.')
-    if (request.origin !== authority.origin) return rejected('unauthorized', 'Opening origin is not authenticated.', 'Use the trusted adapter origin.')
+    if (request.origin !== authority.origin) return rejected('invalid-request', 'Opening origin does not match the caller.', 'Use the caller origin.')
     if (this.engine() === undefined) return rejected('unavailable', 'Opening admission is unavailable.', 'Install the seat engine.')
     const facts = (await this.state.read()).effects
     const accepted = facts.find(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
@@ -431,8 +429,8 @@ export class LocalSeatService extends SeatService {
       if (!(error instanceof SeatLocalError) || error.failure.code !== 'invalid-definition') throw error
       return definitionRefusal(definition.seat)
     }
-    const input: T.SeatLocalOpenRequest = { request: authority.authorization ? request
-      : { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
+    const input: T.SeatLocalOpenRequest = { request: { ...request,
+      openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
     authority, definition, opening, title: `${definition.seat} ${titleDate}`,
     ...(snapshot ? { openingContext: snapshot } : {}) }
     return admit ? admit(input) : engine.openWindow ? engine.openWindow(input)
@@ -517,12 +515,12 @@ export class LocalSeatService extends SeatService {
   }
   private async openNodeBatchResolved(request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
     sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatBatchResult> {
-    const engine = this.engine(), grant = authority.authorization
-    if (!(engine instanceof SeatEngine) || !grant) return rejected('unavailable', 'Batch admission is unavailable.', 'Restore the engine.')
+    const engine = this.engine()
+    if (!(engine instanceof SeatEngine)) return rejected('unavailable', 'Batch admission is unavailable.', 'Restore the engine.')
     await engine.ready()
     if (request.nodeId !== undefined && request.nodeId !== this.options.nodeId || authority.nodeId !== this.options.nodeId
-      || authority.principalId !== grant.fact.principalId || authority.origin !== request.origin || grant.fact.origin !== request.origin) {
-      return rejected('unauthorized', 'Batch attribution does not match.', 'Use the original delegated batch.')
+      || authority.origin !== request.origin) {
+      return rejected('invalid-request', 'Batch attribution does not match.', 'Use the original batch caller.')
     }
     if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
       || new Set(request.seats).size !== request.seats.length) {
@@ -538,16 +536,6 @@ export class LocalSeatService extends SeatService {
       if (seat === undefined) throw new Error('Batch member identity is missing')
       return { seat, result }
     }) }
-    const refusal = await engine.authorizations.validate({ operationId: request.operationId, requestDigest: digest(request),
-      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
-    if (refusal) return refusal
-    if (grant.fact.kind !== 'node-delegation' || grant.fact.seat !== undefined && request.seats.some(seat => seat !== grant.fact.seat)
-      || grant.fact.sourceNodeId !== undefined && grant.fact.sourceNodeId !== sourceNodeId) {
-      return rejected('unauthorized', 'Batch grant does not cover every member.', 'Use authority covering the explicit batch.')
-    }
-    // The legacy wire has no task-scope evidence; a task-bearing grant cannot imply an empty scope.
-    if (grant.fact.taskIds.length) return rejected('gate-denied', 'scope-unknown', 'serial')
     const definitions: T.SeatDefinition[] = []
     for (const seat of request.seats) {
       const definition = await this.resolve(seat)
@@ -597,9 +585,6 @@ export class LocalSeatService extends SeatService {
     if (renewalError !== null) return { status: 'rejected', error: renewalError, cacheEvidence }
     const engine = this.engine()
     if (engine === undefined) return { ...rejected('unavailable', 'Renewal accounting is unavailable.', 'Restore the engine before renewing.'), cacheEvidence }
-    const grant = this.caller().authorization
-    if (grant) return this.runtime.context.get('seatAuthorizedEngineActions')?.renew(request, grant)
-      ?? { ...rejected('unavailable', 'Audited renewal is unavailable.', 'Restore authorization admission.'), cacheEvidence }
     return engine.renew({ ...request, source: 'manual' })
   }
   async close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult> {
@@ -607,26 +592,20 @@ export class LocalSeatService extends SeatService {
     if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId) ?? this.actionPrincipalRefusal()
     if (refusal !== null) return refusal
-    return this.result(() => this.windowCloser.close(request, undefined, this.caller().authorization))
+    return this.result(() => this.windowCloser.close(request))
   }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.replace', request)
     if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId) ?? this.actionPrincipalRefusal()
     if (refusal !== null) return refusal
-    const grant = this.caller().authorization
-    if (grant) return this.runtime.context.get('seatAuthorizedEngineActions')?.replace(request, grant)
-      ?? rejected('unavailable', 'Audited replacement is unavailable.', 'Restore authorization admission.')
     return this.engine()?.replace(request)
       ?? rejected('unavailable', 'Replacement admission is unavailable.', 'Restore the engine before replacing.')
   }
   private actionPrincipalRefusal(): T.SeatRejected | null {
-    const authority = this.caller()
-    return authority.authorization && authority.authorization.fact.principalId !== authority.principalId
-      ? rejected('unauthorized', 'Action authorization does not match the calling principal.', 'Use the authenticated calling identity.') : null
+    return null
   }
   async rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult> {
-    if (this.caller().authorization) return rejected('unavailable', 'Atomic title authorization is unavailable.', 'Use a supported local entry.')
     return await this.guard(request.nodeId, request.operationId) ?? this.runtime.rename(request)
   }
   /** Route source context before entering local wake admission.
@@ -648,50 +627,12 @@ export class LocalSeatService extends SeatService {
     open: (request: T.OpenSeatRequest, authority: T.SeatCallContext,
       admit?: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
     const scoped = this.withAuthority(authority) as LocalSeatService
-    return this.frozenWrites.run(() => authority.localWake
-      ? scoped.wakeOwner(request, open) : scoped.wakeResolved(request, input => open(input, authority)))
-  }
-  private async wakeOwner(request: T.WakeSeatRequest,
-    open: (request: T.OpenSeatRequest, authority: T.SeatCallContext,
-      admit: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
-    const authority = this.caller(), engine = this.engine(), grant = authority.authorization, opening = authority.localWake?.opening
-    if (!(engine instanceof SeatEngine) || !grant || !opening) {
-      return rejected('unauthorized', 'Local wake requires both owner grants.', 'Use the authenticated owner entry.')
-    }
-    const input: T.OpenSeatRequest = { ...request, origin: authority.origin, openingMode: 'auto' }
-    try {
-      for (const [authorization, payload] of [[grant, request], [opening, input]] as const) {
-        const fact = engine.authorizationIssuers.verify(authorization, { operationId: request.operationId,
-          requestDigest: digest(payload) }, this.options.nodeId)
-        if (fact.kind !== 'node-delegation' || fact.sourceNodeId !== this.options.nodeId || fact.origin !== 'manual'
-          || fact.principalId !== authority.principalId || fact.reasonCode !== 'trusted-local-owner'
-          || fact.decision !== 'allowed' || fact.seat !== request.seat) {
-          return rejected('unauthorized', 'Local wake owner attribution differs.', 'Refresh the owner entry.')
-        }
-      }
-    } catch (_error) {
-      return rejected('unauthorized', 'Local wake owner entry is revoked or mismatched.', 'Refresh the owner entry.')
-    }
-    return engine.wakeLocal(request.operationId, async (admit) => {
-      const retained = engine.wakeDeliveries.find(request, authority)
-      if (retained && 'status' in retained) return retained
-      if (retained) return engine.wakeDeliveries.finish(retained, value => this.runtime.send(value))
-      const openingAuthority = { ...authority, authorization: opening }
-      const accepted = (await this.state.read()).effects.some(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
-        && effect.data.trigger.evidence.kind === 'manual' && effect.data.trigger.evidence.operationId === request.operationId
-        && effect.data.trigger.sourceId === localSourceId)
-      if (accepted) return { status: 'opened', result: await open(input, openingAuthority, admit) }
-      return this.wakeResolved(request, value => open(value, openingAuthority, admit), request)
-    })
+    return this.frozenWrites.run(() => scoped.wakeResolved(request, input => open(input, authority)))
   }
   wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
     return this.frozenWrites.run(() => this.wakeRouted(request))
   }
   private async wakeRouted(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
-    if (this.caller().localWake) return this.wakeOwner(request, (input, authority, admit) => {
-      const scoped = this.withAuthority(authority) as LocalSeatService
-      return scoped.openResolved(input, undefined, admit)
-    })
     const selected = this.runtime.context.get('nodeRouter')
       ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
     const targetNode = request.nodeId ?? (selected ? this.options.nodeAliases[selected.node] : undefined)
@@ -709,10 +650,6 @@ export class LocalSeatService extends SeatService {
     const candidates = (await this.windows()).filter(item => item.binding.seat === request.seat)
     if (!candidates.length) {
       if (request.sessionId !== undefined) return rejected('session-not-found', 'Selected window is no longer active.', 'List windows again.')
-      // A half-signed owner entry must not fall back to unverified legacy opening.
-      if (this.caller().authorization && !wire) {
-        return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
-      }
       return { status: 'opened', result: await open({ ...request, origin: this.caller().origin, openingMode: 'auto' }) }
     }
     const target = request.sessionId === undefined ? candidates.length === 1 ? candidates[0] : undefined
@@ -727,9 +664,6 @@ export class LocalSeatService extends SeatService {
     const text = renderOpening(await readSeatText(definition.wakeTemplate, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: null }, this.options.maxOpeningBytes).text
     const engine = this.engine()
-    if (this.caller().authorization && (!wire || !(engine instanceof SeatEngine))) {
-      return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
-    }
     const admission = await (engine instanceof SeatEngine
       ? engine.admitTurn(target.open.sessionId, 'seat-local/wake') : engine?.admitTurn(target.open.sessionId))
     if (wire && engine instanceof SeatEngine) {
@@ -776,11 +710,6 @@ export class LocalSeatService extends SeatService {
   wait(waitId: T.WaitId): Promise<T.SeatWait | null> { this.caller(); return this.waits.read(waitId) }
   async operation(request: T.SeatOperationQuery): Promise<T.SeatOperationResult> {
     this.caller()
-    const transactions = this.ctx.get('seatAuthorizationTransactions')
-    if (transactions?.operation) {
-      const result = await transactions.operation(request)
-      if (result.status !== 'missing') return result
-    }
     const effects = (await this.state.read()).effects.filter(effect => effect.operationId === request.operationId)
     const last = effects.at(-1)
     if (last === undefined) return { status: 'missing' }

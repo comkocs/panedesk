@@ -3,7 +3,6 @@ import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import type { LocalSeatService } from './service.ts'
 import { querySeatFrozen } from './frozen-admission.ts'
-import { digest } from './store.ts'
 import { rejected } from './errors.ts'
 import { SeatEngine, queryFrozenExecution } from '@panedesk/dsh-seat-engine'
 
@@ -27,14 +26,12 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
       void ready.catch((_error: unknown) => { /* Recovery failure is retained for the capability barrier. */ })
       const query = async (request: T.NodeWorkChainOperationRequest,
         context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
-        const grant = context.authorization, fact = grant?.fact, transactions = child.get('seatAuthorizationTransactions')
-        if (!grant || !fact || !transactions?.validate
-          || !provider.methods.includes(request.key.method as T.NodeWorkChainBusinessMethod)) {
-          return rejected('unauthorized', 'Frozen query requires live authority.', 'Restore the authenticated entry.')
+        if (!provider.methods.includes(request.key.method as T.NodeWorkChainBusinessMethod)) {
+          return rejected('invalid-request', 'Frozen query method is not registered.', 'Use an advertised seat method.')
         }
-        const refusal = await transactions.validate({ operationId: fact.operationId, requestDigest: digest(request),
-          ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-        if (refusal) return refusal
+        if (context.principalId !== request.key.principalId) {
+          return rejected('invalid-request', 'Frozen query caller does not match.', 'Use the original caller.')
+        }
         const engine = child.get('seatEngine')
         if (engine instanceof SeatEngine && request.key.method === 'seat.wakeFrozen') {
           const delivery = engine.wakeDeliveries.query(request, context)

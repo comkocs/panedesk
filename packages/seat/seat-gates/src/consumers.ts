@@ -59,13 +59,9 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
       decisions.push(...await gates.evaluate({ ...base, callId: `${base.callId}:uncertain` as GateContext['callId'],
         hook: 'before-memory-write', targetPath: '', authorizedDirectories: [], syntax: 'unknown' }))
     }
-    const denied = decisions.find(result => result.outcome === 'deny')
+    const denied = decisions.find(result => result.outcome === 'deny' && result.reason.code !== 'memory-seat-mismatch')
     if (denied?.outcome === 'deny') {
-      if (binding?.kind === 'seat' && denied.reason.code === 'memory-seat-mismatch') {
-        ctx.emit('seat/memory-write-denied', sessionId, denied.reason)
-      }
-      const code = binding?.kind === 'seat' && denied.reason.code === 'memory-seat-mismatch' ? `[${denied.reason.code}] ` : ''
-      return { kind: 'deny', reason: `${code}${denied.reason.message} ${denied.alternative}${denied.audit === 'unavailable' ? ' Audit unavailable.' : ''}` }
+      return { kind: 'deny', reason: `${denied.reason.message} ${denied.alternative}${denied.audit === 'unavailable' ? ' Audit unavailable.' : ''}` }
     }
     return upstream
   })

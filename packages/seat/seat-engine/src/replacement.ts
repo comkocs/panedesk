@@ -4,7 +4,6 @@ import type * as T from '@panedesk/dsh-seat'
 import { EngineJournal, EngineError, digest } from './journal.ts'
 import { fact, rejected } from './triggers.ts'
 import { closeEffects } from './closing.ts'
-import type { ActionCommit } from './authorized-commit.ts'
 
 /** Project a durable replacement transaction for callers.
  * @param data - current transaction.
@@ -32,10 +31,9 @@ export function replacementResult(data: T.EngineReplacementData): T.ReplaceSeatR
  * @returns committed transaction or refusal.
  */
 export async function queueReplacement(journal: EngineJournal, request: T.ReplaceSeatRequest,
-  commit?: ActionCommit): Promise<T.ReplaceSeatResult> {
+): Promise<T.ReplaceSeatResult> {
   let result: T.ReplaceSeatResult = rejected('session-not-found', 'Old window is not active')
-  const write = commit ?? (async (build) => { await journal.commit(build) })
-  await write((view) => {
+  await journal.commit((view) => {
     const duplicate = [...view.replacements.values()].find(item => item.operationId === request.operationId)
     if (duplicate) {
       result = duplicate.oldSessionId === request.sessionId ? replacementResult(duplicate)

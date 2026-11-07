@@ -12,19 +12,16 @@ import { rejected } from './errors.ts'
  */
 export function seatFrozenIdentity(request: T.OpenFrozenSeatRequest | T.WakeFrozenSeatRequest,
   authority: T.SeatCallContext, method: 'seat.openFrozen' | 'seat.wakeFrozen'): T.NodeWorkChainAcceptedData | T.SeatRejected {
-  const data = authority.authorization?.fact
-  if (!data || data.kind !== 'node-delegation' || !data.sourceNodeId || data.nodeId !== authority.nodeId
-    || data.principalId !== authority.principalId || data.operationId !== request.request.operationId
-    || data.requestDigest !== digest(request) || request.route.originalOperationId !== data.operationId
-    || request.route.targetNodeId !== authority.nodeId
+  if (request.route.targetNodeId !== authority.nodeId
     || request.request.nodeId !== undefined && request.request.nodeId !== authority.nodeId) {
-    return rejected('unauthorized', 'Frozen admission requires authenticated sending-node attribution.', 'Use the original delegated request.')
+    return rejected('invalid-request', 'Frozen admission caller does not match the route.', 'Use the original request.')
   }
   return { capability: 'node-work-chain/v1', route: structuredClone(request.route),
     openingContext: structuredClone(request.openingContext), expectedSeatRevision: request.expectedSeatRevision,
-    authorizationRef: data.authorizationId, payloadDigest: data.requestDigest, trigger: null,
-    operationKey: { sourceNodeId: data.sourceNodeId, principalId: data.principalId, sourceId: request.route.sourceId,
-      ownerEpoch: request.route.ownerEpoch, operationId: data.operationId, method } }
+    payloadDigest: digest(request), trigger: null,
+    operationKey: { sourceNodeId: request.route.sourceOwnerNodeId, principalId: authority.principalId,
+      sourceId: request.route.sourceId, ownerEpoch: request.route.ownerEpoch,
+      operationId: request.request.operationId, method } }
 }
 
 /** Query original accepted intent rather than the mutable queue or operation-only legacy lookup.
@@ -35,20 +32,13 @@ export function seatFrozenIdentity(request: T.OpenFrozenSeatRequest | T.WakeFroz
  */
 export function querySeatFrozen(effects: readonly T.EngineEffect[], request: T.NodeWorkChainOperationRequest,
   authority: T.SeatCallContext): T.NodeWorkChainOperationResult {
-  const fact = authority.authorization?.fact
-  if (!fact || fact.kind !== 'node-delegation' || !fact.sourceNodeId || fact.sourceNodeId !== request.key.sourceNodeId
-    || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId
-    || authority.nodeId !== fact.nodeId) {
-    return rejected('unauthorized', 'Frozen query attribution does not match.', 'Use an authenticated query entry.')
+  if (authority.principalId !== request.key.principalId) {
+    return rejected('invalid-request', 'Frozen query caller does not match.', 'Use the original caller.')
   }
   for (const effect of effects) {
     if (effect.kind !== 'trigger/accepted' && effect.kind !== 'trigger/coalesced') continue
     const pending = effect.data.pending, chain = pending.frozenOpen?.nodeWorkChain
     if (!chain || digest(chain.operationKey) !== digest(request.key)) continue
-    if (fact.nodeId !== chain.route.targetNodeId || fact.seat !== pending.seat
-      || pending.relatedTaskIds.some(task => !fact.taskIds.includes(task))) {
-      return rejected('unauthorized', 'Frozen query attribution does not match.', 'Use an authenticated query entry.')
-    }
     if (chain.payloadDigest !== request.payloadDigest) {
       return rejected('operation-id-conflict', 'Frozen operation payload conflicts.', 'Use the original payload.')
     }

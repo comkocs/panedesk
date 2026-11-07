@@ -1,20 +1,17 @@
-/** Trusted attribution and atomic action admission remain opt-in to the engine journal. */
+/** Process-local authorization types retained for journal replay and cross-package references.
+ * No issuer, transaction, or grant is constructed here; old frames stay readable.
+ */
 import type { Branded } from '@panedesk/dsh-brand'
 import type { EngineDecisionId, EngineEffect } from './events.ts'
 import type {
   ApprovePendingSeatRequest, AuthorizationRef, PendingSeatMutationResult,
-  SeatAuthorizationFact, SeatAuthorizationKind, SeatAuthorizationQueryRequest,
-  SeatAuthorizationQueryResult, SeatDigest, SeatOperationId, SeatRejected,
+  SeatAuthorizationQueryRequest, SeatAuthorizationQueryResult, SeatDigest,
+  SeatEngineOperationResult, SeatIssuedAuthorizationFact, SeatIssuedAuthorizationKind,
+  SeatOperationId, SeatRejected,
 } from './types.ts'
 
-/** Plugin attribution is separate from the legacy closed vocabulary until reader negotiation. */
-export type SeatIssuedAuthorizationKind = SeatAuthorizationKind | 'plugin'
-/** Issued facts describe past authority, never credentials or reusable execution permission. */
-export interface SeatIssuedAuthorizationFact extends Omit<SeatAuthorizationFact, 'kind'> {
-  kind: SeatIssuedAuthorizationKind
-}
-
 declare const issuedAuthorization: unique symbol
+
 /** Only the trusted entry's issuer creates this process-local grant; JSON cannot restore it. */
 export interface SeatAuthorizationGrant {
   readonly [issuedAuthorization]: true
@@ -65,13 +62,6 @@ export interface SeatIssuedAuthorizationQueryRequest extends Omit<SeatAuthorizat
 /** Legacy records retain unknown attribution rather than acquiring guessed kinds. */
 export interface SeatIssuedAuthorizationQueryResult extends Omit<SeatAuthorizationQueryResult, 'facts'> {
   facts: readonly SeatIssuedAuthorizationFact[]
-}
-/** Approval registration and subsequent admission are separate durable observations. */
-export type SeatEngineOperationResult = import('./types.ts').SeatOperationResult & {
-  approval?: { queueItemId: import('./types.ts').QueueItemId; stateVersion: number }
-  progress?: { kind: 'pending'; reason: import('./types.ts').PendingReason; blockedBy: readonly string[] }
-    | { kind: 'open'; phase: import('./types.ts').OpenPhase; sessionId: import('@panedesk/dsh-session/types').SessionId }
-    | { kind: 'cancelled' }
 }
 /** Installed only with a compatible journal writer, replay validator and query projection. */
 export interface SeatAuthorizationTransactions {

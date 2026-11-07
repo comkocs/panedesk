@@ -171,14 +171,8 @@ export function frozenTerminal(view: FrozenHistory, item: FrozenItem): FrozenTer
 export function queryFrozenExecution(view: EngineProjection, request: T.NodeWorkChainOperationRequest,
   authority?: T.SeatCallContext): T.NodeWorkChainOperationResult {
   const item = frozenItems(view).find(item => digest(item.chain.operationKey) === digest(request.key))
-  if (authority) {
-    const fact = authority.authorization?.fact
-    if (!fact || fact.kind !== 'node-delegation' || fact.sourceNodeId !== request.key.sourceNodeId
-      || fact.principalId !== request.key.principalId || fact.principalId !== authority.principalId
-      || fact.nodeId !== authority.nodeId || item && (fact.nodeId !== item.nodeId || fact.seat !== item.pending.seat
-        || item.pending.relatedTaskIds.some(task => !fact.taskIds.includes(task)))) {
-      return rejected('unauthorized', 'Frozen query attribution does not match')
-    }
+  if (authority && authority.principalId !== request.key.principalId) {
+    return rejected('invalid-request', 'Frozen query does not match its caller')
   }
   const original = queryFrozen(view, request)
   if (original.status !== 'settled') return original

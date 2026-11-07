@@ -1,4 +1,4 @@
-/** Authorization-capable frames retain legacy effects without widening their closed vocabulary. */
+/** Legacy journal frames keep their original checksums; new decisions never carry authorization effects. */
 import { SEAT_AUTHORIZATION_CAPABILITY, SEAT_AUTHORIZATION_EVENT_NAME } from '@panedesk/dsh-seat'
 import type * as T from '@panedesk/dsh-seat'
 import { canonical, decodeFrame, digest, EngineError, frame } from './journal.ts'
@@ -60,7 +60,8 @@ export function legacyDecision(decision: AuthorizationDecision): T.EngineDecisio
     && effect.kind !== 'node-wake/updated')
   return frame({ ...body, effects })
 }
-/** Decode required authorization events before allowing any projection mutation.
+/** Decode previously written frames, including authorization effects, before replaying them.
+ * Reading retains every committed frame verbatim; nothing here issues or checks authority.
  * @param text - Complete frame bytes without newline.
  * @param maxBytes - Complete-frame bound.
  * @returns Verified expanded decision; old decodeFrame still refuses this discriminator.
@@ -94,26 +95,12 @@ export function decodeAuthorizationFrame(text: string, maxBytes: number): Author
       throw new EngineError('engine-store-corrupt', 'Invalid authorization attribution or capability')
     }
   }
-  for (const effect of decision.effects) {
-    if (effect.kind !== 'queue/cancelled' || !effect.data.cancellation) continue
-    const record = effect.data.cancellation
-    const authorization = decision.effects.find(item => item.kind === 'authorization/checked'
-      && item.data.authorizationId === record.authorizationId)
-    if (authorization?.kind !== 'authorization/checked' || authorization.data.decision !== 'allowed'
-      || authorization.data.operationId !== record.operationId || effect.operationId !== record.operationId
-      || authorization.data.principalId !== record.principalId || authorization.data.kind !== record.kind
-      || authorization.data.seat !== effect.data.pending.seat
-      || effect.data.pending.relatedTaskIds.some(task => !authorization.data.taskIds.includes(task))
-      || record.reasonPresent !== (record.reason !== undefined)) {
-      throw new EngineError('engine-store-corrupt', 'Cancellation attribution does not match its authorization')
-    }
-  }
   validateChainFrame(decision)
   validateBatchFrame(decision)
   validateSourceProxyFrame(decision)
   validateWakeFrame(decision)
   const legacy = legacyDecision(decision)
-  // A denied fact has no business effects; a synthetic validation effect checks only the header.
+  // A frame without legacy effects still validates its header through the original decoder.
   const { digest: _legacyDigest, byteLength: _legacyLength, ...legacyBody } = legacy
   const validation = legacy.effects.length ? legacy : frame({ ...legacyBody, effects: [{ kind: 'memory/audit',
     eventId: 'validation' as T.EngineEventId, data: { sessionId: 'validation' as T.EngineMemoryAuditData['sessionId'],

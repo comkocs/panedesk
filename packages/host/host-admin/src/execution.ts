@@ -17,10 +17,10 @@ export interface HostAdminExecutionDependencies {
   /** Optional source owner; omitted capabilities return method-unavailable. */
   readonly sourceOperator?: HostAdminSourceOperator
   readonly nodeId: Seat.SeatNodeId
-  readonly policy: HostAdminAuthorizationPolicy
-  readonly authorization: Seat.SeatAuthorizationTransactions
+  readonly policy?: HostAdminAuthorizationPolicy
+  readonly authorization?: Seat.SeatAuthorizationTransactions
   readonly engine: Seat.SeatEngineService
-  readonly queries: Seat.SeatAuthorizationQueries
+  readonly queries?: Seat.SeatAuthorizationQueries
   /** Optional local-to-peer rebuild; omitted peer retains the configured transport selection. Absence starts nothing. */
   readonly rebuildTransport?: (peerNodeId?: Seat.SeatNodeId) => Promise<{ status: 'rebuilt' | 'unavailable' }>
 }

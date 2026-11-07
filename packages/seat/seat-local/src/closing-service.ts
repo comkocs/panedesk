@@ -7,7 +7,6 @@ import { latestReport } from './report-store.ts'
 import { createCloseExecutor } from './close-executor.ts'
 import { readWindowStatus } from './status.ts'
 import { rejected } from './errors.ts'
-import { digest } from './store.ts'
 import { withdrawOrphanedOpening } from './orphaned-opening.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 
@@ -30,30 +29,19 @@ export class LocalCloser {
 
   /** Close under a durable barrier, preserving failed post-archive work for replay.
    * @param request - stable operation and observed window revision.
-   * @param report - optional exact self-report authorization.
-   * @param authorization - Optional issued grant; omission retains the legacy close path.
+   * @param report - optional exact self-report.
    * @returns flushed close, busy evidence or version conflict.
    */
-  close(request: T.CloseSeatRequest, report?: T.CloseSelfReport, authorization?: T.SeatAuthorizationGrant): Promise<T.CloseSeatResult> {
+  close(request: T.CloseSeatRequest, report?: T.CloseSelfReport): Promise<T.CloseSeatResult> {
     const previous = this.running.get(request.sessionId)
-    if (previous) return previous.then(() => this.close(request, report, authorization))
-    const work = this.run(request, report, authorization).finally(() => { this.running.delete(request.sessionId) })
+    if (previous) return previous.then(() => this.close(request, report))
+    const work = this.run(request, report).finally(() => { this.running.delete(request.sessionId) })
     this.running.set(request.sessionId, work)
     return work
   }
-  private async run(request: T.CloseSeatRequest, report?: T.CloseSelfReport,
-    authorization?: T.SeatAuthorizationGrant): Promise<T.CloseSeatResult> {
+  private async run(request: T.CloseSeatRequest, report?: T.CloseSelfReport): Promise<T.CloseSeatResult> {
     const engine = this.ctx.get('seatEngine')
     if (!engine) return rejected('unavailable', 'Close accounting is unavailable.', 'Restore the engine.')
-    const transactions = this.ctx.get('seatAuthorizationTransactions')
-    if (authorization && !transactions?.validate) return rejected('unavailable', 'Audited close is unavailable.', 'Restore authorization admission.')
-    const validate = async () => authorization && transactions?.validate ? transactions.validate({
-      operationId: request.operationId, requestDigest: digest(request),
-      ...(authorization.fact.callId ? { callId: authorization.fact.callId } : {}),
-      ...(authorization.fact.rootCallId ? { rootCallId: authorization.fact.rootCallId } : {}),
-    }, authorization) : null
-    const refusal = await validate()
-    if (refusal) return refusal
     if (!this.ctx.get('agents')?.get(request.sessionId)) {
       const effects = (await this.state.read()).effects
       const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured'
@@ -72,31 +60,15 @@ export class LocalCloser {
     if (initial.stateVersion === request.expectedStateVersion) {
       const effects = (await this.state.read()).effects
       const old = closingState(effects, request.sessionId)
-      const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured')
-        && effect.data.sessionId === request.sessionId)
-      const binding = opened?.kind === 'open/created' || opened?.kind === 'open/configured' ? opened.data.binding : undefined
-      const authorized = !authorization || binding?.kind === 'seat' && binding.seat === authorization.fact.seat
-        && binding.relatedTaskIds.every(task => authorization.fact.taskIds.includes(task))
       const busy = readWindowStatus(initial).busyReasons
-      if ((!old || old.barrierReleased) && authorized && busy.every(reason => reason.kind === 'inbox')
+      if ((!old || old.barrierReleased) && busy.every(reason => reason.kind === 'inbox')
         && await withdrawOrphanedOpening(this.ctx, this.state, request.sessionId)) {
         initial = await this.runtime.evidence(request.sessionId)
       }
     }
     const admitted = await this.state.mutate<T.EngineCloseData | T.CloseSeatResult>((effects) => {
-      if (authorization) {
-        const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured')
-          && effect.data.sessionId === request.sessionId)
-        const binding = opened?.kind === 'open/created' || opened?.kind === 'open/configured' ? opened.data.binding : undefined
-        if (binding?.kind !== 'seat' || binding.seat !== authorization.fact.seat
-          || binding.relatedTaskIds.some(task => !authorization.fact.taskIds.includes(task))) {
-          return { effects: [], result: rejected('unauthorized', 'Close attribution does not cover this window.', 'Refresh the entry authority.') }
-        }
-      }
       const old = closingState(effects, request.sessionId)
       if (old?.phase === 'closed') return { effects: [], result: old }
-      if (authorization && old && !old.barrierReleased) return { effects: [], result:
-        rejected('state-conflict', 'An admitted close requires local recovery.', 'Reconcile the original close before retrying.') }
       if (old && !old.barrierReleased) return { effects: [], result: old.operationId === request.operationId ? old
         : rejected('state-conflict', 'Another close owns this window.', 'Resume the original close.') }
       const busyReasons = readWindowStatus(initial).busyReasons
@@ -135,7 +107,7 @@ export class LocalCloser {
           && effect.data.sessionId === request.sessionId) ? 'revoked' : 'not-submitted' }
       return { result: data, effects: [localFact({ kind: 'window/closing', operationId: request.operationId,
         sessionId: request.sessionId, data })] }
-    }, authorization && transactions ? { transactions, grant: authorization, request } : undefined)
+    })
     if ('status' in admitted) return admitted
     if (admitted.phase === 'closed' && admitted.endedAt) return { status: 'closed', sessionId: request.sessionId,
       phase: 'closed', endedAt: admitted.endedAt, stateVersion: admitted.stateVersion }
@@ -146,8 +118,6 @@ export class LocalCloser {
         data: { ...closing, barrierReleased: true } })] }))
     }
     try {
-      const revoked = await validate()
-      if (revoked) { await release(); return revoked }
       if (admitted.detail === 'approval-pending-cancelled'
         && !this.ctx.get('workspaceRegistry')?.archivedSessionIds.includes(request.sessionId)) {
         const beforeCancel = await this.runtime.evidence(request.sessionId)
@@ -178,8 +148,6 @@ export class LocalCloser {
           await release()
           return { status: 'busy', sessionId: request.sessionId, busyReasons: remaining }
         }
-        const revokedAfterCancel = await validate()
-        if (revokedAfterCancel) { await release(); return revokedAfterCancel }
         await this.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'window/closing',
           operationId: request.operationId, sessionId: request.sessionId, data: closing })] }))
       }

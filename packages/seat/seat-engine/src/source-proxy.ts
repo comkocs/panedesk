@@ -70,18 +70,14 @@ export class SourceProxy {
       ...(sourceEvent ? { sourceEvent } : {}) })
     if ('status' in prepared) return prepared
     const { payload, original } = prepared, operationId = payload.route.originalOperationId
-    if (authority && (original !== authority.authorization || authority.principalId !== original.fact.principalId
-      || authority.nodeId !== this.engine.options.nodeId)) return rejected('unauthorized', 'Source authority differs from the local entry')
+    if (authority && (authority.principalId !== original.fact.principalId
+      || authority.nodeId !== this.engine.options.nodeId)) return rejected('invalid-request', 'Source caller differs from the local entry')
     const record = { method, input, inputDigest, targetNodeId, payload, payloadDigest: digest(payload), original: original.fact,
       operationKey: { sourceNodeId: this.engine.options.nodeId, principalId: original.fact.principalId,
         sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method, operationId },
       outcome: { status: 'unknown' as const } } as SourceProxyRecord
     try {
       await this.engine.journal.commitAuthorization(() => {
-        const fact = this.engine.authorizationIssuers.verify(original, { operationId, requestDigest: inputDigest,
-          ...(original.fact.callId ? { callId: original.fact.callId } : {}),
-          ...(original.fact.rootCallId ? { rootCallId: original.fact.rootCallId } : {}) }, this.engine.options.nodeId)
-        if (fact.kind === 'node-delegation' || fact.decision !== 'allowed') throw new EngineError('unauthorized', 'Source authority cannot delegate')
         return [{ kind: 'node-source/updated', eventId: randomUUID() as T.EngineEventId, operationId, seat: input.seat, data: record }]
       })
     } catch (error) {

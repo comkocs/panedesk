@@ -14,7 +14,7 @@ export interface NodeBatchEffect extends T.EngineEffectBase {
     sourceNodeId: T.SeatNodeId
     principalId: T.SeatPrincipalId
     seat: T.SeatName
-    authorizationRef: T.AuthorizationRef
+    authorizationRef?: T.AuthorizationRef
     actionDigest: T.SeatDigest
   }
 }
@@ -62,13 +62,13 @@ export function queryBatchMember(view: EngineProjection, request: T.OpenSeatBatc
  * @param input - Locally frozen member input.
  * @param request - Original authorized batch.
  * @param sourceNodeId - Authenticated sending node.
- * @param authorization - Verified original wire attribution.
+ * @param principalId - Captured receiving principal.
  * @param recheckRequired - Whether queued dispatch requires the registered execution policy.
  * @returns Bound action and original acknowledgement in a single decision.
  */
 export function batchMemberEffects(view: EngineProjection, input: T.SeatLocalOpenRequest,
   request: T.OpenSeatBatchRequest, sourceNodeId: T.SeatNodeId,
-  authorization: T.SeatIssuedAuthorizationFact, recheckRequired: boolean): AuthorizationDecision['effects'] {
+  principalId: T.SeatPrincipalId, recheckRequired: boolean): AuthorizationDecision['effects'] {
   const operationId = input.request.operationId, sourceId = 'seat-local-manual' as T.SeatSourceId
   const triggerId = operationId as string as T.TriggerId, now = new Date().toISOString()
   const data = JSON.parse(JSON.stringify({ request: input.request, definition: input.definition,
@@ -86,8 +86,8 @@ export function batchMemberEffects(view: EngineProjection, input: T.SeatLocalOpe
     trigger, pending, originalTriggerId: null, deduplication: { key: digest(['node-batch', operationId]),
       digest: digest(data), receivedAt: now, bucket: null, sourceId, eventId: trigger.eventId ?? null } } }),
   { kind: 'node-batch/accepted', eventId: randomUUID() as T.EngineEventId, operationId, seat: input.request.seat,
-    data: { request: structuredClone(request), sourceNodeId, principalId: authorization.principalId,
-      seat: input.request.seat, authorizationRef: authorization.authorizationId, actionDigest: digest(input.request) } }]
+    data: { request: structuredClone(request), sourceNodeId, principalId,
+      seat: input.request.seat, actionDigest: digest(input.request) } }]
 }
 
 /** Validate original wire attribution and the unique derived action during write and replay.
@@ -108,18 +108,19 @@ export function validateBatchFrame(decision: AuthorizationDecision): void {
       || binding.seat !== data.seat || binding.operationId !== batchMemberId(request, data.sourceNodeId, data.principalId, data.seat)) {
       throw new EngineError('engine-store-corrupt', 'Invalid batch member identity')
     }
-    const authorization = decision.effects.find(effect => effect.kind === 'authorization/checked'
-      && effect.data.authorizationId === data.authorizationRef)
+    const authorization = data.authorizationRef === undefined ? undefined
+      : decision.effects.find(effect => effect.kind === 'authorization/checked'
+        && effect.data.authorizationId === data.authorizationRef)
     const intent = decision.effects.find(effect => effect.kind === 'trigger/accepted' && effect.operationId === binding.operationId)
     const action: T.OpenSeatRequest = { seat: data.seat,
       operationId: batchMemberId(request, data.sourceNodeId, data.principalId, data.seat), origin: request.origin,
       ...(request.openingMode === undefined ? {} : { openingMode: request.openingMode }),
       ...(request.nodeId === undefined ? {} : { nodeId: request.nodeId }) }
-    if (authorization?.kind !== 'authorization/checked' || authorization.data.kind !== 'node-delegation'
+    if (data.authorizationRef !== undefined && (authorization?.kind !== 'authorization/checked' || authorization.data.kind !== 'node-delegation'
       || authorization.data.decision !== 'allowed' || authorization.data.principalId !== data.principalId
       || authorization.data.operationId !== request.operationId || authorization.data.requestDigest !== digest(request)
       || authorization.data.seat !== undefined && authorization.data.seat !== data.seat
-      || authorization.data.sourceNodeId !== undefined && authorization.data.sourceNodeId !== data.sourceNodeId
+      || authorization.data.sourceNodeId !== undefined && authorization.data.sourceNodeId !== data.sourceNodeId)
       || digest(action) !== data.actionDigest || intent?.kind !== 'trigger/accepted'
       || intent.seat !== data.seat || intent.data.trigger.evidence.kind !== 'manual'
       || intent.data.trigger.evidence.operationId !== action.operationId

@@ -48,12 +48,11 @@ export type HostAdminCallbackResolveRequest = Seat.CallbackResolveRequest
 export type HostAdminCallbackResolveResult = Seat.CallbackResolveResult
 /** Optional running-engine capability; absence refuses the administrative write. */
 export interface HostAdminCallbackResolver {
-  /** Resolve using the engine's current local-operator grant.
+  /** Resolve one paused callback.
    * @param request - Frozen callback action and expected attempt.
-   * @param grant - Exact request authority issued by this engine.
    * @returns Current delivery state or a fixed refusal.
    */
-  callbackResolve(request: HostAdminCallbackResolveRequest, grant: Seat.SeatAuthorizationGrant): Promise<HostAdminCallbackResolveResult>
+  callbackResolve(request: HostAdminCallbackResolveRequest): Promise<HostAdminCallbackResolveResult>
 }
 /** Effect and authorization scans have independent exclusive cursors. */
 export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {

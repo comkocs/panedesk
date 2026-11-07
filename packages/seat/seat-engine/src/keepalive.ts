@@ -4,7 +4,6 @@ import type { CacheRemaining, CacheRenewResult } from '@panedesk/dsh-llm-cache'
 import type * as T from '@panedesk/dsh-seat'
 import { EngineJournal, digest } from './journal.ts'
 import { fact } from './triggers.ts'
-import type { ActionCommit } from './authorized-commit.ts'
 
 /** Runtime evidence remains optional; absence forbids speculative maintenance. */
 export interface KeepAliveRuntime {
@@ -69,13 +68,12 @@ export class KeepAliveScheduler {
    * @returns terminal evidence; an interrupted attempt is uncertain and never replayed.
    */
   async renew(sessionId: SessionId, operationId: T.SeatOperationId, source: 'auto' | 'manual',
-    evidenceAt: number | null, dueAt: number | null, now = Date.now(), commit?: ActionCommit): Promise<T.EngineKeepAliveData> {
+    evidenceAt: number | null, dueAt: number | null, now = Date.now()): Promise<T.EngineKeepAliveData> {
     const key = JSON.stringify([sessionId, operationId])
     let previous: T.EngineKeepAliveData | undefined
     const attempt: T.EngineKeepAliveData = { sessionId, operationId, source, phase: 'attempted', reason: null,
       evidenceAt, dueAt, observedAt: new Date(now).toISOString() }
-    const write = commit ?? (async (build) => { await this.journal.commit(build) })
-    await write((view) => {
+    await this.journal.commit((view) => {
       previous = view.renewals.get(key)
       return previous ? [] : [fact({ kind: 'cache/keepalive', sessionId, data: attempt })]
     })
