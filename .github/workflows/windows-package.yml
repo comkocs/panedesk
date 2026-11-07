@@ -66,14 +66,17 @@ jobs:
           exit $LASTEXITCODE
       - name: Prepare Windows native toolchain
         working-directory: native/system
-        run: ./scripts/prepare-windows-build.ps1
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'prepare.log'
+          try { ./scripts/prepare-windows-build.ps1 *>&1 | Tee-Object -FilePath $log }
+          catch { $_ | Out-String | Add-Content -Path $log; throw }
       - name: Check unsigned packaging configuration and toolchain
         run: |
-          pnpm run package:desktop:win:x64:unsigned -- --check
+          pnpm run package:desktop:win:x64:unsigned -- --check *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'check.log')
           exit $LASTEXITCODE
       - name: Build unsigned installer and smoke the packaged runtime
         run: |
-          pnpm run package:desktop:win:x64:unsigned
+          pnpm run package:desktop:win:x64:unsigned *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'package.log')
           exit $LASTEXITCODE
       - name: Upload unsigned installer and smoke logs
         if: always()
@@ -86,3 +89,13 @@ jobs:
             apps/desktop/.desktop-build/packaging-runs/**
           if-no-files-found: warn
           retention-days: 3
+      - name: Report failed step output
+        if: failure()
+        run: |
+          foreach ($name in 'prepare', 'check', 'package') {
+            $log = Join-Path $env:RUNNER_TEMP "$name.log"
+            if (!(Test-Path $log)) { continue }
+            $tail = (Get-Content -Path $log -Tail 60) -join "`n"
+            Write-Output ("::error title=$name output::" + $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
+            @("### $name output (last 60 lines)", '```text', $tail, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
