@@ -31,7 +31,7 @@ it('rejects model approval reply tools and text through the shipped headless CLI
     const { stdout } = await running
     expect(stdout).toBe('HEADLESS_APPROVAL_ATTEMPTS_FINISHED\n')
     const evidence: unknown = JSON.parse(readFileSync(join(home, 'approval-evidence.json'), 'utf8'))
-    expect(evidence).toMatchObject({ records: [], additions: [] })
+    expect(evidence).toMatchObject({ additions: [] })
     expect(evidence).not.toHaveProperty('pending')
     if (!isRecord(evidence) || !Array.isArray(evidence['events'])) throw new Error('Missing event evidence')
     const events: unknown[] = evidence['events']
@@ -50,7 +50,7 @@ it('rejects model approval reply tools and text through the shipped headless CLI
     } })
     const approvals = events.filter(event => isRecord(event) && ['approval/asked', 'approval/decided'].includes(String(event['type'])))
     expect(approvals).toEqual([])
-    expect(JSON.stringify(results[3])).toContain('Settings > General > Windows workspace write access')
+    expect(JSON.stringify(results[3])).not.toContain('Settings > General > Windows workspace write access')
     expect(existsSync(join(cwd, 'forbidden.txt'))).toBe(false)
   } finally {
     rmSync(cwd, { recursive: true, force: true })

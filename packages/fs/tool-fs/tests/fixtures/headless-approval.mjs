@@ -51,7 +51,6 @@ export function apply(ctx) {
       pending = {
         asked: subject.snapshotEvents().filter(item => item.type === 'approval/asked').length,
         decided: subject.snapshotEvents().filter(item => item.type === 'approval/decided').length,
-        records: scope.sandboxPolicy.workspaceAccess.list(),
         additions: [...additions],
       }
     })
@@ -59,7 +58,7 @@ export function apply(ctx) {
     scope.effect(() => () => {
       const events = session?.snapshotEvents() ?? []
       writeFileSync(join(process.env.PANEDESK_HOME, 'approval-evidence.json'), JSON.stringify({
-        pending, records: scope.sandboxPolicy.workspaceAccess.list(), additions,
+        pending, additions,
         events: events.filter(event => ['tool/call', 'tool/result', 'approval/asked', 'approval/decided'].includes(event.type)),
       }))
     })

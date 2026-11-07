@@ -331,12 +331,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
   const { requireRuntime, peekRuntime, maxParallel, shapeDispatchLog } = options
   const stateOwners = new WeakMap<object, WeakSet<PtcRuntime>>()
   const calls = new PtcCalls(ctx)
-  const denialGuidance = (sandbox: PtcRunSandbox, runtime: PtcRuntime | undefined): string => {
-    const hint = ctx.get('sandboxPolicy')?.writeDenialHint(sandbox.mode)
-    return hint === undefined ? escalationGuidance(runtime)
-      : ` ${hint} Earlier effects may already have completed: inspect them before explicitly retrying.`
-        + ' Programs are never replayed automatically.'
-  }
+  const denialGuidance = (_sandbox: PtcRunSandbox, runtime: PtcRuntime | undefined): string => escalationGuidance(runtime)
   const definition = defineTool({
     name: RUN_CODE_NAME,
     // The description and `code` parameter description are placeholders here:

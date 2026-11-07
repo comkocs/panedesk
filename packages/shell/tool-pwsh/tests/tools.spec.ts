@@ -30,7 +30,7 @@ import { ShellExecutor } from '@panedesk/dsh-shell'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellProcess, ShellRunResult } from '@panedesk/dsh-shell'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
-import SandboxPolicyService, { resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import { escalationHintMarker, sandboxDenialMarker } from '@panedesk/dsh-sandbox'
 import * as ToolPwsh from '@panedesk/dsh-tool-pwsh'
 import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
@@ -595,8 +595,6 @@ describe('per-call sandbox policy resolution', () => {
       mode: 'read-only',
       workspaceRoot: sessionCwd,
       sessionId: 'policy-session',
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: resolveOwnerMaterialPaths(ctx),
     })
   })
 
@@ -606,8 +604,6 @@ describe('per-call sandbox policy resolution', () => {
     expect(bash.requests[0]?.sandboxPolicy).toEqual({
       mode: 'read-only',
       workspaceRoot: process.cwd(),
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: resolveOwnerMaterialPaths(ctx),
     })
 
     // The base FakeBash advertises no sandboxMode, so the tool must not stamp
@@ -1228,44 +1224,6 @@ describe('processOutcome', () => {
   })
 })
 
-
-describe('Windows default denial guidance', () => {
-  it.each([false, true])('retains owner preauthorization guidance for background=%s without approving or retrying', async (background) => {
-    const home = mkdtempSync(join(import.meta.dirname, '.windows-denial-'))
-    vi.stubEnv('PANEDESK_HOME', home)
-    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
-    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    let ctx: Context | undefined
-    try {
-      const setup = await setupSandboxed(true, true)
-      ctx = setup.ctx
-      platform.mockRestore()
-      const sandbox = { mode: 'read-only', denied: true } as const
-      const execute = vi.spyOn(setup.bash, 'execute').mockImplementation(async () => ({
-        ...fakeProcess(''), exitCode: 1, sandbox,
-        result: async () => runResult('', { exitCode: 1, sandbox }),
-      }))
-      const approve = vi.spyOn(ctx.approval, 'request')
-      const result = await call(ctx, 'pwsh', { command: 'write denied', description: 'Attempt workspace write', run_in_background: background })
-      const output = background
-        ? text(await call(ctx, 'job_output', { job_id: currentId(ctx), wait: true }))
-        : text(result)
-      expect(output).toContain('Windows defaults to read-only.')
-      expect(output).toContain('Settings > General > Windows workspace write access.')
-      expect(output).toContain('Unattended tasks cannot grant this access.')
-      expect(output).toContain('An explicit read-only session choice still applies after preauthorization.')
-      expect(output).not.toContain('escalation available')
-      expect(execute).toHaveBeenCalledOnce()
-      expect(approve).not.toHaveBeenCalled()
-      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
-    } finally {
-      await ctx?.fiber.dispose()
-      vi.restoreAllMocks()
-      vi.unstubAllEnvs()
-      rmSync(home, { recursive: true, force: true })
-    }
-  })
-})
 
 describe('resolved launch directory metadata', () => {
   it.each([

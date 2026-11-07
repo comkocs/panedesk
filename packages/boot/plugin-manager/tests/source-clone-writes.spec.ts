@@ -66,10 +66,8 @@ for (const implicit of [false, true]) for (const entry of ['write', 'bash', 'run
     agent.session.append('turn/start', { turn: 1 })
     const answer = vi.fn(async () => 'allowed-once' as const)
     await ownerAnswer(host, answer)
-    if (implicit) {
-      expect((await host.sandboxPolicy.requestWrite({ agent, toolName: entry })).mode).toBe('workspace-write')
-      expect(answer).toHaveBeenCalledOnce()
-    }
+    expect(host.sandboxPolicy.resolve({ session: agent.session }).mode).toBe('workspace-write')
+    expect(answer).not.toHaveBeenCalled()
     const recompose = vi.spyOn(host.hmr, 'reconcileProfile')
     const rows = [...host.loader.entries()].map(row => row.options)
     if (entry === 'write') {

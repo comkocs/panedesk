@@ -1,6 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
-import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -24,7 +23,6 @@ import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import { escalationHintMarker, sandboxDenialMarker } from '@panedesk/dsh-sandbox'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import * as ToolBash from '@panedesk/dsh-tool-bash'
-import * as ToolPwsh from '@panedesk/dsh-tool-pwsh'
 import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
 import { processOutcome } from '../src/background.ts'
 import { renderJobRead, renderResult } from '../src/render.ts'
@@ -255,55 +253,6 @@ function sandboxAgent(
     },
   } as unknown as Agent
 }
-
-describe('first workspace confirmation for shell tools', () => {
-  it.each([
-    ['bash', false], ['bash', true], ['pwsh', false], ['pwsh', true],
-  ] as const)('confirms %s before starting with background=%s', async (name, background) => {
-    const home = mkdtempSync(join(tmpdir(), 'shell-first-write-'))
-    vi.stubEnv('PANEDESK_HOME', home)
-    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
-    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    let context: Context | undefined
-    try {
-      const { ctx, bash } = await setupSandboxed(true, true)
-      context = ctx
-      platform.mockRestore()
-      await ctx.plugin(ToolPwsh)
-      const owner = sandboxAgent(undefined, ctx)
-      await ctx.agents.register(owner)
-      const answer = Promise.withResolvers<ApprovalOutcome>()
-      const listener = vi.fn(() => answer.promise)
-      await ownerAnswer(ctx, listener)
-      const running = call(ctx, name, { command: 'test-only command', description: 'Confirm workspace access', run_in_background: background }, owner)
-      await vi.waitFor(() => { expect(listener).toHaveBeenCalledOnce() })
-      expect(bash.modes).toEqual([])
-      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
-      answer.resolve('allowed-once')
-      const result = await running
-      expect(result.isError, text(result)).toBe(false)
-      await vi.waitFor(() => { expect(bash.modes).toEqual(['workspace-write']) })
-      expect(ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([{ source: 'first-confirmation' }])
-      const workspace = ctx.sandboxPolicy.resolve({ session: owner.session }).workspaceRoot
-      await ctx.sandboxPolicy.workspaceAccess.revoke(workspace, () => {})
-      expect(ctx.sandboxPolicy.resolve({ session: owner.session }).mode).toBe('read-only')
-      listener.mockResolvedValue('rejected')
-      const denied = await call(ctx, name, {
-        command: 'test-only next command', description: 'Attempt after revocation', run_in_background: background,
-      }, owner)
-      expect(denied.isError).toBe(true)
-      expect(text(denied)).toContain('access remains read-only')
-      expect(listener).toHaveBeenCalledTimes(2)
-      expect(bash.modes).toEqual(['workspace-write'])
-      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
-    } finally {
-      await context?.fiber.dispose()
-      platform.mockRestore()
-      vi.unstubAllEnvs()
-      rmSync(home, { recursive: true, force: true })
-    }
-  })
-})
 
 describe('bash tool', () => {
   it('returns stdout for a successful command', async () => {
@@ -1330,48 +1279,6 @@ describe('tool-owned UI presentation (presentCall / presentResult)', () => {
     // `defineTool` soft-validates replayed logged args before presentation. Invalid shapes return
     // undefined for generic UI rendering rather than throwing; `presentCall` accepts `unknown`.
     expect(ctx.tools.get('bash')?.presentCall?.({ command: 'ls' })).toBeUndefined()
-  })
-})
-
-describe('Windows default denial guidance', () => {
-  it.each([false, true])('retains owner preauthorization guidance for background=%s without approving or retrying', async (background) => {
-    const home = mkdtempSync(join(import.meta.dirname, '.windows-denial-'))
-    vi.stubEnv('PANEDESK_HOME', home)
-    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
-    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    let ctx: Context | undefined
-    try {
-      const setup = await setupSandboxed(true, true)
-      ctx = setup.ctx
-      platform.mockRestore()
-      const sandbox = { mode: 'read-only', denied: true } as const
-      const execute = vi.spyOn(setup.bash, 'execute').mockImplementation(async () => fakeExecution({
-        status: 'completed', exitCode: 1, signal: null, done: Promise.resolve(), sandbox,
-        readOutput: () => ({ delta: '', lossy: false }),
-        observed: { stdout: silentReader, stderr: silentReader }, kill: () => false,
-      }, async () => ({
-        exitCode: 1, signal: null, timedOut: false, aborted: false, timeoutMs: 1000,
-        stdout: { text: '', truncated: false }, stderr: { text: '', truncated: false }, sandbox,
-      })))
-      const approve = vi.spyOn(ctx.approval, 'request')
-      const result = await call(ctx, 'bash', { command: 'write denied', description: 'Attempt workspace write', run_in_background: background })
-      const output = background
-        ? text(await call(ctx, 'job_output', { job_id: currentId(ctx), wait: true }))
-        : text(result)
-      expect(output).toContain('Windows defaults to read-only.')
-      expect(output).toContain('Settings > General > Windows workspace write access.')
-      expect(output).toContain('Unattended tasks cannot grant this access.')
-      expect(output).toContain('An explicit read-only session choice still applies after preauthorization.')
-      expect(output).not.toContain('escalation available')
-      expect(execute).toHaveBeenCalledOnce()
-      expect(approve).not.toHaveBeenCalled()
-      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
-    } finally {
-      await ctx?.fiber.dispose()
-      vi.restoreAllMocks()
-      vi.unstubAllEnvs()
-      rmSync(home, { recursive: true, force: true })
-    }
   })
 })
 

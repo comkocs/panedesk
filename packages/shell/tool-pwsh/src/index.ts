@@ -223,7 +223,6 @@ export function apply(ctx: Context, config: Config = {}): void {
     throw new Error('tool-pwsh: the mounted bash executor confines but ctx.sandboxPolicy is missing')
   }
   /* jscpd:ignore-end */
-  const readOnlyHint = sandboxPolicy?.writeDenialHint('read-only')
   /** Resolve the complete standing policy for this call when a confining executor is mounted. */
   const resolveSandboxPolicy = (exec: ToolExecution): SandboxExecutionPolicy | undefined =>
     sandboxPolicy?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
@@ -296,7 +295,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               proc = await ctx.shell.execute({ ...spec, signal })
               return proc
             },
-            started => processOutcome(started, escalationModes, readOnlyHint),
+            started => processOutcome(started, escalationModes),
           )
           return {
             done: hooks.done,
@@ -367,7 +366,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           timeoutMs,
           output: renderPwshJobRead(
             ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [],
-            attached.process()?.sandbox, escalationModes, readOnlyHint,
+            attached.process()?.sandbox, escalationModes,
           ),
         }
       }
@@ -498,7 +497,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             ? `started background job ${value.jobId}`
             : value.kind === 'promoted'
               ? renderPwshPromoted(value)
-              : renderPwshResult(value as RenderablePwshResult, escalationModes, readOnlyHint),
+              : renderPwshResult(value as RenderablePwshResult, escalationModes),
         }],
         presentationMeta: (_args, value) => ({ cwd: value.cwd }),
       },
@@ -506,9 +505,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       async execute(args: PwshToolArgs, exec) {
         validatePwshArgs(args)
         // Description is display metadata; workdir defaults to the caller's session.
-        const standingPolicy = args.sandbox_permissions === undefined
-          ? await sandboxPolicy?.requestWrite({ ...exec.agent === undefined ? {} : { agent: exec.agent }, toolName: 'pwsh', callId: exec.callId, signal: exec.signal })
-          : resolveSandboxPolicy(exec)
+        const standingPolicy = resolveSandboxPolicy(exec)
         const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
           ? await approvePwshEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
           : undefined

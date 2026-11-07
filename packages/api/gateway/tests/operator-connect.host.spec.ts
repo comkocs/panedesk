@@ -37,11 +37,6 @@ import OperatorConnectFixture from './operator-connect-fixture.ts'
 
 vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
-vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
-  const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
-  return { ...actual, assertWindowsStateTrusted: vi.fn() }
-})
-
 interface SocketClient {
   readonly socket: WebSocket
   readonly closed: Promise<void>
@@ -87,7 +82,7 @@ describe('operator connect through Loader composition', () => {
   it.each([
     ['product-sandbox', false], ['unknown', false], ['product-sandbox', true], ['unknown', true],
   ] as const)('rejects %s at all owner entries through the production adapter (TLS=%s)', async (source, tls) => {
-    const host = await boot(true, true, tls)
+    const host = await boot(true, tls)
     host.ctx.connectionSources.register(process.platform, () => source)
     const cookie = host.ctx.connection.desktopCookie(host.origin)
     const reason = source === 'product-sandbox'
@@ -96,13 +91,11 @@ describe('operator connect through Loader composition', () => {
     const install = vi.spyOn(packageOperations, 'runProfilePnpm')
     for (const [endpoint, args] of [
       ['$events/result', { clientId: 'synthetic-client', eventId: 'synthetic-event', outcome: { kind: 'result', value: 'allowed' } }],
-      ['permissionPresets/authorizeWorkspaceWrite', { workspace: host.workspace }],
       ['pluginManager/installBundle', { spec: 'synthetic-bundle' }],
     ] as const) {
       expect(await rpc(host, cookie, endpoint, args)).toEqual({ status: 403, body: reason })
     }
     expect(install).not.toHaveBeenCalled()
-    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
     expect(host.fixture.effects.size).toBe(0)
     for (const target of [host.ctx.connection.authenticatedUrl(host.origin), `${host.origin}/connect`]) {
       const response = await transportFetch(host, target, { redirect: 'manual', headers: { cookie } })
@@ -114,7 +107,7 @@ describe('operator connect through Loader composition', () => {
   })
 
   it.each([false, true])('admits non-product owner exchange and event delivery (TLS=%s)', async (tls) => {
-    const host = await boot(true, true, tls)
+    const host = await boot(true, tls)
     host.ctx.connectionSources.register(process.platform, () => 'non-product')
     const browser = await exchange(host, 'html')
     const api = await exchange(host, 'answer')
@@ -133,7 +126,6 @@ describe('operator connect through Loader composition', () => {
 
   it.each([
     ['$events/result', { clientId: 'synthetic-client', eventId: 'synthetic-event', outcome: { kind: 'result', value: 'allowed' } }],
-    ['permissionPresets/authorizeWorkspaceWrite', { workspace: 'synthetic-workspace' }],
     ['pluginManager/installBundle', { spec: 'synthetic-bundle' }],
   ] as const)('rejects a forged browser cookie before dispatching %s', async (endpoint, args) => {
     const host = await boot()
@@ -150,7 +142,7 @@ describe('operator connect through Loader composition', () => {
   })
 
   it.each([false, true])('installs a disabled bundle only for the authenticated non-product owner (TLS=%s)', async (tls) => {
-    const host = await boot(false, true, tls)
+    const host = await boot(true, tls)
     host.ctx.connectionSources.register(process.platform, () => 'non-product')
     const dir = host.ctx.profileContext.dir
     const manifestPath = join(dir, 'package.json')
@@ -188,32 +180,6 @@ describe('operator connect through Loader composition', () => {
     expect(install).toHaveBeenCalledOnce()
     expect(readProfileManifest('fixture', dir).dependencies?.['synthetic-owner-bundle']).toBe('1.0.0')
     expect((await host.ctx.pluginManager.listBundles()).find(bundle => bundle.name === 'synthetic-owner-bundle')?.enabled).toBe(false)
-  })
-
-  it.each([false, true])('records workspace authorization only for the authenticated non-product owner (TLS=%s)', async (tls) => {
-    const host = await boot(true, false, tls)
-    host.ctx.connectionSources.register(process.platform, () => 'non-product')
-    if (process.platform !== 'win32') host.ctx.connectionSources.register('win32', () => 'non-product')
-    const cookie = await exchange(host, 'html')
-    const separator = cookie.indexOf('=')
-    const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
-      version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
-    })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
-    const changes: boolean[] = []
-    host.ctx.on('permission-presets/workspace-write-changed', () => {
-      changes.push(host.ctx.sandboxPolicy.workspaceAccess.isAuthorized(host.workspace))
-    })
-    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    const args = { workspace: host.workspace }
-    expect(await rpc(host, forged, 'permissionPresets/authorizeWorkspaceWrite', args))
-      .toEqual({ status: 401, body: authAdmissionBody(401) })
-    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
-    expect(changes).toEqual([])
-    await success(host, cookie, 'permissionPresets/authorizeWorkspaceWrite', args)
-    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([
-      { workspace: host.workspace, source: 'settings-preauthorization' },
-    ])
-    expect(changes).toEqual([true])
   })
 
   it('admits HTTP before attachment and releases the Operator before slow stream cleanup', async () => {
@@ -366,7 +332,7 @@ describe('operator connect through Loader composition', () => {
 
 })
 
-async function boot(workspaceAccess = false, pluginManagement = false, tls = false, heartbeatIntervalMs?: number): Promise<Host> {
+async function boot(pluginManagement = false, tls = false, heartbeatIntervalMs?: number): Promise<Host> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-operator-connect-'))
   roots.push(root)
   const workspace = join(root, 'workspace')
@@ -394,14 +360,6 @@ async function boot(workspaceAccess = false, pluginManagement = false, tls = fal
     { name: '@panedesk/dsh-session-projection' },
     { name: '@panedesk/dsh-sandbox-policy', config: { workspaceRoot: workspace, mode: 'read-only' } },
     { name: '@panedesk/dsh-fs-sandbox', config: { cwd: workspace } },
-    ...workspaceAccess ? [
-      { name: '@panedesk/dsh-session' },
-      { name: '@fixture/workspace-capabilities' },
-      { name: '@panedesk/dsh-permission-presets', config: { presets: {
-        'read-only': { sandbox: 'read-only', approval: 'ask' },
-        'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
-      } } },
-    ] : [],
   ]
   await writeFile(configPath, rows.map(row => `- ${JSON.stringify({ ...row, name: `cordis:${row.name}` })}`).join('\n') + '\n')
   const ctx = new Context()
@@ -432,12 +390,6 @@ async function boot(workspaceAccess = false, pluginManagement = false, tls = fal
       '@panedesk/dsh-fs-sandbox': SandboxedFileSystem,
       '@panedesk/dsh-permission-presets': PermissionPresetService,
       '@panedesk/dsh-plugin-manager': PluginManager,
-      '@fixture/workspace-capabilities': { apply(scope: Context) {
-        scope.provide('shell', { sandboxMode: 'read-only' })
-        scope.provide('approval', { config: { policy: 'ask' } })
-        scope.provide('sandbox', { supportsWorkspaceWriteAccess: true,
-          hasWorkspaceWriteGrant: () => false, revokeWorkspaceWriteGrant: () => {} })
-      } },
     })
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await ctx.loader.await()
