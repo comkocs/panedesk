@@ -160,7 +160,20 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
     }
   }
   if (requested !== 'default' && requested !== 'auto') return unsupported()
-  return { metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} }, ...accounting, options: {} }
+  const sessionKey = model.api === 'anthropic-messages' ? request.cache.key ?? request.sessionId : undefined
+  return {
+    metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} },
+    ...accounting,
+    options: sessionKey === undefined ? {} : {
+      onPayload: (payload) => {
+        const body = payloadRecord(payload)
+        if (body === undefined) throw new LlmError('Expected an Anthropic request payload', 'INVALID_CONFIG')
+        const existing = payloadRecord(body.metadata)
+        body.metadata = { ...existing, user_id: sessionKey }
+        return body
+      },
+    },
+  }
 }
 
 function payloadRecord(value: unknown): Record<string, unknown> | undefined {
