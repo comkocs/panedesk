@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * ui-permission browser half on a real cordis Context with fake command/
  * sessions faces: the plugin hangs the /permission popup decoration on the
@@ -7,8 +8,12 @@
  * disposal removes the contribution (HMR safety). The same plugin registers
  * its Settings row and invalidates that row on host settings changes.
  */
+import { createElement } from 'react'
 import { Context } from '@panedesk/cordis'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import { bindSnapshotSelector, makeTranslate } from '@panedesk/dsh-client-test-runtime'
 import { SlotRegistry } from '@panedesk/dsh-client-ui-renderer/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
@@ -25,7 +30,7 @@ import {
   PermissionRow, type PermissionRowInjected,
 } from '../src/client/PermissionRow.tsx'
 import { PermissionSelect } from '../src/client/PermissionSelect.tsx'
-import type { PermissionSelectInjected } from '../src/client/PermissionSelect.tsx'
+import type { PermissionSelectInjected, PermissionSelectProps } from '../src/client/PermissionSelect.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { accessEn, accessZh } from '../src/client/locales.ts'
 
@@ -45,7 +50,7 @@ const CATALOG: PermissionCatalog = {
   ],
 }
 
-async function bench() {
+async function bench(settings?: object) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry)
   const locale = new LocaleRuntime(ctx)
@@ -68,7 +73,7 @@ async function bench() {
       return Promise.resolve({ ok: true as const, value: catalog })
     },
   }
-  const remote = new TestRemote(ctx, { settings: mock.remote.settings, permissionPresets })
+  const remote = new TestRemote(ctx, { settings: settings ?? mock.remote.settings, permissionPresets })
   ctx.provide('connection', {
     generation: {
       getSnapshot: () => ({ id: 1, host: { home: '/host', isLoopback: true } }),
@@ -153,7 +158,70 @@ async function bench() {
   }
 }
 
+afterEach(cleanup)
+
 describe('ui-permission browser plugin', () => {
+  it.each([true, false])('remembers full access only after confirmation: %s', async (confirm) => {
+    let preset = 'workspace-write'
+    const view = () => ({ ns: 'permission', schema: { uid: 1, refs: { 1: { type: 'object', dict: {} } } }, value: { defaultPreset: preset }, base: {}, autoGenerate: true, applies: 'live', secrets: [], revision: 0 })
+    const mutate = vi.fn(async (_ns: string, ops: { value: string }[]) => {
+      preset = ops[0]!.value
+      return { ok: true as const, value: view() }
+    })
+    const b = await bench({
+      describe: async () => ({ ok: true, value: { writable: true, hasDocument: false, namespaces: [view()] } }),
+      mutate,
+    })
+    b.values.set(sid('s1'), { currentValue: preset })
+    const injectSelect = b.permissionSelect()!.inject as unknown as (sessionId: SessionId) => PermissionSelectInjected
+    const catalog = createSnapshotStore({ value: CATALOG })
+    const props = {
+      locked: false,
+      useProjection: () => ({ currentValue: 'workspace-write' }),
+      usePermissionCatalog: bindSnapshotSelector(catalog),
+      select: injectSelect(sid('s1')).select,
+      t: makeTranslate(accessZh),
+    } as unknown as PermissionSelectProps
+    render(createElement(PermissionSelect, props))
+    fireEvent.click(screen.getByRole('button', { name: /^访问模式/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '完全权限' }))
+    expect(mutate).not.toHaveBeenCalled()
+    if (confirm) {
+      fireEvent.click(screen.getByRole('checkbox'))
+      fireEvent.click(screen.getByRole('button', { name: '启用完全权限' }))
+      await waitFor(() => { expect(preset).toBe('danger-full-access') })
+      expect(mutate).toHaveBeenCalledOnce()
+    }
+    else {
+      fireEvent.click(screen.getByRole('button', { name: '取消' }))
+      await act(async () => {})
+      expect(preset).toBe('workspace-write')
+      expect(mutate).not.toHaveBeenCalled()
+      expect(b.commands).toEqual([])
+    }
+  })
+  it('remembers composer selections for later sessions', async () => {
+    let preset = 'read-only'
+    let revision = 0
+    const view = () => ({ ns: 'permission', schema: { uid: 1, refs: { 1: { type: 'object', dict: {} } } }, value: { defaultPreset: preset }, base: {}, autoGenerate: true, applies: 'live', secrets: [], revision })
+    const mutate = vi.fn(async (_ns: string, ops: { value: string }[]) => {
+      preset = ops[0]!.value
+      revision++
+      return { ok: true as const, value: view() }
+    })
+    const b = await bench({
+      describe: async () => ({ ok: true, value: { writable: true, hasDocument: false, namespaces: [view()] } }),
+      mutate,
+    })
+    b.values.set(sid('s1'), { currentValue: preset })
+    const injectSelect = b.permissionSelect()!.inject as unknown as (sessionId: SessionId) => PermissionSelectInjected
+    await injectSelect(sid('s1')).select('workspace-write')
+    expect(mutate).toHaveBeenCalledWith('permission', [{ op: 'set', path: ['defaultPreset'], value: 'workspace-write' }], 0)
+    b.values.set(sid('s2'), { currentValue: preset })
+    expect(b.values.get(sid('s2'))?.currentValue).toBe('workspace-write')
+    await injectSelect(sid('s2')).select('danger-full-access')
+    expect(preset).toBe('danger-full-access')
+  })
   it('dismisses stale slash choices on a catalog invalidation and removes that subscription on disposal', async () => {
     const b = await bench()
     const initial = b.dismissed.length
