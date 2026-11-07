@@ -1,6 +1,19 @@
 {
   "divergences": [
     {
+      "id": "message-delivery-local-test-app-boot-dependency",
+      "description": "Declare the app boot workspace dependency used by local message delivery tests",
+      "origin": "Local message delivery test dependency",
+      "reason": "Declare the app boot workspace dependency imported by the protected input test and synchronize its lockfile entry. This change can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/session/message-delivery-local/package.json",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "path-local-protected-module-loads",
       "description": "Avoid repeated protected-root traversal during module loading",
       "origin": "Protected module startup performance",
