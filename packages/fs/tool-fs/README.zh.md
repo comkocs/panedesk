@@ -77,7 +77,7 @@ kind: "package-reference"
 
 挂载策略插件后，`write` 与 `edit` 从 `fs/*` 意图槽位取得防护，因此未读目标或陈旧观察会以 `FS_NOT_OBSERVED` 或 `FS_STALE_VERSION` 及恢复指令失败。使用施加沙箱限制的后端（`fs-sandbox`）时，`write`/`edit` 还会公开 `sandbox_permissions` 与 `justification`；被拒绝的变更返回 `[sandbox: file access denied under <mode> mode]` 标记与同轮次升级提示，获批的重试可以在该次调用中加盖严格更宽的模式。理由字段提示模型使用用户当前提问的语言。
 
-采用 Windows 隐式缺省且无目录同意记录时，`write` 与 `edit` 在变更前请求[工作区授权](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)。允许后保存目录授权；其他结果保持只读，并提示所有者前往「设置 > 通用 > Windows 工作区写权限」。无人值守任务不能自行授予权限。普通工具结果会将拒绝指引持久化到 Session，并在工具详情中显示；显式选择的会话只读模式仍优先于目录授权。
+采用 Windows 隐式缺省且无目录同意记录时，`write` 与 `edit` 在变更前请求[工作区授权](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)。允许后保存目录授权；其他结果保持只读，并提示所有者前往「设置 > 通用 > Windows 工作区写权限」。无人值守任务不能自行授予权限。撤销已发出的工作区写能力后，同一宿主进程内的重新授权会被拒绝；请重启宿主后再授权。普通工具结果会将拒绝指引持久化到 Session，并在工具详情中显示；显式选择的会话只读模式仍优先于目录授权。
 
 `protected-host-path` 拒绝保留文件系统提供方的具体原因，而不是通用模式提权指引；工作区同意不授权写入运行宿主的输入。
 
