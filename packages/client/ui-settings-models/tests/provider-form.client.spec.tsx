@@ -1375,7 +1375,9 @@ describe('hand-declared providers', () => {
     // Endpoint first: the gate names the one thing standing in the way.
     expect(screen.getByText(en.customNeedsBaseUrl)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
-    expect(screen.getByText(en.customNeedsModels)).toBeTruthy()
+    // No model row is required: an empty catalog is a usable provider.
+    expect(screen.queryByText(en.customNeedsModels)).toBeNull()
+    expect(buttonNamed(en.create).disabled).toBe(false)
 
     // Satisfied: the shared line disappears rather than rendering empty.
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
@@ -1466,11 +1468,14 @@ describe('hand-declared providers', () => {
     fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
     expect(screen.getByText(en.customNeedsBaseUrl)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
-    expect(screen.getByText(en.customNeedsModels)).toBeTruthy()
-    expect(buttonNamed(en.create).disabled).toBe(true)
+    // An empty catalog does not block creation; a row the user started typing does.
+    expect(screen.queryByText(en.customNeedsModels)).toBeNull()
+    expect(buttonNamed(en.create).disabled).toBe(false)
 
     // A model row with no id is not a model.
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    expect(buttonNamed(en.create).disabled).toBe(false)
+    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: ' ' } })
     expect(buttonNamed(en.create).disabled).toBe(true)
     fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'm' } })
     expect(buttonNamed(en.create).disabled).toBe(false)
@@ -1780,5 +1785,50 @@ describe('API key field', () => {
     await waitFor(() => { expect(mutate).toHaveBeenCalledOnce() })
     await waitFor(() => { expect(load).toHaveBeenCalledOnce() })
     expect(screen.queryByRole('textbox', { name: en.customRoute })).toBeNull()
+  })
+})
+
+describe('custom provider recognition', () => {
+  it('fetches available models once the address and key are filled, and again only when one of them changes', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'listed' }])))
+    const { face } = scriptedFace({ discover })
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18080' } })
+    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'sk-test' } })
+    await screen.findByRole('checkbox', { name: 'listed' })
+    expect(discover).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.customDisplayName), { target: { value: 'Acme' } })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(discover).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18081' } })
+    await screen.findByRole('checkbox', { name: 'listed' })
+    expect(discover).toHaveBeenCalledTimes(2)
+  })
+
+  it('creates a provider past an untouched empty model row, dropping that row', async () => {
+    const { face, mutate } = scriptedFace()
+    const onClose = vi.fn()
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18080' } })
+
+    expect(buttonNamed(en.create).disabled).toBe(false)
+    fireEvent.click(screen.getByText(en.create))
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(mutate).ops[0]?.value).toMatchObject({ models: [] })
   })
 })
