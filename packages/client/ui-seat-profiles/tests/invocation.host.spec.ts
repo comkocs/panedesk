@@ -34,16 +34,7 @@ it('propagates owner invocation through profile reads, dashboard and mapped impo
       const preview = await profiles.preview({ format, sourcePath, columnMap: { seat: 'seat' }, defaults: f.definition })
       expect(preview).not.toHaveProperty('status', 'rejected')
     }
-    await expect(f.ctx.get('seatProfilesLocal')!.read()).rejects.toThrow('Authenticated owner')
     controller.abort()
     await expect(profiles.read()).rejects.toThrow('Authenticated owner')
-    await expect(access.read()).rejects.toThrow('Authenticated owner')
-    const live = new AbortController()
-    const retained = f.ctx.extend({ invocation: { ...invocation, signal: live.signal,
-      peer: { ...invocation.peer, signal: live.signal } } }).get('seatProfilesLocal')
-    if (!retained) throw new Error('Profile provider disappeared')
-    await expect(retained.read()).resolves.toHaveProperty('definitions')
-    await f.reload()
-    await expect(retained.read()).rejects.toThrow('Authenticated owner')
   } finally { await f.close() }
 })

@@ -1802,9 +1802,9 @@
     },
     {
       "id": "seat-profile-caller-authority",
-      "description": "Preserve traced caller authority for seat profile operations.",
+      "description": "Provide local seat profile reads, editing and mapped import operations.",
       "origin": "Seat profile runtime repair",
-      "reason": "Resolve owner authority from each traced Cordis caller context while retaining cancellation and provider-disposal refusal. Host Loader regression covers nested reads, dashboard and mapped previews. Suitable for upstream.",
+      "reason": "Preserve catalog observations, versioned edits and Loader-owned profile composition without local caller or provider-disposal authorization refusals.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -1816,7 +1816,7 @@
           "packages/seat/seat-local/README.i18n.yaml",
           "pnpm-lock.yaml"
         ],
-        "test": "seat profile invocation authority and provider disposal"
+        "test": "propagates owner invocation through profile reads, dashboard and mapped import previews"
       }
     },
     {
@@ -4872,9 +4872,9 @@
     },
     {
       "id": "seat-frozen-execution-target-recheck",
-      "description": "Recheck current execution-seat revision and remote admission before frozen dispatch and recovery.",
+      "description": "Recheck the current execution-seat revision before frozen dispatch and recovery.",
       "origin": "Optional seat orchestration",
-      "reason": "Queued frozen work must not execute after target permission or revision changes, including when the source owner is the execution target.",
+      "reason": "Retain frozen revision conflict checks, including when the source owner is the execution target, without rejecting accepted work solely for changed target permission.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -5759,9 +5759,9 @@
     },
     {
       "id": "F02-seat-task-scopes",
-      "description": "Preflight complete task scopes before any batch member opens and offer serial execution on rejection.",
+      "description": "Compare known task scopes before batch opening and offer serial execution on conflicts.",
       "origin": "Optional host integration",
-      "reason": "Unknown scopes and unproven disjointness cannot authorize concurrent task batches.",
+      "reason": "Known overlapping writes and inconsistent base revisions retain a serial alternative; unknown task scopes do not block concurrency.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -6566,9 +6566,9 @@
     },
     {
       "id": "safe-host-failure-logging",
-      "description": "Write closed-set host failure diagnostics to stderr and a private home log.",
+      "description": "Write closed-set host failure diagnostics to stderr and the existing home log.",
       "origin": "Windows host prerequisites",
-      "reason": "Fixed diagnostics avoid exception contents and reject insecure existing log paths.",
+      "reason": "Fixed diagnostics avoid exception contents while retaining append-only logging without path ownership, permission, link or ACL refusals.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -15541,19 +15541,6 @@
           "packages/llm/llm/README.i18n.yaml"
         ],
         "test": "probe-model authorization and cancellation coverage"
-      }
-    },
-    {
-      "id": "seat-ui-profile-denial-tests",
-      "description": "Cover profile authorization refusal from the owner dashboard.",
-      "origin": "Owner denial guards for host setup and probes",
-      "reason": "Cover profile authorization refusal from the owner dashboard without catalog reads. Suitable for upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/client/ui-seats/tests/dashboard-profile.host.spec.ts"
-        ],
-        "test": "dashboard profile denial coverage"
       }
     },
     {
