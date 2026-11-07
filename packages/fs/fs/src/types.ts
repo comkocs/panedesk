@@ -196,12 +196,8 @@ export type FsErrorCode =
 export class FsError extends HarnessError {
   override readonly code: FsErrorCode
 
-  /** Specific confined-write denial retained by model-facing tool adapters. */
-  readonly sandboxDenial?: 'protected-host-path'
-
-  constructor(message: string, code: FsErrorCode, options?: ErrorOptions & { sandboxDenial?: 'protected-host-path' }) {
+  constructor(message: string, code: FsErrorCode, options?: ErrorOptions) {
     super(message, code, options)
     this.code = code
-    if (options?.sandboxDenial !== undefined) this.sandboxDenial = options.sandboxDenial
   }
 }

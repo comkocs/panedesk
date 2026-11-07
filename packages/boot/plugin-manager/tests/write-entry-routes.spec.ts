@@ -77,7 +77,7 @@ const routes = [
   ['packages/fs/tool-fs/src/edit.ts', ['ctx.fs.editText', 'sandbox.resolvePolicy', 'sandbox.refreshPolicy']],
   ['packages/fs/tool-str-replace-editor/src/index.ts', ['ctx.fs.writeText', 'policy.resolve']],
   ['packages/fs/tool-fs-search/src/search-core.ts', ['ctx.sandboxPolicy.resolve', 'sandbox.confine', 'argv: confined', 'ctx.subprocess.spawn']],
-  ['packages/fs/fs-sandbox/src/index.ts', ['super.writeText(await this.checkedTarget', 'super.editText(await this.checkedTarget', 'protected-host-path']],
+  ['packages/fs/fs-sandbox/src/index.ts', ['super.writeText(await this.checkedTarget', 'super.editText(await this.checkedTarget']],
   ['packages/shell/tool-bash/src/index.ts', ['sandboxPolicy?.resolve', 'ctx.shell.execute']],
   ['packages/shell/tool-pwsh/src/index.ts', ['sandboxPolicy?.resolve', 'ctx.shell.execute']],
   ['packages/shell/bash-sandbox/src/index.ts', ['this.ctx.sandbox.confine', 'return prepared']],
