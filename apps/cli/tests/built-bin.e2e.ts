@@ -18,6 +18,7 @@ import { execa } from 'execa'
 import * as yaml from 'js-yaml'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { testProfileResolution } from './profiles/headless/tests/profile-resolution.ts'
+import { stripInputReviewStderr } from './support/input-review-stderr.ts'
 
 /** Published-entry acceptance for argument errors, profile lifecycle, and boot-free config dumps. */
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
@@ -521,7 +522,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(result.timedOut, stderr).toBe(false)
       expect(result.signal, stderr).toBeUndefined()
       expect(result.exitCode, stderr).toBe(0)
-      expect(stderr).toBe('')
+      expect(stripInputReviewStderr(stderr)).toBe('')
       expect(readFileSync(marker, 'utf8')).toBe('loaded')
     } finally {
       child.kill('SIGKILL')
@@ -600,7 +601,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       child.stdin.end()
       const result = await child
       expect(result.exitCode, `signal=${String(result.signal)}; stderr=${result.stderr}`).toBe(0)
-      expect(result.stderr).toBe('')
+      expect(stripInputReviewStderr(result.stderr)).toBe('')
       for (const line of rawOut.join('').split('\n').filter(value => value.trim() !== '')) {
         expect(() => JSON.parse(line) as unknown).not.toThrow()
       }
@@ -632,7 +633,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       }, project)
       expect(result.code, result.stderr).toBe(0)
       expect(result.stdout).toBe('published headless profile reached the mock')
-      expect(result.stderr).toBe('panedesk: reasoning:\nInspecting the published entry.')
+      expect(stripInputReviewStderr(result.stderr)).toBe('panedesk: reasoning:\nInspecting the published entry.')
       expect(server.requests.length).toBeGreaterThan(0)
       expect(server.requests.every(request => request.path === '/v1/messages')).toBe(true)
       expect(JSON.stringify(server.requests.map(request => request.body))).toContain('answer from the published entry')

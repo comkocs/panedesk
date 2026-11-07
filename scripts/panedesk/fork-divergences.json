@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "exact-startup-review-stderr-assertions",
+      "description": "Separate startup review diagnostics from exact business stderr expectations",
+      "origin": "Bilingual protected-input startup diagnostics",
+      "reason": "Recognize only complete bilingual startup banner and progress lines with matching nonnegative integer values before comparing business stderr exactly. Preserve all other diagnostics, recorded sessions, snapshot data and non-stderr assertions. Cover banner-before-progress ordering through the public headless launcher and retain malformed or near-matching diagnostic lines. These test changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "snapshots/session/headless.snapshot.ts",
+          "apps/cli/tests/profiles/headless/tests/headless.expected.e2e.ts",
+          "apps/cli/tests/profiles/slim-mock.expected.e2e.ts",
+          "apps/cli/tests/profiles/acp/tests/goal.expected.e2e.ts",
+          "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts",
+          "apps/cli/tests/web-browser-open.expected.e2e.ts",
+          "apps/cli/tests/built-bin.e2e.ts",
+          "apps/cli/tests/support/input-review-stderr.ts",
+          "apps/cli/tests/support/input-review-stderr.expected.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "path-local-protected-module-loads",
       "description": "Avoid repeated protected-root traversal during module loading",
       "origin": "Protected module startup performance",

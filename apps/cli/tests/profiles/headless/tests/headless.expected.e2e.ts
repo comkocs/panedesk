@@ -18,6 +18,7 @@ import {
   scanZstdFrames,
 } from '@panedesk/dsh-session-persistence-jsonl/src/zstd.ts'
 import { describe, expect, it } from 'vitest'
+import { stripInputReviewStderr } from '../../../support/input-review-stderr.ts'
 
 const goldensDir = fileURLToPath(new URL('./expected/', import.meta.url))
 const goalScenarioDir = join(goldensDir, 'goal-tools')
@@ -333,7 +334,7 @@ describe('headless stream-json snapshots', () => {
 
     expect(result.stdout).toBe('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP\n')
     if (refreshing) await writeFile(headlessReasoningExpected, result.stderr)
-    expect(result.stderr).toBe(await readFile(headlessReasoningExpected, 'utf8'))
+    expect(stripInputReviewStderr(result.stderr)).toBe(await readFile(headlessReasoningExpected, 'utf8'))
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
   it('projects the same run as JSON events under a generated session identity', async () => {
@@ -364,7 +365,7 @@ describe('headless stream-json snapshots', () => {
     expect(events.map(event => event.type)).toContain('tool_call')
     expect(events.map(event => event.type)).toContain('tool_result')
     expect(events.map(event => event.type)).not.toContain('error')
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
   it('fails the JSON run when --session-id names no stored Session', async () => {
@@ -464,7 +465,7 @@ describe('headless stream-json snapshots', () => {
     })
 
     expect(result.stdout).toBe('\n')
-    await expect(result.stderr).toMatchFileSnapshot(headlessFailureExpected)
+    await expect(stripInputReviewStderr(result.stderr)).toMatchFileSnapshot(headlessFailureExpected)
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
   it('warns about an unrelated activation error and completes the headless task', async () => {
@@ -487,7 +488,7 @@ describe('headless stream-json snapshots', () => {
       },
     })
     expect(result.stdout).toBe('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP\n')
-    await expect(result.stderr.replaceAll(startupFailurePluginUrl, './activation-error.mjs'))
+    await expect(stripInputReviewStderr(result.stderr).replaceAll(startupFailurePluginUrl, './activation-error.mjs'))
       .toMatchFileSnapshot(startupFailureExpected)
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
@@ -526,7 +527,7 @@ describe('headless stream-json snapshots', () => {
       },
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     await expectHeadlessStream(normalized, streamExpected)
@@ -555,7 +556,7 @@ describe('headless stream-json snapshots', () => {
     // The failure reaches the caller through the stream, not stderr; the
     // recorded transcript below pins the guidance text itself, which names
     // both places a credential can come from and nothing else.
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     await expectHeadlessStream(normalized, streamExpected)
@@ -592,7 +593,7 @@ describe('headless stream-json snapshots', () => {
       prepare: (cwd) => { runCwd = cwd },
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     await expectHeadlessStream(normalized, streamExpected)
@@ -618,7 +619,7 @@ describe('headless stream-json snapshots', () => {
       tsconfigPath,
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const headers = parseJsonl(result.stdout)
       .map(record => record.event)
       .filter((event): event is JsonObject => (
@@ -671,7 +672,7 @@ describe('headless stream-json snapshots', () => {
         },
       })
 
-      expect(result.stderr).toBe('')
+      expect(stripInputReviewStderr(result.stderr)).toBe('')
       expect(server.requests).toHaveLength(2)
       expect(server.paths).toEqual(['/v1/messages', '/v1/messages'])
       const agentRequest = server.requests.find(request => request.max_tokens === 256_000)
@@ -766,7 +767,7 @@ describe('headless stream-json snapshots', () => {
         },
       })
 
-      expect(result.stderr).toBe('')
+      expect(stripInputReviewStderr(result.stderr)).toBe('')
       expect(server.requests).toHaveLength(2)
       const agentRequest = server.requests.find(request => !isTitleRequest(request))
       const titleRequest = server.requests.find(isTitleRequest)
@@ -820,7 +821,7 @@ describe('headless stream-json snapshots', () => {
         },
       })
 
-      expect(result.stderr).toBe('')
+      expect(stripInputReviewStderr(result.stderr)).toBe('')
       expect(parseJsonl(result.stdout).at(-1)).toMatchObject({ type: 'result', output: 'DONE' })
       expect(server.requests.map(piAiTranscript)).toMatchInlineSnapshot(`
         [
@@ -1026,7 +1027,7 @@ describe('headless stream-json snapshots', () => {
         }
       },
     })
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     expect(parseJsonl(result.stdout).at(-1)).toMatchObject({
       type: 'result',
       output: 'TEAM_WORKFLOW_OK: both teammates and dependent tasks completed.',
@@ -1128,7 +1129,7 @@ describe('headless stream-json snapshots', () => {
       },
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const normalized = normalizeGoalStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     await expectHeadlessStream(normalized, streamExpected)
@@ -1198,7 +1199,7 @@ describe('headless stream-json snapshots', () => {
       },
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     const records = parseJsonl(result.stdout)
     expect(records.at(-1)).toMatchObject({
       type: 'result',

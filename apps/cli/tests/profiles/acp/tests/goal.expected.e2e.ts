@@ -14,6 +14,7 @@ import {
 import { foldGoal } from '@panedesk/dsh-goal'
 import type { SessionEvent } from '@panedesk/dsh-session'
 import { describe, expect, it } from 'vitest'
+import { stripInputReviewStderr } from '../../../support/input-review-stderr.ts'
 
 // This lifecycle proof has goal-specific timestamp normalization and semantic
 // assertions, so it owns a separate snapshot root from the generic suite.
@@ -82,7 +83,7 @@ describe('same-session goal snapshot through the ACP automation driver', () => {
       configPath: agent.configPath,
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     expect(result.sessionLogs).toHaveLength(1)
     const log = result.sessionLogs[0]
     if (log === undefined) throw new Error('goal snapshot did not persist its session')
@@ -131,7 +132,7 @@ describe('same-session goal snapshot through the ACP automation driver', () => {
       configPath: agent.configPath,
     })
 
-    expect(result.stderr).toBe('')
+    expect(stripInputReviewStderr(result.stderr)).toBe('')
     expect(result.sessionLogs).toHaveLength(1)
     const log = result.sessionLogs[0]
     if (log === undefined) throw new Error('goal wrap-up snapshot did not persist its session')

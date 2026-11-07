@@ -1,5 +1,6 @@
 /** Recorded-session replay through the shipped headless `dsh` profile. */
 
+import { stripInputReviewStderr } from '../../apps/cli/tests/support/input-review-stderr.ts'
 import { withDefaultSubagentQueue } from '../subagent-default.ts'
 import { startHttpMcpFixture } from '../../packages/mcp/mcp-client/tests/http-fixture.ts'
 import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
@@ -1463,7 +1464,7 @@ describe('headless recorded-session snapshots', () => {
       if (mode !== 'replay') await writeHeaderSidecars(scenario, actualLogs, actualContext)
 
       expect(result.stdout).toBe(`${finalTextFromSession(fixtures[0] as string)}\n`)
-      expect(result.stderr).toBe(expectedStderr)
+      expect(stripInputReviewStderr(result.stderr)).toBe(expectedStderr)
       expect(actualLogs, `${scenario.name}: persisted session count`).toHaveLength(fixtures.length)
       const writerFiles = (await readdir(scenario.dir)).filter(name => /^writer(?:\.[1-9]\d*)?\.expected\.jsonl$/u.test(name)).sort()
       if (mode === 'replay') {
