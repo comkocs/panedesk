@@ -149,7 +149,8 @@ export function apply(ctx) {
       timer = setTimeout(() => { reject(new Error('desktop runtime: Host readiness exceeded 120 seconds')) }, 120_000)
     })])
     clearTimeout(timer)
-    const response = await fetch(new URL('/', ready.url), { headers: { cookie: ready.cookie } })
+    const { cookie } = ready
+    const response = await fetch(new URL('/', ready.url), { headers: { cookie } })
     if (response.status !== 200 || !(await response.text()).includes('<html')) {
       throw new Error('desktop runtime: packaged frontend smoke failed')
     }
