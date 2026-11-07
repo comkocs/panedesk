@@ -5,7 +5,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { execa } from 'execa'
 import { describe, expect, it } from 'vitest'
 import { resolveExampleLaunch } from '@panedesk/dsh-loader-smoke'
-import { stripInputReviewStderr } from './support/input-review-stderr.ts'
 
 const dshBinScript = fileURLToPath(new URL('../src/bin.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../tsconfig.json', import.meta.url))
@@ -81,7 +80,7 @@ describe('dsh run with Agent Teams enabled', () => {
         result.exitCode,
         `dsh headless profile exited unexpectedly.\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
       ).toBe(0)
-      expect(stripInputReviewStderr(result.stderr)).toBe('')
+      expect(result.stderr).toBe('')
       expect(result.stdout).toContain('TEAM_WORKFLOW_OK')
 
       const files = (await readdir(sessions, { recursive: true }))
