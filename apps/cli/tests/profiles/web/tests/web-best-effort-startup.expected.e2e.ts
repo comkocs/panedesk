@@ -61,9 +61,6 @@ function createFixture(): Fixture {
   ].join('\n'))
   const patch = join(root, 'failures.patch.yml')
   writeFileSync(patch, [
-    '- id: connection',
-    '  config:',
-    '    requireOwnerConfirmation: false',
     '- id: tool-todo',
     '  disabled: false',
     '  config: {}',

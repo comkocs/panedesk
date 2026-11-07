@@ -137,8 +137,6 @@ it.each([false, true])('keeps the same revision, Session and page across a serve
   const browser = await chromium.launch({ headless: true })
   onTestFinished(() => browser.close())
   const page = await newEnglishPage(browser)
-  const separator = cookie.indexOf('=')
-  await page.context().addCookies([{ name: cookie.slice(0, separator), value: cookie.slice(separator + 1), url: new URL(url).origin }])
   const errors: string[] = []
   const streamErrors: unknown[] = []
   const graphs: { rev: string; entries: { id: string; rev: string }[] }[] = []

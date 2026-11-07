@@ -1621,7 +1621,7 @@ describe('Typert Remote streams', () => {
   })
 
   it('applies Connection trusted-host policy before accepting the Gateway socket', async () => {
-    const { ctx } = await setup(true, {}, undefined, true)
+    const { ctx } = await setup(true)
     const socket = new WebSocket(
       `ws://127.0.0.1:${String(ctx.webServer.port)}/api/remote.mux`,
       { headers: { host: 'untrusted.example' } },
@@ -1637,7 +1637,7 @@ describe('Typert Remote streams', () => {
   })
 
   it('answers an unauthenticated trusted Host with 401 before opening a stream', async () => {
-    const { ctx } = await setup(true, {}, undefined, true)
+    const { ctx } = await setup(true)
     const socket = new WebSocket(`ws://127.0.0.1:${String(ctx.webServer.port)}/api/remote.mux`)
     socket.on('error', () => {})
     const responseEvent: unknown[] = await once(socket, 'unexpected-response')
@@ -1654,7 +1654,6 @@ async function setup(
   transport: boolean,
   gatewayConfig: GatewayConfig = {},
   ready?: AppReady,
-  requireOwnerConfirmation = false,
 ): Promise<{ readonly ctx: Context; readonly service: FeedService }> {
   const ctx = new Context()
   roots.push(ctx)
@@ -1667,8 +1666,7 @@ async function setup(
   await ctx.plugin(RemoteAccessService)
   await ctx.plugin(TypertGatewayService, gatewayConfig)
   if (transport) {
-    await ctx.plugin({ inject: [...connectionInject], apply: applyConnection },
-      requireOwnerConfirmation ? {} : { requireOwnerConfirmation: false })
+    await ctx.plugin({ inject: [...connectionInject], apply: applyConnection }, {})
   }
   await ctx.plugin(FeedService)
   ctx.typert.register({

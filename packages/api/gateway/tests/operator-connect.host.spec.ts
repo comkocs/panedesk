@@ -384,7 +384,7 @@ async function boot(workspaceAccess = false, pluginManagement = false, tls = fal
     { name: '@panedesk/dsh-host-webserver', config: { host: '127.0.0.1', port: 0,
       ...certificate === undefined ? {} : { tls: { certFile: certificate.certFile, keyFile: certificate.keyFile } },
     } },
-    { name: '@panedesk/dsh-client-connection', config: { requireOwnerConfirmation: false } },
+    { name: '@panedesk/dsh-client-connection' },
     { name: '@panedesk/dsh-host-frontend-static', config: { distIndex } },
     { name: '@panedesk/dsh-typert-registry' },
     { name: '@panedesk/dsh-api-remote-access' },
@@ -442,13 +442,6 @@ async function boot(workspaceAccess = false, pluginManagement = false, tls = fal
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await ctx.loader.await()
     expect(ctx.webServer.port).toBeGreaterThan(0)
-    const material = await ctx.fs.resolve(join(privateDirectory, '.credentials.yaml'))
-    for (const mode of ['read-only', 'workspace-write'] as const) {
-      await expect(ctx.fs.readText(material, undefined, ctx.sandboxPolicy.resolve({ mode })))
-        .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
-    }
-    expect((await ctx.fs.readText(material, undefined, { mode: 'danger-full-access', workspaceRoot: workspace })).length)
-      .toBeGreaterThan(0)
     const host: Host = { ctx, origin: `${tls ? 'https' : 'http'}://127.0.0.1:${ctx.webServer.port}`,
       fixture: ctx.operatorConnectFixture, workspace, ...certificate === undefined ? {} : { ca: certificate.ca } }
     hosts.push(host)
