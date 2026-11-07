@@ -1,5 +1,27 @@
 {
   "divergences": [
+  {
+    "id": "desktop-unsigned-windows-no-mandatory-update",
+    "description": "Ship unsigned Windows desktop packages without a mandatory-update policy",
+    "origin": "Desktop update policy",
+    "reason": "Unsigned Windows packaging no longer requires a mandatory-update HTTPS origin and embeds no policy, matching unsigned macOS. Signed and preparation-only builds keep the origin requirement and the embedded policy; ordinary update feeds stay unsigned-free. Packaged runtime behavior is unchanged: absent policy configuration issues no update request. These changes can be contributed upstream.",
+    "match": {
+      "type": "behavior",
+      "paths": [
+        "apps/desktop/scripts/desktop-package-environment.mjs",
+        "apps/desktop/scripts/electron-builder-config.mjs",
+        "apps/desktop/tests/desktop-package-environment.spec.ts",
+        "apps/desktop/tests/desktop-policy-environment.spec.ts",
+        "apps/desktop/tests/macos-signature.spec.ts",
+        "apps/desktop/README.md",
+        "apps/desktop/README.zh.md",
+        "apps/desktop/README.i18n.yaml",
+        "apps/desktop/packaging/README.md",
+        "apps/desktop/packaging/README.zh.md",
+        "apps/desktop/packaging/README.i18n.yaml"
+      ]
+    }
+  },
     {
       "id": "desktop-independent-product-identity",
       "description": "Separate packaged Panedesk identity from the upstream desktop application",
