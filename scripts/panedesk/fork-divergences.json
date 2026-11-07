@@ -26,23 +26,15 @@
     },
     {
       "id": "inbox-home-permission-diagnostics",
-      "description": "Show and log the data home permissions refusal",
+      "description": "Document the Windows data home permissions requirement",
       "origin": "Desktop inbox availability",
-      "reason": "Expose the existing home permission refusal to the owner without disclosing ACL details, and document the Windows home requirement.",
+      "reason": "Retain the desktop documentation of the Windows data home permissions requirement until the desktop documentation cleanup.",
       "match": {
         "type": "behavior",
         "paths": [
           "apps/desktop/README.md",
           "apps/desktop/README.zh.md",
-          "apps/desktop/README.i18n.yaml",
-          "scripts/gen-cordis-catalog.ts",
-          "packages/client/ui-inbox/src/client/locales.ts",
-          "packages/client/ui-inbox/src/client/panel.tsx",
-          "packages/client/ui-inbox/src/index.ts",
-          "packages/client/ui-inbox/src/types.ts",
-          "packages/client/ui-inbox/tests/panel.client.spec.tsx",
-          "packages/session/message-delivery-local/src/index.ts",
-          "packages/session/message-delivery-local/tests/availability.spec.ts"
+          "apps/desktop/README.i18n.yaml"
         ]
       }
     },

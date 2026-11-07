@@ -6,7 +6,6 @@ export const en = {
   quarantine: 'Isolated messages: {count}', reasons: 'Isolation reasons',
   corrupt: 'Damaged record', 'unsupported-version': 'Unsupported record version', 'invalid-fields': 'Invalid record fields',
   idle: 'Open the inbox to inspect received messages.', loading: 'Loading inbox…', empty: 'No received messages.',
-  homePermissions: 'Inbox unavailable: permissions on data directory {path} are too broad. Only the current user, SYSTEM, and Administrators may read and write it.',
   error: 'Inbox unavailable. Check the connection.', unauthorized: 'Owner permission required.', disabled: 'Inbox is disabled.',
   success: 'Inbox is up to date.', failed: 'Refresh failed. Displayed information may be stale.', partial: 'Inbox results are incomplete.',
 } satisfies Record<string, string>
@@ -20,7 +19,6 @@ export const zh = {
   quarantine: '存在隔离消息：{count}', reasons: '隔离原因',
   corrupt: '记录损坏', 'unsupported-version': '记录版本不受支持', 'invalid-fields': '记录字段无效',
   idle: '打开收件以查看收到的消息。', loading: '正在读取收件…', empty: '暂无收到的消息。',
-  homePermissions: '收件不可用：数据目录 {path} 的权限过宽，只允许当前用户、SYSTEM 和 Administrators 读写。',
   error: '收件不可用，请检查连接。', unauthorized: '需要所有者权限。', disabled: '收件已禁用。',
   success: '收件已更新。', failed: '刷新失败，所示信息可能已过期。', partial: '收件结果不完整。',
 } satisfies Record<InboxKey, string>
