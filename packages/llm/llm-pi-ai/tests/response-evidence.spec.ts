@@ -329,6 +329,19 @@ describe('opt-in wire cache controls', () => {
     expect(server.requests[0]).not.toHaveProperty('cache_control')
   })
 
+  it('stamps Claude Code session fields from sessionId when cache controls are absent', async () => {
+    const server = await mockServer([{ events: frames('anthropic-messages', 'claude-model-a') }])
+    const sessionId = brandString<NonNullable<GenerateOptions['sessionId']>>('session-no-cache')
+    await collect(adapter('anthropic-messages', server.url, 'claude-model-a'), 'claude-model-a', { sessionId })
+    const body = server.requests[0] as { metadata?: { user_id?: string }; cache_control?: unknown }
+    const userId = JSON.parse(body.metadata?.user_id ?? '') as { device_id: string; account_uuid: string; session_id: string }
+    expect(JSON.stringify(userId)).toBe(JSON.stringify({
+      device_id: userId.device_id, account_uuid: '', session_id: 'session-no-cache',
+    }))
+    expect(userId.device_id).toMatch(/^[0-9a-f]{64}$/)
+    expect(server.headers[0]?.['x-claude-code-session-id']).toBe('session-no-cache')
+  })
+
   it.each([
     ['anthropic-messages', 'claude-model-a', '12h'], ['openai-responses', 'gpt-5.6', '1h'],
     ['openai-completions', 'gpt-5.5', '12h'], ['openai-completions', 'glm-model-a', 'none'],
