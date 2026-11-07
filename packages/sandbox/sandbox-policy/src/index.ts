@@ -32,15 +32,6 @@ import type {} from '@panedesk/dsh-system-prompt'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 
-/** No host-input exclusion list. Returns an empty list.
- * @param _ctx - ignored.
- * @param _workspace - ignored.
- * @returns no protected paths.
- */
-export function resolveProtectedPaths(_ctx: unknown, _workspace?: string): string[] {
-  return []
-}
-
 /** Preserve execution-world spelling; enforcing providers resolve filesystem identity on their host. */
 function resolveWorkspaceRoot(path: string): string {
   if (!isAbsolute(path)) throw new Error('sandbox-policy: workspace root must be an absolute execution-world path')

@@ -230,8 +230,6 @@ export const SERVICE_PAGE: Record<string, string> = {
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   messageDeliveryUnavailable: 'optional local delivery refusal value — packages/session/message-delivery-local/README.md owns the API',
-  linuxProductGroupOwner: 'private root-owned Linux identity lifetime — packages/subprocess/subprocess-local/README.md owns registration retention across provider reloads',
-  windowsProductJobs: 'internal root-context identity owner — packages/subprocess/subprocess-local/README.md owns retained Windows Jobs',
   hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',
   windowsBashConfig: 'not a service: boot-provided optional config accessor for Loader expressions — packages/host/host-bash-setup/README.md owns confirmed selection and restart semantics',
   projectOpening: 'feature-local owner-only remote preference service — packages/client/ui-project-onboarding/README.md owns selection and compensation semantics',
@@ -1276,6 +1274,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AgentHandle: 'agent ownership handle is owned by packages/core/agent/README.md',
   AgentPreset: 'discovered preset record is owned by packages/preset/agent-preset-registry/README.md',
   AgentPresetRoster: 'path-free preset roster is owned by packages/preset/agent-preset-registry/README.md',
+  ClaudeAgentSources: 'agent definition directories are owned by packages/preset/agent-preset-registry/README.md',
   PresetDefinition: 'declarative configuration is owned by packages/preset/agent-preset/README.md',
   AsyncDisposable: 'TypeScript explicit resource management interface',
   AgentPresetDocument: 'preset composition view is owned by packages/preset/agent-preset-registry/README.md',

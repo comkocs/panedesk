@@ -185,8 +185,7 @@ it('read cannot write a protected input through extra model arguments', async ()
 })
 
 it.each(['write', 'edit', 'str_replace_editor'])('%s denies a protected input through the real filesystem', async (name) => {
-  const { ctx, target, original, call } = await fixture()
-  expect(ctx.sandboxPolicy.resolve().protectedPaths).toContain(dirname(target))
+  const { target, original, call } = await fixture()
   expect((await call('read', { file_path: target })).isError).toBe(false)
   const args = name === 'write' ? { file_path: target, content: 'model replacement' }
     : name === 'edit' ? { file_path: target, old_string: original, new_string: 'model replacement' }
@@ -1808,7 +1807,6 @@ it.for(['workflow', 'ralph'] as const)('%s retains protected inputs through the 
   expect(confine).toHaveBeenCalled()
   for (const [, policy] of confine.mock.calls) {
     expect(policy.mode).toBe('workspace-write')
-    expect(policy.protectedPaths).toContain(dirname(target))
   }
   expect(readFileSync(target, 'utf8')).toBe(original)
   if (name === 'workflow') expect(result.isError, JSON.stringify(result.content)).toBe(false)

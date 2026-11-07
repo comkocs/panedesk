@@ -136,6 +136,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Registry of YAML-declared presets and the revisions live Agents retain.',
     methods: [
       {
+        signature: 'async importClaudeAgents(sources: ClaudeAgentSources): Promise<void>',
+        description: 'Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset. A project definition overrides the user definition of the same name. A model no configured provider advertises is listed broken with the cause; a tool name with no Panedesk tool is recorded on the preset and left out of the allowlist. Files are read once, never watched or written.',
+        parameters: [{ name: 'sources', description: 'home and workspace roots; omitted roots use the process home and cwd.' }],
+      },
+      {
         signature: 'async register(definition: PresetDefinition): Promise<() => Promise<void>>',
         description: 'Register and eagerly load a definition; activation failure remains visible in the roster.',
         parameters: [{ name: 'definition', description: 'Parsed configuration supplied by the declaring plugin.' }],
@@ -426,12 +431,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when no turn is open or either audit event fails before the session append commit point.'],
       },
       {
-        signature: 'async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>',
-        description: 'Ask an authenticated owner about a host input, including between model turns. Passive inbox notices retain the refusal and decision without starting a model request.',
-        parameters: [{ name: 'agent', description: 'Session whose workspace contains the protected input.' }, { name: 'purpose', description: 'Exact path identity and content digest awaiting consent.' }],
-        returns: 'Only allowed-once authorizes this candidate; unattended sessions never prompt.',
-      },
-      {
         signature: 'overrideOf(session: Session): ApprovalPolicy | undefined',
         description: 'Read the session override without applying the configured default.',
         parameters: [{ name: 'session', description: 'session whose log supplies the override.' }],
@@ -661,7 +660,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'rebuilt(id: string): string | undefined',
-        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph; explicit whole-tree verification still precedes reuse.',
+        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph without reading the bundle.',
         parameters: [{ name: 'id', description: 'entry id (package name).' }],
         returns: 'the current artifact rev, or undefined for an unknown id.',
       },
@@ -1378,22 +1377,22 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'dispatch(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>',
-        description: 'Dispatch a fixed method after transport authentication and epoch validation.',
+        description: 'Dispatch a fixed method with the transport\'s permitted methods.',
         parameters: [{ name: 'request', description: 'Bounded validated request without caller-defined authority.' }, { name: 'authority', description: 'Authenticated operator role narrowed to permitted methods.' }],
-        returns: 'Provider evidence; approval records authorization before engine admission.',
+        returns: 'Provider evidence from the running engine or installed capability.',
       },
     ],
   },
   {
     key: 'hostAdminExecutor',
-    summary: 'Local executors own authorization facts and must durably record approval before admission.',
-    description: 'Local executors own authorization facts and must durably record approval before admission.',
+    summary: 'Local executors delegate business operations to the running engine and installed providers.',
+    description: 'Local executors delegate business operations to the running engine and installed providers.',
     methods: [
       {
         signature: 'execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>',
         description: 'Invoke only a locally authenticated capability, never another router.',
         parameters: [{ name: 'request', description: 'Validated fixed-method request.' }, { name: 'authority', description: 'Transport-derived narrowed authority.' }],
-        returns: 'Provider evidence after required authorization persistence.',
+        returns: 'Provider evidence for the requested business operation.',
       },
     ],
   },
@@ -1409,15 +1408,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'At most 200 provider items, preserving their full keys.',
       },
       {
-        signature: 'abandon(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>',
-        description: 'Delegate abandonment to the source owner after exact-operation authorization.',
-        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }, { name: 'grant', description: 'Original local-operator grant, including audit attribution.' }],
-        returns: 'Provider result after its audit and release decisions.',
+        signature: 'abandon(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>',
+        description: 'Delegate abandonment to the source owner.',
+        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }],
+        returns: 'Provider result after its release decisions.',
       },
       {
-        signature: 'resend?(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>',
+        signature: 'resend?(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>',
         description: 'Delegate directed resend when the source owner supplies this capability.',
-        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }, { name: 'grant', description: 'Original local-operator grant, including audit attribution.' }],
+        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }],
         returns: 'Provider result after its admission and generation decisions.',
       },
     ],
@@ -1759,9 +1758,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async probeModel( provider: string, model: string, signal?: AbortSignal, ): Promise<LlmModelProbeResult>',
-        description: 'Send the shortest generation that proves one model answers: one output token, no tools, no session. The credential stays inside the adapter that already serves the route; this method never logs or returns it.',
+        description: 'Send the shortest generation that proves one model answers: one output token, no tools, no session.',
         parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'model id, including one the catalog does not list.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'success, or the adapter\'s own failure with the message kept and the credential-shaped text removed.',
+        returns: 'success, or the adapter\'s own failure.',
       },
       {
         signature: '@Remote(\'probeModel\') async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>',
@@ -2070,32 +2069,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [],
   },
   {
-    key: 'nodeMessageEvidence',
-    summary: 'Host-owned evidence is queried independently of the execution request\'s claimed authority.',
-    description: 'Host-owned evidence is queried independently of the execution request\'s claimed authority.',
-    methods: [
-      {
-        signature: 'query(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<unknown>',
-        description: 'Read retained evidence for the exact request and authenticated peer.',
-        parameters: [{ name: 'request', description: 'Exact decoded message request.' }, { name: 'peer', description: 'Transport-authenticated requester.' }],
-        returns: 'Independently retained evidence or null.',
-      },
-    ],
-  },
-  {
-    key: 'nodeMessageEvidenceRemote',
-    summary: 'Paired transport captures direction and credentials; callers cannot select an endpoint.',
-    description: 'Paired transport captures direction and credentials; callers cannot select an endpoint.',
-    methods: [
-      {
-        signature: 'query(request: NodePreparedRequest): Promise<unknown>',
-        description: 'Query the paired owner without accepting caller-selected transport credentials.',
-        parameters: [{ name: 'request', description: 'Exact request received from this paired peer.' }],
-        returns: 'Independent peer evidence or null.',
-      },
-    ],
-  },
-  {
     key: 'nodeRouter',
     summary: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
     description: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
@@ -2263,25 +2236,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'every currently selectable preset in contribution order.',
       },
       {
-        signature: '@Remote(\'workspaceWriteAccess\') async workspaceWriteAccess(): Promise<WorkspaceWriteView>',
-        description: 'List durable Windows workspace grants without materializing native permissions.',
-        parameters: [],
-        returns: 'The authenticated owner\'s authorization inventory.',
-      },
-      {
-        signature: '@Remote(\'authorizeWorkspaceWrite\') async authorizeWorkspaceWrite(workspace: string): Promise<void>',
-        description: 'Record explicit settings consent; an executor materializes the ACE only when needed.',
-        parameters: [{ name: 'workspace', description: 'Existing absolute directory selected by the owner.' }],
-      },
-      {
-        signature: '@Remote(\'revokeWorkspaceWrite\') async revokeWorkspaceWrite(workspace: string): Promise<void>',
-        description: 'Revoke the directory\'s native write capability and its durable authorization.',
-        parameters: [{ name: 'workspace', description: 'Exact recorded directory identity (possibly deleted), or an existing legacy directory.' }],
-      },
-      {
-        signature: 'registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>',
-        description: 'Include a provider\'s cold-readable directory inventory in legacy ACL discovery.',
-        parameters: [{ name: 'directories', description: 'Metadata reader that never activates sessions or grants access.' }],
+        signature: 'registerWorkspaceDirectories(_directories: () => Promise<readonly string[]>): () => Promise<void>',
+        description: 'Former Windows workspace inventory contribution. The authorization ledger is gone; the reader is not stored and no grant is recorded or revoked.',
+        parameters: [{ name: '_directories', description: 'ignored.' }],
         returns: 'Disposer for this contribution.',
       },
       {
@@ -2311,16 +2268,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when `name` is neither a configured preset, live `auto`, nor `custom`.'],
       },
       {
-        signature: 'set(session: Session, name: string): void | Promise<void>',
+        signature: 'set(session: Session, name: string): void',
         description: 'Record a changed preset, then update each changed knob through its own setter. Selecting the effective preset again appends nothing.',
         parameters: [{ name: 'session', description: 'the session the switch belongs to.' }, { name: 'name', description: 'the preset to switch to; unknown names throw.' }],
-        returns: 'Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.',
       },
       {
         signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void>',
         description: 'Fill every missing permission fact before a session is published. A genuinely fresh session uses the current user default; seeded or partially initialized sessions preserve their effective knob values and only gain the missing durable facts. A stored Auto identity requires its live integration and passes its admission check before publication. An unattended override uses the same initial event positions; an already initialized session records only a changed approval policy.',
         parameters: [{ name: 'session', description: 'Session being prepared or restored.' }, { name: 'approvalOverride', description: 'Explicit caller policy; absent preserves the configured or stored policy.' }, { name: 'signal', description: 'Optional creation cancellation; aborted preparation appends no permission facts.' }],
-        returns: 'Capture completion when required; permission facts are published only after it succeeds.',
+        returns: 'Completion of permission initialization, synchronously or asynchronously.',
       },
     ],
   },
@@ -2512,56 +2468,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Current profile facts; scheduling and mutation belong to their callers.',
     methods: [
       {
-        signature: 'inputIntegrity?: ProtectedInputIntegrity',
-        description: 'Launcher-owned approvals retained across HMR service replacements.',
-        parameters: [],
-      },
-      {
-        signature: 'inputIntegrities?: Map<string, ProtectedInputIntegrity>',
-        description: 'Workspace-specific records owned by this launched profile, including non-launch session roots.',
-        parameters: [],
-      },
-      {
-        signature: 'workspaceInputReaders?: Map<string, ProtectedInputIntegrity>',
-        description: 'Host-owned composite identity slots; the path inventory above remains the confinement lookup.',
-        parameters: [],
-      },
-      {
-        signature: 'protectedInputPaths?: () => readonly string[]',
-        description: 'Launcher-owned live inventory, evaluated before each workspace write grant.',
-        parameters: [],
-      },
-      {
-        signature: 'protectedWorkspaceRoot?: () => string',
-        description: 'Launcher-owned policy root for sessions without an explicit cwd.',
-        parameters: [],
-      },
-      {
-        signature: 'requestInputReview?: () => void',
-        description: 'Schedule owner review without blocking a refused configuration operation.',
-        parameters: [],
-      },
-      {
-        signature: 'reloadProtectedInputs?: () => Promise<void>',
-        description: 'Reload approved inputs through the active HMR transaction queue when available.',
-        parameters: [],
-      },
-      {
-        signature: 'inputReviewReady?: boolean',
-        description: 'Whether HMR has observed application readiness; absent when HMR does not own review scheduling.',
-        parameters: [],
-      },
-      {
-        signature: 'startupInputReview?: Promise<boolean>',
-        description: 'Startup reviews already admitted outside HMR; reloads await their settlement before mutating inputs.',
-        parameters: [],
-      },
-      {
-        signature: 'runInputReview?: (operation: () => Promise<void>) => Promise<void>',
-        description: 'Serialize owner review with the active configuration transaction.',
-        parameters: [],
-      },
-      {
         signature: 'readonly packageManager?: ProfilePnpmInvocation',
         description: 'Packaged applications supply their bundled runtime instead of a PATH executable.',
         parameters: [],
@@ -2579,11 +2485,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'readonly overlayPaths?: readonly string[]',
         description: 'Command-line patch files read at launch; their parsed contents remain frozen.',
-        parameters: [],
-      },
-      {
-        signature: 'bundleInputPaths?: readonly string[]',
-        description: 'Bundle manifests and patches read by this process, retained across recompositions.',
         parameters: [],
       },
       {
@@ -2692,9 +2593,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'This optional receiver never mints a replacement message, delivery, operation or causal identity.',
     methods: [
       {
-        signature: 'receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>',
-        description: 'Recheck authority and durably commit the original message plus deduplication result before ack. Compare all request fields with delivery.message and verify the canonical envelope digest. Same source/message/delivery/operation identity and digest returns the original durable ack; reusing any retained identity with different content or causal evidence rejects operation-conflict. Preserve sender, priority, replyTo and timestamps; only target-owned mailbox/state sequences may advance during local admission. Accepted does not imply injection or a model response. Call only the local mailbox provider, never send(), a router or another node. Hop is one. Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.',
-        parameters: [{ name: 'request', description: 'Sender-frozen message, transport identity, digest and matching legacy fields.' }, { name: 'authority', description: 'Host-issued exact-envelope permission, never deserialized request data.' }],
+        signature: 'receive(request: RoutedSendMessageRequest, authority?: RoutedDeliveryAuthority): Promise<SendMessageResult>',
+        description: 'Durably commit the original message plus deduplication result before ack. Compare all request fields with delivery.message and verify the canonical envelope digest. Same source/message/delivery/operation identity and digest returns the original durable ack; reusing any retained identity with different content or causal evidence rejects operation-conflict. Preserve sender, priority, replyTo and timestamps; only target-owned mailbox/state sequences may advance during local admission. Accepted does not imply injection or a model response. Call only the local mailbox provider, never send(), a router or another node. Hop is one. Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.',
+        parameters: [{ name: 'request', description: 'Sender-frozen message, transport identity, digest and matching legacy fields.' }, { name: 'authority', description: 'Optional legacy host metadata; delivery does not require authorization.' }],
         returns: 'Original correlated acknowledgement after durable admission, or the existing refusal.',
       },
     ],
@@ -2705,9 +2606,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host-authenticated ingress does not route again or create a replacement sender.',
     methods: [
       {
-        signature: 'receive(request: RoutedSeatMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>',
-        description: 'Commit original identities after rechecking exact-envelope authority and local receive policy.',
-        parameters: [{ name: 'request', description: 'Sender-frozen seat target and message.' }, { name: 'authority', description: 'Process-local host capability.' }],
+        signature: 'receive(request: RoutedSeatMessageRequest, authority?: RoutedDeliveryAuthority): Promise<SendMessageResult>',
+        description: 'Commit original identities after checking local receive policy.',
+        parameters: [{ name: 'request', description: 'Sender-frozen seat target and message.' }, { name: 'authority', description: 'Optional legacy host metadata; delivery does not require authorization.' }],
         returns: 'Durable original acknowledgement or safe refusal.',
       },
       {
@@ -2729,29 +2630,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn (program plus arguments), NOT a shell string — a shell-shaped consumer passes `[\'bash\', \'-c\', command]`.' }, { name: 'policy', description: 'the file-effect policy this execution runs under, carried per call (see {@link SandboxPolicy}).' }, { name: 'signal', description: 'cancellation while the provider resolves the policy and runner.' }],
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
       },
-      {
-        signature: 'inspect?(policy: SandboxPolicy): Pick<ConfinedArgv, \'enforcement\' | \'protectedInputs\'>',
-        description: 'Inspect enforcement without spawning a command or materializing write grants. Providers without this operation cannot supply a read-only status report.',
-        parameters: [{ name: 'policy', description: 'Resolved file policy to inspect.' }],
-        returns: 'Backend completeness and protected-input inventory; rejects unavailable coverage.',
-      },
-      {
-        signature: 'hasWorkspaceWriteGrant?(workspaceRoot: string): boolean',
-        description: 'Inspect a persistent workspace capability without granting access.',
-        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
-        returns: 'Whether this provider\'s workspace write ACE exists; absence of the method means unsupported.',
-      },
-      {
-        signature: 'materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>',
-        description: 'Materialize an approved workspace capability without starting a process.',
-        parameters: [{ name: 'policy', description: 'Current policy with its authorization source and session identity.' }, { name: 'signal', description: 'Cancellation checked before native mutation.' }],
-        returns: 'After the provider has materialized the approved capability.',
-      },
-      {
-        signature: 'revokeWorkspaceWriteGrant?(workspaceRoot: string): void',
-        description: 'Revoke a persistent workspace capability and invalidate provider caches.',
-        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
-      },
     ],
   },
   {
@@ -2765,21 +2643,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
-        signature: 'readonly defaultSource: EffectivePermissionMode[\'source\']',
-        description: 'Whether configuration or the environment explicitly selected the deployment mode.',
-        parameters: [],
-      },
-      {
-        signature: 'readonly windowsDefault: boolean',
-        description: 'True only when Windows is using the implicit platform default.',
-        parameters: [],
-      },
-      {
-        signature: 'readonly workspaceAccess: WorkspaceWriteAccess',
-        description: 'Product-home workspace authorizations, read afresh at each policy resolution.',
-        parameters: [],
-      },
-      {
         signature: 'readonly workspaceRoot: string',
         description: 'The absolute `workspace-write` fallback root for calls without a session cwd.',
         parameters: [],
@@ -2788,19 +2651,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy',
         description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
-        returns: 'The per-call mode, absolute workspace root, and current protected host inputs when present.',
-      },
-      {
-        signature: 'async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>',
-        description: 'Request persistent workspace consent before a potentially writing operation. Explicit modes and non-Windows defaults never prompt. Missing, unattended, rejected, withdrawn, or unavailable answerers leave the policy read-only.',
-        parameters: [{ name: 'request', description: 'Calling agent, tool identity, and cancellation lifetime.' }],
-        returns: 'The freshly resolved policy after consent, or the unchanged standing policy.',
-      },
-      {
-        signature: 'writeDenialHint(mode: SandboxMode): string | undefined',
-        description: 'Explain owner-managed workspace access after a Windows default read-only denial.',
-        parameters: [{ name: 'mode', description: 'The settled operation\'s mode, not a fresh policy resolution.' }],
-        returns: 'Settings guidance for implicit Windows read-only, otherwise undefined.',
+        returns: 'the fully resolved per-call mode and absolute workspace root.',
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',
@@ -3121,9 +2972,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Detached live observations; absence means this provider has no callback observation capability.',
       },
       {
-        signature: 'callbackResolve?: (request: T.CallbackResolveRequest, grant: import(\'./authorization.ts\').SeatAuthorizationGrant) => Promise<T.CallbackResolveResult>',
-        description: 'Resolve a parked callback under current local-operator authority; absence refuses resolution.',
-        parameters: [{ name: 'request', description: 'Callback identity, expected attempt and operator action.' }, { name: 'grant', description: 'Live authority bound to this exact request.' }],
+        signature: 'callbackResolve?: (request: T.CallbackResolveRequest) => Promise<T.CallbackResolveResult>',
+        description: 'Resolve a parked callback; absence refuses resolution.',
+        parameters: [{ name: 'request', description: 'Callback identity, expected attempt and operator action.' }],
         returns: 'Current delivery state or a fixed zero-frame refusal.',
       },
       {
@@ -3152,8 +3003,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>',
-        description: 'Commit frozen admission and its live grant together; never route again.',
-        parameters: [{ name: 'request', description: 'Frozen source input, route and expected local definition revision.' }, { name: 'authority', description: 'Independently verified process-local authority with the exact grant.' }],
+        description: 'Commit frozen admission; never route again.',
+        parameters: [{ name: 'request', description: 'Frozen source input, route and expected local definition revision.' }, { name: 'authority', description: 'Process-local caller identity.' }],
         returns: 'Durable acceptance or refusal without source-side execution resources.',
       },
       {
@@ -3631,8 +3482,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'seatProfilesLocal',
-    summary: 'Owner-only capabilities; every call checks live invocation authority.',
-    description: 'Owner-only capabilities; every call checks live invocation authority.',
+    summary: 'Local catalog editing and import capabilities.',
+    description: 'Local catalog editing and import capabilities.',
     methods: [
       {
         signature: 'read(): Promise<SeatProfileSnapshot>',
@@ -5111,7 +4962,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>',
-        description: 'Read one deduplicated ledger snapshot after authenticating the invocation owner.',
+        description: 'Read one deduplicated ledger snapshot from the installed query provider.',
         parameters: [{ name: 'request', description: 'Fixed time range, bucket, grouping and optional attribution filters.' }],
         returns: 'Five-tab projection plus the deployment\'s refresh cadence.',
       },
@@ -5270,9 +5121,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>',
-        description: 'Request activation and start it immediately.',
+        description: 'Request activation, returning a queued ticket when admission defers it.',
         parameters: [{ name: 'spec', description: 'Task, backend, and result recipient.' }],
-        returns: 'The published activation.',
+        returns: 'The published activation, or the queued ticket without waiting for capacity.',
       },
       {
         signature: 'async waitForChildren(parent: Agent): Promise<boolean>',
@@ -5375,9 +5226,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'readProcessIdentity(pid: number): SubprocessIdentity',
-        description: 'Observe one process incarnation without granting termination authority. Providers without OS creation evidence return only the PID, never a verified live identity.',
-        parameters: [{ name: 'pid', description: 'process identity to inspect in this execution world.' }],
-        returns: 'creation evidence, or a PID-only unavailable observation.',
+        description: 'PID-only observation. Nothing is refused.',
+        parameters: [{ name: 'pid', description: 'process id to report.' }],
+        returns: 'the pid alone.',
       },
       {
         signature: 'abstract resolveExecutable( command: string, env?: Readonly<Record<string, string>>, signal?: AbortSignal, ): Promise<string>',
@@ -6776,14 +6627,6 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
-    name: 'permission-presets/workspace-write-changed',
-    mode: 'emit',
-    signature: '\'permission-presets/workspace-write-changed\'(): void',
-    summary: 'Workspace consent or revocation changed; owners re-read the inventory.',
-    description: 'Workspace consent or revocation changed; owners re-read the inventory.',
-    parameters: [],
-  },
-  {
     name: 'plugin-manager/changed',
     mode: 'emit',
     signature: '\'plugin-manager/changed\'(change: PluginChange): void',
@@ -7289,7 +7132,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalPurpose',
-    declaration: 'export type ApprovalPurpose = WorkspaceWriteApproval | ProtectedInputApproval;',
+    declaration: 'export type ApprovalPurpose = WorkspaceWriteApproval;',
   },
   {
     name: 'ApprovalQueueView',
@@ -7604,6 +7447,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ChildTicketId = Branded<\'SeatChildTicketId\'>;',
   },
   {
+    name: 'ClaudeAgentSources',
+    declaration: 'export interface ClaudeAgentSources {\n    readonly home?: string;\n    readonly workspace?: string;\n}',
+  },
+  {
     name: 'ClientArtifactBaseline',
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly ctimeMs: number;\n    readonly size: number;\n}',
   },
@@ -7745,7 +7592,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    productSandbox?: true;\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    protectedInputs?: readonly ProtectedInputEnforcement[];\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    protectedInputs?: readonly never[];\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
   },
   {
     name: 'ConfinedSandboxMode',
@@ -8140,10 +7987,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EditMessageRequest extends MessageControlRequest {\n    readonly content: string;\n}',
   },
   {
-    name: 'EffectivePermissionMode',
-    declaration: 'export interface EffectivePermissionMode {\n    mode: SandboxMode;\n    source: \'default\' | \'explicit\';\n}',
-  },
-  {
     name: 'EncodedFileAttachment',
     declaration: 'export interface EncodedFileAttachment {\n    data: string;\n    name?: string;\n}',
   },
@@ -8516,20 +8359,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface HostAdminEndpoint {\n    nodeId: Seat.SeatNodeId;\n    pid: number;\n    processEpoch: Branded<\'HostProcessEpoch\'>;\n    version: typeof HOST_ADMIN_VERSION;\n    credentialRef: Branded<\'HostAdminCredentialRef\'>;\n}',
   },
   {
-    name: 'HostAdminGrant',
-    declaration: 'export type HostAdminGrant = SeatAuthorizationGrant;',
-  },
-  {
     name: 'HostAdminMethods',
     declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'node.rebuild\': {\n        request: {\n            peerNodeId?: Seat.SeatNodeId;\n        };\n        result: {\n            status: \'rebuilt\' | \'unavailable\';\n        };\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',
-    declaration: 'export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {\n    authorizationCursor?: Seat.EngineCursor;\n    kind?: Seat.SeatIssuedAuthorizationKind;\n}',
+    declaration: 'export type HostAdminQueryRequest = Seat.SeatTaskQueryRequest;',
   },
   {
     name: 'HostAdminQueryResult',
-    declaration: 'export interface HostAdminQueryResult extends Seat.EngineQueryResult {\n    authorizations?: Seat.SeatIssuedAuthorizationQueryResult;\n}',
+    declaration: 'export type HostAdminQueryResult = Seat.EngineQueryResult;',
   },
   {
     name: 'HostAdminRequest',
@@ -8622,14 +8461,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'InputPriority',
     declaration: 'export type InputPriority = \'immediate\' | \'steer\' | \'queue\';',
-  },
-  {
-    name: 'InputReviewProgress',
-    declaration: 'export interface InputReviewProgress {\n    readonly completed: number;\n    readonly total: number;\n}',
-  },
-  {
-    name: 'InputReviewState',
-    declaration: 'export interface InputReviewState {\n    workspace: string;\n    home?: string;\n    revision?: string;\n    stamp?: string;\n    approved: [\n        string,\n        InputSnapshot\n    ][];\n    observed: string[];\n    granted: boolean;\n    owners: InputReviewState[];\n    verifiedPass?: {\n        pass: CapturePass;\n        roots: ReadonlySet<string>;\n    };\n}',
   },
   {
     name: 'InputScheduling',
@@ -9685,7 +9516,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeDelegationEvidenceResult',
-    declaration: 'export type NodeDelegationEvidenceResult = {\n    status: \'retained\';\n    request: NodeDelegationEvidenceRequest;\n    fact: import(\'./authorization.ts\').SeatIssuedAuthorizationFact;\n    expiresAt: SeatTimestamp;\n    revoked: false;\n} | {\n    status: \'rejected\';\n    cause: SeatFailureCause;\n};',
+    declaration: 'export type NodeDelegationEvidenceResult = {\n    status: \'retained\';\n    request: NodeDelegationEvidenceRequest;\n    fact: SeatIssuedAuthorizationFact;\n    expiresAt: SeatTimestamp;\n    revoked: false;\n} | {\n    status: \'rejected\';\n    cause: SeatFailureCause;\n};',
   },
   {
     name: 'NodeDelegationRequest',
@@ -9753,7 +9584,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeWorkChainAcceptedData',
-    declaration: 'export interface NodeWorkChainAcceptedData {\n    capability: \'node-work-chain/v1\';\n    route: NodeWorkChainRoute;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    authorizationRef: AuthorizationRef;\n    payloadDigest: SeatDigest;\n    operationKey: NodeWorkChainOperationKey;\n    trigger: TriggerEnvelope | null;\n}',
+    declaration: 'export interface NodeWorkChainAcceptedData {\n    capability: \'node-work-chain/v1\';\n    route: NodeWorkChainRoute;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    authorizationRef?: AuthorizationRef;\n    payloadDigest: SeatDigest;\n    operationKey: NodeWorkChainOperationKey;\n    trigger: TriggerEnvelope | null;\n}',
   },
   {
     name: 'NodeWorkChainBusinessMethod',
@@ -10236,18 +10067,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PromptSubmitResult = {\n    text: string;\n    context?: readonly string[];\n    drop?: undefined;\n} | {\n    drop: string;\n    text?: undefined;\n    context?: undefined;\n};',
   },
   {
-    name: 'ProtectedInputApproval',
-    declaration: 'export interface ProtectedInputApproval {\n    readonly type: \'protected-input\';\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
-  },
-  {
-    name: 'ProtectedInputEnforcement',
-    declaration: 'export type ProtectedInputEnforcement = {\n    path: string;\n} & ({\n    enforcement: \'native\';\n} | {\n    enforcement: \'host-fallback\';\n    reason: \'unrepresentable\' | \'link-name\';\n});',
-  },
-  {
-    name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    async disposeReview(): Promise<void>;\n    reviewIdentity(): string;\n    invalidateWorkspace(workspace: string): void;\n    setReviewCommit(commit: (prepared: object) => Promise<string | undefined>, prepare?: (prepared: object) => Promise<void>): void;\n    setReviewProgress(progress: () => void): void;\n    static openOwnerRecords(workspace: string, home: string, progress?: (value: InputReviewProgress) => void): ProtectedInputIntegrity;\n    static async openOwnerRecordsAsync(workspace: string, home: string, progress: (message: string) => void = () => { }): Promise<ProtectedInputIntegrity>;\n    exportReviewState(): InputReviewState;\n    static fromReviewState(value: unknown): ProtectedInputIntegrity;\n    static fromReviewState(value: unknown, current: () => void): Promise<ProtectedInputIntegrity>;\n    static fromReviewState(value: unknown, current?: () => void): ProtectedInputIntegrity | Promise<ProtectedInputIntegrity>;\n    constructor(workspace: string, home?: string);\n    ownsWorkspaceRecord(workspace: string, home: string): boolean;\n    static workspaceKey(workspace: string, home?: string): string;\n    static workspacePath(workspace: string): string;\n    observe(filename: string): void;\n    ensureWrite(protectedPaths: readonly string[] = [], signal?: AbortSignal): Promise<void>;\n    grantWrite(protectedPaths: readonly string[] = []): Promise<void>;\n    async waitForCapture(): Promise<void>;\n    covers(filename: string): boolean;\n     /* …truncated — full shape in source */',
-  },
-  {
     name: 'ProviderRequestId',
     declaration: 'export type ProviderRequestId = Branded<\'ProviderRequestId\'>;',
   },
@@ -10629,7 +10448,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    protectedPaths?: readonly string[];\n    unreadablePaths?: readonly string[];\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    requiresWorkspaceAuthorization?: true;\n    sessionId?: SessionId;\n}',
   },
   {
     name: 'SandboxMode',
@@ -10941,7 +10760,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCancellationRecord',
-    declaration: 'export interface SeatCancellationRecord {\n    authorizationId: AuthorizationRef;\n    principalId: SeatPrincipalId;\n    kind: import(\'./authorization.ts\').SeatIssuedAuthorizationKind;\n    operationId: SeatOperationId;\n    queueItemId: QueueItemId;\n    cancelledAt: SeatTimestamp;\n    stateVersion: number;\n    reason?: string;\n    reasonPresent: boolean;\n}',
+    declaration: 'export interface SeatCancellationRecord {\n    authorizationId?: AuthorizationRef;\n    principalId: SeatPrincipalId;\n    kind: SeatIssuedAuthorizationKind;\n    operationId: SeatOperationId;\n    queueItemId: QueueItemId;\n    cancelledAt: SeatTimestamp;\n    stateVersion: number;\n    reason?: string;\n    reasonPresent: boolean;\n}',
   },
   {
     name: 'SeatCatalogMutationResult',
@@ -11017,7 +10836,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatEngineOperationResult',
-    declaration: 'export type SeatEngineOperationResult = import(\'./types.ts\').SeatOperationResult & {\n    approval?: {\n        queueItemId: import(\'./types.ts\').QueueItemId;\n        stateVersion: number;\n    };\n    progress?: {\n        kind: \'pending\';\n        reason: import(\'./types.ts\').PendingReason;\n        blockedBy: readonly string[];\n    } | {\n        kind: \'open\';\n        phase: import(\'./types.ts\').OpenPhase;\n        sessionId: import(\'@panedesk/dsh-session/types\').SessionId;\n    } | {\n        kind: \'cancelled\';\n    };\n};',
+    declaration: 'export type SeatEngineOperationResult = SeatOperationResult & {\n    approval?: {\n        queueItemId: QueueItemId;\n        stateVersion: number;\n    };\n    progress?: {\n        kind: \'pending\';\n        reason: PendingReason;\n        blockedBy: readonly string[];\n    } | {\n        kind: \'open\';\n        phase: OpenPhase;\n        sessionId: SessionId;\n    } | {\n        kind: \'cancelled\';\n    };\n};',
   },
   {
     name: 'SeatEngineStatus',
@@ -12261,7 +12080,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentActivation',
-    declaration: 'export interface SubagentActivation {\n    readonly childId: SessionId;\n    readonly messageId?: MessageId;\n    readonly result: Promise<SubagentResult>;\n    dispose(): Promise<void>;\n}',
+    declaration: 'export interface SubagentActivation {\n    readonly childId: SessionId;\n    readonly ready?: Promise<Pick<SubagentResult, \'model\' | \'failureStage\'>>;\n    readonly messageId?: MessageId;\n    readonly result: Promise<SubagentResult>;\n    dispose(): Promise<void>;\n}',
   },
   {
     name: 'SubagentActivationSpec',
@@ -12345,7 +12164,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentResult',
-    declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly deliveryPaths?: readonly string[];\n    readonly stopReason: SubagentStopReason;\n}',
+    declaration: 'export interface SubagentResult {\n    readonly sessionId?: SessionId;\n    readonly model?: Readonly<{\n        provider: string;\n        model: string;\n    }>;\n    readonly failureStage?: \'session-creation\' | \'model-connection\' | \'running\';\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly deliveryPaths?: readonly string[];\n    readonly stopReason: SubagentStopReason;\n}',
   },
   {
     name: 'SubagentRun',
@@ -12441,7 +12260,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessSpawnSpec',
-    declaration: 'export interface SubprocessSpawnSpec {\n    productSandbox?: true;\n    argv: readonly string[];\n    cwd: string;\n    stdio: SubprocessStdio;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n    env?: NodeJS.ProcessEnv | undefined;\n}',
+    declaration: 'export interface SubprocessSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    stdio: SubprocessStdio;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n    env?: NodeJS.ProcessEnv | undefined;\n}',
   },
   {
     name: 'SubprocessStdinMode',
@@ -12473,7 +12292,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessTerminalSpawnSpec',
-    declaration: 'export interface SubprocessTerminalSpawnSpec {\n    productSandbox?: true;\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    terminalType: string;\n    shellActivity?: boolean | undefined;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
+    declaration: 'export interface SubprocessTerminalSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    terminalType: string;\n    shellActivity?: boolean | undefined;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
   },
   {
     name: 'SurfaceEvent',
@@ -13448,24 +13267,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
-    name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    checkpoint(workspace: string): () => void;\n    beginGrant(workspace: string): () => void;\n    issuedCapability(workspace: string): void;\n    async rollback(workspace: string, current: () => void, revokeAcl: (workspace: string) => void): Promise<void>;\n    constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [], private readonly profileDirectory: () => string | undefined = () => undefined, private readonly ownerDirectories: () => readonly string[] = () => [], private readonly invalidateInputs: (workspace: string) => void = () => { });\n    assertCanAuthorize(workspace: string): void;\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal, current?: () => void): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
-  },
-  {
     name: 'WorkspaceWriteApproval',
     declaration: 'export interface WorkspaceWriteApproval {\n    readonly type: \'workspace-write\';\n    readonly workspace: string;\n}',
-  },
-  {
-    name: 'WorkspaceWriteEntry',
-    declaration: 'export interface WorkspaceWriteEntry {\n    workspace: string;\n    source: \'first-confirmation\' | \'settings-preauthorization\' | \'legacy\' | \'revocation-pending\';\n    grantedAt?: string;\n}',
-  },
-  {
-    name: 'WorkspaceWriteRecord',
-    declaration: 'export type WorkspaceWriteRecord = z.infer<typeof recordSchema>;',
-  },
-  {
-    name: 'WorkspaceWriteView',
-    declaration: 'export interface WorkspaceWriteView {\n    supported: boolean;\n    entries: WorkspaceWriteEntry[];\n}',
   },
 ]
 

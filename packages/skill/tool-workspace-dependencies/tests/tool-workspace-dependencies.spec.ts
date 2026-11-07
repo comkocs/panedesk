@@ -308,7 +308,6 @@ it('denies replacing a protected profile inside the application-owned runtime ta
     })
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SandboxPolicy, { mode: 'workspace-write', workspaceRoot: directory })
-    expect(ctx.sandboxPolicy.resolve().protectedPaths).toContain(profileDir)
     const result = await execute()
     expect(result.isError).toBe(true)
     expect(await readFile(patchPath, 'utf8')).toBe('protected profile\n')

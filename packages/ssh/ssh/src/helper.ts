@@ -91,7 +91,6 @@ export async function runSshHelper(transport: HelperTransport): Promise<void> {
     return {
       mode: parsed.mode, workspaceRoot: ctx.fs.processPath(target),
       ...(parsed.sessionId === undefined ? {} : { sessionId: parsed.sessionId }),
-      ...(parsed.protectedPaths === undefined ? {} : { protectedPaths: parsed.protectedPaths }),
     }
   }
   const asTarget = (raw: unknown): FsTarget => targetSchema.parse(raw) as FsTarget
