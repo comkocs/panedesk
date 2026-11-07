@@ -16221,6 +16221,19 @@
           "docs/subsystems/client-modules.zh.md"
         ]
       }
+    },
+    {
+      "id": "resident-review-exit-dispatch",
+      "description": "Dispatch the exit of an idle resident input reviewer when the host terminates it",
+      "origin": "Protected input review lifetime",
+      "reason": "Reference an idle resident review isolate and its channel before the host kills it, so the child's exit is dispatched and disposal returns. Keep idle isolates unreferenced everywhere else, so a normally exiting host is not held open. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-review-thread.ts",
+          "packages/boot/app-boot/tests/input-review-dispose.spec.ts"
+        ]
+      }
     }
   ]
 }
