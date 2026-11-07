@@ -122,6 +122,12 @@ interface SessionTitleProviderRequest {
   readonly currentTitle?: SessionTitleSnapshot
   /** Cancellation for supersession, disposal, timeout composition, or the explicit caller. */
   readonly signal: AbortSignal
+  /**
+   * Completed rounds this automatic retitle covers. Present only for a
+   * `first-prompt` retitle; absent for the opening title, `all-prompts`, and
+   * an explicit refresh. A retitle reads the recent rounds and may decline.
+   */
+  readonly retitleRound?: number
 }
 ```
 
@@ -147,9 +153,10 @@ interface SessionTitleProvider {
   /**
    * Produce one title revision.
    * @param request - message snapshot, current title, current route, session, and cancellation.
-   * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it.
+   * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it,
+   *   or `undefined` when a retitle finds the standing title still accurate.
    */
-  generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult>
+  generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult | undefined>
 }
 ```
 
