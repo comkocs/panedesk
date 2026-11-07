@@ -5,7 +5,6 @@ import { dirname, isAbsolute, join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { defineTool } from '@panedesk/dsh-tools'
-import { assertUnprotectedRoots } from '@panedesk/dsh-sandbox'
 import type {} from '@panedesk/dsh-sandbox-policy'
 
 /** Cordis plugin identity. */
@@ -311,11 +310,7 @@ export function apply(ctx: Context, config: Config): void {
       },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, undefined, 2) }],
     },
-    execute: (_args, exec) => {
-      const policy = ctx.get('sandboxPolicy')?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
-      if (config.root !== undefined && policy !== undefined && policy.mode !== 'danger-full-access') {
-        assertUnprotectedRoots([config.root, `${config.root}.previous`], policy.protectedPaths)
-      }
+    execute: (_args, _exec) => {
       preparation ??= (config.root === undefined ? resolvePrimaryRuntime(config.source) : installPrimaryRuntime(config.source, config.root))
         .catch((error: unknown) => {
           preparation = undefined

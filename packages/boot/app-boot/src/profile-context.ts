@@ -1,68 +1,41 @@
 /** Launcher-owned profile locations and composition inputs. */
 import { join } from 'node:path'
-import { ProtectedInputIntegrity } from './input-integrity.ts'
 import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
 import type { PatchOptions } from '@panedesk/cordis-plugin-include'
 
-import type { ProfileContext } from './profile-context-types.ts'
-export type { ProfileContext, ProfilePnpmInvocation } from './profile-context-types.ts'
-
-/**
- * Ensure existing host input trust, capturing only the first grant before write access is published.
- * @param context Launcher-owned profile and record inventory.
- * @param workspace Actual sandbox write root, not necessarily the launch directory.
- * @param paths Current protected input spellings, including Loader links.
- * @param signal Cancels this request without cancelling other waiters; omission waits until admission settles.
- * @returns Completion of durable capture or review; rejection must prevent publication of write access.
- */
-export function grantProtectedWorkspace(
-  context: ProfileContext, workspace: string, paths: readonly string[], signal?: AbortSignal,
-): Promise<void> {
-  signal?.throwIfAborted()
-  return workspaceReader(context, workspace, paths).ensureWrite([...context.protectedInputPaths?.() ?? [], ...paths], signal)
+/** Application-owned package manager executable; environment applies only to package operations. */
+export interface ProfilePnpmInvocation {
+  readonly command: string
+  readonly args: readonly string[]
+  readonly env: Readonly<Record<string, string>>
 }
 
-/**
- * Replace a baseline only after the calling host has authenticated explicit owner consent.
- * @param context Launcher-owned profile and reader inventory.
- * @param workspace Owner-selected writable directory.
- * @param paths Current native write exclusions.
- * @returns Capture completion; callers must not publish write access before it succeeds.
- */
-export function regrantProtectedWorkspace(context: ProfileContext, workspace: string, paths: readonly string[]): Promise<void> {
-  return workspaceReader(context, workspace, paths).grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
+/** Current profile facts; scheduling and mutation belong to their callers. */
+export interface ProfileContext {
+  readonly name: string
+  /** Packaged applications supply their bundled runtime instead of a PATH executable. */
+  readonly packageManager?: ProfilePnpmInvocation
+  readonly dir: string
+  readonly patchPath: string
+  readonly installAnchor: string
+  readonly cwd: string
+  readonly home: string
+  /** Bundle packages used to start this process, before any persisted edits. */
+  readonly startedBundles: readonly string[]
+  /** Parsed command-line overlays, applied above profile and home patches. */
+  readonly overlays: readonly PatchOptions[]
+  /** Command-line patch files read at launch; their parsed contents remain frozen. */
+  readonly overlayPaths?: readonly string[]
+  /** Launch-time PANEDESK_TELEMETRY_DISABLED value; any non-empty value opts out. */
+  readonly telemetryDisabledEnv: string | undefined
 }
 
-function workspaceReader(context: ProfileContext, workspace: string, paths: readonly string[]): ProtectedInputIntegrity {
-  const root = ProtectedInputIntegrity.workspacePath(workspace)
-  const key = ProtectedInputIntegrity.workspaceKey(root, context.home)
-  const slots = context.workspaceInputReaders ??= new Map()
-  const records = context.inputIntegrities ??= new Map()
-  let integrity = slots.get(key)
-  if (integrity === undefined) {
-    const existing = records.get(root)
-    integrity = existing?.ownsWorkspaceRecord(root, context.home) === true ? existing
-      : context.inputIntegrity?.ownsWorkspaceRecord(root, context.home) === true ? context.inputIntegrity
-        : new ProtectedInputIntegrity(root, context.home)
-    slots.set(key, integrity)
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Present only in a profile launched by dsh. */
+    profileContext: ProfileContext
   }
-  records.set(root, integrity)
-  for (const path of [context.dir, join(context.dir, 'package.json'), context.patchPath, join(context.home, PROFILE_PATCH_FILENAME),
-    ...context.bundleInputPaths ?? [], ...context.overlayPaths ?? [],
-    ...context.protectedInputPaths?.() ?? [], ...paths]) integrity.observe(path)
-  return integrity
-}
-
-/**
- * Query the host fallback inventory without creating or approving a baseline.
- * @param context Launcher-owned profile inventory.
- * @param filename Protected path spelling supplied by a confinement backend.
- * @returns Whether a recorded writable workspace covers this input.
- */
-export function protectedInputCovered(context: ProfileContext, filename: string): boolean {
-  return context.inputIntegrity?.covers(filename) === true
-    || [...context.inputIntegrities?.values() ?? []].some(integrity => integrity.covers(filename))
 }
 
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
@@ -92,15 +65,7 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, presentId
  * @returns Bundle patches in application order.
  */
 export function readBundlePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
-  const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, {
-    userLayer: false,
-    ...context.inputIntegrity === undefined ? {} : { integrity: context.inputIntegrity },
-  })
-  context.bundleInputPaths = [...new Set([
-    ...context.bundleInputPaths ?? [],
-    ...profile.layers.flatMap(layer => [join(layer.packageDir, 'package.json'), ...layer.patchPaths]),
-  ])]
-  for (const path of context.bundleInputPaths) context.inputIntegrity?.observe(path)
+  const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, { userLayer: false })
   return profile.layers.flatMap(layer => layer.patches)
 }
 
@@ -111,13 +76,10 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
  * @returns Detached ordered patches; this function does not update the Loader.
  */
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
-  const integrity = context.inputIntegrity ??= new ProtectedInputIntegrity(context.cwd, context.home)
-  for (const path of [join(context.dir, 'package.json'), context.patchPath,
-    join(context.home, PROFILE_PATCH_FILENAME), ...context.overlayPaths ?? []]) integrity.observe(path)
   const patches = structuredClone([
     ...readBundlePatches(binName, context, initialProfile),
-    ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath, integrity) ?? []),
-    ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME), integrity) ?? []),
+    ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
+    ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
     ...context.overlays,
   ])
   const composed = composeEntries([patches])

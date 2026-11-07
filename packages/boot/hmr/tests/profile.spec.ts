@@ -1,25 +1,15 @@
 /** Profile watches share HMR's queue and readiness barrier without waiting for package installation. */
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Timer from '@panedesk/cordis-plugin-timer'
-import { boot, initProfile, ProtectedInputIntegrity, readProfileManifest, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
+import { boot, initProfile, readProfileManifest, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { withFileLock } from '@panedesk/dsh-atomic-write'
 import { FSWatcher } from 'chokidar'
 import { expect, it, onTestFinished, vi } from 'vitest'
-import { SessionId } from '@panedesk/dsh-session'
-import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '../../../test-support/agent-loop-testkit/src/index.ts'
-import ApprovalService, { setApprovalPolicy } from '../../../interaction/user-approval/src/index.ts'
-import Gateway from '../../../api/gateway/src/index.ts'
-import TypertRegistry from '../../../typert/registry/src/index.ts'
-import RemoteAccess from '../../../api/remote-access/src/index.ts'
-import * as Remotes from '../../../api/remotes/src/index.ts'
-import { Peer, apply as applyConnection, inject as connectionInject } from '../../../client/connection/src/index.ts'
-import { provideBrowserCredentials } from '../../../api/gateway/tests/browser-credentials.ts'
-import type { RemoteEventDownlinkFrame } from '../../../api/gateway/src/stream-protocol.ts'
 import Hmr from '../src/index.ts'
 
 const watchers = vi.hoisted(() => [] as FSWatcher[])
@@ -33,14 +23,13 @@ vi.mock('chokidar', async (original) => {
   } }
 })
 
-async function fixture(beforeWatch?: (profile: ProfileContext) => void, protectedWorkspace = false, launchWorkspace?: string) {
+async function fixture(beforeWatch?: (profile: ProfileContext) => void, launchWorkspace?: string) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'hmr-profile-')))
   const dir = join(home, 'profiles', 'test')
   initProfile(dir, [])
   writeFileSync(join(dir, 'cordis.yml'), '[]\n')
   const profile: ProfileContext = {
     name: 'test', dir, patchPath: join(dir, 'cordis.patch.yml'), home, cwd: launchWorkspace ?? home,
-    ...(protectedWorkspace ? { inputIntegrity: new ProtectedInputIntegrity(home) } : {}),
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
   }
   const rows = [{ insert: [
@@ -95,206 +84,6 @@ it('waits for application readiness and applies profile, home and manifest chang
   f.emit(2, manifest)
   await f.drain()
   expect(f.ctx.get('profileProbe')).toBe('edited')
-})
-
-it('rejects a replaced profile parent until the owner confirms the new input', async () => {
-  const f = await fixture(undefined, true)
-  f.commit()
-  const warn = vi.spyOn(f.ctx.logger, 'warn').mockImplementation(() => {})
-  onTestFinished(() => { warn.mockRestore() })
-  const moved = `${f.dir}-previous`
-  renameSync(f.dir, moved)
-  cpSync(moved, f.dir, { recursive: true })
-  const original = readFileSync(f.profile.patchPath, 'utf8')
-  writeFileSync(f.profile.patchPath, original.replace('initial', 'unapproved-replacement'))
-  f.emit(0, f.profile.patchPath)
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  expect(warn).toHaveBeenCalled()
-})
-
-it.each(['delete-recreate', 'symlink-replace'] as const)('rejects %s of the profile parent with an owner notice', async (method) => {
-  const f = await fixture(undefined, true)
-  f.commit()
-  const warn = vi.spyOn(f.ctx.logger, 'warn').mockImplementation(() => {})
-  onTestFinished(() => { warn.mockRestore() })
-  const moved = `${f.dir}-previous`
-  cpSync(f.dir, moved, { recursive: true })
-  rmSync(f.dir, { recursive: true })
-  if (method === 'symlink-replace') symlinkSync(moved, f.dir, process.platform === 'win32' ? 'junction' : 'dir')
-  else cpSync(moved, f.dir, { recursive: true })
-  const original = readFileSync(f.profile.patchPath, 'utf8')
-  writeFileSync(f.profile.patchPath, original.replace('initial', 'unapproved-replacement'))
-  f.emit(0, f.profile.patchPath)
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  expect(warn).toHaveBeenCalled()
-})
-
-it.each(['direct-write', 'create-missing'] as const)('rejects %s of a protected patch with an owner notice', async (method) => {
-  const f = await fixture(undefined, true)
-  f.commit()
-  const warn = vi.spyOn(f.ctx.logger, 'warn').mockImplementation(() => {})
-  onTestFinished(() => { warn.mockRestore() })
-  const path = method === 'create-missing' ? join(f.home, 'cordis.patch.yml') : f.profile.patchPath
-  if (method === 'create-missing') writeFileSync(path, '- id: probe\n  config: { value: unapproved-replacement }\n')
-  else writeFileSync(path, readFileSync(path, 'utf8').replace('initial', 'unapproved-replacement'))
-  f.emit(method === 'create-missing' ? 1 : 0, path)
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  expect(warn).toHaveBeenCalled()
-})
-
-it.each(['allowed-once', 'rejected'] as const)('applies an owner edit only after the authenticated decision: %s', async (outcome) => {
-  const f = await fixture(undefined, true)
-  await mountAgentLoopTestDependencies(f.ctx)
-  provideWorkingDirectoryFixture(f.ctx)
-  await f.ctx.plugin(ApprovalService, { workspaceWriteTimeoutMs: 1000 })
-  const harness = await mountAgentLoopTestHarness(f.ctx)
-  const agent = await harness.create(SessionId('profile-owner'), {}, { cwd: f.home })
-  provideBrowserCredentials(f.ctx)
-  await f.ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
-  await f.ctx.plugin(TypertRegistry)
-  await f.ctx.plugin(RemoteAccess)
-  await f.ctx.plugin(Gateway)
-  await f.ctx.plugin(Remotes)
-  const peer = new Peer(f.ctx, { principal: { kind: 'owner' } })
-  const controller = new AbortController()
-  const stream = await f.ctx.typertGateway.wireStream.open('$events', { args: {} }, (async function* () {})(), peer, controller.signal)
-  const events = stream[Symbol.asyncIterator]() as AsyncIterator<RemoteEventDownlinkFrame>
-  const ready = await events.next()
-  if (ready.done || ready.value.type !== 'ready') throw new Error('Owner stream did not become ready')
-  const clientId = ready.value.clientId
-  onTestFinished(async () => { controller.abort(); await events.return?.(); await peer.dispose() })
-  f.commit()
-  writeFileSync(f.profile.patchPath, readFileSync(f.profile.patchPath, 'utf8').replace('initial', 'owner-edit'))
-  f.emit(0, f.profile.patchPath)
-  const frame = await events.next()
-  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected protected-input approval')
-  expect(frame.value.request.purpose).toMatchObject({ type: 'protected-input', path: f.profile.patchPath })
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  const response = await f.ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/$events/result', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'client-request', rpcId: frame.value.eventId, method: '$events/result',
-      payload: { args: { clientId, eventId: frame.value.eventId, outcome: { kind: 'result', value: outcome } } } }),
-  }), peer)
-  expect(await response.json()).toMatchObject({ result: { ok: true } })
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe(outcome === 'allowed-once' ? 'owner-edit' : 'initial')
-  expect(agent.status).toBe('idle')
-  expect(agent.inbox.nextStep.length).toBeGreaterThan(0)
-  expect(agent.session.snapshotEvents().some(event => event.type === 'turn/start')).toBe(false)
-})
-
-it.each(['direct-write', 'create-missing', 'rename-copy', 'delete-recreate', 'symlink-replace'] as const)(
-  'keeps durable trust until authenticated owner decisions for %s', async (method) => {
-    for (const outcome of ['rejected', 'allowed-once'] as const) {
-      const f = await fixture()
-      const ownerHome = realpathSync(mkdtempSync(join(tmpdir(), 'hmr-durable-owner-')))
-      onTestFinished(() => { rmSync(ownerHome, { recursive: true, force: true }) })
-      const homePatch = join(f.home, 'cordis.patch.yml')
-      const manifest = join(f.dir, 'package.json')
-      const integrity = new ProtectedInputIntegrity(f.home, ownerHome)
-      for (const path of [f.profile.patchPath, homePatch, manifest]) integrity.observe(path)
-      await integrity.grantWrite()
-      f.profile.inputIntegrity = integrity
-      await mountAgentLoopTestDependencies(f.ctx)
-      provideWorkingDirectoryFixture(f.ctx)
-      await f.ctx.plugin(ApprovalService, { workspaceWriteTimeoutMs: 1000 })
-      const harness = await mountAgentLoopTestHarness(f.ctx)
-      const agent = await harness.create(SessionId(`durable-${method}-${outcome}`), {}, { cwd: f.home })
-      provideBrowserCredentials(f.ctx)
-      await f.ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
-      await f.ctx.plugin(TypertRegistry)
-      await f.ctx.plugin(RemoteAccess)
-      await f.ctx.plugin(Gateway)
-      await f.ctx.plugin(Remotes)
-      const peer = new Peer(f.ctx, { principal: { kind: 'owner' } })
-      const controller = new AbortController()
-      const stream = await f.ctx.typertGateway.wireStream.open('$events', { args: {} }, (async function* () {})(), peer, controller.signal)
-      const events = stream[Symbol.asyncIterator]() as AsyncIterator<RemoteEventDownlinkFrame>
-      const ready = await events.next()
-      if (ready.done || ready.value.type !== 'ready') throw new Error('Owner stream did not become ready')
-      const clientId = ready.value.clientId
-      onTestFinished(async () => { controller.abort(); await events.return?.(); await peer.dispose() })
-      f.commit()
-      if (method === 'rename-copy') {
-        renameSync(f.dir, `${f.dir}-previous`)
-        cpSync(`${f.dir}-previous`, f.dir, { recursive: true })
-      } else if (method === 'delete-recreate' || method === 'symlink-replace') {
-        cpSync(f.dir, `${f.dir}-previous`, { recursive: true })
-        rmSync(f.dir, { recursive: true })
-        if (method === 'symlink-replace') symlinkSync(`${f.dir}-previous`, f.dir, process.platform === 'win32' ? 'junction' : 'dir')
-        else cpSync(`${f.dir}-previous`, f.dir, { recursive: true })
-      }
-      if (method === 'create-missing') writeFileSync(homePatch, '- id: probe\n  config: { value: owner-edit }\n')
-      else writeFileSync(f.profile.patchPath, readFileSync(f.profile.patchPath, 'utf8').replace('initial', 'owner-edit'))
-      f.emit(method === 'create-missing' ? 1 : 0, method === 'create-missing' ? homePatch : f.profile.patchPath)
-      const decisions = outcome === 'allowed-once' && method !== 'direct-write' && method !== 'create-missing' ? 2 : 1
-      for (let index = 0; index < decisions; index++) {
-        const frame = await events.next()
-        if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected protected-input approval')
-        expect(frame.value.request.purpose).toMatchObject({ type: 'protected-input' })
-        expect(f.ctx.get('profileProbe')).toBe('initial')
-        const response = await f.ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/$events/result', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ type: 'client-request', rpcId: frame.value.eventId, method: '$events/result',
-            payload: { args: { clientId, eventId: frame.value.eventId, outcome: { kind: 'result', value: outcome } } } }),
-        }), peer)
-        expect(await response.json()).toMatchObject({ result: { ok: true } })
-      }
-      await f.drain()
-      expect(f.ctx.get('profileProbe')).toBe(outcome === 'allowed-once' ? 'owner-edit' : 'initial')
-      const restarted = new ProtectedInputIntegrity(f.home, ownerHome)
-      const approved = restarted.readTrusted(method === 'create-missing' ? homePatch : f.profile.patchPath)?.toString('utf8')
-      if (outcome === 'allowed-once') expect(approved).toContain('owner-edit')
-      else if (method === 'create-missing') expect(approved).toBeUndefined()
-      else expect(approved).toContain('initial')
-      expect(agent.inbox.nextStep.length).toBeGreaterThan(0)
-      expect(agent.session.snapshotEvents().some(event => event.type === 'turn/start')).toBe(false)
-    }
-  },
-)
-
-it('routes a blocked edit using the policy workspace when the session has no cwd', async () => {
-  const launch = realpathSync(mkdtempSync(join(tmpdir(), 'hmr-launch-')))
-  onTestFinished(() => { rmSync(launch, { recursive: true, force: true }) })
-  const f = await fixture(undefined, true, launch)
-  await mountAgentLoopTestDependencies(f.ctx)
-  provideWorkingDirectoryFixture(f.ctx, f.home)
-  f.ctx.provide('sandboxPolicy', { workspaceRoot: f.home })
-  f.profile.protectedWorkspaceRoot = () => f.ctx.sandboxPolicy.workspaceRoot
-  await f.ctx.plugin(ApprovalService)
-  const harness = await mountAgentLoopTestHarness(f.ctx)
-  const agent = await harness.create(SessionId('policy-workspace'))
-  expect(agent.session.header.cwd).toBeUndefined()
-  setApprovalPolicy(agent.session, 'never')
-  f.commit()
-  writeFileSync(f.profile.patchPath, readFileSync(f.profile.patchPath, 'utf8').replace('initial', 'blocked-edit'))
-  f.emit(0, f.profile.patchPath)
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  expect(agent.inbox.nextStep).toHaveLength(1)
-  expect(JSON.stringify(agent.session.snapshotEvents())).toContain('Protected host input changed:')
-})
-
-it('retains a blocked unattended edit in the session inbox without prompting or starting a turn', async () => {
-  const f = await fixture(undefined, true)
-  await mountAgentLoopTestDependencies(f.ctx)
-  provideWorkingDirectoryFixture(f.ctx)
-  await f.ctx.plugin(ApprovalService)
-  const harness = await mountAgentLoopTestHarness(f.ctx)
-  const agent = await harness.create(SessionId('profile-unattended'), {}, { cwd: f.home })
-  setApprovalPolicy(agent.session, 'never')
-  f.commit()
-  writeFileSync(f.profile.patchPath, readFileSync(f.profile.patchPath, 'utf8').replace('initial', 'unattended-edit'))
-  f.emit(0, f.profile.patchPath)
-  await f.drain()
-  expect(f.ctx.get('profileProbe')).toBe('initial')
-  expect(agent.inbox.nextStep).toHaveLength(1)
-  expect(JSON.stringify(agent.session.snapshotEvents())).toContain('Protected host input changed:')
-  expect(agent.session.snapshotEvents().some(event => event.type === 'turn/start')).toBe(false)
-  expect(agent.status).toBe('idle')
 })
 
 it('applies configuration while a CLI operation holds the package writer lock', async () => {

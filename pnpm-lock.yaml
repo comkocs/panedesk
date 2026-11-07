@@ -1995,12 +1995,6 @@ importers:
       '@panedesk/dsh-package-manifest':
         specifier: workspace:*
         version: link:../../util/package-manifest
-      '@panedesk/dsh-sandbox':
-        specifier: workspace:*
-        version: link:../../sandbox/sandbox
-      '@panedesk/dsh-sandbox-windows-acl':
-        specifier: workspace:*
-        version: link:../../sandbox/sandbox-windows-acl
       ajv:
         specifier: ^8.20.0
         version: 8.20.0

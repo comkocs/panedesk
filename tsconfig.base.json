@@ -261,7 +261,6 @@
       "@panedesk/dsh-host-open-in-app/shared": ["./packages/host/open-in-app/src/shared.ts"],
       "@panedesk/dsh-host-webserver": ["./packages/host/webserver/src"],
       "@panedesk/dsh-host-frontend-static": ["./packages/host/frontend-static/src"],
-      "@panedesk/dsh-app-boot/profile-context": ["./packages/boot/app-boot/src/profile-context-types.ts"],
       "@panedesk/dsh-plugin-manager": ["./packages/boot/plugin-manager/src"],
       "@panedesk/dsh-plugin-manager/types": ["./packages/boot/plugin-manager/src/types.ts"],
       "@panedesk/dsh-plugin-manager/registry": ["./packages/boot/plugin-manager/src/registry.ts"],

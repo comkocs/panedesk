@@ -18,9 +18,8 @@ import Group from '@panedesk/cordis-plugin-group'
 import { dshHomePath, resolveDshHome } from '@panedesk/dsh-home-paths'
 import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bash-local'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
-export { grantProtectedWorkspace, regrantProtectedWorkspace, protectedInputCovered, readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
+export { readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
-export { ProtectedInputIntegrity, ProtectedInputReviewError, WorkspaceContainsStateError, type ProtectedInputChange, type ProtectedInputOwner } from './input-integrity.ts'
 export {
   CREDENTIALS_DOC_FILENAME, CREDENTIALS_DOC_VERSION, HOME_PATCH_FILENAME, providerPatchEntries,
   renderCredentialsRefUpdate, updateHomeProviderPatch, type HomePatchUpdate, type ProviderRoute,
@@ -33,7 +32,6 @@ export {
 import { prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
 import { ProfileRuntimeResolution, type RuntimeResolution } from './profile.ts'
 import { ResolutionRestartRequired } from './profile-resolution/resolver.ts'
-import type { ProtectedInputIntegrity } from './input-integrity.ts'
 import { markKernelBoot, publishKernelStatus } from './kernel-status.ts'
 export { KernelStatusService, readKernelStatus, type KernelStatus, type KernelServiceStatus, type KernelStatusRead } from './kernel-status.ts'
 export { prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
@@ -379,18 +377,6 @@ export async function reconcileProfilePatches(
 async function recompose(
   ctx: Context, patches: PatchOptions[], binName: string, options: ProfileRecompositionOptions, withResolution: boolean,
 ): Promise<ProfileRecomposition> {
-  const profile = ctx.get('profileContext')
-  const records = new Set([...(profile?.inputIntegrities?.values() ?? []),
-    ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
-  for (const record of records) {
-    if (!await record.review({
-      blocked(change) { ctx.logger.warn('Protected host input requires owner confirmation: %s', change.path) },
-      confirm: () => Promise.resolve(false),
-    })) {
-      profile?.requestInputReview?.()
-      throw new Error('Protected host input requires owner confirmation; the previous generation remains active.')
-    }
-  }
   const { requiredIds = [], running = [] } = options
   let applying = false
   // The rows stopped first, which a failure before the generation applies puts back.
@@ -596,15 +582,12 @@ async function resume(ctx: Context, invalidated: readonly Entry[]): Promise<void
  * loud at boot, never be silently skipped.
  * @param binName - the diagnostic prefix on the thrown error.
  * @param file - absolute path of the patch file.
- * @param integrity - trusted owner copy reader; omission reads the current file.
  * @returns the parsed patches, or `undefined` when the file does not exist.
  */
-export function loadOptionalPatches(binName: string, file: string, integrity?: ProtectedInputIntegrity): PatchOptions[] | undefined {
+export function loadOptionalPatches(binName: string, file: string): PatchOptions[] | undefined {
   let content: string
   try {
-    const bytes = integrity === undefined ? readFileSync(file) : integrity.readTrusted(file)
-    if (bytes === undefined) return undefined
-    content = bytes.toString('utf8')
+    content = readFileSync(file, 'utf8')
   } catch (error) {
     if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') return undefined
     throw new Error(`${binName}: failed to read patches ${file}: ${String(error)}`)
@@ -619,15 +602,12 @@ export function loadOptionalPatches(binName: string, file: string, integrity?: P
  * is a misconfiguration, not "no overlay".
  * @param binName - the diagnostic prefix on the thrown error.
  * @param file - absolute path of the overlay file.
- * @param integrity - trusted owner copy reader; omission reads the current file.
  * @returns the parsed patch list.
  */
-export function loadOverlayPatches(binName: string, file: string, integrity?: ProtectedInputIntegrity): PatchOptions[] {
+export function loadOverlayPatches(binName: string, file: string): PatchOptions[] {
   let content: string
   try {
-    const bytes = integrity === undefined ? readFileSync(file) : integrity.readTrusted(file)
-    if (bytes === undefined) throw new Error('Required overlay has no approved content')
-    content = bytes.toString('utf8')
+    content = readFileSync(file, 'utf8')
   } catch (error) {
     throw new Error(`${binName}: failed to read overlay ${file}: ${String(error)}`)
   }
@@ -1335,13 +1315,6 @@ export async function boot(
     }, { global: true, prepend: true })
     await ctx.plugin(Loader)
     await prepare?.(ctx)
-    const profile = ctx.get('profileContext')
-    if (profile !== undefined) ctx.effect(() => async () => {
-      const readers = new Set([...(profile.inputIntegrities?.values() ?? []),
-        ...(profile.workspaceInputReaders?.values() ?? []),
-        ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
-      await Promise.all([...readers].map(reader => reader.disposeReview()))
-    }, 'app-boot.inputReviews')
     await markKernelBoot(ctx)
     stage = 'plugin tree failed to load'
     await mountRootInclude(ctx, absoluteConfigPath, patches, bareModuleBaseUrl, binName)

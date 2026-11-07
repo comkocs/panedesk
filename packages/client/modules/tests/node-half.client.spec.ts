@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderIndexInjections, type IndexInjection, type WebServer, type WebRoute } from '@panedesk/dsh-host-webserver'
 import * as modulesClient from '../src/client/index.ts'
 import { ClientModuleRegistry, bootInjections, orderByModuleGraph } from '../src/index.ts'
-import { ProtectedInputIntegrity } from '../../../boot/app-boot/src/input-integrity.ts'
 import type { ProfileContext } from '../../../boot/app-boot/src/profile-context.ts'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '../src/client/index.ts'
 
@@ -729,101 +728,6 @@ describe('client bundle activation', () => {
     expect(consumer.findEntry(2, 0)).toMatchObject({
       originalSource: '/packages/client/generated-1/lib/client.js',
     })
-  })
-
-  it('keeps the old client generation when a protected artifact rebuild is not approved', async () => {
-    const packageName = '@fixture/protected-artifact'
-    writeBuiltPackage(packageName, {})
-    const { context, service } = constructWithRoute([packageName])
-    const clientPath = service.clientPath(packageName)!
-    const workspace = dirname(clientPath)
-    const home = join(root!, 'owner-state')
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    context.provide('profileContext', {
-      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
-      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-    })
-    const before = service.graph()
-    writeFileSync(clientPath, 'module.exports = { unapproved: true }\n')
-    expect(() => service.rebuilt(packageName)).toThrow('requires owner confirmation')
-    expect(service.graph()).toBe(before)
-    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
-    service.rebuilt(packageName)
-    expect(service.graph()).not.toBe(before)
-  })
-
-  it('discovers an approved client package through a file entry without an intermediate manifest', async () => {
-    const packageName = '@fixture/protected-file-entry'
-    writeBuiltPackage(packageName, {})
-    const workspace = join(root!, 'node_modules', ...packageName.split('/'))
-    const home = join(root!, 'owner-state')
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const { service } = constructWithRoute([pathToFileURL(join(workspace, 'lib', 'client.js')).href], {
-      profileContext: {
-        name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-        installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
-        startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-      },
-    })
-    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
-  })
-
-  it.each([false, true])('rejects unconfirmed metadata that hides a protected client package (file entry: %s)', async (fileEntry) => {
-    const packageName = '@fixture/protected-metadata'
-    writeBuiltPackage(packageName, {})
-    const workspace = join(root!, 'node_modules', ...packageName.split('/'))
-    const home = join(root!, 'owner-state')
-    const manifest = join(workspace, 'package.json')
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    writeFileSync(manifest, JSON.stringify({
-      name: packageName, exports: { './package.json': './package.json' },
-    }))
-    const entry = fileEntry ? pathToFileURL(join(workspace, 'lib', 'client.js')).href : packageName
-    expect(() => constructWithRoute([entry], {
-      profileContext: {
-        name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-        installAnchor: manifest, cwd: workspace, home,
-        startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-      },
-    })).toThrow('requires owner confirmation')
-  })
-
-  it('does not serve an unconfirmed source map for an approved client generation', async () => {
-    const packageName = '@fixture/protected-source-map'
-    writeBuiltPackage(packageName, {})
-    const { context, service, route } = constructWithRoute([packageName])
-    const clientPath = service.clientPath(packageName)!
-    const workspace = dirname(clientPath)
-    const home = join(root!, 'owner-state')
-    writeFileSync(`${clientPath}.map`, JSON.stringify({
-      version: 3, names: [], mappings: 'AAAA', sources: ['approved.ts'],
-    }))
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    context.provide('profileContext', {
-      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
-      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-    })
-    const before = service.graph()
-    writeFileSync(`${clientPath}.map`, JSON.stringify({
-      version: 3, names: [], mappings: 'AAAA', sources: ['unconfirmed.ts'],
-    }))
-    const response = await routeRequest(route, mapUrl(before.batches[0]!.url))
-    expect(response.status).toBe(200)
-    expect(response.body.toString('utf8')).not.toContain('unconfirmed.ts')
-    expect(JSON.parse(response.body.toString('utf8'))).toMatchObject({
-      sections: [{ map: { sources: [`/plugins/${packageName}/client.js`] } }],
-    })
-    expect(service.graph()).toBe(before)
   })
 
   it('retains one prior immutable batch generation across rebuild recomposition', async () => {

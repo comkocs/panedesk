@@ -197,7 +197,7 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@panedesk/dsh-webhook-github': ['examples/github-review/cordis.yml', 'examples/github-review/github-ready-review-rule.mjs'],
   // Owned Worker bundles import this public bootstrap before their business entry.
   // The protected-input review child is a private bundle resolved beside it.
-  '@panedesk/dsh-app-boot': ['lib/worker/profile-resolution-bootstrap.js', 'lib/worker/input-review.js'],
+  '@panedesk/dsh-app-boot': ['lib/worker/profile-resolution-bootstrap.js'],
   // Statically linked client libraries keep their stylesheets next to the emitted
   // JavaScript, which imports them by relative path: the compile shell runs
   // them through its own CSS pipeline, so the sheets are published artifacts.

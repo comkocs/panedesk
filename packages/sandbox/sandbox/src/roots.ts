@@ -54,38 +54,6 @@ export function canonicalPath(path: string): string {
  * @param policy - the file-effect policy to derive the allow-list from.
  * @returns the canonical writable roots; empty exactly under `read-only`.
  */
-/** No workspace branch is excluded.
- * @param _workspace - ignored.
- * @param _paths - ignored.
- * @returns no branches.
- */
-export function protectedWorkspaceBranches(_workspace: string, _paths: readonly string[]): string[] {
-  return []
-}
-
-/** Mutable home trees are not treated as a separate authority inventory.
- * @param _home - ignored.
- * @returns no trees.
- */
-export function authoritativeHomeTrees(_home: string): readonly string[] {
-  return []
-}
-
-/** Diagnostic home files are not special-cased.
- * @param _home - ignored.
- * @param _path - ignored.
- * @returns false.
- */
-export function isHomeDiagnosticFile(_home: string, _path: string): boolean {
-  return false
-}
-
-/** Grants are not refused for overlapping host paths.
- * @param _roots - ignored.
- * @param _protectedPaths - ignored.
- */
-export function assertUnprotectedRoots(_roots: readonly string[], _protectedPaths: readonly string[] = []): void {}
-
 export function writableRoots(policy: SandboxExecutionPolicy): string[] {
   if (policy.mode !== 'workspace-write') return []
   return [...new Set([policy.workspaceRoot, '/tmp', tmpdir()].map(canonicalPath))]

@@ -19,10 +19,7 @@ export default defineConfig([
     },
   },
   {
-    entry: {
-      'worker/profile-resolution-bootstrap': 'lib/types/profile-resolution/worker-bootstrap.js',
-      'worker/input-review': 'lib/types/input-review-worker.js',
-    },
+    entry: { 'worker/profile-resolution-bootstrap': 'lib/types/profile-resolution/worker-bootstrap.js' },
     outDir: 'lib',
     format: ['esm'],
     platform: 'node',

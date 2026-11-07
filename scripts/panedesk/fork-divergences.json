@@ -206,20 +206,6 @@
       }
     },
     {
-      "id": "serialized-hmr-input-review",
-      "description": "Serialize HMR input reviews with reader write admission",
-      "origin": "Protected input review concurrency",
-      "reason": "Use the existing per-reader review queue for HMR without sharing scans or owner decisions with write admission. Preserve pending guards, candidate verification, durable approvals and write publication ordering. This change can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/hmr/src/index.ts",
-          "packages/boot/hmr/tests/input-review-coordination.spec.ts",
-          "packages/boot/hmr/README*"
-        ]
-      }
-    },
-    {
       "id": "agent-team-startup-review-stderr",
       "description": "Compare Agent Teams business stderr after startup review diagnostics",
       "origin": "Bilingual protected-input startup diagnostics",
@@ -305,91 +291,6 @@
       }
     },
     {
-      "id": "path-local-protected-module-loads",
-      "description": "Avoid repeated protected-root traversal during module loading",
-      "origin": "Protected module startup performance",
-      "reason": "Authenticate each approved root once per in-memory authority, then verify requested module bytes and path identities without enumerating unrelated siblings. Retain URL results only within the same reader authority and revalidate bytes on every load. Preserve durable formats, owner decisions, stability checks and write publication ordering. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/profile-resolution/service.ts",
-          "packages/boot/app-boot/tests/protected-module-loading.spec.ts",
-          "packages/boot/app-boot/README*"
-        ]
-      }
-    },
-    {
-      "id": "prepared-input-copy-containment",
-      "description": "Avoid repeated root resolution while validating restored input copies",
-      "origin": "Protected input review performance",
-      "reason": "Prepare separator-qualified prefixes for normalized absolute POSIX snapshot roots and still validate every restored copy. Preserve native relative-path comparison for other spellings and Windows, all metadata samples, both stability passes, authoritative structure checks, owner decisions and durable formats. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/tests/input-integrity-equivalence.spec.ts",
-          "packages/boot/app-boot/README*"
-        ]
-      }
-    },
-    {
-      "id": "cooperative-input-state-restoration",
-      "description": "Restore and index complete input review results in cooperative host batches",
-      "origin": "Protected input review performance",
-      "reason": "Validate complete worker snapshots and build descendant indexes in unpublished readers with cooperative scheduling. Recheck authority after yields and before publishing complete approved state and its prepared index. Preserve synchronous consumers, all snapshot validation, worker messages, durable formats, and write authorization ordering. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/tests/input-review-restore.spec.ts",
-          "packages/boot/app-boot/README*",
-          "packages/extensions/tool-cordis/src/api-catalog.ts"
-        ]
-      }
-    },
-    {
-      "id": "resident-protected-input-review",
-      "description": "Retain isolated input reviewers with request-bound small messages",
-      "origin": "Protected input review performance",
-      "reason": "Retain reader-local review processes and checked passes within a host lifetime. Import complete state on first use and after invalidation; stable reviews exchange authority digests and request identifiers without whole-state restoration. Preserve content and stability checks, authenticated owner confirmation, progress supervision, and host-owned final publication. Terminate owned reviewers on HMR unload and root disposal. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/input-review-thread.ts",
-          "packages/boot/app-boot/src/input-review-worker.ts",
-          "packages/boot/app-boot/src/index.ts",
-          "packages/boot/app-boot/tests/input-review-resident.spec.ts",
-          "packages/boot/app-boot/README*",
-          "packages/boot/hmr/src/index.ts",
-          "packages/boot/hmr/README*",
-          "docs/subsystems/boot.md",
-          "docs/subsystems/boot.zh.md",
-          "docs/subsystems/boot.i18n.yaml",
-          "packages/extensions/tool-cordis/src/api-catalog.ts"
-        ]
-      }
-    },
-    {
-      "id": "startup-agent-review-readiness",
-      "description": "Keep synchronous startup agent review outside readiness-blocked HMR transactions",
-      "origin": "Startup seed session rename deadlock review",
-      "reason": "Serialize startup reviews without waiting behind reloads that hold the HMR queue until Loader settlement. Keep agent creation blocked until protected inputs pass review, refuse unconfirmed startup changes without owner prompts, and hand pending startup reviews to HMR before input mutation. Resume transaction-serialized review after application readiness. Keep durable formats and workspace write authority unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/profile-context-types.ts",
-          "packages/boot/app-boot/README*",
-          "packages/boot/hmr/src/index.ts",
-          "packages/boot/hmr/tests/startup-review.spec.ts",
-          "packages/boot/hmr/README*",
-          "packages/interaction/user-approval/src/index.ts",
-          "packages/interaction/user-approval/README*"
-        ]
-      }
-    },
-    {
       "id": "workspace-epoch-commit-barrier",
       "description": "Invalidate old workspace captures, reviews and capability publication on owner transitions",
       "origin": "Workspace write authority race review",
@@ -410,42 +311,6 @@
           "packages/interaction/permission-presets/README*",
           "packages/interaction/user-approval/src/index.ts",
           "packages/interaction/user-approval/README*"
-        ]
-      }
-    },
-    {
-      "id": "workspace-admission-enrollment",
-      "description": "Share ordinary workspace admission before scanning and isolate waiter cancellation",
-      "origin": "Concurrent workspace admission review",
-      "reason": "Keep enrollment and root versions on the launcher-owned reader. Share capture or review with requests enrolled before scanning, queue later requests for another review, and cancel individual waiters without cancelling shared work. Preserve the synchronous first-capture barrier, content decisions and durable format. This stage does not close revocation or asynchronous native publication races. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/profile-context.ts",
-          "packages/boot/app-boot/tests/workspace-admission-concurrency.spec.ts",
-          "packages/boot/app-boot/README*"
-        ]
-      }
-    },
-    {
-      "id": "owner-record-operation-review",
-      "description": "Review owner records once per operation with indexed copies and isolated stall supervision",
-      "origin": "Restart input review responsiveness",
-      "reason": "Authenticate each durable owner record once during startup consistency review, index descendant copies and recheck record locations and generations. Run launch-reader review in a terminable child process supervised by host progress, print a bilingual startup banner before review and report completed work without a total-duration limit. Read the default thirty-second stall interval only from protected owner configuration. Preserve baseline JSON, digest and admission decisions. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/input-integrity-locales.ts",
-          "packages/boot/app-boot/src/input-review-thread.ts",
-          "packages/boot/app-boot/src/input-review-worker.ts",
-          "packages/boot/app-boot/tests/input-integrity-owner-view.spec.ts",
-          "packages/boot/app-boot/tests/input-integrity-review.spec.ts",
-          "packages/boot/app-boot/tests/input-review-watchdog.spec.ts",
-          "packages/boot/app-boot/package.json",
-          "packages/boot/app-boot/tsdown.config.ts",
-          "packages/boot/app-boot/README*"
         ]
       }
     },
@@ -480,51 +345,6 @@
           "packages/fs/fs-sandbox/README*",
           "docs/config-catalog.md",
           "docs/config-catalog.zh.md"
-        ]
-      }
-    },
-    {
-      "id": "protected-workspace-reader-ownership",
-      "description": "Select the matching durable reader before capturing workspace inputs",
-      "origin": "Protected host input capture review",
-      "reason": "Reuse a launch reader only when its canonical workspace and owner home identify the requested durable record. Preserve unrelated or memory-only readers for independent admission review instead of recapturing their baselines without home-tree classification. Keep the existing authoritative-tree selection, structural rejection, content digests, storage format and owner authorization channel unchanged. Add deterministic host-write, directory-link and root-type regressions, paired package documentation and the regenerated Cordis API catalog. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/profile-context.ts",
-          "packages/boot/app-boot/tests/input-integrity-workspace.spec.ts",
-          "packages/boot/app-boot/README*",
-          "packages/extensions/tool-cordis/src/api-catalog.ts"
-        ]
-      }
-    },
-    {
-      "id": "authoritative-home-structural-review",
-      "description": "Validate mutable authoritative home trees without content baselines",
-      "origin": "Protected host input review",
-      "reason": "Define the ledger, sessions and session projection cache trees once beside protected roots. Omit their contents and additions from capture and review without content warnings, including captures through registered ancestor roots, retaining default content checks for every unlisted home input and all paths outside the exact home selection. Validate directory roots, ownership, write permissions, entry types and confined links on Linux and macOS; Windows retains only sandbox write exclusion. Preserve write grants, protected root registration, digest algorithms, durable record formats and existing assertions. Create POSIX session lock files with owner-only permissions independently of umask, without repairing existing unsafe files. Confirm a hard-link count mismatch with exactly one fresh non-yielding structural scan, preserving strict equality and rejection of persistent outside aliases while admitting in-tree no-clobber publication. Add fixed-round real JSONL publication regressions, their test-only workspace dependencies and lockfile entries, and paired documentation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/input-integrity-structure.ts",
-          "packages/boot/app-boot/src/input-integrity-locales.ts",
-          "packages/boot/app-boot/tests/input-integrity-authority.spec.ts",
-          "packages/boot/app-boot/tests/input-integrity-ancestor.spec.ts",
-          "packages/boot/app-boot/tests/input-integrity-publication.spec.ts",
-          "packages/boot/app-boot/package.json",
-          "pnpm-lock.yaml",
-          "packages/session/session-persistence-jsonl/src/lease.ts",
-          "packages/session/session-persistence-jsonl/tests/lease-permissions.spec.ts",
-          "packages/session/session-persistence-jsonl/README*",
-          "packages/boot/app-boot/README*",
-          "packages/sandbox/sandbox/src/roots.ts",
-          "packages/sandbox/sandbox/src/index.ts",
-          "packages/sandbox/sandbox/README*",
-          "docs/subsystems/boot.md",
-          "docs/subsystems/boot.zh.md",
-          "docs/subsystems/boot.i18n.yaml"
         ]
       }
     },
@@ -15965,24 +15785,6 @@
       }
     },
     {
-      "id": "serialized-host-input-admission-review",
-      "description": "Serialize protected input reviews across host admission callers",
-      "origin": "Protected input admission concurrency",
-      "reason": "Queue workspace write admission, owner approval, and profile recomposition reviews on their shared reader without changing direct verify overlap rejection. Each queued request keeps its owner callbacks and checks the workspace generation and registered roots before and after verification; refusal and failure never publish write access. Prepare existing authoritative-tree parent directories before nested-home capture so later host-owned tree creation does not invalidate protected ancestors. Cover concurrent admission, refusal, invalidation, failed-request recovery, and nested-home startup, and run the headless restart smoke with default permissions. Digest algorithms, record formats, protected roots, and review thresholds remain unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/index.ts",
-          "packages/boot/app-boot/tests/input-review-admission.spec.ts",
-          "packages/boot/app-boot/README.md",
-          "packages/boot/app-boot/README.zh.md",
-          "packages/boot/app-boot/README.i18n.yaml",
-          "packages/interaction/user-approval/src/index.ts"
-        ]
-      }
-    },
-    {
       "id": "headless-credential-startup-review-stderr",
       "description": "Allow only the startup review banner and progress lines on headless credential stderr",
       "origin": "Headless startup review output",
@@ -16001,40 +15803,6 @@
       }
     },
     {
-      "id": "cooperative-protected-input-persistence",
-      "description": "Bound protected-input record preparation and reduce metadata scan overhead",
-      "origin": "Protected input admission responsiveness",
-      "reason": "Hash existing records and encode captured file entries cooperatively while retaining the record lock, revision comparison, generation checks, and host-owned atomic rename before trust publication. Preserve durable JSON bytes and both metadata stability passes, use native canonical-path resolution for metadata stamps, and yield between authoritative-tree inode groups without changing the non-yielding conflict confirmation. Cover event-loop responsiveness, requests during persistence, revoked generations, commit refusal, and byte-identical serialization. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/src/input-integrity-structure.ts",
-          "packages/boot/app-boot/tests/input-integrity-persist.spec.ts",
-          "packages/boot/app-boot/README.md",
-          "packages/boot/app-boot/README.zh.md",
-          "packages/boot/app-boot/README.i18n.yaml"
-        ]
-      }
-    },
-    {
-      "id": "help-only-startup-review-skip",
-      "description": "Skip the startup protected-input review on help-only and version-only invocations",
-      "origin": "CLI help reference diagnostics",
-      "reason": "Document the optional progress callback of the synchronous owner-record opener. A profile invocation whose only argument is help or version displays text and starts no host and no agent, so it opens owner records without the startup review and prints no review lines; every invocation that can start a host still reviews and still reports bilingual progress. Cover panedesk acp --help producing help text on stdout with an empty stderr. Regenerate the Cordis service catalog so its committed projection matches the current API. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "apps/cli/src/profile-boot.ts",
-          "apps/cli/tests/acp-help.spec.ts",
-          "packages/extensions/tool-cordis/src/api-catalog.ts",
-          "docs/subsystems/approval.md",
-          "docs/subsystems/approval.zh.md"
-        ]
-      }
-    },
-    {
       "id": "worker-os-user-info",
       "description": "Expose virtual user information in the worker Node OS bridge",
       "origin": "Worker runtime Node compatibility",
@@ -16044,74 +15812,6 @@
         "paths": [
           "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/os.ts",
           "packages/experimental/webworker-runtime/tests/node/node-stubs.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "host-message-authoritative-tree",
-      "description": "Treat host message storage as the fourth mutable authoritative home tree",
-      "origin": "Protected-input review after host mailbox registration",
-      "reason": "Exclude only messages alongside ledger, sessions, and the session projection cache from content and addition comparisons. Preserve Linux and macOS structural checks and fail closed on unsafe trees. Sandbox write exclusions and the protected-root inventory remain unchanged. Windows does not compare these four trees' contents or check their structure and relies only on sandbox write boundaries; native Windows enforcement was not verified here. Cover real host mailbox registration, unlisted sibling rejection, and unsafe message-tree structure without changing message writes. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/sandbox/sandbox/src/roots.ts",
-          "packages/boot/app-boot/tests/input-integrity-messages.spec.ts",
-          "packages/session/message-delivery-local/tests/input-integrity.spec.ts",
-          "packages/sandbox/sandbox/README.md",
-          "packages/sandbox/sandbox/README.zh.md",
-          "docs/subsystems/boot.md",
-          "docs/subsystems/boot.zh.md",
-          "docs/subsystems/boot.i18n.yaml"
-        ]
-      }
-    },
-    {
-      "id": "client-rebuild-explicit-tree-admission",
-      "description": "Separate Client rebuild tree admission from request-local executable validation",
-      "origin": "Protected Client artifact generation admission",
-      "reason": "Require Client rebuilds to compare every covering approved tree, including added chunks and changed siblings, before reusing an unchanged entry revision or publishing a generation. Keep ordinary executable reads and same-authority module URL caching request-local after their cold bootstrap. Preserve owner confirmation, approved bytes, metadata decisions, stability checks, and durable records. Cover rejection and explicit approval of sibling changes without widening module reads. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-integrity.ts",
-          "packages/boot/app-boot/tests/protected-module-loading.spec.ts",
-          "packages/boot/app-boot/README.md",
-          "packages/boot/app-boot/README.zh.md",
-          "packages/boot/app-boot/README.i18n.yaml",
-          "packages/client/modules/src/index.ts",
-          "packages/client/modules/README.md",
-          "packages/client/modules/README.zh.md",
-          "packages/client/modules/README.i18n.yaml",
-          "packages/extensions/tool-cordis/src/api-catalog.ts",
-          "docs/subsystems/client-modules.md",
-          "docs/subsystems/client-modules.zh.md"
-        ]
-      }
-    },
-    {
-      "id": "resident-review-exit-dispatch",
-      "description": "Dispatch the exit of an idle resident input reviewer when the host terminates it",
-      "origin": "Protected input review lifetime",
-      "reason": "Reference an idle resident review isolate and its channel before the host kills it, so the child's exit is dispatched and disposal returns. Keep idle isolates unreferenced everywhere else, so a normally exiting host is not held open. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-review-thread.ts",
-          "packages/boot/app-boot/tests/input-review-dispose.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "protected-input-review-worker-entry",
-      "description": "Publish the protected-input review worker and start it from an explicit asynchronous entry",
-      "origin": "Protected-input review worker publication and module evaluation",
-      "reason": "Register the private review worker bundle in the exact package publication list beside the existing worker bootstrap, and move the worker's asynchronous review loop into an explicit main function that handles a rejected entry with a non-zero exit while keeping the review message protocol and IPC close unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/boot/app-boot/src/input-review-worker.ts",
-          "scripts/check-workspace-constraints.ts"
         ]
       }
     },

@@ -8,8 +8,7 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { CollectedOutput, ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -17,7 +16,6 @@ import { SANDBOX_UNAVAILABLE, SandboxProvider, SandboxUnavailableError } from '@
 import type { ConfinedArgv, SandboxExecutionPolicy, SandboxMode, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { SandboxPolicyService, resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { SandboxBashExecutor } from '@panedesk/dsh-bash-sandbox'
-import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import type { SubprocessHandle, SubprocessOutputReader } from '@panedesk/dsh-subprocess'
 import { classifyDenial } from '../src/helpers.ts'
@@ -105,46 +103,6 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 }
 
 describe('the provider hand-off', () => {
-  it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before Bash %s spawns', async (onExpiry) => {
-    const { ctx, bash } = await setup({ mode: 'workspace-write', workspaceRoot: spillDir })
-    const home = mkdtempSync(join(tmpdir(), 'bash-handoff-owner-'))
-    onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
-    writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
-    const input = join(spillDir, 'plugin.mjs')
-    const integrity = new ProtectedInputIntegrity(spillDir, home)
-    integrity.observe(input)
-    await integrity.grantWrite()
-    const profile: ProfileContext = {
-      name: 'test', dir: spillDir, patchPath: input, cwd: spillDir, home,
-      installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
-      telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-    }
-    const providerContext = new Context()
-    providerContext.provide('profileContext', profile)
-    await providerContext.plugin(LocalSandboxProvider, {})
-    const provider = providerContext.sandbox
-    if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
-    provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
-    const spawn = vi.spyOn(ctx.subprocess, 'spawn')
-    const handoffs: ConfinedArgv[] = []
-    const confine = vi.spyOn(ctx.sandbox, 'confine').mockImplementation(async (argv, policy, signal) => {
-      const handed = await provider.confine(argv, policy, signal)
-      handoffs.push(handed)
-      return handed
-    })
-    try {
-      const execution = await bash.execute(bash.resolve({ command: 'printf plugin > plugin.mjs', onExpiry,
-        sandboxPolicy: { mode: 'workspace-write', workspaceRoot: spillDir, protectedPaths: [join(spillDir, 'plugin.mjs')] },
-      }))
-      await execution.done
-      expect(spawn).toHaveBeenCalledOnce()
-      const handed = handoffs[0]
-      expect(handed?.argv).toEqual(expect.arrayContaining([
-        '--workspace', spillDir, '--mode', 'workspace-write', '--protected-path', join(spillDir, 'plugin.mjs'),
-      ]))
-      expect(handed?.argv[0]).toBe('unused-runner')
-    } finally { confine.mockRestore(); spawn.mockRestore(); await ctx.fiber.dispose(); await providerContext.fiber.dispose() }
-  })
 
   it('hands the configured Git Bash path to confinement without splitting spaces', async () => {
     const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'

@@ -19,7 +19,7 @@ export {
   validateEscalationArgs,
 } from './escalation.ts'
 export type { EscalationApproval, EscalationApprover, EscalationOutcome, EscalationRequest } from './escalation.ts'
-export { assertUnprotectedRoots, authoritativeHomeTrees, canonicalPath, isHomeDiagnosticFile, protectedWorkspaceBranches, writableRoots } from './roots.ts'
+export { canonicalPath, writableRoots } from './roots.ts'
 export { OWNER_MATERIAL_DENIED, assertOwnerWorkspace, isOwnerMaterial, isolatedOwnerPaths, ownerMaterialDirectories } from './owner-material.ts'
 
 /**
