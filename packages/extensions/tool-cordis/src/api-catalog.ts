@@ -857,25 +857,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'connectionSources',
-    summary: 'Instance-owned platform registration, shared by all owner admission paths.',
-    description: 'Instance-owned platform registration, shared by all owner admission paths.',
-    methods: [
-      {
-        signature: 'register(platform: NodeJS.Platform, lookup: ConnectionSourceLookup): () => Promise<void>',
-        description: 'Register before the provider permits untrusted execution; removal fails closed for new connections.',
-        parameters: [{ name: 'platform', description: 'Operating system whose product markers the provider owns.' }, { name: 'lookup', description: 'Synchronous bounded lookup; exceptions become unknown at admission.' }],
-        returns: 'Owning-fiber disposer; existing socket decisions remain fixed until close.',
-      },
-      {
-        signature: 'classify(socket: ConnectionSourceSocket | undefined): ConnectionSource',
-        description: 'Select the host platform, without interpreting browser sandbox flags as product identity.',
-        parameters: [{ name: 'socket', description: 'Accepted transport facts, or undefined for an in-process carrier.' }],
-        returns: 'Registered decision; unimplemented platforms permit, withdrawn providers refuse.',
-      },
-    ],
-  },
-  {
     key: 'cotTranslation',
     summary: 'Optional reasoning translation delegates Session-bound storage to the translator.',
     description: 'Optional reasoning translation delegates Session-bound storage to the translator.',
@@ -5264,10 +5245,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Named provider registry with managed activations, durable discovery, and local child messaging.',
     methods: [
       {
-        signature: 'listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission[\'list\']>',
-        description: 'Read process-local queued work without loading a child.',
-        parameters: [{ name: 'parentSessionId', description: 'owning root session.' }],
-        returns: 'count, oldest time, and current ticket positions.',
+        signature: 'listQueued(_parentSessionId: SessionId): { queuedCount: number; earliestQueuedAt?: number; tickets: [] }',
+        description: 'Read process-local queued work.',
+        parameters: [{ name: '_parentSessionId', description: 'owning root session.' }],
+        returns: 'an empty queue snapshot.',
       },
       {
         signature: 'resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined',
@@ -5289,9 +5270,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>',
-        description: 'Request activation while preserving durable queue admission outcomes.',
+        description: 'Request activation and start it immediately.',
         parameters: [{ name: 'spec', description: 'Task, backend, and result recipient.' }],
-        returns: 'An activation or a durable queued ticket without waiting for capacity.',
+        returns: 'The published activation.',
       },
       {
         signature: 'async waitForChildren(parent: Agent): Promise<boolean>',
@@ -6979,14 +6960,6 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'name', description: 'the provider name that no longer resolves.' }],
   },
   {
-    name: 'subagent/queue',
-    mode: 'emit',
-    signature: '\'subagent/queue\'(event: SubagentQueueEvent): void',
-    summary: 'Observe root admission without implying execution has started.',
-    description: 'Observe root admission without implying execution has started.',
-    parameters: [{ name: 'event', description: 'queued, dequeued, or cancelled ticket transition.' }],
-  },
-  {
     name: 'subagent/start',
     mode: 'emit',
     signature: '\'subagent/start\'(this: Scoped<SubagentRuntime>, info: SubagentRunInfo): void',
@@ -7780,7 +7753,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectionAdmission',
-    declaration: 'export type ConnectionAdmission = {\n    readonly peer: PeerScope;\n    readonly release: () => Promise<void>;\n} | {\n    readonly rejection: 401 | 403 | 409;\n    readonly reason?: string;\n};',
+    declaration: 'export type ConnectionAdmission = {\n    readonly peer: PeerScope;\n    readonly release: () => Promise<void>;\n} | {\n    readonly rejection: 401 | 403 | 409;\n};',
   },
   {
     name: 'ConnectionFetchHandler',
@@ -7835,20 +7808,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ConnectionRpcResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: ConnectionRpcFailure;\n};',
   },
   {
-    name: 'ConnectionSource',
-    declaration: 'export type ConnectionSource = \'product-sandbox\' | \'non-product\' | \'unknown\';',
-  },
-  {
-    name: 'ConnectionSourceLookup',
-    declaration: 'export type ConnectionSourceLookup = (socket: ConnectionSourceSocket | undefined) => ConnectionSource;',
-  },
-  {
-    name: 'ConnectionSourceSocket',
-    declaration: 'export interface ConnectionSourceSocket {\n    readonly remoteAddress?: string | undefined;\n    readonly remotePort?: number | undefined;\n    readonly localAddress?: string | undefined;\n    readonly localPort?: number | undefined;\n    readonly destroyed?: boolean | undefined;\n    once?(event: \'close\', listener: () => void): unknown;\n}',
-  },
-  {
     name: 'ConnectionTrustRequest',
-    declaration: 'export interface ConnectionTrustRequest {\n    readonly socket?: ConnectionSourceSocket;\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+    declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -10016,7 +9977,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PeerAdmission',
-    declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n    readonly reason?: string;\n};',
+    declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n};',
   },
   {
     name: 'PeerId',
@@ -10347,10 +10308,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type QueueItemId = Branded<\'SeatQueueItemId\'>;',
   },
   {
-    name: 'QueueJournalRecord',
-    declaration: 'export interface QueueJournalRecord {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly agentType: string;\n    readonly position: number;\n    readonly queuedAt: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\' | \'notified\';\n    readonly dequeuedAt?: number;\n    readonly cancelledAt?: number;\n    readonly notifiedAt?: number;\n    readonly reason?: string;\n}',
-  },
-  {
     name: 'ReadFileLine',
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
@@ -10625,10 +10582,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RevokeCloseReportRequest',
     declaration: 'export interface RevokeCloseReportRequest {\n    reportId: CloseReportId;\n    sessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
-  },
-  {
-    name: 'RootSubagentAdmission',
-    declaration: 'export class RootSubagentAdmission implements SubagentAdmission {\n    constructor(private readonly ctx: Context, private readonly downstream: () => SubagentAdmission | undefined, persistence?: {\n        notify: (parent: Agent, record: QueueJournalRecord) => void | Promise<void>;\n    });\n    async acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>;\n    async continue(parent: Agent, childId: SessionId): Promise<void>;\n    async resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>;\n    released(parent: Agent): void;\n    cancelParent(parent: Agent, reason: string): void;\n    list(parentSessionId: SessionId): {\n        queuedCount: number;\n        earliestQueuedAt?: number;\n        tickets: SubagentQueueEvent[];\n    };\n}',
   },
   {
     name: 'RoutedDeliveryAuthority',
@@ -12315,10 +12268,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentActivationSpec {\n    readonly provider: string;\n    readonly label: string;\n    readonly childId?: SessionId;\n    readonly request: Omit<SubagentStartRequest, \'label\' | \'signal\'>;\n    readonly signal: AbortSignal;\n    readonly delivery: \'parent\' | \'caller\';\n}',
   },
   {
-    name: 'SubagentAdmission',
-    declaration: 'export interface SubagentAdmission {\n    acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>;\n    continue(parent: Agent, childId: SessionId): Promise<void>;\n    resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>;\n}',
-  },
-  {
     name: 'SubagentAdmissionControl',
     declaration: 'export interface SubagentAdmissionControl {\n    reserve(): () => void;\n    start(spec?: SubagentActivationSpec): Promise<SubagentActivation>;\n}',
   },
@@ -12391,10 +12340,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentQueued {\n    readonly status: \'queued\';\n    readonly ticketId: Branded<\'SeatChildTicketId\'>;\n    readonly parentSessionId: SessionId;\n    readonly position?: number;\n    readonly queuedAt?: number;\n    readonly cancel?: () => void;\n    readonly outcome?: Promise<SubagentActivation | SubagentQueued | {\n        status: \'cancelled\';\n        reason: string;\n    }>;\n}',
   },
   {
-    name: 'SubagentQueueEvent',
-    declaration: 'export interface SubagentQueueEvent {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly queuedAt: number;\n    readonly position: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\';\n    readonly reason?: string;\n}',
-  },
-  {
     name: 'SubagentReservation',
     declaration: 'export interface SubagentReservation {\n    readonly status: \'reserved\';\n    readonly releaseSlot?: () => void;\n    release(childId?: SessionId): Promise<void>;\n}',
   },
@@ -12420,7 +12365,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentRuntime',
-    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    get queuesRootOverflow(): boolean;\n    listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission[\'list\']>;\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'pr /* …truncated — full shape in source */',
+    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    get queuesRootOverflow(): boolean;\n    listQueued(_parentSessionId: SessionId): {\n        queuedCount: number;\n        earliestQueuedAt?: number;\n        tickets: [\n        ];\n    };\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSig /* …truncated — full shape in source */',
   },
   {
     name: 'SubagentSendMessageOptions',

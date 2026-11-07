@@ -113,7 +113,7 @@ async function mounted(
   if (credentials === undefined) provideBrowserCredentials(ctx)
   else ctx.provide('credentials', credentials)
   ctx.provide('webServer', fakeHttpServer(routes, upgrades, '127.0.0.1', protocol) as WebServer)
-  const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false, ...config })
+  const fiber = ctx.plugin({ inject: [...inject], apply }, { ...config })
   await fiber.await()
   return {
     ctx,
@@ -138,102 +138,6 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
-  it('uses the registered platform source before granting owner authority', async () => {
-    const ctx = new Context()
-    provideBrowserCredentials(ctx)
-    const provider = ctx.inject(['connectionSources'], (owner) => {
-      owner.connectionSources.register(process.platform, () => 'product-sandbox')
-    })
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
-    try {
-      await fiber.await()
-      const connection = ctx.get('connection')!
-      const cookie = connection.desktopCookie('http://localhost')
-      expect(connection.admit({ headers: { host: 'localhost', cookie } })).toEqual({
-        rejection: 403,
-        reason: 'This request comes from a sandbox process and cannot act as owner. / 本请求来自沙箱进程，不能以 owner 身份执行。',
-      })
-      await provider.dispose()
-      expect(connection.admit({ headers: { host: 'localhost', cookie } })).toEqual({
-        rejection: 403,
-        reason: 'The connection source could not be verified and cannot act as owner. / 本请求的连接来源查不出，不能以 owner 身份执行。',
-      })
-    } finally { await fiber.dispose(); await provider.dispose(); await ctx.fiber.dispose() }
-  })
-
-  it('retains platform identity and withdrawal across connection reloads', async () => {
-    const ctx = new Context()
-    provideBrowserCredentials(ctx)
-    const plugin = { inject: [...inject], apply }
-    const first = ctx.plugin(plugin, { requireOwnerConfirmation: false })
-    try {
-      await first.await()
-      const registry = ctx.get('connectionSources')!
-      const provider = ctx.inject(['connectionSources'], (owner) => {
-        owner.connectionSources.register(process.platform, () => 'product-sandbox')
-      })
-      await provider.await()
-      await first.dispose()
-      const second = ctx.plugin(plugin, { requireOwnerConfirmation: false })
-      await second.await()
-      expect(ctx.get('connectionSources')!.classify(undefined)).toBe('product-sandbox')
-      expect(() => ctx.get('connectionSources')!.register(process.platform, () => 'non-product'))
-        .toThrow(`connection source already registered for ${process.platform}`)
-      expect(registry.classify(undefined)).toBe('product-sandbox')
-      await provider.dispose()
-      await second.dispose()
-      const third = ctx.plugin(plugin, { requireOwnerConfirmation: false })
-      await third.await()
-      expect(ctx.get('connectionSources')!.classify(undefined)).toBe('unknown')
-      expect(registry.classify(undefined)).toBe('unknown')
-    } finally { await ctx.fiber.dispose() }
-  })
-
-  it('warns about macOS source identification without refusing host startup', async () => {
-    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
-    const ctx = new Context()
-    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
-    provideBrowserCredentials(ctx)
-    const routes: WebRoute[] = []
-    ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
-    try {
-      await fiber.await()
-      expect(routes).toHaveLength(2)
-      expect(warn).toHaveBeenCalledWith('Known limitation: macOS cannot identify product-sandbox connections; a valid owner cookie can still be replayed. Connection-source enforcement is required before the M9 stable release. / 已知限制：macOS 无法识别本产品沙箱连接；有效 owner cookie 仍可被回放。M9 正式发布前必须补齐连接来源拦截。')
-    } finally {
-      Object.defineProperty(process, 'platform', descriptor)
-      warn.mockRestore()
-      await fiber.dispose()
-    }
-  })
-
-  it.each([undefined, 2])('uses only host configuration for cookie persistence (%s)', async (cookieMaxAgeDays) => {
-    const host = await mounted(cookieMaxAgeDays === undefined ? {} : { cookieMaxAgeDays })
-    try {
-      const target = new URL(host.connection.authenticatedUrl('http://localhost'))
-      target.searchParams.set('cookieMaxAgeDays', '99')
-      const exchanged = fakeResponse()
-      host.connection.authorizeIndex(fakeRequest({ host: 'localhost', 'x-cookie-max-age-days': '99' }, target.pathname + target.search), exchanged.response)
-      expect(exchanged.state.status).toBe(303)
-      const raw = exchanged.state.headers?.['set-cookie']
-      if (raw === undefined) throw new Error('missing cookie')
-      const attributes = raw.slice(raw.indexOf(';'))
-      if (cookieMaxAgeDays === undefined) {
-        expect(attributes).toBe('; Path=/; HttpOnly; SameSite=Strict')
-      } else {
-        const value = raw.split(';')[0]?.split('=')[1]?.split('.')[1]
-        if (value === undefined) throw new Error('missing payload')
-        const payload: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
-        if (typeof payload !== 'object' || payload === null || !('expiresAt' in payload) || typeof payload.expiresAt !== 'number') {
-          throw new Error('missing expiry')
-        }
-        expect(attributes).toBe(`; Max-Age=172800; Path=/; Expires=${new Date(payload.expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`)
-      }
-    } finally { await host.dispose() }
-  })
-
   it('runs request admission after authentication and removes it with its owning fiber', async () => {
     const { ctx, routes, connection, dispose } = await mounted()
     let admitted = 0
@@ -295,7 +199,7 @@ describe('connection node half', () => {
   it('provides the carrier-neutral service without a Web server', async () => {
     const ctx = new Context()
     provideBrowserCredentials(ctx)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
+    const fiber = ctx.plugin({ inject: [...inject], apply })
     try {
       await fiber.await()
       const connection = ctx.get('connection') as HostConnectionHandle
@@ -311,7 +215,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     const upgrades: WebUpgradeRoute[] = []
     provideBrowserCredentials(ctx)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     try {
       await fiber.await()
       const connection = ctx.get('connection') as HostConnectionHandle
@@ -461,7 +365,7 @@ describe('connection node half', () => {
   })
 
   it('requires the same browser session for every method on every trusted authority', async () => {
-    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
     const methods = [
       'session/openWorkspacePath',
       'llm/discoverModels', 'skills/list', 'agentPresets/list',
@@ -517,7 +421,7 @@ describe('connection node half', () => {
   })
 
   it('shares its configured trust and authentication policy with sibling routes', async () => {
-    const { connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const { connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
     const loopback = fakeRequest({ host: '127.0.0.1:3080' })
     const declared = fakeRequest({ host: 'harness.example' })
 
@@ -535,7 +439,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
+    const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(routes).toHaveLength(2)
     expect(routes[0]).toMatchObject({ kind: 'prefix', path: API_PATH })
@@ -584,7 +488,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     await fiber.await()
     const connection = ctx.get('connection') as HostConnectionHandle
     const calls: unknown[] = []
@@ -664,7 +568,7 @@ describe('connection node half', () => {
   })
 
   it('admits every trusted, authenticated request as the owner browser Peer and hands each call that Peer', async () => {
-    const { connection, routes, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const { connection, routes, dispose } = await mounted({ trustedHosts: ['harness.example'] })
     const peers: PeerScope[] = []
     const remove = connection.rpc.intercept(
       '/api',
@@ -710,7 +614,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     await fiber.await()
     const connection = ctx.get('connection') as HostConnectionHandle
     const remove = connection.rpc.handle('/rpc', async (endpoint) => {
@@ -1023,7 +927,7 @@ describe('connection node half over a real HTTP server', () => {
   it('requires authentication uniformly over a real HTTP request', async () => {
     // A real IncomingMessage pins the exploit boundary: a client-controlled
     // Host naming loopback passes the rebinding fence but never authenticates.
-    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
+    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
     const { port, close } = await serve(routes)
     try {
       const methods = [

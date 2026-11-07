@@ -809,26 +809,6 @@
       }
     },
     {
-      "id": "owner-macos-source-limitation",
-      "description": "Report missing macOS product-sandbox connection identification",
-      "origin": "Owner authentication isolation",
-      "reason": "Warn at macOS Web-carrier startup without refusing launch, document valid-cookie replay and the required pre-M9 enforcement work, and link session-cookie semantics from the root README. This is a known limitation, not a platform identification implementation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/client/connection/src/auth-locale.ts",
-          "packages/client/connection/src/index.ts",
-          "packages/client/connection/tests/node-half.host.spec.ts",
-          "packages/client/connection/README.md",
-          "packages/client/connection/README.zh.md",
-          "packages/client/connection/README.i18n.yaml",
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml"
-        ]
-      }
-    },
-    {
       "id": "sandbox-piped-job-ownership",
       "description": "Assign piped restricted children to a kill-on-close Job before execution",
       "origin": "Owner authentication isolation",
@@ -843,55 +823,6 @@
           "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md"
-        ]
-      }
-    },
-    {
-      "id": "owner-session-cookie-default",
-      "description": "Use session cookies unless protected configuration enables persistence",
-      "origin": "Owner authentication isolation",
-      "reason": "Omit browser and API cookie persistence attributes by default while retaining signed expiration and authority binding. Only an explicit positive cookieMaxAgeDays in protected Host configuration enables persistence. Document browser session restoration and existing-cookie limitations. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "docs/config-catalog.md",
-          "docs/config-catalog.zh.md",
-          "packages/client/connection/src/browser-auth.ts",
-          "packages/client/connection/src/index.ts",
-          "packages/client/connection/tests/browser-auth.host.spec.ts",
-          "packages/client/connection/tests/node-half.host.spec.ts",
-          "packages/client/connection/README.md",
-          "packages/client/connection/README.zh.md",
-          "packages/client/connection/README.i18n.yaml",
-          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.md",
-          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md",
-          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.i18n.yaml"
-        ]
-      }
-    },
-    {
-      "id": "owner-connection-source-admission",
-      "description": "Check physical connection sources before granting owner authority",
-      "origin": "Owner authentication isolation",
-      "reason": "Share a three-valued host source adapter and socket-lifetime cache across HTTP admission, WebSocket upgrades, launch-token exchange and API Peer publication. Refuse sandbox and unknown sources with bilingual diagnostics before credentials are consumed. Inject the instance-owned connectionSources platform registry into production BrowserAuth, with effect-owned registration, duplicate rejection and fail-closed withdrawal. Exercise the real Loader HTTP and WebSocket owner entry paths. Platform identity adapters remain separate; an unimplemented platform is not claimed to enforce sandbox identity. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/client/connection/src/connection-source.ts",
-          "packages/client/connection/tsconfig.host.json",
-          "packages/client/connection/src/auth-locale.ts",
-          "packages/client/connection/src/browser-auth.ts",
-          "packages/client/connection/src/index.ts",
-          "packages/client/connection/src/rpc-host.ts",
-          "packages/client/connection/src/rpc.ts",
-          "packages/client/connection/tests/connection-source.host.spec.ts",
-          "packages/client/connection/tests/node-half.host.spec.ts",
-          "packages/api/gateway/tests/operator-connect.host.spec.ts",
-          "packages/client/connection/README.md",
-          "packages/client/connection/README.zh.md",
-          "packages/client/connection/README.i18n.yaml",
-          "packages/api/gateway/src/index.ts",
-          "packages/api/gateway/src/stream-server.ts"
         ]
       }
     },
@@ -1014,22 +945,6 @@
           "apps/web/tests/onboarding-usable-provider.e2e.ts",
           "apps/web/tests/server-restart.e2e.ts",
           "apps/web/tests/fixtures/restart-startup.overlay.yml"
-        ]
-      }
-    },
-    {
-      "id": "worker-connection-host-terminal-loading",
-      "description": "Keep the host readline builtin out of packed Worker imports",
-      "origin": "Worker preview compatibility",
-      "reason": "Load readline through the host builtin loader only after a safe controlling terminal is available. Preserve default owner confirmation, noninteractive refusal and terminal decisions; assert the real packed connection entry has no node:readline import within the existing built-artifact suite. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/client/connection/src/owner-confirmation.ts",
-          "packages/client/connection/README.md",
-          "packages/client/connection/README.zh.md",
-          "packages/client/connection/README.i18n.yaml",
-          "packages/experimental/webworker-packer/tests/image-loadable.spec.ts"
         ]
       }
     },
@@ -1354,34 +1269,6 @@
           "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "pnpm-lock.yaml"
-        ]
-      }
-    },
-    {
-      "id": "browser-owner-confirmation",
-      "description": "Require host-local confirmation before new browsers receive owner authority",
-      "origin": "Owner credential read isolation",
-      "reason": "Make launch links single-use and short-lived, admit pending browser cookies only after a host controlling-terminal decision, refuse Windows and noninteractive confirmation by default, and support an explicit protected-configuration opt-out. Bound terminal decisions with a configurable timeout and exercise confirmation, cancellation, and silence through a real pseudoterminal. API connect requires an authenticated owner cookie. Desktop credentials travel over owned IPC instead of launch URLs, with the cookie minting method declared on the Host connection handle. Add real-credential confirmation and transport regressions with bilingual guidance, including same-host credential read denial and authenticated versus forged-cookie controls for event answers, workspace authorization, and bundle installation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/client/connection/src/browser-auth.ts",
-          "packages/client/connection/src/owner-confirmation.ts",
-          "packages/client/connection/src/auth-locale.ts",
-          "packages/client/connection/src/index.ts",
-          "packages/client/connection/src/rpc-host.ts",
-          "packages/client/connection/src/rpc.ts",
-          "packages/client/connection/tsconfig.host.json",
-          "packages/client/connection/tests/browser-auth.host.spec.ts",
-          "packages/client/connection/tests/browser-confirmation.host.spec.ts",
-          "packages/client/connection/tests/owner-terminal.host.spec.ts",
-          "packages/client/connection/tests/node-half.host.spec.ts",
-          "packages/client/connection/README.md",
-          "packages/client/connection/README.zh.md",
-          "packages/client/connection/README.i18n.yaml",
-          "packages/api/gateway/tests/operator-connect.host.spec.ts",
-          "packages/api/gateway/package.json",
           "pnpm-lock.yaml"
         ]
       }
@@ -6417,90 +6304,6 @@
           "packages/subagent/subagent/tests/product-limits.spec.ts"
         ],
         "test": "admits sixteen simultaneous fake-model children and retains immediate overflow rejection"
-      }
-    },
-    {
-      "id": "subagent-root-overflow-queue",
-      "description": "Offer optional root-only FIFO overflow tickets without blocking parent turns.",
-      "origin": "Subagent capacity and root queueing",
-      "reason": "Nested overflow still rejects immediately and queue admission composes with the existing provider.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/subagent/subagent/src/index.ts",
-          "packages/subagent/subagent/src/root-admission.ts",
-          "packages/subagent/subagent/src/types.ts",
-          "packages/subagent/subagent/src/manager.ts",
-          "packages/subagent/tool-subagent/src/index.ts",
-          "packages/subagent/subagent/tests/root-admission.spec.ts",
-          "docs/subsystems/subagent.md",
-          "docs/subsystems/subagent.zh.md",
-          "packages/subagent/tool-subagent/README.i18n.yaml",
-          "packages/subagent/tool-subagent/README.md",
-          "packages/subagent/tool-subagent/README.zh.md"
-        ],
-        "test": "runs sixteen fake-model children and queues the seventeenth while composing another admission provider"
-      }
-    },
-    {
-      "id": "subagent-queue-cancel-sampling",
-      "description": "Preserve queued cancellation ownership and sample live capacity at root dispatch.",
-      "origin": "Subagent capacity and root queueing",
-      "reason": "Cancellation settles once, FIFO remains ordered, and a lowered capacity never evicts admitted residents.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/subagent/subagent/src/root-admission.ts",
-          "packages/subagent/tool-subagent-control/src/list-agents.ts",
-          "packages/subagent/subagent/tests/root-admission.spec.ts"
-        ],
-        "test": "samples raised capacity on the next root dispatch and admits the oldest ticket first without a release"
-      }
-    },
-    {
-      "id": "subagent-queue-ticket-journal",
-      "description": "Persist root queue metadata beside its owning Session and cancel stale tickets on restart until the parent notice is durably acknowledged.",
-      "origin": "Subagent capacity and root queueing",
-      "reason": "A ticket becomes observable only after fsync; the sidecar avoids new Session event discriminators and child ledger starts.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/subagent/subagent/src/queue-journal.ts",
-          "packages/subagent/subagent/src/root-admission.ts",
-          "packages/subagent/subagent/src/index.ts",
-          "packages/subagent/subagent/src/manager.ts",
-          "packages/session/session-persistence/src/index.ts",
-          "packages/session/session-persistence-jsonl/src/index.ts",
-          "packages/subagent/subagent/tests/queue-journal.spec.ts",
-          "docs/subsystems/persistence.i18n.yaml",
-          "docs/subsystems/persistence.md",
-          "docs/subsystems/persistence.zh.md",
-          "packages/session/session-persistence-jsonl/README.i18n.yaml",
-          "packages/session/session-persistence-jsonl/README.md",
-          "packages/session/session-persistence-jsonl/README.zh.md",
-          "packages/session/session-persistence/README.i18n.yaml",
-          "packages/session/session-persistence/README.md",
-          "packages/session/session-persistence/README.zh.md"
-        ],
-        "test": "records one restart cancellation and one model-visible notice across three cold restores without child ledger starts"
-      }
-    },
-    {
-      "id": "subagent-queue-notified-marker",
-      "description": "Retry cancelled queue notices until parent Session durability is confirmed and a notified marker is fsynced; a crash between acceptance and the marker may duplicate one notice.",
-      "origin": "Subagent capacity and root queueing",
-      "reason": "Avoid lost restart notices without changing Session events or ledger formats; older cancellation-only journals receive one additional notice.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/subagent/subagent/src/queue-journal.ts",
-          "packages/subagent/subagent/src/manager.ts",
-          "packages/subagent/subagent/src/index.ts",
-          "packages/subagent/subagent/tests/queue-journal.spec.ts",
-          "packages/subagent/subagent/README.md",
-          "packages/subagent/subagent/README.zh.md"
-        ],
-        "test": "records one restart cancellation and one model-visible notice across three cold restores without child ledger starts"
       }
     },
     {

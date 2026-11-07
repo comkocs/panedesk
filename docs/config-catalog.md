@@ -455,7 +455,7 @@ export type Config = LocalConfig
 ## `@panedesk/dsh-client-connection`
 
 - `inject`: `credentials`
-- `source`: [`packages/client/connection/src/index.ts:102`](../packages/client/connection/src/index.ts)
+- `source`: [`packages/client/connection/src/index.ts:98`](../packages/client/connection/src/index.ts)
 
 ```ts config-catalog
 /** Browser authentication, request limits, and connection recovery configuration. */
@@ -469,12 +469,8 @@ export interface ConnectionConfig {
    * an entry here. A non-canonical or non-bare authority fails plugin load.
    */
   trustedHosts?: string[]
-  /** Explicit positive lifetime enables persistent cookies; omitted uses session cookies with a 30-day signed expiry. */
+  /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
-  /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
-  requireOwnerConfirmation?: boolean
-  /** Maximum host-terminal confirmation wait in milliseconds. Default: 60000. */
-  ownerConfirmationTimeoutMs?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
@@ -4091,7 +4087,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:190`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:188`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -4100,10 +4096,6 @@ export interface Config {
   maxActiveSubagents: Volatile<number>
   /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth: Volatile<number>
-  /** Root-only overflow handling; omission preserves immediate rejection. */
-  overflow?: 'error' | 'queue'
-  /** Persist root queue metadata beside the owning Session; defaults to false. */
-  persistQueue?: boolean
   /** Include reported artifact paths in parent completion notices; disabled by default. */
   reportPathsInNotifications: boolean
 }
