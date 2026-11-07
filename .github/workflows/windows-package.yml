@@ -95,7 +95,7 @@ jobs:
           foreach ($name in 'prepare', 'check', 'package') {
             $log = Join-Path $env:RUNNER_TEMP "$name.log"
             if (!(Test-Path $log)) { continue }
-            $tail = (Get-Content -Path $log -Tail 60) -join "`n"
+            $tail = (Get-Content -Path $log -Tail 200) -join "`n"
             Write-Output ("::error title=$name output::" + $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A'))
-            @("### $name output (last 60 lines)", '```text', $tail, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            @("### $name output (last 200 lines)", '```text', $tail, '```') | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           }
