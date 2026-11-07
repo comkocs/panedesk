@@ -1,116 +1,47 @@
+<div align="center">
+
 # Panedesk
+
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-1.1.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
+
+开源、插件化的编程智能体工作台，支持 CLI、Web 与桌面客户端。
 
 [English](README.md) | 中文
 
-**Panedesk**（中文名「窗台」）是一套开源、全插件化的 coding agent（编程智能体）工作台；1.0 将模型路由、subagent、会话账本、权限与沙箱放在同一运行时，支持 CLI（命令行界面）、Web 与桌面客户端。
+</div>
 
-> Built on DSH (DeepSeek Harness)。Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系。「DeepSeek Harness」是 DeepSeek 的注册商标，见 [BRAND_GUIDELINES.zh.md](BRAND_GUIDELINES.zh.md)。
+## 开始使用
 
-## 状态
+1. 从本仓库的 [GitHub Releases](https://github.com/comkocs/panedesk/releases) 下载并运行最新 Windows 安装包。安装包未签名；SmartScreen 提示时选择「更多信息 → 仍要运行」。
+2. 首次启动时，在欢迎页填写 DeepSeek API Key，或选择「使用其他提供方」进入「设置 → 模型 → 添加模型提供商」。
+3. 私有插件（如工单台）通过插件管理器安装，填写安装包绝对路径。
 
-公开仓包含支持模型路由与 subagent 的 headless CLI（命令行界面），以及 Web 和桌面客户端。Web 组合提供会话 subagent 树与只读监看、账本统计台、节点健康与管理页、只读 skill（技能）清单。工位编排及其界面需显式启用；安装相关包不会自动开窗。另有私有插件，本页不展开。
+1.1 起应用内提示更新；1.0 用户须先手动安装一次 1.1。
 
-1.0 提供默认 slim 组合、按需 full 组合、提供方配置向导与插件管理；长窗、subagent 守护和上游同步自动化留待后续版本。公开组合与配置见 [Panedesk 架构](docs/panedesk/architecture.zh.md)。
+## 功能要点
 
-## 平台行为
+模型路由、subagent、会话账本、权限和沙箱运行在同一工作台。默认 slim 组合提供核心功能，full 组合按需使用；支持提供方配置与插件管理。详见[架构和预设](docs/panedesk/architecture.zh.md)。
 
-Linux 上请在 tmux 中，或用 `systemd-run --user --scope -p Delegate=yes` 启动宿主，使其运行于已委派的用户 scope。登录会话的 `session-N.scope` 不委派给用户；直接在其中启动会出现中英启动警告，owner 来源核验不生效。见 [Linux 部署前提](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。
+## 支持平台
 
-Linux 的仅拒绝退役身份过滤器可能将普通 owner 连接误判为未知来源并拒绝准入；它既不会放行历史产品身份，也不会拒绝新沙箱启动。插入约 10 万、100 万、200 万个退役身份时，估算误报率分别为 0.00047%、2.07%、14.3%。浏览器的 cgroup 身份固定，一旦误中会持续到宿主重启。请先关闭所有沙箱套接字，再重启宿主以清空过滤器。详见 [Linux 升级指南](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。
+Windows 提供桌面 EXE；Linux 与 macOS 可从源码运行 CLI 和 Web。详见[平台行为与沙箱会话隔离](docs/user/platform-behavior.zh.md)。
 
-Windows 本产品沙箱的 TCP 连接即使持有有效 cookie 也不能充当 owner：准入检查宿主持有的作业对象成员身份，不按浏览器完整性、AppContainer 状态或令牌限制判断。查不出连接属主时拒绝 owner；普通浏览器仍可认证。Windows 行为仅经替身验证，未在原生实机验收。经计划任务、WMI、COM、ShellExecute 委托沙箱外进程代起尚未核验；请用独立系统账号运行不可信任务。Windows 行为以本段为准，取代下方会话 cookie 段保留的旧平台限制描述。参见 [Windows 升级指南](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。
+## 重要说明
 
-Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请使用经过认证的 Web 或桌面前端；控制台隔离为后续工作。Windows CLI / TUI 交互启动时会输出此提示。
+- Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系；商标说明见 [BRAND_GUIDELINES.zh.md](BRAND_GUIDELINES.zh.md)。
+- Windows 安装包未签名；应用内更新仅连接本仓库 Releases。
+- 会话遥测及产品分析默认关闭，可自行打开。
 
-Windows Web 拒绝新浏览器登录，除非 owner 在受保护配置里关闭新浏览器确认。Windows 发行包首次运行会询问；接受后写入同时带有 `requireOwnerConfirmation: false` 与 `trustedHosts: !!js ctx.webStartup.trustedHosts` 的 connection 条目。升级后请重新登录一次，因为签名密钥已迁址。关闭确认后，持有未使用启动链接即可登录；请保护链接和 cookie。撤销此选择时，移除覆盖条目或把确认设为 `true`，然后重启；Windows 将再次拒绝新浏览器登录，此设置不会撤销已有 cookie。详见[升级说明](docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md)。
+## 从源码构建
 
-Linux/macOS 上所有者私密目录可以位于工作区内，但工作区位于所有者目录内时仍拒绝。Landlock 不授予受保护第一级分支写权；其他现存分支仍可写，但不能在工作区根下新建文件或目录。Windows 在工作区包含所有者存储时允许只读启动，但拒绝写授权。
-
-卸载桌面端不动 Harness home 及其所有者读保护标签。删除 home 或彻底移除 CLI 前，请先停掉全部 Panedesk 进程，再按[手动移除所有者标签](packages/sandbox/sandbox-windows-acl/README.zh.md#owner-label-removal-before-uninstall)操作。
-
-受限文件工具和沙箱进程排除 owner 凭据目录，原子替换后仍受保护；普通附件仍可读取。Linux 使用目录挂载或 Landlock 兄弟树放行，macOS 使用 Seatbelt 排除，Windows 对凭据及崩溃目录使用 Medium 禁止向上读写标签。这是指定 owner 材料保护，不是整个 home 的保密隔离。新 Web 浏览器要求 POSIX 控制终端确认；Windows Web 与非交互服务默认拒绝新登录，除非 owner 在受保护配置中显式关闭确认、自担持有启动链接即可获得身份的风险。升级服务部署前请看[登录及服务配置](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)。桌面 owner cookie 使用纯内存会话及 IPC；Windows 不标记 userData，因此低完整性命令仍可读取第三方平台 cookie。详见[桌面安全说明](apps/desktop/README.zh.md)。
-
-Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。使用默认句柄后端的文件工具读取、列目录、新建文件和改写既有文件已在一台 Windows Server 2025 机器的管理员账号下跑通；普通权限账号尚未在 Windows 实机测试。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
-
-Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录不能授权写入，只读启动会省略不可信的工作区配置。撤销在重启后扫描所选工作区，包括 `node_modules`，只有令牌检查确认根与每个匹配显式 ACE 的位置均无写权才报成功。精确目录与 SID 的 `icacls` 命令及限制见 [Windows 恢复指南](docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。
-
-旧 Windows 工作区授权若没有产品记录，先关闭相关沙盒进程，再以工作区 owner 身份执行这一行 PowerShell：将 `C:\old-workspace` 换成授写时使用的规范路径，将 `C:\current-workspace` 换成当前位置：`$old='C:\old-workspace'; $dir='C:\current-workspace'; $h=[Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($old)); $sid='S-1-4-'+(([BitConverter]::ToUInt32($h,0)%1073741823)+1)+'-'+(([BitConverter]::ToUInt32($h,4)%1073741823)+1); icacls $dir /remove "*$sid" /T`。此命令只撤该工作区派生主体，不撤所有 `S-1-4-*` 主体；不要替换成 owner 账号或 Everyone。检查失败项，并对每个已知旧授权路径分别执行。仅凭 SID 前缀无法认出未知旧路径。
-
-owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedesk 沙盒与首次写确认约束；安装前请确认其写能力。其 profile 配置仍受保护，受限模型不能直接修改；插件管理变更须经认证的 owner 批准。
-
-在 Linux 与 macOS 上，以 IPC 通道起 CLI 的自写启动器必须在 Node 命令行带上 `--disable-sigusr1`；经 `NODE_OPTIONS` 传入不算，缺少该开关会在读取 profile 与凭据前退出，而不再重启。终端、shell、systemd、pnpm 脚本与 SDK 管道启动不用改。Windows 桌面端 CLI 启动器带有 `--disable-sigusr1` 并有测试覆盖，但尚未在 Windows 实机运行。详见 [IPC 启动升级说明](docs/upgrade-guide/v0.2.1-rc.2/ipc-cli-launch/guide.zh.md)。
-
-Web 模式下，owner 的登录 cookie 存在系统浏览器的配置目录里，沙箱内的进程读得到。平台前提可用时，连接来源准入会阻止已登记产品沙箱回放 cookie；否则仍可能回放。见[沙箱会话隔离与限制](#sandbox-session-isolation-and-limitations)。
-
-首次写授权时的受保护输入捕获在有界批次之间让出执行，使规模较大的捕获期间 Web 连接与心跳仍可服务。捕获与输入复核仍需扫描受保护输入；已安装插件树与重叠产品 home 的工作区可能增加开销。
-
-| 平台 | 沙盒方式 | 写权限来源 | Bash 缺省 | 已知限制 |
-| --- | --- | --- | --- | --- |
-| Windows | 低完整性受限令牌与目录能力 ACL；属于部分隔离，针对 owner 目录提供读保护。 | 未显式设模式时只读，不授予工作区写权；仍设置 owner 目录读保护标签。工作区首次写入会请求中英确认；允许后记录授权，工作区可写，受保护路径仍拒写。设置页可预授权或撤销工作区。无人值守会话不弹确认：保持只读并说明开法。显式模式照用。 | 未通过环境或设置选择时禁用；可用 PowerShell。 | 权限收紧（撤销或新增保护根）后，已开进程与句柄不终止，新的工具调用即刻按新策略走。模型持久终端在权限变化后拒绝输入时，需关闭后重开。权限模式选择器不即时反映目录记录。 |
-| Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。Linux 原生沙箱下 pwsh 持久终端不可用(读不到输出、会超时)。 |
-| macOS | 通过 `sandbox-exec` 使用 Seatbelt。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 路径由本机规范化。Seatbelt 不隐藏宿主进程；平台注入回归不等于 macOS 实机验收。 |
-
-<a id="sandbox-session-isolation-and-limitations"></a>
-## 沙箱会话隔离与限制
-
-工作区包含产品 home 时（如在 `$HOME` 下启动），首次写授权会逐个扫描重叠的受保护目录；Linux 开发检出使用全新 home 时，headless 与 Web 宿主实测为 18–32 毫秒，已安装插件树的开销可能更大。请在项目目录启动，不要把 `$HOME` 当作工作区。
-
-Bubblewrap 在两种受限模式下均提供私有 `/tmp`，遮挡宿主 tmux、screen、会话总线、X11 与 Wayland 套接字目录，包括显式指定的运行时目录。依赖这些宿主会话的工具在该沙箱内不可用；普通临时文件使用私有 tmpfs。macOS Seatbelt 拒绝临时目录及配置的会话目录下的 UNIX 套接字出站连接；macOS 原生验收仍待实机。见 [runner 细节](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)。
-
-Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scope。没有该 scope 时，抽象套接字仍可达：在 X11 桌面上，沙箱进程可能向其他窗口注入按键。此限制不导致拒绝启动。网络隔离尚未补齐；不可信任务请分账号运行。
-
-仅有 Landlock 的机器无法遮挡具名会话套接字路径。若常规用户 tmux、screen 或会话总线落点存在，命令启动会给出中英提示，但不拦启动、不改退出码。这些会话可能在沙箱外执行命令；建议分用户运行。网络隔离尚未补齐；不可信任务请分账号运行。
-
-本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。请勿向不可信任务提供本地服务凭据。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
-
-Linux 上，宿主替模型执行的文件操作——读、写、编辑、建目录、暂存与发布、元数据探查、列目录——逐段打开各规范祖先目录且不跟随链接，经保留的目录描述符处理单个条目；工作区内被换成链接的目录不能使这些操作改道。macOS 上，宿主文件操作仍按路径解析：沙箱内进程把工作区子目录换成链接，可使宿主写到授权工作区之外，缺省 workspace-write 模式下即如此。在 macOS 验证过目录相对的原生后端之前，维持此限制。Windows 缺省的 `experimental` 句柄后端相对保留的目录句柄打开子项，并拒绝重解析点；支持的操作及覆盖限制见 [fs-local](packages/fs/fs-local/README.zh.md#use-this-package)。仅可通过 owner 批准的受保护 profile 或 overlay 将 `windowsHandleBackend` 设为 `disabled`，以选择旧路径后端。使用该后端时，Windows 缺省只读，但 owner 授予工作区写之后，沙箱内进程把工作区子目录换成链接可使宿主写到授权工作区之外。此限制对旧路径后端仍然成立。
-
-owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护的 Host 配置启用。缺省新浏览器确认下，在宿主终端确认过的登录只对当次宿主进程有效：宿主重启后，先前确认过的 cookie 被拒，须用新的启动链接重新经终端确认。受保护宿主配置把 `requireOwnerConfirmation` 设为 `false` 时，登录不经终端确认，同一 cookie 跨重启仍有效。在具备 cgroup v2 用户委派及原生套接字 cgroup 归因的 Linux 上，经本地子进程提供方启动并登记的产品沙箱连接即使持有有效 cookie 也会被拒绝。显式启用的实验 Python 运行时使用受管子进程提供方，并保留这项 Linux 登记。缺少前提时，启动给出双语警告，cookie 仍可能被回放；请启用用户会话委派或以不同账户运行不可信进程。套接字归因已在 Linux 7.0 验证，最低内核版本尚未核定。macOS Web 启动提示缺少本产品沙箱连接识别，不声称已阻止回放。Windows 通过宿主持有的作业对象成员关系与 TCP 属主识别产品沙箱；见 [Windows 前提与剩余限制](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。见 [Linux 升级前提](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。见[认证行为](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)与[剩余限制](packages/client/connection/README.zh.md#known-limitations-and-deferred-work)。
-
-## 相对 DSH 改了什么
-
-- **默认瘦身。** 默认的 `slim` 预设提供最小 headless 核心、上下文压缩、大输出溢出落盘、工具调用超时守卫和 `AGENTS.md` 加载。当前插件行数与归属以[生成的预设表](docs/panedesk/architecture.zh.md)为准。
-- **全量按需。** `full` 预设就是上游 DSH 的 headless 组合。它和上游的 `web`、`acp`、`sdk` 几个 profile，在启动器旁边装上 `@panedesk/full` 包后可用（开发工作区里已具备）。
-- **隐私默认关。** 会话日志上传、插件清单上传、会话遥测、匿名身份请求头、桌面版产品分析都默认关闭，可以自行打开。
-- **去掉品牌开场白。** 系统提示不再以「powered by」那句 harness 自我介绍开头。
-- **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
-- **改名后的命名。** 启动器包是 `panedesk`（命令 `panedesk` 与 `pdesk`），其余工作区包一律 `@panedesk/*`、只换了作用域（所以仍有 `@panedesk/dsh-*` 这样的名字）；主目录默认 `~/.panedesk`，用 `PANEDESK_HOME` 覆盖，`~/.dsh` 与 `DSH_HOME` 一律不读。用户变量有 `PANEDESK_PERMISSION_MODE`、`PANEDESK_TELEMETRY_*`、`PANEDESK_TOOLS_MODE`、`PANEDESK_AGENTS_HOME`（缺省仍 `~/.agents`），其余 `DSH_*`（测试、快照、CI、发布用）名字不变。改名本身由 `scripts/panedesk/rename/` 做映射与重放（那里有英文 README，上游修复先过这个脚本再合）。
-
-## 快速上手
-
-### Windows 1.0 包
-
-1. 从本仓库发行页下载并运行 `panedesk-1.0.0-win-x64-unsigned.exe`。安装包未签名，Windows SmartScreen 提示时选择「更多信息 → 仍要运行」。默认安装到当前用户的 `%LOCALAPPDATA%\Programs\Panedesk`，完成页可直接启动。
-2. 首次启动时，在欢迎窗口填写 DeepSeek API Key，选择「保存并继续」。进入主界面后即可新建会话；通过插件管理器安装插件时，填写安装包的绝对路径。
-
-### Linux / macOS 源码启动
-
-需要 Node.js `^22.19 || >=24`，pnpm 11（经 Corepack）。
-
-在仓库根目录运行一条安装命令：
+需要 Node.js `^22.19.0 || >=24.0.0` 和 pnpm 11（经 Corepack）。在仓库根目录运行：
 
 ```sh
 pnpm run setup
-```
-
-它会冻结安装依赖，编译原生扩展与宿主引用库（包括 CLI 运行时），检查 CLI 运行闭包，并初始化默认 slim profile。无需自行运行 `compile-referenced-projects`。Git 钩子仍需通过 `pnpm run hooks:install` 主动安装。
-
-直接运行构建后的 CLI；也可先配置 `PNPM_HOME`，再用 `pnpm run setup -- --link` 安装全局 `pdesk` 与 `panedesk` 命令：
-
-```sh
-node apps/cli/lib/bin.js --help
 node apps/cli/lib/bin.js init
 ```
 
-全局命令链接完成后，第二条命令就是 `pdesk init`。选择 Anthropic Messages、OpenAI Chat Completions 或 OpenAI Responses，再填写 base URL 与模型 ID。密钥推荐只填写环境变量名，也可现场不回显输入，存入仅当前用户可读的凭据件。Init 在 `$PANEDESK_HOME/cordis.patch.yml` 中只写密钥引用，更新已有 patch 前先备份。选择环境变量方案时，须在运行环境中设置该变量；slim 在完成配置前没有模型路由。
-
-```sh
-node apps/cli/lib/bin.js "summarize this repository"
-```
-
-手动提供方叠加配置见[提供方示例](examples/providers)与[补丁顺序说明](docs/panedesk/architecture.zh.md)。启动器参数（`--profile`、`--patch`、各种 dump）要写在 `--json` 这类应用参数前面。在 Windows 上运行工具前，请先看平台表。
-
-需要 Web 界面时，在同一检出中运行 `pnpm run dev:web`，再打开打印的本机地址；Linux 宿主须满足上文的用户 scope 委派前提。
+按提示配置提供方；运行 `node apps/cli/lib/bin.js --help` 查看 CLI 用法。Web 界面使用 `pnpm run dev:web`，打开打印的本机地址。Linux 请先阅读[平台行为](docs/user/platform-behavior.zh.md#platform-behavior)。
 
 ## 已知限制
 
@@ -154,12 +85,14 @@ node apps/cli/lib/bin.js "summarize this repository"
 - 停止或升级 Windows 启动器可能遗留隐藏的 PowerShell 轮询进程；请核对并仅关闭对应启动的轮询进程。
 - 继承自上游 DSH 0.2.1-rc.2：团队模式下偶尔会有队友子会话未被保存；若发现某位队友的记录缺失，请重新运行该团队任务。
 
-## 预设
+## 与 DSH 的差异
 
-当前插件行数与归属见[生成的预设表和组合说明](docs/panedesk/architecture.zh.md)。表由 `scripts/panedesk/gen-slim-base.ts --table` 生成；统计的是应用 headless 补丁、平台条件和叠加配置前的底座声明行数，不是已启用插件数。
-
-npm dry-run、在用的发布辅助脚本与继承的发布命令见[发布脚本说明](docs/panedesk/release.zh.md)。
+默认 slim、按需 full；遥测默认关闭，CLI 命令为 `panedesk` 和 `pdesk`。组合、命名和配置详见[架构](docs/panedesk/architecture.zh.md)。
 
 ## 许可证
 
 MIT。保留上游原句 `Copyright (c) 2026 DeepSeek`，另加 `Copyright (c) 2026 Panedesk contributors`，见 [LICENSE](LICENSE)。从 DSH 继承的第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## 参与贡献
+
+请参阅[贡献指南](CONTRIBUTING.zh.md)。

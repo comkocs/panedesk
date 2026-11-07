@@ -15,4 +15,4 @@ Bubblewrap 命令在两种受限模式下均使用私有临时与运行时目录
 
 1. 将原生入口和平台包一同升级至 `@panedesk/node-addon-system` 0.1.3。自定义打包必须重编 `landlock-run`；旧二进制会拒绝 `--scope-only`。
 2. 工作区应位于 `TMUX_TMPDIR` 和 `XDG_RUNTIME_DIR` 之外：会话遮挡会隐藏重叠工作区内容。用普通文件而非宿主会话套接字交换工具输入输出，不要仅为恢复会话访问而选择 full-access。
-3. 确认普通工作区命令和私有临时文件仍能工作，且 bubblewrap 内无法访问专用测试会话套接字。Seatbelt 仍需 macOS 原生验收。阅读[其余隔离限制](../../../../README.zh.md#sandbox-session-isolation-and-limitations)；目录遮挡不提供一般网络隔离。
+3. 确认普通工作区命令和私有临时文件仍能工作，且 bubblewrap 内无法访问专用测试会话套接字。Seatbelt 仍需 macOS 原生验收。阅读[其余隔离限制](../../../../docs/user/platform-behavior.zh.md#sandbox-session-isolation-and-limitations)；目录遮挡不提供一般网络隔离。

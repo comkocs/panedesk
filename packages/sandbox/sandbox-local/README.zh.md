@@ -148,7 +148,7 @@ Windows 档为每个工作区保留一个确定性写入 SID 和常驻 ACE，同
 - **保护名称防替换尚未完整验证**——平台注入检查核对参数，不是原生修改结果。目标只读挂载不能证明符号链接名称不可替换。Windows 缺失名称和重解析点还需宿主加载校验，单靠 ACL 拒绝条目不足。Landlock 排除受保护的第一级分支；存在排除项时，无法允许在工作区根下新建条目。
 - **Windows ACL 只能实现部分强制执行**——NTFS 硬链接会使工作区路径与外部路径指向同一个文件对象，已登记所有者目录之外的读取仍不受限，且被其他 AppContainer 工具以包 SID 标记过的目录树对 Low 完整性子进程不可读。提供方报告 `enforcement: 'partial'`，而不会把该边界夸大为完整强制执行。
 - **Landlock 可能只实现部分强制执行**——较旧且受支持的内核 ABI 只能限制自身公开的访问类别，因此报告 `enforcement: 'partial'`，不会夸大为完整强制执行。
-- **宿主会话与网络**——临时／会话目录的 UNIX 套接字由 bwrap 隐藏或由 Seatbelt 拒绝，依赖宿主会话的工具因此不可用。Seatbelt 强制执行尚未在 Mac 实机验证。Landlock-only 仍可连接具名套接字，发现常规 tmux、screen 或会话总线落点时提示；分用户运行可缓解宿主命令执行风险。没有 ABI 6 的内核仍可连接抽象套接字，包括可能的 X11 按键注入。两种限制均不拒起。见[网络限制及发布要求](../../../README.zh.md#sandbox-session-isolation-and-limitations)，包括 `ssh localhost`。自定义 bwrap 兼容 runner 自行负责抽象套接字 scope。
+- **宿主会话与网络**——临时／会话目录的 UNIX 套接字由 bwrap 隐藏或由 Seatbelt 拒绝，依赖宿主会话的工具因此不可用。Seatbelt 强制执行尚未在 Mac 实机验证。Landlock-only 仍可连接具名套接字，发现常规 tmux、screen 或会话总线落点时提示；分用户运行可缓解宿主命令执行风险。没有 ABI 6 的内核仍可连接抽象套接字，包括可能的 X11 按键注入。两种限制均不拒起。见[网络限制及发布要求](../../../docs/user/platform-behavior.zh.md#sandbox-session-isolation-and-limitations)，包括 `ssh localhost`。自定义 bwrap 兼容 runner 自行负责抽象套接字 scope。
 - **Seatbelt 依赖已弃用的 `sandbox-exec`**——macOS 仍会提供它，但若 Apple 移除该私有策略引擎，该提供方无法替换或探测。
 - **runner 选择在提供方生命周期内缓存**——安装、移除或修复 runner 后，必须重载插件才能改变选择。
 - **`runnerCommand` 是操作方断言**——配置的自定义 runner 会跳过功能探测，并假定它诚实实现与 bwrap 兼容的 profile；如果它本身是 Bash 脚本，其解释器启动发生在该脚本施加约束之前。

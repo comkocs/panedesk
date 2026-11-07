@@ -1,0 +1,13 @@
+# Bilingual-pair consistency record for platform-behavior.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/user/platform-behavior.md
+/platform-behavior-and-sandbox-session-isolation:
+  en: bd8de5e265c56aae
+  zh: 3d6909045ba596ab
+/platform-behavior-and-sandbox-session-isolation/platform-behavior:
+  en: 6ad88f9b7a508a48
+  zh: 79736207f4c7b736
+/platform-behavior-and-sandbox-session-isolation/sandbox-session-isolation-and-limitations:
+  en: 09251de25257e158
+  zh: 6d403f2b763bd688

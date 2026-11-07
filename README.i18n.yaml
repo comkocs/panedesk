@@ -2,36 +2,36 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
+/:
+  en: f783038c7258d592
+  zh: f783038c7258d592
 /panedesk:
-  en: 9cde8f887c7e9bd5
-  zh: c7eed8ec6e572082
-/panedesk/status:
-  en: 4e6e03288a7de632
-  zh: b6f639257637ace7
-/panedesk/platform-behavior:
-  en: 6ad88f9b7a508a48
-  zh: 79736207f4c7b736
-/panedesk/sandbox-session-isolation-and-limitations:
-  en: 09251de25257e158
-  zh: 6d403f2b763bd688
-/panedesk/what-changed-from-dsh:
-  en: 302e1595bfe8bc0c
-  zh: 1c10d9c920d2a712
-/panedesk/quick-start:
-  en: 9535b10be9abb7a8
-  zh: 754bdf1f360f89ea
-/panedesk/quick-start/windows-1-0-package:
-  en: 8ea40708406984f5
-  zh: b3747252b5015c93
-/panedesk/quick-start/linux-macos-from-source:
-  en: b1f9d0bd4d1f6962
-  zh: 172cff3e8c7cadf3
+  en: fc00aa62474a311a
+  zh: fb2ac9098255c056
+/panedesk/get-started:
+  en: 1fecfb54fce58eda
+  zh: add6458981018d82
+/panedesk/features:
+  en: f5d43efe8e5122ee
+  zh: 6848c591db895bd4
+/panedesk/supported-platforms:
+  en: e0adab52e3756360
+  zh: e315ef50679a7dcf
+/panedesk/important-notice:
+  en: ea464e8e1523e365
+  zh: b6514a8a8019ee63
+/panedesk/build-from-source:
+  en: 34908ff08f0a6ccb
+  zh: 28020a78634cdcb3
 /panedesk/known-limitations:
   en: d2bd5517213e5114
   zh: f62f0ea13935acc5
-/panedesk/presets:
-  en: c888cc461783e7b2
-  zh: be96cfbf6ad83513
+/panedesk/differences-from-dsh:
+  en: 226b4315cf20a20a
+  zh: 6f8ba6bbc1fd24e4
 /panedesk/license:
   en: b8614a47e58d4174
   zh: 7142c00773ea4818
+/panedesk/contributing:
+  en: 457cb5bd7d29d370
+  zh: a638165679348084
