@@ -74,7 +74,27 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe('panedesk-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.appId).toBe('com.example.installer')
+    expect(config.extraMetadata.name).toBe('panedesk')
+    expect(config.protocols).toEqual([{ name: 'Panedesk', schemes: ['panedesk'] }])
+    expect(config.win.executableName).toBe('Panedesk')
+    expect(config.nsis.shortcutName).toBe('Panedesk')
+    const installer = readFileSync(config.nsis.include, 'utf8')
+    expect(installer).toContain('StrCpy $INSTDIR "$LOCALAPPDATA\\Programs\\Panedesk"')
+    expect(installer).toContain('${If} $perUserInstallationFolder == ""')
+    const preset = readFileSync(new URL('../config/windows-packaging/production.env.example', import.meta.url), 'utf8')
+    expect(preset).toContain('DSH_DESKTOP_APP_ID=io.github.comkocs.panedesk')
+    const smoke = readFileSync(new URL('../scripts/smoke-packaged-runtime.ts', import.meta.url), 'utf8')
+    expect(smoke).toContain("join(application, 'Panedesk.exe')")
+    expect(smoke).not.toContain('DeepSeek Harness')
+  })
+
+  it.each([
+    ['../config/windows-packaging/production.env.example', 'DSH_DESKTOP_APP_ID=io.github.comkocs.panedesk'],
+    ['../scripts/smoke-packaged-runtime.ts', "join(application, 'Panedesk.exe')"],
+  ])('uses independent Windows identity in %s', (path, expected) => {
+    expect(readFileSync(new URL(path, import.meta.url), 'utf8')).toContain(expected)
   })
 
   it('packages every preload entry point the shell loads', async () => {

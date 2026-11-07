@@ -1,6 +1,95 @@
 {
   "divergences": [
     {
+      "id": "desktop-session-telemetry-disabled",
+      "description": "Disable desktop session telemetry and native product events",
+      "origin": "Desktop telemetry policy",
+      "reason": "The desktop shell forces the existing session telemetry opt-out before startup and suppresses native product events independent of the live policy. A non-empty PANEDESK_TELEMETRY_DISABLED also appends a last-layer disable for the desktop product-telemetry and product-analytics rows, including after a later layer turns them on and on profile reload.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/src/main.ts",
+          "apps/desktop/tests/main-startup.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "packages/boot/app-boot/src/profile-context.ts",
+          "packages/boot/app-boot/tests/profile.spec.ts",
+          "apps/cli/tests/telemetry-switch.spec.ts"
+        ]
+      }
+    },
+  {
+    "id": "desktop-unsigned-windows-no-mandatory-update",
+    "description": "Ship unsigned Windows desktop packages without a mandatory-update policy",
+    "origin": "Desktop update policy",
+    "reason": "Unsigned Windows packaging no longer requires a mandatory-update HTTPS origin and embeds no policy, matching unsigned macOS. Signed and preparation-only builds keep the origin requirement and the embedded policy; ordinary update feeds stay unsigned-free. Packaged runtime behavior is unchanged: absent policy configuration issues no update request. These changes can be contributed upstream.",
+    "match": {
+      "type": "behavior",
+      "paths": [
+        "apps/desktop/scripts/desktop-package-environment.mjs",
+        "apps/desktop/scripts/electron-builder-config.mjs",
+        "apps/desktop/tests/desktop-package-environment.spec.ts",
+        "apps/desktop/tests/desktop-policy-environment.spec.ts",
+        "apps/desktop/tests/macos-signature.spec.ts",
+        "apps/desktop/README.md",
+        "apps/desktop/README.zh.md",
+        "apps/desktop/README.i18n.yaml",
+        "apps/desktop/packaging/README.md",
+        "apps/desktop/packaging/README.zh.md",
+        "apps/desktop/packaging/README.i18n.yaml"
+      ]
+    }
+  },
+    {
+      "id": "desktop-independent-product-identity",
+      "description": "Separate packaged Panedesk identity from the upstream desktop application",
+      "origin": "Desktop product identity",
+      "reason": "Use the fork owner's reverse-DNS app identifier in packaging presets, Panedesk artifact and executable names, an independent external protocol, explicit Windows installation and shortcut names, and an independent Electron data directory. Reuse the existing neutral artwork and keep its tray renderer compatible. Synchronize artifact consumers, focused expectations and bilingual desktop documentation without changing update or telemetry policy.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/README*",
+          "apps/desktop/config/macos-packaging/production.env.example",
+          "apps/desktop/config/macos-packaging/test.env.example",
+          "apps/desktop/config/windows-packaging/production.env.example",
+          "apps/desktop/config/windows-packaging/test.env.example",
+          "apps/desktop/electron-builder.config.d.mts",
+          "apps/desktop/scripts/desktop-build-version-discovery.ts",
+          "apps/desktop/scripts/desktop-upload-plan.ts",
+          "apps/desktop/scripts/electron-builder-config.mjs",
+          "apps/desktop/scripts/installed-update-distribution.ts",
+          "apps/desktop/scripts/installer.nsh",
+          "apps/desktop/scripts/package-macos.ts",
+          "apps/desktop/scripts/package-target.ts",
+          "apps/desktop/scripts/render-tray-icon.ts",
+          "apps/desktop/scripts/retain-desktop-ci.ts",
+          "apps/desktop/scripts/smoke-packaged-runtime.ts",
+          "apps/desktop/scripts/verify-retained-desktop.ts",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/tests/desktop-build-version-discovery.spec.ts",
+          "apps/desktop/tests/desktop-publication-preflight.spec.ts",
+          "apps/desktop/tests/desktop-upload-plan.spec.ts",
+          "apps/desktop/tests/expected/publication-mac-arm64.md",
+          "apps/desktop/tests/expected/publication-win-x64.md",
+          "apps/desktop/tests/expected/test-release-upload-mac-arm64.json",
+          "apps/desktop/tests/expected/test-release-upload-mac-x64.json",
+          "apps/desktop/tests/expected/test-release-upload-win-x64.json",
+          "apps/desktop/tests/fixtures/installed-update-packaging.mjs",
+          "apps/desktop/tests/installed-update-distribution.spec.ts",
+          "apps/desktop/tests/installed-update-package-content.spec.ts",
+          "apps/desktop/tests/installed-update-publication.spec.ts",
+          "apps/desktop/tests/installer-packaging.spec.ts",
+          "apps/desktop/tests/macos-signature.spec.ts",
+          "apps/desktop/tests/package-macos.spec.ts",
+          "apps/desktop/tests/retain-desktop-ci.spec.ts",
+          "apps/desktop/tests/tray-icon.spec.ts",
+          "apps/desktop/tests/welcome-startup.spec.ts",
+          "apps/desktop/tests/windows-update-publisher.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "serialized-hmr-input-review",
       "description": "Serialize HMR input reviews with reader write admission",
       "origin": "Protected input review concurrency",
