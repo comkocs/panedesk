@@ -94,20 +94,8 @@ export interface ServerResponse {
 /** Complete Connection RPC envelope union. */
 export type RpcMessage = ClientRequest | ServerResponse
 
-/** Transport facts come from the accepted socket, never request headers. */
-export interface ConnectionSourceSocket {
-  readonly remoteAddress?: string | undefined
-  readonly remotePort?: number | undefined
-  readonly localAddress?: string | undefined
-  readonly localPort?: number | undefined
-  readonly destroyed?: boolean | undefined
-  once?(event: 'close', listener: () => void): unknown
-}
-
 /** HTTP request facts consumed by browser trust and authentication. */
 export interface ConnectionTrustRequest {
-  /** Accepted transport identity; absent for in-process adapters without a socket. */
-  readonly socket?: ConnectionSourceSocket
   /** Request headers supplied by either the Fetch or node:http representation. */
   readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>
 }
@@ -130,7 +118,7 @@ export interface ConnectionIndexResponse {
 /** Outcome of admitting one request: the Peer it speaks for, or the status refusing it. */
 export type PeerAdmission =
   | { readonly peer: PeerScope }
-  | { readonly rejection: 401 | 403; readonly reason?: string }
+  | { readonly rejection: 401 | 403 }
 
 /** Socket admission claims API ownership until its carrier calls release, including failed upgrades. */
 export type ConnectionAdmission =
@@ -139,7 +127,7 @@ export type ConnectionAdmission =
     /** Remove and dispose an API Peer; browser releases leave the shared browser Peer intact. */
     readonly release: () => Promise<void>
   }
-  | { readonly rejection: 401 | 403 | 409; readonly reason?: string }
+  | { readonly rejection: 401 | 403 | 409 }
 
 /**
  * Handler invoked after Connection has decoded the transport envelope.

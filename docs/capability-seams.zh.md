@@ -9,9 +9,6 @@
 
 ```mermaid
 flowchart LR
-  pkg_client_connection["client-connection"]
-  svc_connectionSources["ctx.connectionSources<br/>Owner connection source classification"]
-  pkg_subprocess_local["subprocess-local"]
   pkg_client_ui_nodes["client-ui-nodes"]
   svc_nodes["ctx.nodes<br/>Owner node observations and operations"]
   pkg_client_ui_inbox["client-ui-inbox"]
@@ -106,6 +103,7 @@ flowchart LR
   pkg_client_ui_plugin_market["client-ui-plugin-market"]
   svc_kernelStatus["ctx.kernelStatus<br/>Accounting startup observations"]
   svc_profileContext["ctx.profileContext<br/>Launcher-owned profile data"]
+  pkg_client_connection["client-connection"]
   svc_connection["ctx.connection<br/>Authenticated browser transport"]
   pkg_api_gateway["api-gateway"]
   pkg_host_frontend_static["host-frontend-static"]
@@ -292,6 +290,7 @@ flowchart LR
   pkg_sandbox_ssh["sandbox-ssh"]
   pkg_subprocess["subprocess"]
   svc_subprocess["ctx.subprocess<br/>Subprocess seam"]
+  pkg_subprocess_local["subprocess-local"]
   pkg_bash_local["bash-local"]
   pkg_bash_sandbox["bash-sandbox"]
   pkg_terminal_bash["terminal-bash"]
@@ -407,7 +406,6 @@ flowchart LR
   pkg_bash_sandbox --> svc_shell
   pkg_browser_use --> svc_browserUse
   pkg_client_connection --> svc_connection
-  pkg_client_connection --> svc_connectionSources
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
@@ -651,8 +649,6 @@ flowchart LR
   svc_configEditor --> pkg_settings
   svc_connection --> pkg_api_gateway
   svc_connection --> pkg_host_frontend_static
-  svc_connectionSources --> pkg_client_connection
-  svc_connectionSources --> pkg_subprocess_local
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
@@ -851,7 +847,6 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `ctx.connectionSources` | `service` | [`client-connection`](../packages/client/connection) | - | [`client-connection`](../packages/client/connection), [`subprocess-local`](../packages/subprocess/subprocess-local) | - | 登记宿主持有的有界平台查询，并拒绝来自产品沙箱或未知来源的 owner，包括提供者撤销后的连接。 |
 | `ctx.nodes` | `service` | [`client-ui-nodes`](../packages/client/ui-nodes) | - | - | - | 读取有界节点与实时回调观察，并经既有本地操作员授权转交已确认的操作。 |
 | `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | 读取精确收件会话的消息元数据与已核验邮箱隔离证据，不变更消息。 |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | 呈现待批开窗与操作进度，并把所有者的显式操作转交给已安装的席位引擎。 |

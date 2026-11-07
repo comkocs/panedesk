@@ -76,7 +76,6 @@ import type { SubagentCatalogEntry } from './projection-types.ts'
 import { subagentIdentityProjectionDefinition, subagentTimingProjectionDefinition } from './projection.ts'
 import { subagentCatalogProjectionDefinition } from './catalog.ts'
 import { deliverSubagentPrompt } from './internal.ts'
-import { RootSubagentAdmission } from './root-admission.ts'
 
 export type {} from './catalog.ts'
 export * from './out-of-process.ts'
@@ -84,7 +83,6 @@ export { recordExternalRun, type ExternalLedgerSpec } from './external-ledger.ts
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
 export type { SubagentAdmission, SubagentAdmissionControl, SubagentReservation, SubagentQueued, SubagentNotifications, SubagentDispatch } from './types.ts'
-export { SubagentQueuedError } from './manager.ts'
 export type {
   ContinuableCreateRequest,
   ContinuableCreateSpec,
@@ -192,10 +190,6 @@ export interface Config {
   maxActiveSubagents: Volatile<number>
   /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth: Volatile<number>
-  /** Root-only overflow handling; omission preserves immediate rejection. */
-  overflow?: 'error' | 'queue'
-  /** Persist root queue metadata beside the owning Session; defaults to false. */
-  persistQueue?: boolean
   /** Include reported artifact paths in parent completion notices; disabled by default. */
   reportPathsInNotifications: boolean
 }
@@ -203,8 +197,6 @@ export interface Config {
 /** Named provider registry with managed activations, durable discovery, and local child messaging. */
 export class SubagentRuntime extends TypertRemoteService {
   static Config = z.object({
-    overflow: z.union([z.const('error'), z.const('queue')]).default('error'),
-    persistQueue: z.boolean().default(false),
     reportPathsInNotifications: z.boolean().default(false),
     maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(1).volatile(),
     maxActiveSubagents: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8).volatile(),
@@ -212,7 +204,6 @@ export class SubagentRuntime extends TypertRemoteService {
   static inject = ['workingDirectory']
   private providers = new Map<string, SubagentProvider>()
   private manager: SubagentManager | undefined
-  private readonly rootAdmission: RootSubagentAdmission | undefined
   /**
    * The contained lifecycle-edge publisher. Built here because scoped dispatch
    * keys its carrier by this exact service instance, whose own context filter
@@ -222,10 +213,6 @@ export class SubagentRuntime extends TypertRemoteService {
 
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'subagents')
-    this.rootAdmission = config.overflow === 'queue'
-      ? new RootSubagentAdmission(ctx, () => ctx.get('subagentAdmission'), config.persistQueue ? {
-        notify: (parent, record) => this.requireManager().notifyQueueRestart(parent, record.ticketId, record.reason),
-      } : undefined) : undefined
     this.emitLifecycle = createLifecycleEmitter(this.ctx, parent => scopeTarget(this, parent))
     ctx.inject(['agents'], (childCtx: Context) => {
       const manager = new SubagentManager(childCtx, {
@@ -235,9 +222,7 @@ export class SubagentRuntime extends TypertRemoteService {
         },
         prepareContinuable: (name, request) => this.prepareContinuable(name, request),
         observeActivation: (provider, childId, parent) => this.observeActivation(provider, childId, parent),
-        admission: () => this.rootAdmission ?? childCtx.get('subagentAdmission'),
-        capacityReleased: root => this.rootAdmission?.released(root),
-        cancelQueued: parent => this.rootAdmission?.cancelParent(parent, 'session-ended'),
+        admission: () => childCtx.get('subagentAdmission'),
         reportPathsInNotifications: () => this.config.reportPathsInNotifications,
       }, () => this.config.maxActiveSubagents.get())
       this.manager = manager
@@ -256,15 +241,15 @@ export class SubagentRuntime extends TypertRemoteService {
     ctx.inject(['agents'], (agentsCtx: Context) => { installSubagentArchiveAdmission(agentsCtx) })
   }
 
-  /** Whether root overflow can return queue tickets. */
-  get queuesRootOverflow(): boolean { return this.rootAdmission !== undefined }
+  /** Whether root overflow queues tickets. Always false. */
+  get queuesRootOverflow(): boolean { return false }
 
-  /** Read process-local queued work without loading a child.
-   * @param parentSessionId - owning root session.
-   * @returns count, oldest time, and current ticket positions.
+  /** Read process-local queued work.
+   * @param _parentSessionId - owning root session.
+   * @returns an empty queue snapshot.
    */
-  listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission['list']> {
-    return this.rootAdmission?.list(parentSessionId) ?? { queuedCount: 0, tickets: [] }
+  listQueued(_parentSessionId: SessionId): { queuedCount: number; earliestQueuedAt?: number; tickets: [] } {
+    return { queuedCount: 0, tickets: [] }
   }
 
   /**
@@ -317,9 +302,9 @@ export class SubagentRuntime extends TypertRemoteService {
   }
 
   /**
-   * Request activation while preserving durable queue admission outcomes.
+   * Request activation, returning a queued ticket when admission defers it.
    * @param spec - Task, backend, and result recipient.
-   * @returns An activation or a durable queued ticket without waiting for capacity.
+   * @returns The published activation, or the queued ticket without waiting for capacity.
    */
   async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import('./types.ts').SubagentQueued> {
     try {

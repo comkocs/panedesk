@@ -38,13 +38,10 @@ kind: "package-reference"
 <a id="browser-authentication-and-request-trust"></a>
 ## 浏览器认证与请求信任
 
-新浏览器 cookie 保持待确认，直到 owner 在 POSIX Host 的控制终端回答 `y`。提示显示转义后的 User-Agent、请求时刻与来源地址。取消或未答复的提示拒绝访问；`ownerConfirmationTimeoutMs` 限制等待时长，默认 60000 毫秒。待确认或拒绝的 cookie 不能取得 owner Peer，也不能使用 `/connect`；批准后刷新干净页面。经过待确认流程的 cookie 在 Connection 重启后需要重新登录。Windows Web 与没有交互控制终端的启动方式拒绝新浏览器登录。升级服务方式运行的 Web 实例前，owner 可以在受保护配置文件的 `client-connection` 行设置 `requireOwnerConfirmation: false`。关闭确认后，持有未使用启动链接即可成为 owner，风险由 owner 自担。桌面 IPC 认证不使用此终端提示。只有取得控制终端后才加载 readline 内置模块，因此 Worker 镜像不会导入仅宿主可用的输入模块。
 
-通过 Web 载体访问时，每个 Host RPC 方法和 WebSocket 流都要求经过认证的浏览器或 API Peer，不存在按方法区分的 loopback 层。Host 生成随机的一次性启动令牌，五分钟后过期。`dsh-web-app` 打印并打开带 `?token=...` 的应用 URL，保留调用方的 authority 与挂载；`frontend-static` 把根路径和 index 请求交给 `ctx.connection.authorizeIndex`，后者只在 `GET /` 接受该令牌，写入绑定 authority 的签名 cookie，再重定向到干净的 `./`，移除令牌并保留请求目录。缺失、过期、畸形或 authority 不匹配的 cookie 会在 RPC 分发前得到 401。静态资源保持公开。HTTP 载体只在根路径交换接受 query token，绝不在 `/connect` 接受，也不接受 Authorization header token。已消费或过期的链接不能再次签发 cookie。
+通过 Web 载体访问时，每个 Host RPC 方法和 WebSocket 流都要求经过认证的浏览器或 API Peer，不存在按方法区分的 loopback 层。Host 生成随机启动令牌。`dsh-web-app` 打印并打开带 `?token=...` 的应用 URL，保留调用方的 authority 与挂载；`frontend-static` 把根路径和 index 请求交给 `ctx.connection.authorizeIndex`，后者只在 `GET /` 接受该令牌，写入绑定 authority 的签名 cookie，再重定向到干净的 `./`，移除令牌并保留请求目录。缺失、过期、畸形或 authority 不匹配的 cookie 会在 RPC 分发前得到 401。静态资源保持公开。HTTP 载体只在根路径交换接受 query token，绝不在 `/connect` 接受，也不接受 Authorization header token。
 
-cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$PANEDESK_HOME/private/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。浏览器与 API cookie 默认采用不带 `Max-Age` 或 `Expires` 的会话 cookie，签名中的签发与过期区间仍限制为 30 天。在受保护的 Host 配置中显式设置正整数 `cookieMaxAgeDays`，才会启用对应天数的持久存储；没有环境变量、命令行或请求覆盖入口。浏览器会话恢复可能保留会话 cookie，因此这不是撤销机制。cookie 在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；收到该 index 请求的监听器提供 TLS 时才带上 `Secure`，且只由该监听器自身的协议决定，`publicUrl` 声明与转发头都不参与判断。
-
-Host 在根 Context 上跨 connection 插件重载保留 `connectionSources` 注册表，并将平台注册表注入 owner 准入，在消费启动令牌、发布 API Peer 或分派已认证请求之前查询。提供方必须在允许不可信进程执行之前，通过 `ctx.connectionSources.register(platform, lookup)` 登记同步判定器；登记归调用方 fiber，重复平台登记失败，撤销后新连接按未知来源拒绝。没有实现的平台返回非本产品；这不表示 Windows 沙箱已经受到拦截。判定区分本产品沙箱、非本产品和未知来源；沙箱与未知结果返回中英 403 拒因。HTTP keep-alive 与 WebSocket 升级共享 socket 缓存，关闭时释放。适配器不是请求字段或配置绕过开关；具体平台识别必须由 Host 提供。
+cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$PANEDESK_HOME/private/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。浏览器与 API cookie 按 `cookieMaxAgeDays` 天持久保存，默认 30 天。cookie 在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；收到该 index 请求的监听器提供 TLS 时才带上 `Secure`，且只由该监听器自身的协议决定，`publicUrl` 声明与转发头都不参与判断。
 
 HTTPS cookie 名称与签名 audience 包含 `https:` scheme，因此即使 hostname 和 port 相同，HTTP cookie 也无法通过 TLS 监听器的认证。默认端口按监听器的 scheme 归一化。既有 HTTP cookie audience 保持不变。
 
@@ -52,7 +49,7 @@ HTTPS cookie 名称与签名 audience 包含 `https:` scheme，因此即使 host
 
 每个请求都代表一个 Peer：`principal` 指明调用方，`interactions` 决定能否参与转发事件，`signal` 在 scope 结束时中止。`ctx.connection.browserPeer` 由通过认证的浏览器连接共享，principal 为 owner，默认 `interactions: 'answer'`。`ctx.connection.admit(request)` 检查信任与浏览器或 API 认证，返回凭据对应的存活 Peer 或拒绝状态；`/api` 路由和 Gateway WebSocket 升级都使用该结果，处理器接收本次调用的 Peer。`ctx.connection.createPeer({ principal, interactions? })` 创建独立进程内 Peer，由读取该服务的 Context 或其自身的 `dispose()` 释放；省略 interactions 时默认 `answer`。导出的 `Peer` 类接受相同参数。`fetch(request, peer)` 和 HTTP bridge 必须显式接收 Peer；对非 owner Peer，exact route 返回 403。其他 principal 的方法级访问归 [`dsh-api-remote-access`](../../api/remote-access/README.zh.md)。
 
-API 调用方携带已认证的浏览器 owner Cookie 请求 `GET /connect?interactions=answer|none`，创建 principal 为 owner 的 Peer，返回 302、Mux 目标地址与签名 API Cookie。启动 URL 本身不能授权此交换。CLI Web 用户打开新的启动链接一次，并在 Host 控制终端批准浏览器；桌面载体通过继承的 IPC 取得 cookie，只在内存中保存。外部 HTTP API 调用方必须通过 owner 控制的渠道取得 owner cookie。TypeScript 与 Python SDK 的 running-Host 凭据文件流程独立于此 Web 交换。API 连接默认 `none`，非法或重复声明返回 400。HTTP 可先于 WebSocket 建立。一条 API socket 负责清理：重复关联返回 409，关闭时移除其 Peer，之后使用该 Cookie 的 HTTP 被拒绝。已受理 unary 调用保留请求级取消，但 Peer 释放后 `invocation.peer.ctx` 不再接受新的 effect 注册。API 调用方将 Cookie 与浏览器存储分开；两者使用相同的 authority 专属 Cookie 名称。
+API 调用方携带已认证的浏览器 owner Cookie 请求 `GET /connect?interactions=answer|none`，创建 principal 为 owner 的 Peer，返回 302、Mux 目标地址与签名 API Cookie。启动 URL 本身不能授权此交换。桌面载体通过继承的 IPC 取得 cookie，只在内存中保存。外部 HTTP API 调用方必须通过 owner 控制的渠道取得 owner cookie。TypeScript 与 Python SDK 的 running-Host 凭据文件流程独立于此 Web 交换。API 连接默认 `none`，非法或重复声明返回 400。HTTP 可先于 WebSocket 建立。一条 API socket 负责清理：重复关联返回 409，关闭时移除其 Peer，之后使用该 Cookie 的 HTTP 被拒绝。已受理 unary 调用保留请求级取消，但 Peer 释放后 `invocation.peer.ctx` 不再接受新的 effect 注册。API 调用方将 Cookie 与浏览器存储分开；两者使用相同的 authority 专属 Cookie 名称。
 
 通过认证的共享 HTTP 请求在传输请求体之前经过 `connection/request` waterfall。监听器可以拒绝新请求，或等待 `next()` 直到响应完成；释放所属 fiber 会移除准入行为。Desktop 使用此扩展点，在已批准的安装期间锁住新的 API 工作，而不取消已接纳的工作。客户端断开会中止处理函数的信号；桥接器停止写入 socket，并排空剩余响应块。WebSocket 流仍由 API Gateway 负责。
 
@@ -84,7 +81,6 @@ API 调用方携带已认证的浏览器 owner Cookie 请求 `GET /connect?inter
 - **缓冲型 `/api` 路由会把每个请求体保留在内存里**：`maxRequestBodyBytes`（默认 300 MiB，按默认 200 MiB 图片总量上限经 base64 膨胀加信封余量得出）限制普通图片与 RPC 信封。显式启用的流式路由接收带背压的分块并绕过总量上限；路由实现负责持久化、取消与存储配额。
 - **明文 HTTP 监听器会在传输中暴露 bearer cookie**：此类部署无法给浏览器 cookie 加 `Secure`；若把同一 authority 暴露到网络上，会话 cookie 可能泄露；在 Web 载体（[`dsh-host-webserver`](../../host/webserver/README.zh.md)）上配置 TLS 即可让 cookie 带上 `Secure` 并只经 TLS 发送。
 - **未使用的 API Peer 可以保留到 Host 退出**：调用方从未建立 WebSocket 时，其轻量记录不受建联期限或空闲回收约束。Cookie 过期仍拒绝新请求。其生命周期 socket 关闭或 Host 重启后，API 调用方必须通过 `/connect` 重新接入。
-- **macOS 不识别本产品沙箱连接**：Web 载体启动会给出中英提示，但不拒绝启动。沙箱仍可回放有效 owner cookie；M9 正式发布前必须补齐连接来源拦截。会话 cookie 不消除这一缺口。
 - **没有 logout 操作**：清除浏览器 cookie 会结束单个浏览器会话；删除 owner 凭据记录并重启 `dsh` 会撤销全部会话。
 
 

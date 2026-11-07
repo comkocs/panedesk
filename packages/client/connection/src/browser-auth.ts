@@ -3,9 +3,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { PeerId } from '@panedesk/dsh-typert-protocol'
 import { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
-import { authLocale } from './auth-locale.ts'
-import type { OwnerConnectionSource } from './connection-source.ts'
-import { confirmBrowserLogin, type ConfirmBrowserLogin } from './owner-confirmation.ts'
 import { credentialKey } from '@panedesk/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@panedesk/dsh-credentials'
 import type {
@@ -22,7 +19,7 @@ const COOKIE_PREFIX = 'dsh-auth-'
 const COOKIE_PAYLOAD_VERSION = 1
 const STORED_SECRET_VERSION = 1
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]*$/
-const PROCESS_LAUNCH_TOKENS = new WeakMap<object, { value: string; expiresAt: number; consumed: boolean }>()
+const PROCESS_LAUNCH_TOKENS = new WeakMap<object, string>()
 
 interface StoredSecretPayload {
   readonly version: typeof STORED_SECRET_VERSION
@@ -34,7 +31,6 @@ interface BrowserCookiePayload {
   readonly authority: string
   readonly issuedAt: number
   readonly expiresAt: number
-  readonly confirmation?: string
 }
 
 interface ApiCookiePayload extends Omit<BrowserCookiePayload, 'version'> {
@@ -62,10 +58,10 @@ function decodeBase64Url(value: string): Buffer | undefined {
   return encodeBase64Url(decoded) === value ? decoded : undefined
 }
 
-function processLaunchToken(owner: object): { value: string; expiresAt: number; consumed: boolean } {
+function processLaunchToken(owner: object): string {
   const existing = PROCESS_LAUNCH_TOKENS.get(owner)
   if (existing !== undefined) return existing
-  const created = { value: encodeBase64Url(randomBytes(SECRET_BYTES)), expiresAt: Date.now() + 5 * 60 * 1000, consumed: false }
+  const created = encodeBase64Url(randomBytes(SECRET_BYTES))
   PROCESS_LAUNCH_TOKENS.set(owner, created)
   return created
 }
@@ -138,11 +134,8 @@ function sessionCookie(
   expiresAt: number,
   maxAgeSeconds: number,
   secure: boolean,
-  persistent: boolean,
 ): string {
-  const attributes = persistent
-    ? `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
-    : `${name}=${value}; Path=/; HttpOnly; SameSite=Strict`
+  const attributes = `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
   return secure ? `${attributes}; Secure` : attributes
 }
 
@@ -181,11 +174,7 @@ function decodeCookie(value: string, secret: Buffer): CookiePayload | undefined 
     || typeof decoded.issuedAt !== 'number' || !Number.isSafeInteger(decoded.issuedAt)
     || typeof decoded.expiresAt !== 'number' || !Number.isSafeInteger(decoded.expiresAt)) return undefined
   const payload = { authority: decoded.authority, issuedAt: decoded.issuedAt, expiresAt: decoded.expiresAt }
-  if (decoded.confirmation !== undefined && typeof decoded.confirmation !== 'string') return undefined
-  if (decoded.version === COOKIE_PAYLOAD_VERSION) return {
-    version: COOKIE_PAYLOAD_VERSION, ...payload,
-    ...typeof decoded.confirmation === 'string' ? { confirmation: decoded.confirmation } : {},
-  }
+  if (decoded.version === COOKIE_PAYLOAD_VERSION) return { version: COOKIE_PAYLOAD_VERSION, ...payload }
   if (typeof decoded.id !== 'string' || decoded.id.length === 0) return undefined
   return { version: 2, ...payload, id: decoded.id as PeerId }
 }
@@ -215,20 +204,16 @@ async function initializeSecret(credentials: CredentialProvider): Promise<Buffer
  * and retains it for synchronous request authentication.
  */
 export class BrowserAuth {
-  private readonly launchToken: { value: string; expiresAt: number; consumed: boolean }
+  private readonly launchToken: string
   private readonly maxAgeMilliseconds: number
-  private readonly confirmed = new Set<string>()
-  private confirmationPending = false
 
   private constructor(
     processOwner: object,
     private readonly secret: Buffer,
-    private readonly maxAgeDays: number | undefined,
-    private readonly confirm: ConfirmBrowserLogin,
-    private readonly connectionSource?: OwnerConnectionSource,
+    maxAgeDays: number,
   ) {
     this.launchToken = processLaunchToken(processOwner)
-    this.maxAgeMilliseconds = (maxAgeDays ?? 30) * DAY_MILLISECONDS
+    this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
     if (!Number.isSafeInteger(this.maxAgeMilliseconds)
       || !Number.isSafeInteger(Date.now() + this.maxAgeMilliseconds)) {
       throw new Error('client-connection: cookieMaxAgeDays exceeds the safe timestamp range')
@@ -240,19 +225,15 @@ export class BrowserAuth {
    * when this Harness home has none.
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
-   * @param maxAgeDays - Explicit positive lifetime enables persistent cookies; undefined uses session cookies with a 30-day signed expiry.
-   * @param confirm - Host-owned confirmation; defaults to the controlling terminal.
-   * @param connectionSource - Host platform admission adapter; absent leaves source identification to the carrier.
+   * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
    * @returns initialized authentication owner with the process owner's launch token.
    */
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
-    maxAgeDays: number | undefined,
-    confirm: ConfirmBrowserLogin = confirmBrowserLogin,
-    connectionSource?: OwnerConnectionSource,
+    maxAgeDays: number,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, confirm, connectionSource)
+    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays)
   }
 
   /**
@@ -276,12 +257,7 @@ export class BrowserAuth {
    */
   authenticatedUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
-    if (this.launchToken.consumed || Date.now() >= this.launchToken.expiresAt) {
-      this.launchToken.value = encodeBase64Url(randomBytes(SECRET_BYTES))
-      this.launchToken.expiresAt = Date.now() + 5 * 60 * 1000
-      this.launchToken.consumed = false
-    }
-    url.searchParams.set(TOKEN_QUERY, this.launchToken.value)
+    url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
   }
 
@@ -305,60 +281,27 @@ export class BrowserAuth {
     if (tokens.length > 0) {
       const authority = requestAudience(req.headers, secure)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
-        && authority !== undefined && !this.launchToken.consumed && Date.now() < this.launchToken.expiresAt
-        && tokenMatches(tokens.join(''), this.launchToken.value)) {
-        if (this.confirmationPending) {
-          this.writePending(res)
-          return false
-        }
-        if (this.rejectConnectionSource(req, res)) return false
-        this.launchToken.consumed = true
+        && authority !== undefined && tokenMatches(tokens.join(''), this.launchToken)) {
         const issuedAt = Date.now()
         const expiresAt = issuedAt + this.maxAgeMilliseconds
-        const confirmation = encodeBase64Url(randomBytes(SECRET_BYTES))
-        let decision: boolean | Promise<boolean>
-        try {
-          decision = this.confirm({
-            userAgent: header(req.headers, 'user-agent') ?? '(unknown)',
-            requestedAt: issuedAt,
-            source: req.socket?.remoteAddress ?? '(unknown)',
-          })
-        } catch (_error) {
-          // A synchronous failure of the host confirmation channel cannot authorize a browser.
-          this.writePending(res)
-          return false
-        }
-        if (decision === false) {
-          this.writePending(res)
-          return false
-        }
-        if (decision !== true) {
-          this.confirmationPending = true
-          void decision.then((allowed) => {
-            if (allowed) this.confirmed.add(confirmation)
-          }).catch((_error: unknown) => { /* A failed confirmation never grants owner access. */ })
-            .finally(() => { this.confirmationPending = false })
-        }
         const value = encodeCookie({
           version: COOKIE_PAYLOAD_VERSION,
           authority,
           issuedAt,
           expiresAt,
-          ...decision === true ? {} : { confirmation },
         }, this.secret)
         res.writeHead(303, {
           'cache-control': 'no-store',
           'location': './',
           'referrer-policy': 'no-referrer',
           'set-cookie': sessionCookie(
-            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure, this.maxAgeDays !== undefined,
+            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure,
           ),
         })
         res.end()
         return false
       }
       if (req.method === 'GET' && url.pathname === '/' && this.isAuthenticated(req, secure)) {
-        if (this.rejectConnectionSource(req, res)) return false
         res.writeHead(303, {
           'cache-control': 'no-store',
           'location': './',
@@ -370,15 +313,14 @@ export class BrowserAuth {
       this.writeUnauthorized(req, res)
       return false
     }
-    if (this.isAuthenticated(req, secure)) return !this.rejectConnectionSource(req, res)
-    if (header(req.headers, 'cookie') !== undefined) this.writePending(res)
-    else this.writeUnauthorized(req, res)
+    if (this.isAuthenticated(req, secure)) return true
+    this.writeUnauthorized(req, res)
     return false
   }
 
   /**
-   * Exchange an authenticated browser session for an independent API operator; URL tokens are never accepted.
-   * @param req - trusted GET request on /connect with an owner cookie and at most one interactions declaration.
+   * Exchange the launch token for an independent API operator; omitted interactions default to none.
+   * @param req - trusted GET request on /connect with at most one interactions declaration.
    * @param res - response owned to completion, redirecting to the API mux on success.
    * @param secure - whether the receiving listener serves TLS.
    * @param publish - synchronously create the operator before exposing its signed credential.
@@ -406,7 +348,6 @@ export class BrowserAuth {
     }
     const issuedAt = Date.now()
     const expiresAt = issuedAt + this.maxAgeMilliseconds
-    if (this.rejectConnectionSource(req, res)) return
     const id = publish(interactions)
     const value = encodeCookie({ version: 2, authority, id, issuedAt, expiresAt }, this.secret)
     res.writeHead(302, {
@@ -414,7 +355,7 @@ export class BrowserAuth {
       'location': './api/remote.mux',
       'referrer-policy': 'no-referrer',
       'set-cookie': sessionCookie(
-        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure, this.maxAgeDays !== undefined,
+        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure,
       ),
     })
     res.end()
@@ -452,31 +393,7 @@ export class BrowserAuth {
     const now = Date.now()
     if (payload.issuedAt > now || payload.expiresAt <= now || payload.expiresAt <= payload.issuedAt
       || payload.expiresAt - payload.issuedAt > this.maxAgeMilliseconds) return undefined
-    if (payload.version === COOKIE_PAYLOAD_VERSION && payload.confirmation !== undefined
-      && !this.confirmed.has(payload.confirmation)) return undefined
     return payload
-  }
-
-  /**
-   * Check physical origin only after credentials identify an owner candidate.
-   * @param request - Accepted transport request.
-   * @returns Bilingual refusal, or undefined when the host adapter permits the connection.
-   */
-  connectionSourceRejection(request: ConnectionTrustRequest): string | undefined {
-    return this.connectionSource?.rejection(request)
-  }
-
-  private rejectConnectionSource(req: ConnectionTrustRequest, res: ConnectionIndexResponse): boolean {
-    const reason = this.connectionSourceRejection(req)
-    if (reason === undefined) return false
-    res.writeHead(403, { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' })
-    res.end(`${reason}\n`)
-    return true
-  }
-
-  private writePending(res: ConnectionIndexResponse): void {
-    res.writeHead(401, { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' })
-    res.end(`${authLocale.en.pending} / ${authLocale.zh.pending}\n`)
   }
 
   private writeUnauthorized(req: ConnectionIndexRequest, res: ConnectionIndexResponse): void {
@@ -486,6 +403,6 @@ export class BrowserAuth {
     })
     res.end(req.method === 'HEAD'
       ? undefined
-      : `${authLocale.en.required} / ${authLocale.zh.required}\n`)
+      : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
   }
 }

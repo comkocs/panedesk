@@ -70,8 +70,6 @@ interface SubagentHost {
   /** Build the lifecycle observer for one Activation residency epoch. */
   observeActivation(provider: string, childId: SessionId, parent: Agent): ActivationObserver
   admission?(): SubagentAdmission | undefined
-  capacityReleased?(root: Agent): void
-  cancelQueued?(parent: Agent): void
 }
 
 /** Inputs shared by fresh and resumed Activation materialization. */
@@ -318,7 +316,6 @@ export class SubagentManager {
     if (roots.size === 0) return
 
     for (const root of roots) {
-      this.host.cancelQueued?.(root)
       this.closingMembers(root).add(root)
     }
 
@@ -941,24 +938,11 @@ export class SubagentManager {
     return undefined
   }
 
-  /** Reserve the unchanged pool and notify an optional admission provider after release. */
+  /** Reserve the unchanged pool. */
   private reserveCapacity(parent: Agent): () => void {
     this.assertAdmitting(parent)
     const pool = this.resident.get(parent.id)?.pool ?? this.rootPool(parent)
-    const release = pool.reserve(this.maxActiveSubagents())
-    let root = parent
-    let ancestor = this.resident.get(root.id)
-    while (ancestor !== undefined) {
-      root = ancestor.parent
-      ancestor = this.resident.get(root.id)
-    }
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      release()
-      this.host.capacityReleased?.(root)
-    }
+    return pool.reserve(this.maxActiveSubagents())
   }
 
   /** Resolve a root's pool once; descendants inherit their resident parent's pool directly. */
@@ -1355,22 +1339,6 @@ export class SubagentManager {
     if (resultFailure === undefined) activation.result.resolve(result)
     else activation.result.reject(resultFailure.error)
     if (failure !== undefined) throw failure
-  }
-
-  /** Deliver a queue cancellation through the parent inbox and confirm durable acceptance.
-   * @param parent - exact newly loaded root receiving the notice.
-   * @param ticketId - queue identity, never a child or run identity.
-   * @param reason - persisted cancellation classification.
-   * @returns fulfillment after the parent Session's durability checkpoint succeeds.
-   */
-  async notifyQueueRestart(parent: Agent, ticketId: import('./types.ts').SubagentQueued['ticketId'], reason?: string): Promise<void> {
-    const cause = reason === 'restart' ? ' by restart' : ''
-    const text = `Queued subagent dispatch ${ticketId} was cancelled${cause}. You may dispatch it again.`
-    this.sendWaking(parent, createUserMessage({ content: [{ type: 'text', text }],
-      source: { kind: 'system-prompt' },
-    }), parent.status === 'idle' ? 'queue' : 'steer')
-    // Inbox insertion is synchronous, but its Session events are buffered until this checkpoint.
-    if (!await parent.ctx.sessions.flush(parent.session)) throw new Error('Queue restart notice requires durable parent acceptance')
   }
 
   /** Deliver the captured execution result to the durable direct parent after cleanup. */

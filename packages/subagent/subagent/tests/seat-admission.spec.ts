@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import { brandString } from '@panedesk/dsh-brand'
 import { SessionId } from '@panedesk/dsh-session'
-import SubagentRuntime, { SubagentQueuedError } from '../src/index.ts'
+import SubagentRuntime from '../src/index.ts'
 import type { SubagentActivation, SubagentActivationSpec, SubagentAdmission, SubagentNotifications, SubagentQueued, SubagentResult } from '../src/types.ts'
 import { externalTestParent } from './external-activation-helpers.ts'
 import { mountWorkingDirectoryFixture } from './working-directory-fixture.ts'
@@ -64,10 +64,8 @@ describe('optional subagent admission and settlement', () => {
     ctx.provide('subagentAdmission', policy)
     const active: SubagentActivation[] = []
     for (let index = 0; index < 4; index++) active.push(await ctx.subagents.startActivation(spec(`work-${index}`)))
-    expect(await ctx.subagents.requestActivation(spec('fifth'))).toEqual({
-      status: 'queued', ticketId: 'ticket-1', parentSessionId: parent.id,
-    })
-    await expect(subagentManager(ctx).startExternal(spec('sixth'))).rejects.toBeInstanceOf(SubagentQueuedError)
+    await expect(ctx.subagents.requestActivation(spec('fifth'))).resolves.toMatchObject({ status: 'queued', ticketId: 'ticket-1' })
+    await expect(subagentManager(ctx).startExternal(spec('sixth'))).rejects.toThrow('Subagent queued; observe the ticket and end the turn instead of retrying.')
     expect(results).toHaveLength(4)
     results[0]!.resolve(completed)
     await active[0]!.result

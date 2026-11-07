@@ -10,10 +10,8 @@ import { API_PATH } from './api-path.ts'
 import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
-import { authAdmissionBody, authLocale } from './auth-locale.ts'
+import { authAdmissionBody } from './auth-locale.ts'
 import { BrowserAuth } from './browser-auth.ts'
-import { ConnectionSourceRegistry, OwnerConnectionSource } from './connection-source.ts'
-import { confirmBrowserLogin } from './owner-confirmation.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
@@ -34,7 +32,6 @@ export type {
   ConnectionRpcResult,
   ConnectionRequestBodyMode,
   ConnectionTrustRequest,
-  ConnectionSourceSocket,
   ClientRequest,
   HostConnectionHandle,
   HostConnectionFetch,
@@ -42,7 +39,6 @@ export type {
   RpcMessage,
   ServerResponse,
 } from './rpc.ts'
-export type { ConnectionSource, ConnectionSourceLookup, ConnectionSourceRegistry } from './connection-source.ts'
 export type { PeerId, PeerScope, Principal, RemoteInvocation } from '@panedesk/dsh-typert-protocol'
 export { RpcId, transportError } from './rpc.ts'
 export { authAdmissionBody, type AuthAdmissionStatus } from './auth-locale.ts'
@@ -109,12 +105,8 @@ export interface ConnectionConfig {
    * an entry here. A non-canonical or non-bare authority fails plugin load.
    */
   trustedHosts?: string[]
-  /** Explicit positive lifetime enables persistent cookies; omitted uses session cookies with a 30-day signed expiry. */
+  /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
-  /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
-  requireOwnerConfirmation?: boolean
-  /** Maximum host-terminal confirmation wait in milliseconds. Default: 60000. */
-  ownerConfirmationTimeoutMs?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
@@ -122,9 +114,7 @@ export interface ConnectionConfig {
 export const Config: z<ConnectionConfig> = z.object({
   recovery: ConnectionRecoveryConfigSchema.default({}),
   trustedHosts: z.array(String).default([]),
-  cookieMaxAgeDays: z.natural().min(1),
-  requireOwnerConfirmation: z.boolean().default(true),
-  ownerConfirmationTimeoutMs: z.natural().min(1).max(2_147_483_647).default(60_000),
+  cookieMaxAgeDays: z.natural().min(1).default(30),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
 })
 
@@ -139,26 +129,18 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   const recovery = resolveConnectionConfig(config?.recovery)
   // The Loader resolves schema defaults; hand-built test contexts may pass none.
   const trustedHosts = config?.trustedHosts ?? []
-  const cookieMaxAgeDays = config?.cookieMaxAgeDays
+  const cookieMaxAgeDays = config?.cookieMaxAgeDays ?? 30
   const maxRequestBodyBytes = config?.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES
   // Config boundary: a malformed entry fails the load loudly here rather than
   // silently authorizing its hostname prefix at request time.
   for (const entry of trustedHosts) assertTrustedAuthority(entry)
   assertImageBodyCapacity(ctx, maxRequestBodyBytes)
-  const sources = ctx.root.get('connectionSources') ?? new ConnectionSourceRegistry(ctx.root)
   const connection = new HostConnectionService(
     ctx,
     trustedHosts,
-    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays,
-      config?.requireOwnerConfirmation === false
-        ? () => true
-        : request => confirmBrowserLogin(request, config?.ownerConfirmationTimeoutMs ?? 60_000),
-      new OwnerConnectionSource(socket => sources.classify(socket))),
+    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays),
   )
   ctx.inject(['webServer'], (webCtx) => {
-    if (process.platform === 'darwin') {
-      webCtx.logger.warn(`${authLocale.en.macosSourceLimitation} / ${authLocale.zh.macosSourceLimitation}`)
-    }
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
     webCtx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'global', name: '__DSH_CONNECTION_RECOVERY__', value: recovery })
@@ -171,7 +153,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
         const admission = connection.admit(req)
         if ('rejection' in admission) {
           res.writeHead(admission.rejection, { 'content-type': 'text/plain; charset=utf-8' })
-          res.end(admission.reason ?? authAdmissionBody(admission.rejection))
+          res.end(authAdmissionBody(admission.rejection))
           return
         }
         await webCtx.waterfall('connection/request', req, res, () => bridge(req, res, fetchHandler, admission.peer, maxRequestBodyBytes))

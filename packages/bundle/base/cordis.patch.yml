@@ -401,8 +401,6 @@
       config:
         maxDepth: 3
         maxActiveSubagents: 16
-        overflow: queue
-        persistQueue: true
         reportPathsInNotifications: true
 
     - id: subagent-spawn-in-process

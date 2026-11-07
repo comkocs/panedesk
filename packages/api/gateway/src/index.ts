@@ -268,7 +268,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
             handler: (req, socket, head) => {
               const admission = webCtx.connection.admitConnection(req)
               if ('rejection' in admission) {
-                rejectRemoteStreamUpgrade(socket, admission.rejection, admission.reason)
+                rejectRemoteStreamUpgrade(socket, admission.rejection)
                 return
               }
               const release = (): void => {

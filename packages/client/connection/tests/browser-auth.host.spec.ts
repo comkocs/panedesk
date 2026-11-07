@@ -54,10 +54,10 @@ function credentials(store: RecordCredentials): CredentialProvider {
 
 function createAuth(
   store: RecordCredentials,
-  maxAgeDays?: number,
+  maxAgeDays = 30,
   processOwner: object = {},
 ): Promise<BrowserAuth> {
-  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays, () => true)
+  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays)
 }
 
 function request(url: string, authority = '127.0.0.1:3080', init?: {
@@ -92,44 +92,6 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('single-use launch links', () => {
-  it('refuses a consumed browser token at both cookie exchange and connect', async () => {
-    const auth = await createAuth(new RecordCredentials())
-    const login = exchange(auth)
-    const target = new URL(login.launchUrl)
-    const replay = response()
-    auth.authorizeIndex(request(`${target.pathname}${target.search}`), replay.value)
-    expect(replay.state.status).toBe(401)
-    expect(replay.state.headers?.['set-cookie']).toBeUndefined()
-    const connect = response()
-    const publish = vi.fn(() => 'unexpected-operator' as PeerId)
-    auth.authorizeConnect(request(`/connect${target.search}`), connect.value, false, publish)
-    expect(connect.state.status).toBe(401)
-    expect(publish).not.toHaveBeenCalled()
-  })
-
-  it('refuses an unused browser launch token at connect', async () => {
-    const auth = await createAuth(new RecordCredentials())
-    const target = new URL(auth.authenticatedUrl('http://localhost/'))
-    const res = response()
-    const publish = vi.fn(() => 'unexpected-operator' as PeerId)
-    auth.authorizeConnect(request(`/connect${target.search}`, 'localhost'), res.value, false, publish)
-    expect(res.state.status).toBe(401)
-    expect(publish).not.toHaveBeenCalled()
-  })
-
-  it('expires an unused launch link after five minutes', async () => {
-    vi.useFakeTimers()
-    const auth = await createAuth(new RecordCredentials())
-    const target = new URL(auth.authenticatedUrl('http://localhost/'))
-    vi.advanceTimersByTime(5 * 60 * 1000)
-    const res = response()
-    auth.authorizeIndex(request(`${target.pathname}${target.search}`, 'localhost'), res.value)
-    expect(res.state.status).toBe(401)
-    expect(res.state.headers?.['set-cookie']).toBeUndefined()
-  })
-})
-
 describe('API credentials', () => {
   it('refuses a request without a URL before publishing an API operator', async () => {
     const auth = await createAuth(new RecordCredentials())
@@ -141,7 +103,7 @@ describe('API credentials', () => {
     expect(res.state).toEqual({
       status: 401,
       headers: { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' },
-      body: 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie. / 需要 Panedesk 身份认证。启动链接仅可使用一次，五分钟后失效；请重启宿主取得新链接。API 连接需要已认证所有者的 cookie。\n',
+      body: 'dsh web authentication required; reopen the URL printed by dsh web.\n',
     })
     expect(publish).not.toHaveBeenCalled()
   })
@@ -199,20 +161,6 @@ describe('API credentials', () => {
 })
 
 describe('BrowserAuth', () => {
-  it('defaults browser and API cookies to session storage with signed expiry', async () => {
-    const auth = await createAuth(new RecordCredentials())
-    const login = exchange(auth, 'localhost')
-    expect(login.state.headers?.['set-cookie']?.slice(login.cookie.length)).toBe('; Path=/; HttpOnly; SameSite=Strict')
-    expect(auth.isAuthenticated(request('/', 'localhost', { cookie: login.cookie }))).toBe(true)
-    const api = response()
-    auth.authorizeConnect(request('/connect', 'localhost', { cookie: login.cookie }), api.value, false, () => 'session-api' as PeerId)
-    const raw = api.state.headers?.['set-cookie']
-    expect(raw?.slice(raw.indexOf(';'))).toBe('; Path=/; HttpOnly; SameSite=Strict')
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(30 * 86_400_000)
-    expect(auth.isAuthenticated(request('/', 'localhost', { cookie: login.cookie }))).toBe(false)
-  })
-
   it('mints one process token and a persistent authority-bound cookie', async () => {
     const store = new RecordCredentials()
     const processOwner = {}
@@ -238,10 +186,7 @@ describe('BrowserAuth', () => {
     expect(first.isAuthenticated(request('/', '127.0.0.1:3081', { cookie: login.cookie }))).toBe(false)
 
     const reloaded = await createAuth(store, 30, processOwner)
-    expect(reloaded.authenticatedUrl('http://127.0.0.1:3080')).not.toBe(login.launchUrl)
-    const replay = response()
-    reloaded.authorizeIndex(request(login.launchUrl), replay.value)
-    expect(replay.state.status).toBe(401)
+    expect(reloaded.authenticatedUrl('http://127.0.0.1:3080')).toBe(login.launchUrl)
     expect(reloaded.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: login.cookie }))).toBe(true)
 
     const restarted = await createAuth(store)
@@ -339,7 +284,7 @@ describe('BrowserAuth', () => {
       })
       expect(denied.state.body).toBe(candidate.method === 'HEAD'
         ? undefined
-        : 'Panedesk authentication required. The launch link is single-use and expires after five minutes; restart the host for a new link. API connections require an authenticated owner cookie. / 需要 Panedesk 身份认证。启动链接仅可使用一次，五分钟后失效；请重启宿主取得新链接。API 连接需要已认证所有者的 cookie。\n')
+        : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
     }
   })
 
