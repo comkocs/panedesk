@@ -218,13 +218,6 @@ describe('FileSystemSkillProvider', () => {
     } finally { await ctx.fiber.dispose() }
   })
 
-  it('rejects a catalog request when the optional registry is unavailable', async () => {
-    const ctx = new Context()
-    try {
-      await expect(SkillFileSystem.listSkillCatalog(ctx, undefined)).rejects.toThrow('Skill registry is unavailable')
-    } finally { await ctx.fiber.dispose() }
-  })
-
   it('discovers project, custom, user, and agents skill roots in priority order', async () => {
     const home = await tempDir('skill-home')
     const project = await tempDir('skill-project')

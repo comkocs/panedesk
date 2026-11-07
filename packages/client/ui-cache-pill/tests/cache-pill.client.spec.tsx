@@ -41,13 +41,12 @@ describe('CachePill', () => {
     expect(ui.queryByRole('button')).toBeNull()
     expect(ui.queryByRole('dialog')).toBeNull()
   })
-  it.each([undefined, { status: 'ready', rows: [], tiers: ['none'] } satisfies CacheRead])('reports a failed resource read without loading or writable stale evidence: %j', (previous) => {
+  it.each([undefined, { status: 'ready', rows: [], tiers: ['none'] } satisfies CacheRead])('reports a failed resource read without loading: %j', (previous) => {
     const useResource = (() => ({ status: 'failed', value: previous, failure: undefined })) as CachePillProps['useResource']
     const ui = render(<Pill sessionId={MAIN} t={enT} useResource={useResource} write={async () => true} />)
     fireEvent.click(ui.getByRole('button', { expanded: false }))
     expect(ui.getByText(en['panel.error'])).toBeTruthy()
     expect(ui.queryByText(en['panel.loading'])).toBeNull()
-    expect(ui.queryByRole('group', { name: en['tier.label'] })).toBeNull()
   })
 
   it('disables tier changes while saving and reports a refused write without claiming success', async () => {

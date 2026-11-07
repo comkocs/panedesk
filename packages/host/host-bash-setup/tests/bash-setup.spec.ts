@@ -1,10 +1,10 @@
 /** The discovery Remote commits only what the caller confirmed and reports the committed state. */
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@panedesk/cordis'
-import { readWindowsBashConfig, windowsBashConfigPath } from '@panedesk/dsh-bash-local'
+import { readWindowsBashConfig } from '@panedesk/dsh-bash-local'
 import BashSetupGateway from '../src/index.ts'
 
 const contexts: Context[] = []
@@ -62,26 +62,14 @@ describe('BashSetupGateway', () => {
     expect(readWindowsBashConfig()).toBeUndefined()
   })
 
-  it.each(['anonymous', 'missing', 'aborted'] as const)('rejects %s writes without changing the selection', async (caller) => {
+  it('rejects cancelled writes without changing the selection', async () => {
     const gateway = await harness()
     const ctx = contexts[contexts.length - 1]!
-    const invocation = caller === 'missing' ? undefined : { peer: { principal: { kind: caller === 'anonymous' ? 'anonymous' : 'owner' } }, signal: caller === 'aborted' ? AbortSignal.abort() : new AbortController().signal }
-    Object.defineProperty(ctx, 'invocation', { configurable: true, value: invocation })
-    const refusal = caller === 'aborted' ? { code: 'gateway/cancelled', message: 'Bash setup unavailable' } : { code: 'remote-access/denied', message: 'Authenticated owner required' }
+    Object.defineProperty(ctx, 'invocation', { configurable: true, value: { signal: AbortSignal.abort() } })
+    const refusal = { code: 'gateway/cancelled', message: 'Bash setup unavailable' }
     await expect(gateway.enable({ bashPath: 'C:\\Git\\bash.exe' })).rejects.toMatchObject(refusal)
     await expect(gateway.disable()).rejects.toMatchObject(refusal)
     expect(readWindowsBashConfig()).toBeUndefined()
-  })
-
-  it.each(['anonymous', 'missing'] as const)('preserves existing configuration when %s disables', async (caller) => {
-    const gateway = await harness()
-    await gateway.enable({ bashPath: 'C:\\Git\\bash.exe' })
-    const before = await readFile(windowsBashConfigPath())
-    const ctx = contexts[contexts.length - 1]!
-    Object.defineProperty(ctx, 'invocation', { configurable: true, value: caller === 'missing' ? undefined : { peer: { principal: { kind: 'anonymous' } } } })
-    await expect(gateway.disable()).rejects.toMatchObject({ code: 'remote-access/denied', message: 'Authenticated owner required',
-      details: { action: 'bashSetup/disable', reason: 'no-allow' } })
-    expect(await readFile(windowsBashConfigPath())).toEqual(before)
   })
 
   it('refuses a selection without a usable path instead of committing a broken gate', async () => {

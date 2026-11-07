@@ -49,7 +49,6 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-bash-local": "workspace:*",
     "@panedesk/dsh-typert-protocol": "workspace:*",
     "@panedesk/cordis": "workspace:~"

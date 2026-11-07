@@ -6,7 +6,6 @@
  */
 
 import type { Context as ClientContext } from '@panedesk/cordis'
-import { redactDiagnostic } from '@panedesk/dsh-util-values'
 import type {
   LlmDiscoveredModel, LlmModelDiscoveryRequest,
   SettingsNamespaceView, SettingsPathOpView,
@@ -70,18 +69,9 @@ export interface ModelsOperations {
    * Probe one model with a one-token generation.
    * @param provider - registered provider route.
    * @param model - model id, listed or typed by hand.
-   * @returns success, or the host's redacted failure.
+   * @returns success, or the host's failure.
    */
   probeModel(provider: string, model: string): Promise<{ readonly ok: boolean; readonly message?: string | undefined }>
-}
-
-/**
- * Remove credentials, header values, and URL queries from surface diagnostics.
- * @param message - host or transport diagnostic, when supplied.
- * @returns the sanitized diagnostic, or undefined when absent.
- */
-export function redactSurface(message: string | undefined): string | undefined {
-  return message === undefined ? undefined : redactDiagnostic(message)
 }
 
 /**
@@ -114,10 +104,10 @@ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
     },
     probeModel: async (provider, model) => {
       const response = await ctx.remote.llm.probeModel(provider, model)
-      if (!response.ok) return { ok: false, message: redactSurface(response.error.message) }
+      if (!response.ok) return { ok: false, message: response.error.message }
       return response.value.ok
         ? { ok: true }
-        : { ok: false, message: redactSurface(response.value.message) }
+        : { ok: false, message: response.value.message }
     },
   }
 }

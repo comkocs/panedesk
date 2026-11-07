@@ -26,9 +26,9 @@
     },
     {
       "id": "desktop-unsigned-windows-github-releases",
-      "description": "Point unsigned Windows packages at comkocs/panedesk GitHub Releases and confirm before download",
+      "description": "Point unsigned Windows packages at comkocs/panedesk GitHub Releases",
       "origin": "Desktop update source",
-      "reason": "Unsigned Windows packaging embeds the github provider for owner comkocs and repo panedesk on the latest channel, with no publisher name and no mandatory-update policy. Account-row update openings confirm before downloading, matching Check for Updates. The Windows packaging workflow retains latest.yml and the installer blockmap without publishing a Release. Signed builds and other platforms keep their existing feeds. These changes can be contributed upstream.",
+      "reason": "Unsigned Windows packaging embeds the github provider for owner comkocs and repo panedesk on the latest channel, with no publisher name and no mandatory-update policy. The Windows packaging workflow retains latest.yml and the installer blockmap without publishing a Release. Signed builds and other platforms keep their existing feeds. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -41,9 +41,7 @@
           "apps/desktop/packaging/README.zh.md",
           "apps/desktop/packaging/README.i18n.yaml",
           "apps/desktop/scripts/electron-builder-config.mjs",
-          "apps/desktop/src/main.ts",
-          "apps/desktop/tests/macos-signature.spec.ts",
-          "apps/desktop/tests/main-startup.spec.ts"
+          "apps/desktop/tests/macos-signature.spec.ts"
         ]
       }
     },
@@ -913,16 +911,16 @@
     },
     {
       "id": "client-cache-resource-failure-read",
-      "description": "Keep failed cache reads unavailable to write controls.",
+      "description": "Present failed cache reads as unavailable.",
       "origin": "Bilingual interface state audit",
-      "reason": "Present failed cache resources as unreadable and prevent stale evidence from enabling writes. Eligible for upstream feedback.",
+      "reason": "Present failed cache resources as unreadable. Eligible for upstream feedback.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/client/ui-cache-pill/src/client/CachePill.tsx",
           "packages/client/ui-cache-pill/tests/cache-pill.client.spec.tsx"
         ],
-        "test": "cache resource failure presentation and write availability"
+        "test": "cache resource failure presentation"
       }
     },
     {
@@ -995,17 +993,12 @@
       "id": "optional-skill-catalog-registry",
       "description": "Read an optional skill registry without requiring consumer injection.",
       "origin": "Skill catalog runtime repair",
-      "reason": "Resolve the optional skill registry through ctx.get and reject absence rather than requiring consumer injection or reporting an empty catalog. Suitable for upstream.",
+      "reason": "Resolve the optional skill registry through ctx.get without requiring consumer injection, returning an empty catalog when absent. Suitable for upstream.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/skill/skill-filesystem/src/index.ts",
-          "packages/skill/skill-filesystem/tests/skill-filesystem.spec.ts",
-          "packages/skill/skill-filesystem/README.md",
-          "packages/skill/skill-filesystem/README.zh.md",
-          "packages/skill/skill-filesystem/README.i18n.yaml",
-          "docs/config-catalog.md",
-          "docs/config-catalog.zh.md"
+          "packages/skill/skill-filesystem/tests/skill-filesystem.spec.ts"
         ],
         "test": "lists from an optional consumer without declaring a skills injection"
       }
@@ -1259,16 +1252,14 @@
     },
     {
       "id": "shared-diagnostic-credential-redaction",
-      "description": "Credential redaction of diagnostic text now has one implementation.",
+      "description": "Keep the shared value utility module identity under the Panedesk scope.",
       "origin": "Shared client implementation integration",
-      "reason": "Credential redaction of diagnostic text now has one implementation. The llm probe wrapper remains for its existing callers.",
+      "reason": "The value helpers retain the product module name; diagnostics no longer pass through credential redaction.",
       "match": {
-        "type": "test-assertion",
+        "type": "behavior",
         "paths": [
-          "packages/util/values/src/index.ts",
-          "packages/llm/llm/src/index.ts"
-        ],
-        "test": "shared client behavior and consumer regression checks"
+          "packages/util/values/src/index.ts"
+        ]
       }
     },
     {
@@ -14547,49 +14538,30 @@
     },
     {
       "id": "owner-check-bash-setup",
-      "description": "Owner-only Bash configuration writes reuse the existing remote access denial code.",
+      "description": "Bash configuration writes report cancellation before changing the selection.",
       "origin": "Owner denial guards for host setup and probes",
-      "reason": "Use the existing remote access denial code for owner-only Bash configuration writes and verify denied writes preserve existing bytes. Suitable for upstream.",
+      "reason": "Keep Bash setup enable and disable operations with independent cancellation reporting. Suitable for upstream.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/host/host-bash-setup/src/index.ts",
-          "packages/host/host-bash-setup/tests/bash-setup.spec.ts",
-          "packages/host/host-bash-setup/package.json",
-          "packages/host/host-bash-setup/tsconfig.json",
-          "packages/host/host-bash-setup/README.i18n.yaml"
+          "packages/host/host-bash-setup/tests/bash-setup.spec.ts"
         ],
-        "test": "bash-setup authorization denial coverage"
+        "test": "bash-setup cancellation coverage"
       }
     },
     {
       "id": "owner-check-llm-remote-probe",
-      "description": "Owner-only model probes reuse the existing remote access denial code and report cancelled signals independently.",
+      "description": "Model probes report independently cancelled signals before contacting the adapter.",
       "origin": "Owner denial guards for host setup and probes",
-      "reason": "Use the existing remote access denial code for owner-only probes and test independently cancelled signals. Suitable for upstream.",
+      "reason": "Keep model probes and independent cancellation reporting. Suitable for upstream.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/llm/llm/src/index.ts",
-          "packages/llm/llm/tests/probe-model.spec.ts",
-          "packages/llm/llm/package.json",
-          "packages/llm/llm/tsconfig.json",
-          "packages/llm/llm/README.i18n.yaml"
+          "packages/llm/llm/tests/probe-model.spec.ts"
         ],
-        "test": "probe-model authorization and cancellation coverage"
-      }
-    },
-    {
-      "id": "owner-denial-dependencies",
-      "description": "Workspace dependencies for the structured remote access denial details.",
-      "origin": "Owner denial guards for host setup and probes",
-      "reason": "Record workspace type dependencies for structured remote access denial details. Suitable for upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "pnpm-lock.yaml"
-        ],
-        "test": "verify-package-dependencies"
+        "test": "probe-model cancellation coverage"
       }
     },
     {

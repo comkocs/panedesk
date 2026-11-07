@@ -73,6 +73,7 @@ export function CachePill({ t, sessionId, useSessions, useResource, write }: Cac
   const [open, setOpen] = useState(false)
   const resource = useResource<'sessioncache'>(`dsh-resource://sessioncache/${encodeURIComponent(sessionId)}`)
   const view: CacheRead = resource.status === 'failed' ? { status: 'error' } : resource.value ?? { status: 'loading' }
+  const selection = resource.value
   const [tier, setTier] = useState<TierWrite>({ status: 'idle' })
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
@@ -118,15 +119,15 @@ export function CachePill({ t, sessionId, useSessions, useResource, write }: Cac
               ))
               : null}
             {view.status === 'ready' && view.complete === false ? <span className={css.muted}>{t('panel.partial')}</span> : null}
-            {view.status === 'ready' && view.tiers.length > 0
+            {selection?.status === 'ready' && selection.tiers.length > 0
               ? (
                 <span className={css.tiers} role="group" aria-label={t('tier.label')}>
-                  {view.tiers.map(item => (
+                  {selection.tiers.map(item => (
                     <button
                       key={item}
                       type="button"
                       className={css.tier}
-                      aria-pressed={view.retention === item}
+                      aria-pressed={selection.retention === item}
                       disabled={tier.status === 'pending'}
                       onClick={() => { choose(item) }}
                     >
