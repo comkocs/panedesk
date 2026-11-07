@@ -93,6 +93,36 @@ function frameMessages(messages: readonly SessionTitleUserMessage[]): string {
   return `Generate the session title from this JSON array of human messages:\n${JSON.stringify(messages)}`
 }
 
+/** How many of the newest rounds a retitle reads. */
+const RECENT_ROUNDS = 2
+
+/**
+ * The newest rounds, cut further so their framed JSON fits the first-message
+ * byte cap, always keeping at least the newest one. `maxInputBytes` is the
+ * truncation the opening title already uses.
+ * @param messages - every eligible human message, oldest first.
+ * @param maxInputBytes - the provider's input byte cap.
+ * @returns the newest fitting messages, in log order.
+ */
+function recentMessagesWithin(
+  messages: readonly SessionTitleUserMessage[],
+  maxInputBytes: number,
+): SessionTitleUserMessage[] {
+  const window = messages.slice(-RECENT_ROUNDS)
+  while (window.length > 1 && Buffer.byteLength(frameMessages(window), 'utf8') > maxInputBytes) window.shift()
+  return window
+}
+
+/** Compare two titles with whitespace and punctuation removed. */
+function sameTitle(next: string, current: string | undefined): boolean {
+  return current !== undefined && titleKey(next) === titleKey(current)
+}
+
+/** Letters and digits only, so spacing and punctuation do not count as a change. */
+function titleKey(title: string): string {
+  return title.replace(/[^\p{L}\p{N}]+/gu, '')
+}
+
 /** Asterisk emphasis wrapping a whole line, such as `**Title**`. */
 const EMPHASIS_WRAPPER = /^(?<marker>\*{1,3})(?<inner>\S(?:.*\S)?)\k<marker>$/u
 
@@ -151,15 +181,23 @@ export function apply(ctx: Context, config: Config): void {
     async generate(request) {
       const first = request.messages[0]
       if (first === undefined) throw new Error('first-prompt title provider requires one human message')
+      const retitle = request.retitleRound !== undefined
+      // A retitle reads the newest rounds that still fit the first-message byte cap.
+      const selected = retitle
+        ? recentMessagesWithin(request.messages, resolved.maxInputBytes)
+        : [first]
       const response = await executeSessionTitleLlm(ctx, resolved, request, titleProvider, {
         system: systemPrompt(resolved),
-        input: frameMessages([first]),
-        messageSeqs: [first.seq],
+        input: frameMessages(selected),
+        messageSeqs: selected.map(message => message.seq),
         selectReasoningEffort,
       })
+      const title = titleFromResponse(response)
+      // Same title as the one standing (ignoring whitespace and punctuation): keep it.
+      if (retitle && sameTitle(title, request.currentTitle?.title)) return undefined
       return {
-        title: titleFromResponse(response),
-        messageSeqs: [first.seq],
+        title,
+        messageSeqs: selected.map(message => message.seq),
         model: response.model,
       }
     },
