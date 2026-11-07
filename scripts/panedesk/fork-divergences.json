@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "desktop-runtime-verification-build-version",
+      "description": "Support stable product versions in the packaged runtime verification test",
+      "origin": "Desktop product release",
+      "reason": "The runtime verification test constructs a valid build version for stable and prerelease product versions without changing the expected runtime version. This fix can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/tests/packaged-runtime-verification.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "fs-local-multiple-runtime-entries",
       "description": "Allow the local filesystem package to publish its runtime entries",
       "origin": "Windows filesystem backend",
