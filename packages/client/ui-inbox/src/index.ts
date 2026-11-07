@@ -18,7 +18,10 @@ export interface Config {
   pageSize: number
 }
 declare module '@panedesk/cordis' {
-  interface Context { inbox: Inbox }
+  interface Context {
+    inbox: Inbox
+    messageDeliveryUnavailable: { code: 'home-permissions'; path: string }
+  }
 }
 /** Authenticated owners retain their existing local read authority. */
 export default class Inbox extends TypertRemoteService {
@@ -41,7 +44,10 @@ export default class Inbox extends TypertRemoteService {
 
   private async read(sessionId: SessionId): Promise<InboxView> {
     const delivery = this.ctx.get('messageDelivery')
-    if (!delivery?.quarantined) throw new RemoteError('inbox/unavailable', 'Inbox queries unavailable', {})
+    if (!delivery?.quarantined) {
+      const reason = this.ctx.get('messageDeliveryUnavailable')
+      throw new RemoteError('inbox/unavailable', 'Inbox queries unavailable', reason ? { reason } : {})
+    }
     const items: InboxItem[] = [], quarantined: MessageQuarantineEvent[] = []
     let complete = true, cursor: MessageCursor | undefined
     const seats = this.ctx.get('seats'), engine = this.ctx.get('seatEngine')

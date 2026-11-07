@@ -46,7 +46,10 @@ export type { Config } from './types.ts'
 
 /** Optional message namespace; providers implement the frozen MessageLedgerStore interface. */
 declare module '@panedesk/cordis' {
-  interface Context { messageLedger: MessageLedgerStore }
+  interface Context {
+    messageLedger: MessageLedgerStore
+    messageDeliveryUnavailable: { code: 'home-permissions'; path: string }
+  }
 }
 
 /** Concrete provider; missing optional accounting leaves durable receipts authoritative. */
@@ -306,11 +309,23 @@ export default class LocalMessageDelivery extends MessageDelivery {
     this.receipts = new ReceiptStore(this.mailbox)
     const subprocess = this.ctx.get('subprocess')
     this.registry = new NodeRegistry(this.mailbox, subprocess ? pid => subprocess.readProcessIdentity(pid) : undefined)
-    await privateDirectory(this.mailbox.options.home)
+    try {
+      await privateDirectory(this.mailbox.options.home)
+      if (process.platform === 'win32') await inspectWindowsAcl(this.mailbox.options.home)
+    } catch (error) {
+      if (error instanceof MailboxUnavailableError && [
+        'Mailbox directory permissions are not private', 'Product home group is not the primary user group',
+        'Product home group is not private to the current user', 'Windows mailbox ACL grants another principal read or write access',
+      ].includes(error.message)) {
+        const reason = { code: 'home-permissions' as const, path: this.mailbox.options.home }
+        this.ctx.provide('messageDeliveryUnavailable', reason)
+        this.ctx.logger.error('Message delivery unavailable:', reason.code, reason.path)
+      }
+      throw error
+    }
     if (process.platform !== 'win32' && ((await lstat(this.mailbox.options.home)).mode & 0o020) !== 0) {
       this.ctx.logger.warn('Product home permits private-user-group writes; mailbox directories remain owner-only')
     }
-    if (process.platform === 'win32') await inspectWindowsAcl(this.mailbox.options.home)
     await this.mailbox.initialize()
   }
 
