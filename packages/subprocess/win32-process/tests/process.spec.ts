@@ -199,46 +199,6 @@ describe('spawnInheritedJobProcess', () => {
 
 })
 
-describe('piped Job ownership', () => {
-  it.each(['create', 'assign', 'resume'] as const)('closes owned handles on Job %s failure', (failure) => {
-    let nextPipe = 10n
-    const terminateProcess = vi.fn(() => 1)
-    const { api, events } = inheritedApi({
-      terminateProcess,
-      createPipe: (read, write) => {
-        koffi.encode(read, PVOID, nextPipe++)
-        koffi.encode(write, PVOID, nextPipe++)
-        return 1
-      },
-      ...(failure === 'create' ? { createJobObjectW: () => 0n as NativePtr } : {}),
-      ...(failure === 'assign' ? { assignProcessToJobObject: () => 0 } : {}),
-      ...(failure === 'resume' ? { resumeThread: () => 0xFFFFFFFF } : {}),
-    })
-    expect(() => spawnPipedProcess(api, { command: 'cmd.exe', args: [], cwd: 'C:\\work', token: 70n as NativePtr })).toThrow(Win32Error)
-    expect(events.filter(event => event.startsWith('close:'))).toEqual([
-      'close:10', 'close:11', 'close:12', 'close:13', 'close:14', 'close:15', 'close:60', 'close:61',
-      ...failure === 'create' ? [] : ['close:50'],
-    ])
-    expect(terminateProcess).toHaveBeenCalledExactlyOnceWith(60n, 1)
-  })
-
-  it('assigns a suspended piped child before resume and returns the Job', () => {
-    let nextPipe = 10n
-    const { api, events, createProcessAsUserW } = inheritedApi({
-      createPipe: (read, write) => {
-        koffi.encode(read, PVOID, nextPipe++)
-        koffi.encode(write, PVOID, nextPipe++)
-        return 1
-      },
-    })
-    const child = spawnPipedProcess(api, { command: 'cmd.exe', args: [], cwd: 'C:\\work', token: 70n as NativePtr })
-    expect(child).toEqual({ pid: 1234, process: 60n, job: 50n, stdoutRead: 12n, stderrRead: 14n })
-    expect(createProcessAsUserW.mock.calls[0]?.[6]).toBe(CREATE_SUSPENDED)
-    expect(events.filter(event => ['create', 'assign', 'resume'].includes(event))).toEqual(['create', 'assign', 'resume'])
-    expect(events.includes('close:50')).toBe(false)
-  })
-})
-
 describe('wait and pipe cleanup', () => {
   const token = 70n as NativePtr
 

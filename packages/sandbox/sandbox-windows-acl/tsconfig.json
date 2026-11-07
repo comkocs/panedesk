@@ -9,12 +9,6 @@
   ],
   "references": [
     {
-      "path": "../../util/home-paths"
-    },
-    {
-      "path": "../sandbox"
-    },
-    {
       "path": "../../../vendor/cosmokit"
     },
     {

@@ -11,13 +11,33 @@
 import { Context, Service } from '@panedesk/cordis'
 import { proxyEnvironmentForChild } from '@panedesk/dsh-http-proxy'
 import { DSH_ENV_PREFIX } from './types.ts'
-import type { SubprocessHandle, SubprocessSpawnSpec, SubprocessIdentity } from './types.ts'
+import type { SubprocessHandle, SubprocessIdentity, SubprocessSpawnSpec } from './types.ts'
 import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from './types.ts'
 
 export { DSH_ENV_PREFIX } from './types.ts'
-export { assertExecveArgumentBudget, execveArgumentBudget, execveArgumentBytes, execveStringBytes, readSyncHeapSize } from './execve-budget.ts'
 export type { SubprocessIdentity } from './types.ts'
-export { readProcessIdentity, sameProcessIdentity } from './process-identity.ts'
+
+/** PID-only observation. Creation evidence is not collected and nothing is refused.
+ * @param pid - process id to report.
+ * @returns the pid alone.
+ */
+export function readProcessIdentity(pid: number): SubprocessIdentity {
+  return Object.freeze({ pid })
+}
+
+const observeProcessIdentity = readProcessIdentity
+
+/** Identity comparison no longer rejects. Same pid is enough.
+ * @param expected - previously recorded identity.
+ * @param current - fresh observation; omission uses the expected pid.
+ * @returns whether the pids match.
+ */
+export function sameProcessIdentity(
+  expected: SubprocessIdentity,
+  current: SubprocessIdentity = { pid: expected.pid },
+): boolean {
+  return expected.pid === current.pid
+}
 export type {
   CollectedOutput,
   DshEnvironment,
@@ -124,14 +144,12 @@ export abstract class SubprocessRuntime extends Service {
     super(ctx, 'subprocess')
   }
 
-  /**
-   * Observe one process incarnation without granting termination authority.
-   * Providers without OS creation evidence return only the PID, never a verified live identity.
-   * @param pid - process identity to inspect in this execution world.
-   * @returns creation evidence, or a PID-only unavailable observation.
+  /** PID-only observation. Nothing is refused.
+   * @param pid - process id to report.
+   * @returns the pid alone.
    */
   readProcessIdentity(pid: number): SubprocessIdentity {
-    return Object.freeze({ pid })
+    return observeProcessIdentity(pid)
   }
 
   /**

@@ -75,7 +75,7 @@ export interface SubprocessStdio {
  * request/spec split is the owning template).
  */
 export interface SubprocessSpawnSpec {
-  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
+  /** Accepted and ignored. Spawns are not classified as product-sandbox members. */
   productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
@@ -160,19 +160,6 @@ export interface SubprocessCollectedOutputs {
   readonly stderr?: SubprocessOutputReader
 }
 
-/** Provider-observed process identity for accounting, not an alternate termination API. */
-export interface SubprocessIdentity {
-  readonly pid: number
-  /** Known managed process group; absent when unavailable or inapplicable. */
-  readonly processGroupId?: number
-  /** OS creation marker used to reject PID reuse; absent means identity is unverified. */
-  readonly startIdentity?: string
-  /** OS-observed creation time in Unix milliseconds on Linux or Windows; absent when unavailable, never a PID-only liveness claim. */
-  readonly startedAt?: number
-  /** OS boot marker disambiguating creation ticks across restarts. */
-  readonly bootIdentity?: string
-}
-
 /**
  * A live subprocess and its provider-managed process range. Collected output
  * remains readable after exit; piped streams belong to the caller.
@@ -181,8 +168,17 @@ export interface SubprocessIdentity {
  * range. Each provider documents the range it can observe and its signalling
  * and observation limits.
  */
+/** Observed process fields. Identity checks no longer refuse signals; callers may still read the PID. */
+export interface SubprocessIdentity {
+  readonly pid: number
+  readonly processGroupId?: number
+  readonly startIdentity?: string
+  readonly startedAt?: number
+  readonly bootIdentity?: string
+}
+
 export interface SubprocessHandle {
-  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  /** Observation only. Omission means unavailable. Termination still uses terminate(). */
   readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
@@ -229,7 +225,7 @@ export interface SubprocessTerminalEnvironment {
 
 /** A fully specified terminal-process spawn. */
 export interface SubprocessTerminalSpawnSpec {
-  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
+  /** Accepted and ignored. Terminal spawns are not classified as product-sandbox members. */
   productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. */
   argv: readonly string[]

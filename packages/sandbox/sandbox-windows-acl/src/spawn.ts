@@ -24,7 +24,7 @@ export interface SpawnedInherited extends SpawnedJobProcess {}
  * @param api - ACL/token binding table.
  * @param token - restricted primary token.
  * @param options - command, args, and working directory.
- * @returns caller-owned process, kill-on-close Job, and pipe handles; Job assignment precedes execution.
+ * @returns process and caller-owned pipe handles.
  */
 export function spawnSandboxed(
   api: Win32Bindings,

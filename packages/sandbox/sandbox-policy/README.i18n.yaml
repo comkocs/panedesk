@@ -21,17 +21,11 @@
   en: 6704447e52ec295b
   zh: 9ed812d9e29d5533
 /panedesk-dsh-sandbox-policy/use-this-package/minimal-configuration:
-  en: d322dd388a3a4250
-  zh: 2da125db93e7bab7
+  en: a0e37d6616b67126
+  zh: f2652528575406ea
 /panedesk-dsh-sandbox-policy/use-this-package/switching-a-session-s-mode:
-  en: 776462003173aa17
-  zh: 656910231f3b39de
-/panedesk-dsh-sandbox-policy/use-this-package/windows-workspace-records:
-  en: 928787dc25829ca8
-  zh: 1911aa3348c61462
-/panedesk-dsh-sandbox-policy/use-this-package/protected-host-inputs:
-  en: 604ae55612bffe44
-  zh: e4bd645808e82412
+  en: 957d72691e470e5c
+  zh: c22a3a750af0e4a3
 /panedesk-dsh-sandbox-policy/use-this-package/failures-and-recovery:
   en: 9cef5f64a050f468
   zh: 5dc42c148b2c902d
@@ -39,11 +33,11 @@
   en: 2d560aa6681fcfb8
   zh: e1c6361a6fa40c63
 /panedesk-dsh-sandbox-policy/understand-the-implementation/resolution-precedence:
-  en: b51f4a40cbd0ecab
-  zh: d41a5383681ad6c5
+  en: f1f38b10c23947d2
+  zh: 7a591e743d6793f5
 /panedesk-dsh-sandbox-policy/understand-the-implementation/the-per-session-store:
-  en: 12decd39289f21d8
-  zh: 1f83ce9ebe6489e2
+  en: d13dabff02f2acfd
+  zh: f593888b4ffddf36
 /panedesk-dsh-sandbox-policy/understand-the-implementation/model-visible-text:
   en: 999ecd77b3857811
   zh: 2cc0a0b2aee08c17

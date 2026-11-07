@@ -39,8 +39,6 @@
     "@panedesk/dsh-subprocess": "workspace:*"
   },
   "dependencies": {
-    "@panedesk/dsh-home-paths": "workspace:*",
-    "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-lazy-require": "workspace:*",
     "@panedesk/dsh-win32-process": "workspace:*",
     "koffi": "3.1.1",

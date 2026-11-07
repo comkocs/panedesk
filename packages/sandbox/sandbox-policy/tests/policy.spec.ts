@@ -7,26 +7,13 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@panedesk/dsh-session'
-import SandboxPolicyService, { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { SANDBOX_MODES, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SystemPrompt, { renderContextSnapshot, renderPrompt } from '@panedesk/dsh-system-prompt'
-
-let testHome: string
-
-beforeEach(() => {
-  testHome = mkdtempSync(join(tmpdir(), 'sandbox-policy-home-'))
-  vi.stubEnv('PANEDESK_HOME', testHome)
-  vi.stubEnv('DSH_DESKTOP_PRIVATE_PATHS', undefined)
-})
-
-afterEach(() => {
-  vi.unstubAllEnvs()
-  rmSync(testHome, { recursive: true, force: true })
-})
 
 async function mounted(config: { mode?: 'read-only' | 'workspace-write' | 'danger-full-access'; workspaceRoot?: string } = {}) {
   const ctx = new Context()
@@ -56,9 +43,9 @@ async function policyContext(ctx: Context, activeSession: Session): Promise<stri
 }
 
 describe('SandboxPolicyService', () => {
-  it('uses the platform default under the process cwd', async () => {
+  it('defaults to read-only under the process cwd', async () => {
     const ctx = await mounted()
-    expect(ctx.sandboxPolicy.defaultMode).toBe(process.platform === 'win32' ? 'read-only' : 'workspace-write')
+    expect(ctx.sandboxPolicy.defaultMode).toBe('read-only')
     expect(ctx.sandboxPolicy.workspaceRoot).toBe(resolve(process.cwd()))
   })
 
@@ -85,8 +72,6 @@ describe('SandboxPolicyService', () => {
     expect(ctx.sandboxPolicy.resolve()).toEqual({
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: [join(testHome, 'private')],
     })
   })
 
@@ -100,23 +85,17 @@ describe('SandboxPolicyService', () => {
       mode: 'workspace-write',
       workspaceRoot: '/projects/first',
       sessionId: 'sess-first',
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: [join(testHome, 'private')],
     })
     expect(ctx.sandboxPolicy.resolve({ session: second })).toEqual({
       mode: 'read-only',
       workspaceRoot: '/projects/second',
       sessionId: 'sess-second',
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: [join(testHome, 'private')],
     })
     expect(ctx.sandboxPolicy.overrideOf(first)).toBeUndefined()
     expect(ctx.sandboxPolicy.overrideOf(second)).toBe('read-only')
     expect(ctx.sandboxPolicy.resolve()).toEqual({
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
-      protectedPaths: resolveProtectedPaths(ctx),
-      unreadablePaths: [join(testHome, 'private')],
     })
   })
 
@@ -137,8 +116,6 @@ describe('SandboxPolicyService', () => {
         mode: 'workspace-write',
         workspaceRoot: cwd,
         sessionId: 'sess-symlink-parent',
-        protectedPaths: resolveProtectedPaths(ctx),
-        unreadablePaths: [join(testHome, 'private')],
       })
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -153,7 +130,6 @@ describe('SandboxPolicyService', () => {
       mode: 'danger-full-access',
       workspaceRoot: '/projects/approved',
       sessionId: 'sess-approved',
-      protectedPaths: resolveProtectedPaths(ctx),
     })
   })
 
@@ -175,7 +151,7 @@ describe('SandboxPolicyService', () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(SessionProjectionRegistry)
-    const fiber = await ctx.plugin(SandboxPolicyService, { mode: 'read-only' })
+    const fiber = await ctx.plugin(SandboxPolicyService, {})
     expect(ctx.sandboxPolicy).toBeDefined()
     expect(await policyContext(ctx, session('sess-hmr'))).toContain('read-only')
     await fiber.dispose()

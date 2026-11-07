@@ -55,7 +55,6 @@ const scratch: string[] = []
 afterEach(() => {
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true })
   vi.restoreAllMocks()
-  vi.unstubAllEnvs()
 })
 
 function track<T extends { directory: string }>(files: T): T {
@@ -163,7 +162,7 @@ describe('closed runner protocol', () => {
       },
     })
     expect(deserializeRunnerError(result!.error)).toMatchObject({
-      name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', errno: -2, syscall: 'spawn tool', path: 'tool',
+      name: 'SpawnError', message: 'spawn missing', code: 'ENOENT', syscall: 'spawn tool', path: 'tool',
     })
     cleanupLinuxLaunchFiles(files)
     expect(existsSync(files.directory)).toBe(false)
@@ -389,8 +388,6 @@ describe('runner launch inputs', () => {
   })
 
   it('resolves Windows executables with target-cwd and PATH search semantics', () => {
-    vi.stubEnv('NoDefaultCurrentDirectoryInExePath', undefined)
-    vi.stubEnv('NODEFAULTCURRENTDIRECTORYINEXEPATH', undefined)
     const probed: string[] = []
     const exists = (candidate: string): boolean => {
       probed.push(candidate)
@@ -398,7 +395,7 @@ describe('runner launch inputs', () => {
     }
     expect(resolveWindowsExecutable('bash', 'C:\\target', {
       Path: 'relative;"C:\\semi;colon";"C:\\tools\\git\\bin";C:\\later',
-    }, exists, {})).toBe('C:\\tools\\git\\bin\\bash.exe')
+    }, exists)).toBe('C:\\tools\\git\\bin\\bash.exe')
     expect(probed).toEqual([
       'C:\\target\\bash.com',
       'C:\\target\\bash.exe',
@@ -466,18 +463,6 @@ describe('runner launch inputs', () => {
 })
 
 describe('Linux one-shot exec bootstrap', () => {
-  it('keeps original syscall, errno and actionable text after execve failure', async () => {
-    const files = track(createLinuxLaunchFiles({ cwd: '/work', env: {} }))
-    const message = 'EFAULT: bad address, execve target'
-    const execve = vi.fn((): never => {
-      throw Object.assign(new Error(message), { code: 'EFAULT', errno: -14, syscall: 'execve', path: '/target' })
-    })
-    await runSpawnRunner(files.requestPath, ['--', '/target'], hostArgument(new FakeRunnerHost()), internals({ execve }))
-    expect(readLinuxStartupError(files.startupErrorPath)).toEqual({
-      type: 'error', error: { name: 'Error', message, code: 'EFAULT', errno: -14, syscall: 'execve', path: '/target' },
-    })
-  })
-
   it('uses final cwd/env PATH while preserving the original argv', async () => {
     const files = track(createLinuxLaunchFiles({
       cwd: '/final/work',

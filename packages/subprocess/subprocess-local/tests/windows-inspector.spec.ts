@@ -2,7 +2,6 @@ import { spawnSync as nodeSpawnSync } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createWindowsProcessInspector,
-  readWindowsProcessIdentity,
   isInvalidHandle,
   windowsProcessTree,
   WindowsProcessInspector,
@@ -162,24 +161,6 @@ describe('WindowsProcessInspector (injected internals)', () => {
     const fake = fakeInternals()
     expect(createWindowsProcessInspector(fake.internals)).toBeInstanceOf(WindowsProcessInspector)
     expect(createWindowsProcessInspector()).toBeInstanceOf(WindowsProcessInspector)
-  })
-})
-
-describe('public Windows process identity', () => {
-  it('retains exact FILETIME ticks and exposes Unix milliseconds', () => {
-    const ticks = 116444736000000000n + 123456789n * 10000n
-    const started = `${ticks >> 32n}:${ticks & 0xffffffffn}`
-    const identity = readWindowsProcessIdentity(77, () => ({ started, active: true }))
-    expect(identity).toEqual({ pid: 77, startIdentity: started, startedAt: 123456789 })
-    expect(Object.isFrozen(identity)).toBe(true)
-  })
-
-  it('returns unavailable for absent, exited or malformed creation evidence', () => {
-    expect(readWindowsProcessIdentity(77, () => undefined)).toEqual({ pid: 77 })
-    expect(readWindowsProcessIdentity(77, () => ({ started: '1:2', active: false }))).toEqual({ pid: 77 })
-    for (const started of ['unknown', '4294967296:1', '1:4294967296', '0:0']) {
-      expect(readWindowsProcessIdentity(77, () => ({ started, active: true }))).toEqual({ pid: 77 })
-    }
   })
 })
 

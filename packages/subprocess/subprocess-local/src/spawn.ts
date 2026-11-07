@@ -11,7 +11,7 @@
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { setTimeout as sleepMs } from 'node:timers/promises'
-import { readProcessIdentity, sameProcessIdentity, scrubbedParentEnv } from '@panedesk/dsh-subprocess'
+import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
 import type {
   SubprocessCollect,
@@ -210,18 +210,6 @@ function fallbackOwner(
   let stopped = false
   let directSettled = false
   let observation: Promise<void> | undefined
-  const identity = pid === undefined ? undefined : readProcessIdentity(pid)
-  const signalIdentityMatches = (): boolean => {
-    if (platform !== 'linux' || process.platform !== 'linux') return true
-    // Unknown creation evidence must preserve the original signalling path,
-    // including virtual children and surviving groups whose leader was reaped.
-    if (identity === undefined || identity.bootIdentity === undefined || identity.startIdentity === undefined) return true
-    const current = readProcessIdentity(identity.pid)
-    if (current.bootIdentity === undefined || current.startIdentity === undefined) return true
-    if (sameProcessIdentity(identity, current)) return true
-    process.stderr.write('dsh-subprocess-local: process identity mismatch; refusing signal\n')
-    return false
-  }
   void direct.then(
     () => { directSettled = true },
     () => { directSettled = true },
@@ -250,7 +238,6 @@ function fallbackOwner(
         stopped = true
         return
       }
-      if (!signalIdentityMatches()) return
       signalTree(platform, pid, signal, child, taskkill)
     },
     waitForExit: async () => {
@@ -264,7 +251,7 @@ function fallbackOwner(
       await observation
     },
     terminateForHostExit: () => {
-      if (stopped || !signalIdentityMatches()) return
+      if (stopped) return
       signalTree(platform, pid, 'SIGKILL', child, taskkill)
     },
   }
@@ -446,7 +433,6 @@ export function bindManagedProcess(
     stdout: outMode === 'pipe' ? stdout ?? undefined : undefined,
     stderr: errMode === 'pipe' ? stderr ?? undefined : undefined,
     control: launch.control,
-    ...launch.processIdentity === undefined ? {} : { processIdentity: launch.processIdentity },
     /* v8 ignore stop */
     collected: {
       ...stdoutCollector !== undefined ? { stdout: stdoutCollector } : {},
@@ -500,7 +486,6 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
     stdout: child.stdout,
     stderr: child.stderr,
     control: controlPipe(child, spec.stdio.control),
-    ...pid === undefined ? {} : { processIdentity: readProcessIdentity(pid) },
     direct,
     owner,
   }, binding)

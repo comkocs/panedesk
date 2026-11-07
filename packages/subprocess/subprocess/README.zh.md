@@ -36,8 +36,6 @@ kind: "package-reference"
 - name: '@panedesk/dsh-bash-local'
 ```
 
-消费者在普通及终端启动请求中保留 Linux 隔离显式返回的 `productSandbox: true`。提供方用它在 exec 前进行可信身份登记，不从 argv 推断；普通及 full-access 命令省略该字段。
-
 ### 启动受管进程
 
 请求完全明确：程序与参数、工作目录、每条流一种 stdio 处置方式、终止宽限期、可选的中止信号与可选的环境覆盖。目标与受管范围标识保留在提供方内部。`done` 以直接命令的退出事实（`exitCode` 与 `signal`）resolve，并在 spawn 或提供方失败时 reject；收集输出在退出后仍可读取。
@@ -69,8 +67,6 @@ const output = handle.collected.stdout?.readFrom(0)
 
 ### 管理进程生命周期
 
-`readProcessIdentity(pid)` 观察操作系统的进程创建证据，不授予终止权限。提供方无法验证创建身份时只返回 PID；消费方必须视其为不可用，不能判为已死或存活。`sameProcessIdentity` 拒绝证据缺失与 PID 复用。
-
 终止与等待使用同一个由提供方管理的范围。`terminate()` 会启动提供方记录的流程，具有幂等性，并在该范围为空后成为空操作；请求的中止信号会启动同一流程。`waitForExit()` 观察同一范围，只在提供方证明它完全停稳后 resolve，因此直接命令结束不会掩盖仍存活的后代。所选 owner 无法再证明完全停稳时，它会 reject。提供方记录其 native owner 与较弱 fallback；时限、拆卸阶梯与原因分类归调用方所有。
 
 ### 运行终端会话
@@ -84,8 +80,6 @@ const output = handle.collected.stdout?.readFrom(0)
 子进程永远不会隐式继承 harness 的环境秘密：形似凭据的名称与环境中的 `DSH_*` 事实都会被清除，调用方显式的 `env` 在该清除之后合并。有意转发的凭据或当前的 `DSH_*` 部署事实仍会到达子进程；显式的 `undefined` 墓碑值则移除一个普通的环境项。
 
 ### 可能出错的地方
-
-共享分配辅助函数计入 pathname、argv、envp 和两张带终止槽的指针表。调用方传入与原生调用方式对应的运行时堆大小；`readSyncHeapSize` 在同步堆大小缺失或不是正数时直接拒绝，不采用任何默认值。参见 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)。
 
 无法解析可执行文件时，服务会明确报出稳定的错误。从未启动成功的 spawn 会让 `done` reject；从未运行过的进程没有任何缓冲输出。提供方无法证明所选范围为空时，`waitForExit()` 也会 reject；提供方 fallback 可能无法拥有逃离其进程组或已观察会话的后代。当传输拥有自己的 spawn（SDK 客户端、MCP）时，请绕开本服务并直接导入 `scrubbedParentEnv`，让环境策略保持单一来源。
 
@@ -109,7 +103,6 @@ const output = handle.collected.stdout?.readFrom(0)
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：抽象 `SubprocessRuntime`、`ctx.subprocess` 注册、共享的 `scrubbedParentEnv` 清除 |
 | [`src/types.ts`](src/types.ts) | 词汇：spawn spec、stdio 模式、句柄、读取器、结果、`DSH_*` 命名空间 |
-| [`src/execve-budget.ts`](src/execve-budget.ts) | 共享的 execve 分配计量与同步堆读取 |
 
 ### 数据模型与流程
 

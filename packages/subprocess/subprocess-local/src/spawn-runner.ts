@@ -16,7 +16,6 @@ import type {
   NativePtr,
 } from '@panedesk/dsh-win32-process'
 import { loadLinuxExecve } from './linux-execve.ts'
-import { enterLinuxProductGroup } from './linux-product-bootstrap.ts'
 import {
   consumeLinuxLaunchRequest,
   isWindowsTerminateRequest,
@@ -99,7 +98,7 @@ function asSpawnError(
 ): SerializedRunnerError {
   const serialized = serializeRunnerError(error)
   if (!(error instanceof Win32Error)) {
-    return serialized.code === undefined || serialized.syscall !== undefined
+    return serialized.code === undefined
       ? serialized
       : { ...nodeSpawnError(`spawn ${program}`, serialized.code, program),
         ...serialized.errno === undefined ? {} : { errno: serialized.errno } }
@@ -195,7 +194,6 @@ function runLinux(
   }
   try {
     host.chdir(request.cwd)
-    if (request.productSandbox === true) enterLinuxProductGroup(files)
     execLinuxTarget({ ...request, cwd: host.cwd() }, argv, internals)
   } catch (error) {
     writeLinuxStartupError(files, {

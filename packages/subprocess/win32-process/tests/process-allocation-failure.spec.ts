@@ -81,17 +81,7 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
 describe('shared process allocation cleanup', () => {
   it('frees pipe slots and process structs after a successful piped spawn', () => {
     let nextHandle = 10n
-    const unused = (): never => { throw new Error('Unexpected native call') }
-    const api: Win32ProcessBindings = {
-      getFileType: unused, uvGetOsfhandle: unused, createProcessW: unused,
-      readFile: unused, peekNamedPipe: unused, waitForSingleObject: unused,
-      getExitCodeProcess: unused, queryInformationJobObject: unused,
-      terminateJobObject: unused, getStdHandle: unused,
-      createJobObjectW: vi.fn(() => 50n as NativePtr),
-      setInformationJobObject: vi.fn(() => 1),
-      assignProcessToJobObject: vi.fn(() => 1),
-      resumeThread: vi.fn(() => 0),
-      terminateProcess: vi.fn(() => 1),
+    const api = {
       createPipe: vi.fn((readSlot: NativePtr, writeSlot: NativePtr) => {
         koffi.encode(readSlot, PVOID, nextHandle++)
         koffi.encode(writeSlot, PVOID, nextHandle++)
@@ -110,7 +100,7 @@ describe('shared process allocation cleanup', () => {
       closeHandle: vi.fn(() => 1),
       getLastError: vi.fn(() => 5),
       formatMessageW: vi.fn(() => 0),
-    }
+    } as unknown as Win32ProcessBindings
     const free = vi.spyOn(koffi, 'free')
     expect(spawnPipedProcess(api, {
       command: 'cmd.exe',

@@ -13986,21 +13986,9 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
-      '@panedesk/dsh-app-boot':
-        specifier: workspace:*
-        version: link:../../boot/app-boot
-      '@panedesk/dsh-home-paths':
-        specifier: workspace:*
-        version: link:../../util/home-paths
-      '@panedesk/dsh-sandbox-policy':
-        specifier: workspace:*
-        version: link:../sandbox-policy
       '@panedesk/dsh-sandbox-windows-acl':
         specifier: workspace:*
         version: link:../sandbox-windows-acl
-      '@panedesk/dsh-subprocess':
-        specifier: workspace:*
-        version: link:../../subprocess/subprocess
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
@@ -14010,16 +13998,10 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      koffi:
-        specifier: 3.1.1
-        version: 3.1.1
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
-      '@panedesk/dsh-client-connection':
-        specifier: workspace:*
-        version: link:../../client/connection
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -14029,52 +14011,22 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
-      '@panedesk/dsh-subprocess-local':
-        specifier: workspace:*
-        version: link:../../subprocess/subprocess-local
 
   packages/sandbox/sandbox-policy:
     dependencies:
-      '@panedesk/dsh-atomic-write':
-        specifier: workspace:*
-        version: link:../../util/atomic-write
-      '@panedesk/dsh-home-paths':
-        specifier: workspace:*
-        version: link:../../util/home-paths
-      '@panedesk/dsh-sandbox-windows-acl':
-        specifier: workspace:*
-        version: link:../sandbox-windows-acl
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       zod:
-        specifier: ^4.4.3
+        specifier: 4.4.3
         version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
-      '@panedesk/cordis-plugin-loader':
-        specifier: workspace:~
-        version: link:../../../vendor/loader
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
-      '@panedesk/dsh-app-boot':
-        specifier: workspace:*
-        version: link:../../boot/app-boot
-      '@panedesk/dsh-client-modules':
-        specifier: workspace:*
-        version: link:../../client/modules
-      '@panedesk/dsh-credentials':
-        specifier: workspace:*
-        version: link:../../credentials/credentials
-      '@panedesk/dsh-hmr':
-        specifier: workspace:*
-        version: link:../../boot/hmr
-      '@panedesk/dsh-llm':
-        specifier: workspace:*
-        version: link:../../llm/llm
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../sandbox
@@ -14087,21 +14039,12 @@ importers:
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
-      '@panedesk/dsh-user-approval':
-        specifier: workspace:*
-        version: link:../../interaction/user-approval
 
   packages/sandbox/sandbox-windows-acl:
     dependencies:
-      '@panedesk/dsh-home-paths':
-        specifier: workspace:*
-        version: link:../../util/home-paths
       '@panedesk/dsh-lazy-require':
         specifier: workspace:*
         version: link:../../util/lazy-require
-      '@panedesk/dsh-sandbox':
-        specifier: workspace:*
-        version: link:../sandbox
       '@panedesk/dsh-win32-process':
         specifier: workspace:*
         version: link:../../subprocess/win32-process
@@ -17567,18 +17510,12 @@ importers:
 
   packages/subprocess/subprocess-local:
     dependencies:
-      '@panedesk/dsh-home-paths':
-        specifier: workspace:*
-        version: link:../../util/home-paths
       '@panedesk/dsh-lazy-require':
         specifier: workspace:*
         version: link:../../util/lazy-require
       '@panedesk/dsh-win32-process':
         specifier: workspace:*
         version: link:../win32-process
-      '@panedesk/node-addon-system':
-        specifier: workspace:~
-        version: link:../../../native/system/packages/entry
       koffi:
         specifier: 3.1.1
         version: 3.1.1
@@ -17589,12 +17526,6 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
-      '@panedesk/dsh-client-connection':
-        specifier: workspace:*
-        version: link:../../client/connection
-      '@panedesk/dsh-credentials':
-        specifier: workspace:*
-        version: link:../../credentials/credentials
       '@panedesk/dsh-loader-smoke':
         specifier: workspace:*
         version: link:../../test-support/loader-smoke

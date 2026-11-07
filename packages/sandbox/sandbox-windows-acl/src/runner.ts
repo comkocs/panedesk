@@ -44,8 +44,6 @@
  * @module @panedesk/dsh-sandbox-windows-acl/runner
  */
 
-import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import { assertOwnerWorkspace, ownerMaterialDirectories } from '@panedesk/dsh-sandbox'
 import { SUBPROCESS_CONTROL_ENV, SUBPROCESS_CONTROL_FD } from '@panedesk/dsh-subprocess/control'
 import { closeSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -71,9 +69,6 @@ interface ParsedArgs {
   mode: 'read-only' | 'workspace-write'
   writeSid: string | undefined
   tempWriteSid: string | undefined
-  protectedPaths: string[]
-  unreadablePaths: string[]
-  stateDirectory: string | undefined
   command: string
   args: string[]
 }
@@ -84,9 +79,6 @@ function parseArgs(raw: string[]): ParsedArgs {
   let mode: string | undefined
   let writeSid: string | undefined
   let parsedTempWriteSid: string | undefined
-  const protectedPaths: string[] = []
-  const unreadablePaths: string[] = []
-  let stateDirectory: string | undefined
   let index = 0
   for (; index < raw.length; index++) {
     const token = raw[index]
@@ -103,9 +95,6 @@ function parseArgs(raw: string[]): ParsedArgs {
       case '--mode': mode = value; break
       case '--write-sid': writeSid = value; break
       case '--temp-write-sid': parsedTempWriteSid = value; break
-      case '--protected-path': protectedPaths.push(value); break
-      case '--unreadable-path': unreadablePaths.push(value); break
-      case '--state-directory': stateDirectory = value; break
       default: fail(`unknown argument: ${token}`)
     }
   }
@@ -115,10 +104,7 @@ function parseArgs(raw: string[]): ParsedArgs {
   const argv = raw.slice(index)
   const command = argv[0]
   if (command === undefined) fail('missing command after --')
-  return {
-    workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid,
-    protectedPaths, unreadablePaths, stateDirectory, command, args: argv.slice(1),
-  }
+  return { workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid, command, args: argv.slice(1) }
 }
 
 function requireDirectory(label: string, path: string): void {
@@ -133,10 +119,6 @@ async function main(): Promise<number> {
   // a bogus root must fail loudly at the runner boundary, never mid-child.
   requireDirectory('--workspace', parsed.workspace)
   requireDirectory('--temp', parsed.temp)
-  const ownerDirectories = ownerMaterialDirectories(
-    [...parsed.unreadablePaths, join(resolveDshHome(), 'private')], process.env.DSH_DESKTOP_PRIVATE_PATHS,
-  )
-  assertOwnerWorkspace(parsed.workspace, ownerDirectories, parsed.mode === 'workspace-write')
 
   const seamManaged = parsed.writeSid !== undefined || parsed.tempWriteSid !== undefined
   if (parsed.mode === 'read-only' && seamManaged) {
@@ -184,9 +166,6 @@ async function main(): Promise<number> {
       ...writeSid === undefined ? {} : { writeSid },
       ...privateTempSid === undefined ? {} : { tempWriteSid: privateTempSid },
       manageDacls: !seamManaged,
-      protectedPaths: parsed.protectedPaths,
-      unreadablePaths: [...ownerDirectories],
-      ...parsed.stateDirectory === undefined ? {} : { stateDirectory: parsed.stateDirectory },
     })
     await sandbox.init()
     initialized = true
