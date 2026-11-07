@@ -251,6 +251,8 @@ export interface LlmConfigurableProvider {
   displayName: string
   /** User-settings namespace whose section configures this provider. */
   settingsNs: string
+  /** Whether model discovery is registered for this namespace. */
+  hasModelDiscovery?: boolean
   /**
    * Path from that namespace's section root to this provider's profile
    * object; empty when the whole section is the profile.

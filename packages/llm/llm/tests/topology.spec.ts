@@ -103,8 +103,8 @@ describe('configurable-provider directory', () => {
     expect(events).toHaveBeenCalledTimes(1)
     const listed = ctx.llm.listConfigurableProviders()
     expect(listed).toEqual([
-      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [] },
-      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], hasModelDiscovery: false },
+      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], hasModelDiscovery: false },
     ])
     listed[0]!.displayName = 'mutated'
     ;(listed[1]!.settingsPath as string[]).push('mutated')
@@ -123,7 +123,7 @@ describe('configurable-provider directory', () => {
     baseURLEnv.push('mutated')
     const listed = ctx.llm.listConfigurableProviders()
     expect(listed).toEqual([
-      entry({ defaultBaseURL: 'https://api.openai.com/v1', baseURLEnv: ['ENDPOINT'], nativeAuth: { env: ['OPENAI_API_KEY'], oauth: false } }),
+      entry({ defaultBaseURL: 'https://api.openai.com/v1', baseURLEnv: ['ENDPOINT'], nativeAuth: { env: ['OPENAI_API_KEY'], oauth: false }, hasModelDiscovery: false }),
     ])
     ;(listed[0]!.nativeAuth!.env as string[]).push('mutated')
     ;(listed[0]!.baseURLEnv as string[]).push('mutated')
