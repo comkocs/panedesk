@@ -49,6 +49,16 @@ async function setup(config: Omit<tool.Config, 'provider'>, providerConfig: Part
 const args = { description: 'review task', prompt: 'Review this change.' }
 
 describe('spawn preset selection', () => {
+  it('advertises registered types and descriptions without a configured allowlist and dispatches by type', async () => {
+    const { ctx, onStart } = await setup({})
+    const schema = ctx.tools.schemas().find(schema => schema.name === 'subagent')
+    expect(schema).toHaveProperty('parameters.properties.agent_preset.enum', ['reviewer', 'writer'])
+    expect(schema?.description).toContain('reviewer: reviewer persona')
+    expect(schema?.description).toContain('writer: writer persona')
+    expect((await callSubagent(ctx, { ...args, agent_preset: 'reviewer' })).isError).not.toBe(true)
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ agentPreset: 'reviewer' }))
+  })
+
   it('advertises configured ids and forwards a model selection without child composition overrides', async () => {
     const { ctx, onStart } = await setup({
       allowedAgentPresets: ['writer', 'reviewer'],

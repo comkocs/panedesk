@@ -7,7 +7,7 @@ import type { SubagentProvider } from '@panedesk/dsh-subagent'
 export interface PresetSelectionConfig {
   /** Default independent preset; omission inherits the parent when the model makes no selection. */
   agentPreset?: string
-  /** Non-empty allowlist exposing agent_preset to the model; omission disables model selection. */
+  /** Non-empty allowlist exposing agent_preset to the model; omission offers all usable registered presets. */
   allowedAgentPresets?: string[] | undefined
 }
 
@@ -19,6 +19,7 @@ export interface PresetSelectionRequest {
 /** Validates configured references and resolves model input against the allowlist. */
 export class SubagentPresetSelection {
   private descriptions: string[] = []
+  private registeredChoices: string[] | undefined
 
   constructor(private readonly config: PresetSelectionConfig) {
     const { agentPreset, allowedAgentPresets } = config
@@ -38,7 +39,7 @@ export class SubagentPresetSelection {
 
   /** Preset ids advertised in the model parameter. */
   get choices(): readonly string[] | undefined {
-    return this.config.allowedAgentPresets
+    return this.config.allowedAgentPresets ?? this.registeredChoices
   }
 
   /** Model-visible selection guidance and configured preset descriptions. */
@@ -57,6 +58,12 @@ export class SubagentPresetSelection {
   async validate(ctx: Context): Promise<void> {
     const presets = ctx.get('agentPresets')
     if (presets === undefined) throw new Error('tool-subagent: agent preset selection requires the agent-presets service')
+    if (!this.configured) {
+      const available = (await presets.list()).filter(preset => preset.broken === undefined)
+      this.registeredChoices = available.map(preset => preset.id)
+      this.descriptions = available.map(preset => `${preset.id}: ${preset.description ?? preset.name ?? 'No description provided.'}`)
+      return
+    }
     const ids = new Set([
       ...this.config.agentPreset === undefined ? [] : [this.config.agentPreset],
       ...this.config.allowedAgentPresets ?? [],
