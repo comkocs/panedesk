@@ -742,7 +742,7 @@ export class ClientModuleRegistry extends Service {
   /**
    * Publish one completed bundle generation (the HMR watch's registration
    * hook — the only entry point through which build changes reach the graph).
-   * Unchanged mtime, ctime and size preserve the graph; protected trees are still verified.
+   * Unchanged mtime, ctime and size preserve the graph; explicit whole-tree verification still precedes reuse.
    * @param id - entry id (package name).
    * @returns the current artifact rev, or undefined for an unknown id.
    */
@@ -751,7 +751,7 @@ export class ClientModuleRegistry extends Service {
     if (record === undefined) return undefined
     const baseline = this.captureArtifactBaseline(record.meta.clientPath)
     const rev = artifactRevision(baseline)
-    const protectedBundle = this.protectedArtifact(record.meta.clientPath)
+    const protectedBundle = this.protectedArtifact(record.meta.clientPath, true)
     if (rev === record.entry.rev) return rev
     const bundle = protectedBundle ?? readFileSync(record.meta.clientPath)
     record.baseline = baseline
@@ -980,13 +980,13 @@ export class ClientModuleRegistry extends Service {
     return `${baseUrl}\0${loaderName}`
   }
 
-  private protectedArtifact(clientPath: string): Buffer | undefined {
+  private protectedArtifact(clientPath: string, wholeTree = false): Buffer | undefined {
     const profile = this.ctx.get('profileContext')
     const records = new Set([...(profile?.inputIntegrities?.values() ?? []),
       ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
     let bytes: Buffer | undefined
     for (const record of records) {
-      const candidate = record.readExecutable(clientPath)
+      const candidate = wholeTree ? record.readExecutableTree(clientPath) : record.readExecutable(clientPath)
       if (candidate === undefined) continue
       if (bytes !== undefined && !bytes.equals(candidate)) throw new Error('Protected client artifact records disagree')
       bytes = candidate

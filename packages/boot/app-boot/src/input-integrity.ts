@@ -1162,9 +1162,25 @@ export class ProtectedInputIntegrity {
    * @throws When a protected executable has changed or was not recorded before write access.
    */
   readExecutable(filename: string): Buffer | undefined {
+    return this.readExecutableInput(filename, false)
+  }
+
+  /**
+   * Compare every covering approved tree before admitting an executable generation.
+   * Unlike module reads, each call checks sibling contents and directory membership.
+   * @param filename Resolved entry whose covering trees must still match their approved baselines.
+   * @returns Verified entry bytes, or undefined when no record protects the input.
+   * @throws When a covering tree changed; owner approval must complete separately before retrying.
+   */
+  readExecutableTree(filename: string): Buffer | undefined {
+    return this.readExecutableInput(filename, true)
+  }
+
+  private readExecutableInput(filename: string, wholeTree: boolean): Buffer | undefined {
     this.refreshRecord()
     if (this.stateFailure !== undefined && contains(this.root, this.inputPath(filename))) throw this.stateFailure
-    const copies = [this.readLocalExecutable(filename), ...this.ownerRecords.map(record => record.readExecutable(filename))]
+    const copies = [this.readLocalExecutable(filename, wholeTree),
+      ...this.ownerRecords.map(record => record.readExecutableInput(filename, wholeTree))]
       .filter(bytes => bytes !== undefined)
     const first = copies[0]
     if (first !== undefined && copies.some(bytes => !first.equals(bytes))) {
@@ -1173,7 +1189,7 @@ export class ProtectedInputIntegrity {
     return first
   }
 
-  private readLocalExecutable(filename: string): Buffer | undefined {
+  private readLocalExecutable(filename: string, wholeTree: boolean): Buffer | undefined {
     if (!this.granted) return undefined
     const path = this.inputPath(filename)
     const roots = [...this.approved].flatMap(([root, value]) => {
@@ -1192,9 +1208,9 @@ export class ProtectedInputIntegrity {
     const authority = this.reviewIdentity()
     for (const { root, value, candidate } of roots) {
       let checked = this.executableRoots.get(root)
-      if (checked?.snapshot !== value || checked.authority !== authority) {
+      if (wholeTree || checked?.snapshot !== value || checked.authority !== authority) {
         // Durable records contain a whole-tree identity digest, not per-file identities.
-        // Establish those identities once before using a path-local comparison.
+        // Bootstrap path-local reads once; generation admission always compares the tree.
         const baseline = capturePass()
         const current = finishSync(this.capture(root, undefined, baseline))
         if (!matches(value, current)) throw new Error(`Protected host input requires owner confirmation: ${root}`)

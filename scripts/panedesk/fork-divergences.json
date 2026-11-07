@@ -16198,6 +16198,29 @@
           "docs/subsystems/boot.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "client-rebuild-explicit-tree-admission",
+      "description": "Separate Client rebuild tree admission from request-local executable validation",
+      "origin": "Protected Client artifact generation admission",
+      "reason": "Require Client rebuilds to compare every covering approved tree, including added chunks and changed siblings, before reusing an unchanged entry revision or publishing a generation. Keep ordinary executable reads and same-authority module URL caching request-local after their cold bootstrap. Preserve owner confirmation, approved bytes, metadata decisions, stability checks, and durable records. Cover rejection and explicit approval of sibling changes without widening module reads. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/tests/protected-module-loading.spec.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/client/modules/src/index.ts",
+          "packages/client/modules/README.md",
+          "packages/client/modules/README.zh.md",
+          "packages/client/modules/README.i18n.yaml",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/client-modules.md",
+          "docs/subsystems/client-modules.zh.md"
+        ]
+      }
     }
   ]
 }
