@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm-deepseek",
   "description": "DeepSeek Messages adapter",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publishConfig": {
     "access": "public"
   },
