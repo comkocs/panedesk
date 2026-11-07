@@ -1,6 +1,6 @@
 import { Context } from '@panedesk/cordis'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import LlmRuntime, { createUserMessage, LlmAdapter, ReasoningEffortId, ToolCallId } from '@panedesk/dsh-llm'
+import LlmRuntime, { createAssistantMessage, createUserMessage, LlmAdapter, ReasoningEffortId, ToolCallId } from '@panedesk/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@panedesk/dsh-llm'
 import SessionStore, { Session, SessionId } from '@panedesk/dsh-session'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -89,6 +89,26 @@ function appendHumanPrompt(session: Session, text: string) {
     content: [{ type: 'text', text }],
     source: { kind: 'user' },
   }), { surfaceOp: 'append' })
+}
+
+/** One completed round: a human prompt plus the assistant reply that closes its turn. */
+function completeRound(session: Session, turn: number, prompt: string): void {
+  session.append('turn/start', { turn })
+  appendHumanPrompt(session, prompt)
+  session.append('request/header', {
+    header: { config: { provider: 'main', model: 'main-model' } },
+    reason: turn === 1 ? 'initial' : 'change',
+  })
+  session.append('assistant/message', {
+    turn,
+    step: 1,
+    stream: [],
+    message: createAssistantMessage({
+      content: [{ type: 'text', text: `reply ${turn}` }],
+      source: { provider: 'main', model: 'main-model' },
+    }),
+  }, { surfaceOp: 'append' })
+  session.append('turn/end', { turn, reason: { kind: 'completed' } })
 }
 
 async function settle(): Promise<void> {
@@ -265,5 +285,34 @@ describe('first-prompt LLM title provider', () => {
       messages: [],
       signal: new AbortController().signal,
     })).rejects.toThrow(/requires one human message/)
+  })
+
+  it('regenerates from recent rounds on the cadence and leaves a renamed session alone', async () => {
+    const { ctx, adapter } = await harness()
+    const session = ctx.sessions.create(SessionId('retitle-cadence'))
+
+    completeRound(session, 1, 'opening charter instructions')
+    await settle()
+    expect(adapter.requests).toHaveLength(1)
+    expect(ctx.sessionTitle.get(session)?.title).toBe('First-message model title')
+
+    for (let turn = 2; turn <= 3; turn += 1) completeRound(session, turn, `round ${turn} about billing export`)
+    await settle()
+    expect(adapter.requests).toHaveLength(2)
+    const retitle = textOf(adapter.requests[1])
+    expect(retitle).toContain('round 3 about billing export')
+    expect(retitle).not.toContain('opening charter instructions')
+    expect(ctx.sessionTitle.get(session)?.title).toBe('First-message model title')
+
+    for (let turn = 4; turn <= 15; turn += 1) completeRound(session, turn, `round ${turn} about billing export`)
+    await settle()
+    expect(adapter.requests).toHaveLength(3)
+    expect(ctx.sessionTitle.get(session)?.title).toBe('First-message model title')
+
+    ctx.sessionTitle.rename(session, 'My own name')
+    for (let turn = 16; turn <= 27; turn += 1) completeRound(session, turn, `round ${turn} about a new topic`)
+    await settle()
+    expect(adapter.requests).toHaveLength(3)
+    expect(ctx.sessionTitle.get(session)?.title).toBe('My own name')
   })
 })
