@@ -530,10 +530,11 @@ describe('dsh-subagent-dsh-sdk provider', () => {
     const run = await startExternalActivation(ctx, 'dsh-sdk', request())
     const result = await run.result
 
-    expect(result).toEqual({
+    expect(result.sessionId).toMatch(/^session-/)
+    expect(result).toMatchObject({
       output: [{ type: 'text', text: 'partial before bad reason' }],
       diagnostic: expectedFailure('stage: session-run; category: protocol'),
-      stopReason: 'error',
+      stopReason: 'error', failureStage: 'running',
     })
     await run.dispose()
     await ctx.fiber.dispose()

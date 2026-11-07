@@ -351,7 +351,9 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
   } catch (error: unknown) {
     request.signal.removeEventListener('abort', onAbort)
     if (error !== cancelledStartup) {
-      throw sdkStartupFailure(spec, error)
+      const failure = sdkStartupFailure(spec, error)
+      failure.message = `subagent ${id} failed during session-creation: ${failure.message}`
+      throw failure
     }
     try {
       await harness.close()
@@ -371,11 +373,17 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
   const subscription = harness.client.subscribe(notification =>
     notification.method === 'session.event' && notification.params.sessionId === childSessionId)
   let lastEnd: TurnEndReason | undefined
+  let model: SubagentResult['model']
+  let failureStage: 'session-creation' | 'model-connection' | 'running' = 'session-creation'
   const drainNotifications = (): void => {
     let notification
     while ((notification = subscription.tryNext()) !== undefined) {
       const event = validatedSessionEvent(notification.params.event)
       fold.push(event)
+      if (event.type === 'request/header') {
+        model = { provider: event.data.header.config.provider, model: event.data.header.config.model }
+      }
+      if (event.type === 'assistant/message') failureStage = 'running'
       if (event.type === 'turn/end') lastEnd = event.data.reason
     }
   }
@@ -403,6 +411,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
               if (flags.cancelled) return
               await harness.client.prompt(childSessionId, request.prompt)
               accepted = true
+              failureStage = 'model-connection'
               await harness.client.request('session/wait', { sessionId: childSessionId })
             })(),
             cancelSettled,
@@ -433,6 +442,13 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     onError: spec.onError,
     signal: request.signal,
     onAbort,
+  }).then((terminal): SubagentResult => {
+    const metadata = {
+      sessionId: brandString<SessionId>(childSessionId),
+      ...model === undefined ? {} : { model },
+      ...terminal.stopReason === 'error' ? { failureStage } : {},
+    }
+    return { ...terminal, ...metadata }
   })
 
   // There is no wire-level prompt cancel: dispose settles the result locally,

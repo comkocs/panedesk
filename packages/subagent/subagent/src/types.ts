@@ -184,6 +184,8 @@ export interface SubagentActivationSpec {
 export interface SubagentActivation {
   /** Stable identity of the child. */
   readonly childId: SessionId
+  /** First resolved request route or pre-request failure; absent when the backend cannot observe readiness. */
+  readonly ready?: Promise<Pick<SubagentResult, 'model' | 'failureStage'>>
   /** Accepted inbox message, when the backend has a local inbox. */
   readonly messageId?: MessageId
   /**
@@ -389,6 +391,12 @@ export type SubagentStopReason = SubagentStopReasonMap[keyof SubagentStopReasonM
  * The terminal outcome of a subagent run, resolved by {@link SubagentRun.result}.
  */
 export interface SubagentResult {
+  /** Child session identity observed by the runtime. */
+  readonly sessionId?: SessionId
+  /** Latest actual request route; absent before model resolution or when the backend does not report it. */
+  readonly model?: Readonly<{ provider: string; model: string }>
+  /** Failed operation, absent on success or when the backend cannot identify it. */
+  readonly failureStage?: 'session-creation' | 'model-connection' | 'running'
   /**
    * The child's final assistant output is the content of its last non-empty
    * assistant message. Empty-content messages, including usage-only messages,

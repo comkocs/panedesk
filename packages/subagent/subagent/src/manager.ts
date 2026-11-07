@@ -564,6 +564,7 @@ export class SubagentManager {
       return { ...this.receipt(established), childId, messageId }
     } catch (error: unknown) {
       releaseHold()
+      if (error instanceof Error) error.message = `subagent ${childId} failed during session-creation: ${error.message}`
       throw error
     }
   }
@@ -1041,7 +1042,8 @@ export class SubagentManager {
         throw error
       })
 
-      resource = { kind: 'local', handle, outputStart: handle.agent.session.seq, structured, failureAt: undefined, poke: Promise.withResolvers<void>() }
+      resource = { kind: 'local', handle, outputStart: handle.agent.session.seq, structured, failureAt: undefined,
+        ready: Promise.withResolvers(), failureStage: 'model-connection', poke: Promise.withResolvers<void>() }
     }
 
     const activation: Activation = {
@@ -1389,6 +1391,7 @@ export class SubagentManager {
   private receipt(activation: Activation): SubagentActivation {
     return {
       childId: activation.childId,
+      ...activation.kind === 'local' ? { ready: activation.ready.promise } : {},
       result: activation.result.promise,
       dispose: () => this.dispose(activation),
     }

@@ -83,6 +83,12 @@ export type ActivationResource =
     readonly structured: StructuredAttachment | undefined
     /** Latest live failure not superseded by a later committed turn ending. */
     failureAt: SessionLogOffset | undefined
+    /** First observed request route or failure, without waiting for the whole run. */
+    readonly ready: PromiseWithResolvers<Pick<SubagentResult, 'model' | 'failureStage'>>
+    /** Current model-request phase, advanced only by observed assistant output. */
+    failureStage: 'model-connection' | 'running'
+    /** Route from a committed request header, never from requested Agent options. */
+    model?: SubagentResult['model']
     /** Sanitized provider error retained for failed delivery sidecars. */
     diagnostic?: string
     /** Renewed when local settlement must recheck input or owned children. */
@@ -136,10 +142,30 @@ export function observeLocalFailure(activation: LocalActivation, wake: () => voi
     if (agent !== child) return
     activation.diagnostic = sanitizeDiagnostic(error instanceof Error ? error.message : 'Unknown child execution error')
     activation.failureAt = child.session.seq
+    activation.ready.resolve({ failureStage: activation.failureStage })
     wake()
   })
+  child.ctx.on('agent/request', async ({ agent }, next) => {
+    if (agent === child) activation.failureStage = 'model-connection'
+    return next()
+  })
+  child.ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+    if (agent === child && frame.type === 'chunk'
+      && (frame.chunk.type === 'text-delta' || frame.chunk.type === 'reasoning-delta'
+        || frame.chunk.type === 'tool-call-delta')) activation.failureStage = 'running'
+  })
   child.ctx.on('session/event', (session, event) => {
-    if (session === child.session && event.type === 'turn/end'
+    if (session !== child.session) return
+    if (event.type === 'request/header') {
+      const { provider, model } = event.data.header.config
+      activation.model = { provider, model }
+      activation.ready.resolve({ model: activation.model })
+    }
+    if (event.type === 'turn/end') {
+      activation.ready.resolve(event.data.reason.kind === 'error'
+        ? { failureStage: activation.failureStage } : {})
+    }
+    if (event.type === 'turn/end'
       && activation.failureAt !== undefined && event.seq >= activation.failureAt) {
       activation.failureAt = undefined
     }
@@ -156,13 +182,18 @@ export function captureLocalResult(activation: LocalActivation): SubagentResult 
   const events = activation.handle.agent.session.snapshotEvents(activation.outputStart)
   const output = finalAssistantOutput(events) ?? []
   const stopReason = activation.failureAt === undefined ? epochStopReason(events) : 'error'
+  const metadata = {
+    sessionId: activation.childId,
+    ...activation.model === undefined ? {} : { model: activation.model },
+    ...stopReason === 'error' ? { failureStage: activation.failureStage } : {},
+  }
   const structured = activation.structured
   if (structured !== undefined) {
     const captured = structured.captured()
-    if (captured !== undefined) return { output, stopReason, structured: captured.value }
-    if (stopReason === 'completed') return { output, stopReason: 'error' }
+    if (captured !== undefined) return { ...metadata, output, stopReason, structured: captured.value }
+    if (stopReason === 'completed') return { ...metadata, output, stopReason: 'error', failureStage: 'running' }
   }
-  return { output, stopReason }
+  return { ...metadata, output, stopReason }
 }
 
 /** Serialize each durable child's delivery, release, and disposal. */
