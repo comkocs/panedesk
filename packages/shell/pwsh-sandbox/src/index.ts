@@ -107,7 +107,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
       const prepared = await this.confine(spec, { ...policy, mode }, signal)
       signal.throwIfAborted()
       confined = prepared
-      return prepared
+      return prepared.argv
     }, (process) => {
       const facts = confined as ConfinedArgv
       this.processFacts.set(process, {

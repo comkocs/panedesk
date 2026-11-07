@@ -100,7 +100,7 @@ export const PWSH_PROMPT_SETUP =
 
 async function spawnArgv(
   ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy, signal?: AbortSignal,
-): Promise<{ argv: string[]; productSandbox?: true }> {
+): Promise<{ argv: string[] }> {
   const argv = [config.shellPath, ...config.shellArgs]
   if (policy.mode === 'danger-full-access') return { argv }
   const sandbox = ctx.get('sandbox')
@@ -229,7 +229,6 @@ export class BashTerminalBackend implements TerminalBackend {
     if (prepared.argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')
     const terminal = await this.spawnTerminal({
       argv: prepared.argv,
-      ...prepared.productSandbox === true ? { productSandbox: true } : {},
       cwd: spec.cwd ?? await this.ctx.workingDirectory.ensure(spec.owner, spec.signal),
       env: childEnvironment(spec, this.config.shellDialect),
       rows: this.config.rows,

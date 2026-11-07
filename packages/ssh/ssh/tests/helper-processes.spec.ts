@@ -85,41 +85,6 @@ function terminal() {
 }
 
 describe.skipIf(process.platform === 'win32')('SSH helper process settlement', () => {
-  it.each([true, false, undefined])('starts ordinary and terminal requests with product confinement fact %s', async (productSandbox) => {
-    const test = await harness()
-    const fact = productSandbox === undefined ? {} : { productSandbox }
-    const signal: unknown = expect.any(AbortSignal)
-    try {
-      const child = ordinary()
-      test.spawn.mockReturnValue(child.handle)
-      const run = await test.prepare({ ...ordinaryRequest, ...fact })
-      run.channels.stdout!.end(); run.channels.stdout!.resume()
-      run.channels.stderr!.end(); run.channels.stderr!.resume()
-      expect(await test.owner.start(run.id)).toEqual({})
-      expect(test.spawn.mock.lastCall?.[0]).toEqual({
-        argv: ['target'], cwd: test.root, env: {}, graceMs: 20,
-        signal,
-        stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
-        ...(productSandbox === true ? { productSandbox: true } : {}),
-      })
-      await test.owner.terminate(run.id)
-      expect(await test.owner.done(run.id)).toEqual({ outcome, spills: {}, collected: {} })
-      await vi.waitFor(async () => { expect(await readdir(test.root)).toEqual([]) })
-      const pty = terminal()
-      test.spawnTerminal.mockResolvedValue(pty.handle)
-      const term = await test.prepare({ ...terminalRequest, ...fact })
-      term.channels.terminal!.end(); term.channels.terminal!.resume()
-      expect(await test.owner.start(term.id)).toEqual({ pid: 42 })
-      expect(test.spawnTerminal.mock.lastCall?.[0]).toEqual({
-        argv: ['target'], cwd: test.root, env: {}, graceMs: 20,
-        signal, terminalType: 'dumb', rows: 24, cols: 80,
-        ...(productSandbox === true ? { productSandbox: true } : {}),
-      })
-      await test.owner.terminate(term.id)
-      expect(await test.owner.done(term.id)).toEqual({ outcome, spills: {}, collected: {} })
-    } finally { await test.close() }
-  })
-
   it('forwards terminal operations and retains a bounded completed-result cache', async () => {
     const test = await harness()
     const ids: SshProcessId[] = []

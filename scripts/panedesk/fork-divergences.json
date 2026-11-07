@@ -74,19 +74,6 @@
       }
     },
     {
-      "id": "fs-local-multiple-runtime-entries",
-      "description": "Allow the local filesystem package to publish its runtime entries",
-      "origin": "Windows filesystem backend",
-      "reason": "The local filesystem package builds a worker and a Windows write backend beside its main entry. Its publication constraint permits the existing runtime glob so these entries and shared chunks are included without changing other packages.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "scripts/check-workspace-constraints.ts",
-          "scripts/check-workspace-constraints.spec.ts"
-        ]
-      }
-    },
-    {
       "id": "windows-msvc-environment-quoting",
       "description": "Pass the MSVC developer command line to cmd.exe with one quote layer",
       "origin": "Native Windows build preparation",
@@ -428,20 +415,14 @@
     },
     {
       "id": "product-identity-reclamation",
-      "description": "Reclaim sandbox identities without historical launch limits",
+      "description": "Retain Windows sandbox and process documentation pending documentation cleanup",
       "origin": "Owner authentication isolation",
-      "reason": "Bound exact retired Linux IDs with a deny-only historical filter that cannot permit reused identities, and reclaim settled Windows Jobs only after native accounting reports no active members. Retain pending launches and live descendants, collect failed launches immediately, and document filter false-positive estimates, recovery and native validation limits. These changes can be contributed upstream.",
+      "reason": "Only documentation remains registered here; runtime sandbox identity reclamation has been removed. The documentation cleanup is maintained separately.",
       "match": {
-        "type": "behavior",
+        "type": "documentation",
         "paths": [
-          "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/README*",
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml",
-          "packages/subprocess/win32-process/README*",
-          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
-          "docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/*"
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
+          "packages/subprocess/win32-process/README.i18n.yaml"
         ]
       }
     },
@@ -473,43 +454,25 @@
       }
     },
     {
-      "id": "windows-product-job-owner-admission",
-      "description": "Identify Windows product sandbox TCP connections through host-owned Jobs",
-      "origin": "Owner authentication isolation",
-      "reason": "Preserve explicit Windows confinement facts through ordinary and terminal launches, retain host-owned named Jobs across provider reloads, join trusted ACL runners before restricted execution, and classify IPv4 and IPv6 TCP owners without relying on token flags. Refuse unavailable attribution, preserve per-command kill-on-close ownership and console settings, and document substitute-only validation and external-process delegation limits. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml",
-          "packages/subprocess/win32-process/README*",
-          "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/README*",
-          "packages/sandbox/sandbox-local/src/index.ts",
-          "packages/sandbox/sandbox-local/README*",
-          "packages/sandbox/sandbox-windows-acl/src/index.ts",
-          "packages/sandbox/sandbox-windows-acl/README*",
-          "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
-          "docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/*"
-        ]
-      }
-    },
-    {
       "id": "python-managed-product-confinement",
-      "description": "Run experimental Python PTC through the managed subprocess provider",
+      "description": "Run experimental Python PTC through managed subprocesses with the existing fd-3 protocol",
       "origin": "Owner authentication isolation",
-      "reason": "Forward positive product confinement facts, adapt the managed control carrier to the existing fd-3 protocol before runner execution, preserve the TMPDIR-only model environment and drained-stream classification, and delegate termination and exit observation to one managed range. Keep the experimental runtime opt-in and verify real descendant owner-cookie refusal with a host control. These changes can be contributed upstream.",
+      "reason": "Adapt the managed control carrier to the Python fd-3 protocol, preserve the model environment and drained output, and delegate termination and exit observation to the subprocess runtime. The runtime remains opt-in and carries no additional product confinement fact or connection-source check.",
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/experimental/ptc-runtime-python/**",
-          "pnpm-lock.yaml",
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml",
-          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
-          "docs/config-catalog*"
+          "packages/experimental/ptc-runtime-python/src/index.ts",
+          "packages/experimental/ptc-runtime-python/src/launch.ts",
+          "packages/experimental/ptc-runtime-python/src/protocol.ts",
+          "packages/experimental/ptc-runtime-python/package.json",
+          "packages/experimental/ptc-runtime-python/tsconfig.json",
+          "packages/experimental/ptc-runtime-python/tests/boot-write-failure.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/managed-lifecycle-coverage-edges.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/managed-lifecycle.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/managed-termination-reentry.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/runtime.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/sandbox.spec.ts",
+          "packages/experimental/ptc-runtime-python/tests/setup.ts"
         ]
       }
     },
@@ -529,79 +492,6 @@
           "docs/capability-seams.md",
           "docs/event-producer-consumer*",
           "packages/extensions/tool-cordis/src/api-catalog.ts"
-        ]
-      }
-    },
-    {
-      "id": "ssh-product-confinement-forwarding",
-      "description": "Preserve remote product confinement facts across SSH execution",
-      "origin": "Owner authentication isolation",
-      "reason": "Accept true, false and omitted productSandbox wire facts without weakening strict validation, carry positive facts through ordinary and terminal preparation to the remote managed subprocess provider, and document remote registration ownership and the independent remote gateway limitation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/ssh/sandbox-ssh/src/index.ts",
-          "packages/ssh/sandbox-ssh/tests/provider.spec.ts",
-          "packages/ssh/ssh/src/schemas.ts",
-          "packages/ssh/ssh/src/helper-processes.ts",
-          "packages/ssh/ssh/tests/helper-processes.spec.ts",
-          "packages/ssh/ssh/README*",
-          "packages/ssh/subprocess-ssh/src/index.ts",
-          "packages/ssh/subprocess-ssh/tests/terminal-behavior.spec.ts",
-          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*"
-        ]
-      }
-    },
-    {
-      "id": "linux-product-socket-admission",
-      "description": "Register Linux product cgroups before executing confined commands",
-      "origin": "Owner authentication isolation",
-      "reason": "Carry explicit confinement facts through local subprocess and terminal consumers, migrate the trusted runner before execution, atomically acknowledge host registration, and retain observed identities across provider reloads and process cleanup. Deny unknown socket observations and warn without claiming protection when delegation is unavailable. Exclude cgroupfs from Linux write grants. Document provider prerequisites and the remote SSH gateway limitation rather than claiming complete network coverage. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml",
-          "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/src/linux-scope.ts",
-          "packages/subprocess/subprocess-local/src/runner-protocol.ts",
-          "packages/subprocess/subprocess-local/src/spawn-runner.ts",
-          "packages/subprocess/subprocess-local/tests/local.spec.ts",
-          "packages/subprocess/subprocess-local/package.json",
-          "packages/subprocess/subprocess-local/README*",
-          "packages/subprocess/subprocess/README*",
-          "packages/subprocess/subprocess/src/types.ts",
-          "packages/sandbox/sandbox/src/index.ts",
-          "packages/sandbox/sandbox/README*",
-          "packages/sandbox/sandbox-local/src/index.ts",
-          "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/README*",
-          "packages/shell/bash-local/src/index.ts",
-          "packages/shell/bash-local/README*",
-          "packages/shell/pwsh-local/src/index.ts",
-          "packages/shell/pwsh-local/README*",
-          "packages/shell/bash-sandbox/src/index.ts",
-          "packages/shell/bash-sandbox/README*",
-          "packages/shell/pwsh-sandbox/src/index.ts",
-          "packages/shell/pwsh-sandbox/README*",
-          "packages/terminal/terminal-bash/src/index.ts",
-          "packages/terminal/terminal-bash/README*",
-          "packages/lsp/lsp-stdio/src/index.ts",
-          "packages/lsp/lsp-stdio/src/connection.ts",
-          "packages/lsp/lsp-stdio/README*",
-          "packages/ptc-runtime/ptc-runtime-node/src/index.ts",
-          "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts",
-          "packages/ptc-runtime/ptc-runtime-node/README*",
-          "packages/fs/tool-fs-search/src/search-core.ts",
-          "packages/fs/tool-fs-search/README*",
-          "packages/experimental/worktree/src/process.ts",
-          "packages/experimental/worktree/tests/process-source.spec.ts",
-          "packages/experimental/worktree/README*",
-          "packages/boot/plugin-manager/tests/write-entry-routes.spec.ts",
-          "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
-          "pnpm-lock.yaml"
         ]
       }
     },
@@ -629,24 +519,6 @@
       }
     },
     {
-      "id": "sandbox-piped-job-ownership",
-      "description": "Assign piped restricted children to a kill-on-close Job before execution",
-      "origin": "Owner authentication isolation",
-      "reason": "Bring the piped restricted-token path under Job ownership without changing console or UI options. Expose a borrowed process-local Job handle and close it once through child settlement. This is a lifecycle prerequisite, not a connection-owner identification implementation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/subprocess/win32-process/README.md",
-          "packages/subprocess/win32-process/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/src/index.ts",
-          "packages/sandbox/sandbox-windows-acl/src/spawn.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md"
-        ]
-      }
-    },
-    {
       "id": "sandbox-owned-landlock-fixture",
       "description": "Keep the Landlock fallback assertion independent of concurrent temporary directories",
       "origin": "Local sandbox test isolation",
@@ -655,22 +527,6 @@
         "type": "behavior",
         "paths": [
           "packages/sandbox/sandbox-local/tests/local.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "sandbox-product-restricted-sid",
-      "description": "Attach a capability-neutral product identity to both Windows sandbox token modes",
-      "origin": "Sandbox connection-source identification",
-      "reason": "Append a dedicated restricting SID without granting it any ACE, preserve existing capability lists and failure behavior, and compare the unchanged write-access matrix using native-call substitutes. This identity alone does not enforce gateway admission or prove retention after further token filtering. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/sandbox/sandbox-windows-acl/src/ffi.ts",
-          "packages/sandbox/sandbox-windows-acl/src/token.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/token-failure-paths.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md"
         ]
       }
     },
@@ -909,25 +765,6 @@
       }
     },
     {
-      "id": "windows-console-and-uninstall-notices",
-      "description": "Document shared-console authority and preserved owner labels",
-      "origin": "Windows owner safety guidance",
-      "reason": "Warn interactive Windows CLI and TUI owners about shared-console key injection without changing process options or unattended output. Preserve uninstall behavior and add bilingual log and finish-page guidance for offline owner-label cleanup. Synchronize English and Chinese safety documentation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "README.md",
-          "README.zh.md",
-          "README.i18n.yaml",
-          "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "apps/cli/src/profile-boot.ts",
-          "apps/cli/src/windows-permission-notice.ts",
-          "apps/cli/tests/windows-permission-notice.spec.ts"
-        ]
-      }
-    },
-    {
       "id": "owner-confirmation-ci-fixtures",
       "description": "Keep unrelated browser fixtures explicit about owner confirmation",
       "origin": "Owner confirmation CI regression repair",
@@ -963,47 +800,6 @@
           "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
           "packages/sandbox/sandbox-windows-acl/tests/provider-chain.spec.ts",
           "packages/experimental/webworker-runtime/tests/node/sandbox-stack.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "production-terminal-isolation-regressions",
-      "description": "Exercise production POSIX session separation and owner confirmation",
-      "origin": "Owner terminal input isolation",
-      "reason": "Add a native bubblewrap TIOCSTI comparison using the production runner argv and browser confirmation, plus Landlock and Seatbelt production spawn-option assertions. Update exact profile expectations to include existing owner-directory exclusions and session separation without weakening assertions. Repair the preceding cleanup registration JSON separator. Native Windows console isolation remains unresolved. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/sandbox/sandbox-local/tests/bwrap.e2e.ts",
-          "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/package.json",
-          "packages/sandbox/sandbox-local/README.md",
-          "packages/sandbox/sandbox-local/README.zh.md",
-          "pnpm-lock.yaml"
-        ]
-      }
-    },
-    {
-      "id": "offline-owner-label-cleanup",
-      "description": "Expose verified offline Windows owner-label withdrawal",
-      "origin": "Owner directory lifecycle",
-      "reason": "Add an explicit CLI cleanup mode for an unrestricted Medium-or-higher owner before uninstalling. Preserve DACLs and unrelated labels, verify each removal, and allow interrupted cleanup to resume. Document the offline prerequisite and manual PowerShell invocation without claiming desktop installer integration or native Windows validation. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "apps/cli/src/args.ts",
-          "apps/cli/src/bin.ts",
-          "apps/cli/tests/args.spec.ts",
-          "apps/cli/package.json",
-          "apps/cli/README.md",
-          "apps/cli/README.zh.md",
-          "apps/cli/README.i18n.yaml",
-          "packages/sandbox/sandbox-windows-acl/src/acl.ts",
-          "packages/sandbox/sandbox-windows-acl/src/index.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "pnpm-lock.yaml"
         ]
       }
     },
@@ -2652,24 +2448,6 @@
           "pnpm-lock.yaml"
         ],
         "test": "verify-translation-pairing"
-      }
-    },
-    {
-      "id": "windows-private-file-refusal-codes",
-      "description": "Stable Windows private-file refusal codes.",
-      "origin": "Private-file diagnostics integration",
-      "reason": "Expose stable path-free Windows private-file refusal codes for consumer-owned localized recovery without changing English messages, checks or their order. Suitable for upstream feedback.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/host/host-admin/src/windows-private-files.ts",
-          "packages/host/host-admin/src/index.ts",
-          "packages/host/host-admin/tests/windows-private-files.spec.ts",
-          "packages/host/host-admin/README.md",
-          "packages/host/host-admin/README.zh.md",
-          "packages/host/host-admin/README.i18n.yaml"
-        ],
-        "test": "exposes stable code"
       }
     },
     {
@@ -5605,19 +5383,6 @@
           "packages/host/host-admin/tests/persisted-operations.spec.ts"
         ],
         "test": "queries approval registration, real creation and issued kinds after restart without exposing bodies"
-      }
-    },
-    {
-      "id": "windows-private-files",
-      "description": "Reject extra SIDs, inherited entries and reparse points in Windows private storage; secure new files before writing and replace them durably.",
-      "origin": "Windows private file policy",
-      "reason": "Explicitly injected node-link and host administration storage must stay owner-only under the current user SID on Windows while POSIX private files stay unchanged.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/host/host-admin/tests/windows-private-files.spec.ts"
-        ],
-        "test": "secures empty objects before writing and preserves owner-only replacement and locks"
       }
     },
     {
@@ -15609,31 +15374,6 @@
       }
     },
     {
-      "id": "inspector-auth-source-fixtures",
-      "description": "Complete Inspector authentication fixtures for owner source admission",
-      "origin": "Inspector route test compatibility",
-      "reason": "Provide the connectionSourceRejection method in the typed browser authentication fixtures used by Inspector route and lifecycle tests. Keep all assertions and production owner source admission unchanged. This fixture repair can be contributed upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/experimental/inspector/tests/plugin-routes.host.spec.ts",
-          "packages/experimental/inspector/tests/plugin.host.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "preview-native-source-warning-expectation",
-      "description": "Assert the exact native source limitation warning in the browser preview",
-      "origin": "Virtual Linux preview startup diagnostics",
-      "reason": "The browser Worker's virtual Linux host cannot provide native cgroup socket attribution. Require exactly one complete bilingual limitation warning instead of an empty diagnostic list, rejecting missing, repeated, or unrelated warnings while preserving the approved startup fallback. This exact expectation update can be contributed upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "apps/web/tests/preview-boot.e2e.ts"
-        ]
-      }
-    },
-    {
       "id": "shared-instance-graph-current-peers",
       "description": "Regenerate the bilingual shared-instance graph from current peer dependencies",
       "origin": "Generated package graph freshness",
@@ -15655,18 +15395,6 @@
         "type": "test-assertion",
         "paths": [
           "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "cordis-inspect-product-sandbox-snapshot",
-      "description": "Refresh the current subprocess public type snapshot",
-      "origin": "Public subprocess sandbox attribution types",
-      "reason": "F-1b adds the public productSandbox field to the subprocess spawn specs; refreshed the same way upstream refreshes this catalog snapshot after public declaration changes",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "snapshots/session/cordis-inspect-jsdoc/session.v4.jsonl"
         ]
       }
     },

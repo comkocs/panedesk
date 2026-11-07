@@ -193,7 +193,7 @@ class Kernel {
     const env: NodeJS.ProcessEnv = Object.fromEntries(Object.keys(process.env)
       .filter(key => !STARTUP_ENVIRONMENT_NAMES.has(key.toUpperCase()) && key.toUpperCase() !== 'ELECTRON_RUN_AS_NODE')
       .map(key => [key, undefined]))
-    const handle = this.ctx.subprocess.spawn({ ...this.confined?.productSandbox === true ? { productSandbox: true } : {}, argv: this.confined?.argv ?? argv, cwd, env, stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', control: 'pipe' }, graceMs: this.config.graceMs })
+    const handle = this.ctx.subprocess.spawn({ argv: this.confined?.argv ?? argv, cwd, env, stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', control: 'pipe' }, graceMs: this.config.graceMs })
     this.handle = handle
     if (!handle.control || !handle.stdout || !handle.stderr) throw new Error('subprocess provider did not supply persistent PTC pipes')
     for (const stream of [handle.stdout, handle.stderr]) {

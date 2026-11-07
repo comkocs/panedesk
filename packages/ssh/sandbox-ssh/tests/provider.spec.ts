@@ -43,13 +43,6 @@ describe('SSH sandbox provider', () => {
     expect(await pending).toEqual(response)
   })
 
-  it.each([true, false, undefined])('preserves remote product confinement fact %s', async (productSandbox) => {
-    const state = await setup({ ...completeFacts, ...(productSandbox === undefined ? {} : { productSandbox }) })
-    expect(await state.ctx.sandbox.confine(['true'], policy)).toEqual({
-      ...completeFacts, ...(productSandbox === true ? { productSandbox: true } : {}),
-    })
-  })
-
   it('obtains current backend facts for every execution policy', async () => {
     const state = await setup()
     expect((await state.ctx.sandbox.confine(['true'], policy)).enforcement).toBe('full')

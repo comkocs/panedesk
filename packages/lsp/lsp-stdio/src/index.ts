@@ -355,19 +355,17 @@ class LocalLspProvider implements LspProvider {
     }
     const command = [this.executable, ...this.config.args]
     let argv = command
-    let productSandbox: true | undefined
     if (policy.mode !== 'danger-full-access') {
       const sandbox = this.ctx.get('sandbox')
       if (sandbox === undefined) throw new LspError('LSP confinement requires a sandbox provider', 'LSP_UNAVAILABLE')
       const prepared = await sandbox.confine(command, { ...policy, mode: policy.mode }, signal)
       argv = prepared.argv
-      productSandbox = prepared.productSandbox
     }
     this.assertActive(signal)
     if (!isDeepStrictEqual(policy, this.ctx.sandboxPolicy.resolve(request))) {
       throw new LspError('LSP process policy changed during startup', 'LSP_UNAVAILABLE')
     }
-    const created = this.createInstance(workspace, argv, productSandbox)
+    const created = this.createInstance(workspace, argv)
     this.authorities.set(created, { session, policy })
     this.instances.set(workspaceKey, created)
     return created
@@ -379,11 +377,10 @@ class LocalLspProvider implements LspProvider {
     if (this.instances.get(workspace) === instance) this.instances.delete(workspace)
   }
 
-  private createInstance(workspace: HostWorkspace, argv: readonly string[], productSandbox: true | undefined): LspInstance {
+  private createInstance(workspace: HostWorkspace, argv: readonly string[]): LspInstance {
     const command = argv[0]
     if (command === undefined) throw new LspError('LSP confinement returned an empty command', 'LSP_UNAVAILABLE')
     const spec: InstanceSpec = {
-      ...productSandbox === true ? { productSandbox } : {},
       command,
       args: argv.slice(1),
       cwd: workspace.canonicalPath,

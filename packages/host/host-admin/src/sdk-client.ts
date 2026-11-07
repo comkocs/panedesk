@@ -1,7 +1,7 @@
 /** File-authenticated SDK calls never spawn a process or retry an uncertain write. */
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, isAbsolute } from 'node:path'
-import { PosixPrivateFiles, type PrivateFiles } from './private-files.ts'
+import { LocalPrivateFiles, PosixPrivateFiles, type PrivateFiles } from './private-files.ts'
 import { callLoopback, type RpcLimits } from './loopback.ts'
 import { HOST_ADMIN_VERSION } from './index.ts'
 import { identifier, object, parseJson } from './json.ts'
@@ -15,7 +15,7 @@ export { callAdmin as callHostAdmin } from './client.ts'
 export interface RunningHostOptions extends RpcLimits {
   endpointPath: string
   credentialPath: string
-  /** Required on platforms without POSIX ownership checks; absent uses checked POSIX files. */
+  /** Optional file provider; absent uses ordinary Windows files or the POSIX implementation. */
   privateFiles?: (directory: string) => PrivateFiles
 }
 /** Call one registered namespace on an existing host.
@@ -31,7 +31,8 @@ export async function callHostSdk(options: RunningHostOptions, method: string, p
   }
   if (!isAbsolute(options.endpointPath) || !isAbsolute(options.credentialPath)) throw new Error('Private paths must be absolute')
   const files = (path: string) => options.privateFiles?.(dirname(path))
-    ?? new PosixPrivateFiles(dirname(path), process.getuid?.() ?? -1)
+    ?? (process.platform === 'win32'
+      ? new LocalPrivateFiles(dirname(path)) : new PosixPrivateFiles(dirname(path), process.getuid?.() ?? -1))
   const text = await files(options.endpointPath).read(basename(options.endpointPath), options.maxFrameBytes)
   const credential = await files(options.credentialPath).read(basename(options.credentialPath), 64)
   if (text === null || credential === null || !/^[a-f0-9]{64}$/.test(credential)) throw new Error('Host credentials unavailable')

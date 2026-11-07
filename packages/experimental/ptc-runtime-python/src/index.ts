@@ -1157,7 +1157,6 @@ export class PythonPtcRuntime extends PtcRuntime {
         argv: [this.pythonBin, '-I', '-c', PYTHON_MANAGED_LAUNCHER, ...argv],
         cwd: request.cwd, env: pythonEnvironment(), graceMs: this.config.graceMs,
         stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', control: 'pipe' },
-        ...confined?.productSandbox === true ? { productSandbox: true } : {},
       })
       const { stdin, stdout, stderr, control } = handle
       if (stdin === undefined || stdout === undefined || stderr === undefined || control === undefined) {

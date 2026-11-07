@@ -75,8 +75,6 @@ export interface SubprocessStdio {
  * request/spec split is the owning template).
  */
 export interface SubprocessSpawnSpec {
-  /** Accepted and ignored. Spawns are not classified as product-sandbox members. */
-  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
   /** Working directory for the child. */
@@ -225,8 +223,6 @@ export interface SubprocessTerminalEnvironment {
 
 /** A fully specified terminal-process spawn. */
 export interface SubprocessTerminalSpawnSpec {
-  /** Accepted and ignored. Terminal spawns are not classified as product-sandbox members. */
-  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. */
   argv: readonly string[]
   /** Working directory in this subprocess provider's execution world. */

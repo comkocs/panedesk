@@ -3,8 +3,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, hostAdminDetailCode } from './index.ts'
 import type { Config, HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse, HostAdminService } from './index.ts'
-import { PosixPrivateFiles } from './private-files.ts'
-import { waitForPrivateFiles, PrivateFilesWaitCancelled, isPrivateFilesContextActive } from './private-files-ready.ts'
+import { LocalPrivateFiles, PosixPrivateFiles } from './private-files.ts'
+import { isPrivateFilesContextActive } from './private-files-ready.ts'
 import { OperationStore } from './operation-store.ts'
 import { listenAuthenticatedLoopback, type LoopbackListener } from './loopback.ts'
 import { SessionCredentials } from './session-credentials.ts'
@@ -26,14 +26,9 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
   if (options === undefined) return () => Promise.resolve()
   const windows = process.platform === 'win32'
   const inactive = () => windows && !isPrivateFilesContextActive(ctx)
-  const windowsFactory = windows
-    ? await waitForPrivateFiles(ctx, 'hostAdminFiles', options.requestTimeoutMs, () => ctx.get('hostAdminFiles')).catch((error: unknown) => {
-      if (error instanceof PrivateFilesWaitCancelled) return undefined
-      throw error
-    }) : undefined
   if (inactive()) return async () => {}
-  const privateFiles = windowsFactory ?? ((directory: string) => ctx.get('hostAdminFiles')?.(directory)
-    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
+  const privateFiles = (directory: string) => ctx.get('hostAdminFiles')?.(directory)
+    ?? (windows ? new LocalPrivateFiles(directory) : new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
   const files = privateFiles(options.directory)
   const epoch = randomUUID() as HostAdminEndpoint['processEpoch']
   const credential = randomBytes(32).toString('hex')
