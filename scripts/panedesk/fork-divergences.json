@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "agent-team-startup-review-stderr",
+      "description": "Compare Agent Teams business stderr after startup review diagnostics",
+      "origin": "Bilingual protected-input startup diagnostics",
+      "reason": "Remove only exact startup review banner and progress lines before requiring empty stderr in the headless Agent Teams test. Preserve all other diagnostics and assertions. This test change can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/tests/agent-team-headless.e2e.ts"
+        ]
+      }
+    },
+    {
       "id": "exact-startup-review-stderr-assertions",
       "description": "Separate startup review diagnostics from exact business stderr expectations",
       "origin": "Bilingual protected-input startup diagnostics",
