@@ -862,13 +862,12 @@ async function main(): Promise<void> {
           return
         }
         if (state.phase !== 'available' && !(state.phase === 'error' && state.failedOperation === 'download')) return
-        if (manual) {
-          const result = await ordinaryMessageBox({ title: locale.messages.updateCheckTitle,
-            message: formatDesktopMessage(locale.messages.updateAvailable, { version: state.version ?? '' }),
-            detail: locale.messages.updateDetail,
-            buttons: [locale.messages.updateDownload], cancelId: 1 })
-          if (result.response !== 0) return
-        }
+        // Account-row and other non-menu openings confirm before any download, the same as Check for Updates.
+        const result = await ordinaryMessageBox({ title: locale.messages.updateCheckTitle,
+          message: formatDesktopMessage(locale.messages.updateAvailable, { version: state.version ?? '' }),
+          detail: locale.messages.updateDetail,
+          buttons: [locale.messages.updateDownload, locale.messages.later], cancelId: 1 })
+        if (result.response !== 0) return
         if (!isMandatory() && state.version !== undefined) {
           controller?.abort()
           failedOperation = 'download'

@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "desktop-unsigned-windows-github-releases",
+      "description": "Point unsigned Windows packages at comkocs/panedesk GitHub Releases and confirm before download",
+      "origin": "Desktop update source",
+      "reason": "Unsigned Windows packaging embeds the github provider for owner comkocs and repo panedesk on the latest channel, with no publisher name and no mandatory-update policy. Account-row update openings confirm before downloading, matching Check for Updates. The Windows packaging workflow retains latest.yml and the installer blockmap without publishing a Release. Signed builds and other platforms keep their existing feeds. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          ".github/workflows/windows-package.yml",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "apps/desktop/electron-builder.config.d.mts",
+          "apps/desktop/packaging/README.md",
+          "apps/desktop/packaging/README.zh.md",
+          "apps/desktop/packaging/README.i18n.yaml",
+          "apps/desktop/scripts/electron-builder-config.mjs",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/tests/macos-signature.spec.ts",
+          "apps/desktop/tests/main-startup.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "desktop-runtime-verification-build-version",
       "description": "Support stable product versions in the packaged runtime verification test",
       "origin": "Desktop product release",

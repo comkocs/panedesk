@@ -1,7 +1,9 @@
 name: Package Desktop · Windows
 
 # Trial packaging on a GitHub-hosted Windows runner. Unsigned only: no signing,
-# no secrets, no update origin, and no telemetry. Hosted images move, so the
+# no secrets, no release publication, and no telemetry. The unsigned installer
+# checks comkocs/panedesk GitHub Releases; this workflow only retains the
+# generated latest.yml and blockmap beside the EXE. Hosted images move, so the
 # preinstalled/installed split below cites the Windows Server 2025 image readme
 # (https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md,
 # image 20261101.318.1) for the windows-latest label:
@@ -85,6 +87,8 @@ jobs:
           include-hidden-files: true
           path: |
             apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/latest.yml
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe.blockmap
             apps/desktop/.desktop-build/packaging-runs/**
           if-no-files-found: warn
           retention-days: 3
