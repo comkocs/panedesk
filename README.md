@@ -151,6 +151,9 @@ For the Web interface, run `pnpm run dev:web` from the same checkout and open th
 - Windows native rebuilds are not byte-for-byte reproducible because of linker metadata; use the distributed artifacts and verify their supplied checksums.
 - Reusing a build tree can include stale lib chunks in packages; package from a clean checkout or remove old lib output first.
 - Stopping or upgrading the Windows launcher can leave a hidden polling PowerShell process; inspect and close only the polling process associated with that launch.
+- In Agent Teams mode a teammate session is occasionally not saved; rerun the team task if a teammate's history is missing.
+- Some subagent presets can be reported as not found; choose another preset or define it in your profile before use.
+- Installing a plugin from the command line with a relative path or a package alias can fail; use the plugin manager and enter the package's absolute path instead.
 
 ## Presets
 
