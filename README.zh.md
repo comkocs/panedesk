@@ -80,7 +80,8 @@ owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护�
 
 ### Windows 1.0 包
 
-从本仓库的发行页下载 Windows 1.0 包，解压到 `C:\panedesk\` 等短路径，双击 `start.cmd`，再用 Edge 打开控制台打印的本机地址；按首次运行提示配置模型，并仅在可信机器接受浏览器登录免确认选项。
+1. 从本仓库发行页下载并运行 `panedesk-1.0.0-win-x64-unsigned.exe`。安装包未签名，Windows SmartScreen 提示时选择「更多信息 → 仍要运行」。默认安装到当前用户的 `%LOCALAPPDATA%\Programs\Panedesk`，完成页可直接启动。
+2. 首次启动时，在欢迎窗口填写 DeepSeek API Key，选择「保存并继续」。进入主界面后即可新建会话；通过插件管理器安装插件时，填写安装包的绝对路径。
 
 ### Linux / macOS 源码启动
 

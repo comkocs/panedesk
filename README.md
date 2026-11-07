@@ -80,7 +80,8 @@ Owner cookies default to browser-session storage; persistence requires protected
 
 ### Windows 1.0 package
 
-Download the Windows 1.0 package from this repository's releases, extract it to a short path such as `C:\panedesk\`, double-click `start.cmd`, and open the printed local address in Edge; follow the first-run model setup prompts and accept browser login without confirmation only on a trusted machine.
+1. Download `panedesk-1.0.0-win-x64-unsigned.exe` from this repository's releases and run it. The installer is unsigned; if Windows SmartScreen warns you, select **More info → Run anyway**. It installs by default to `%LOCALAPPDATA%\Programs\Panedesk` for the current user, and the finish page can launch it.
+2. On first launch, enter your DeepSeek API Key in the welcome window and select **Save and continue**. In the main interface, create a session; install plugins through the plugin manager by entering the absolute path to the package.
 
 ### Linux / macOS from source
 
