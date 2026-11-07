@@ -2,22 +2,14 @@
 
 [English](CONTRIBUTING.md) | 中文
 
-感谢你愿意为 DeepSeek Harness 作出贡献！
+Panedesk 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立分叉，采用自己的产品身份与插件组合。
 
-我们深信开源社区的力量，这份信念从项目最初就塑造着 DeepSeek Harness。
+本仓库目前不接受外部 PR（Pull Request）；你可以分享可复现的问题报告、以 `dsh-plugin` 话题发布插件，并帮助其他用户。
 
-DeepSeek Harness 仍处于早期阶段，并在积极开发中。很抱歉，我们目前无法接受外部 PR（Pull Request）。不过，贡献代码远非帮助本仓库建设的唯一途径。你还可以通过许多其他方式参与进来：
+## 修复回上游
 
-- 在 GitHub Discussions 中发现并报告问题或 bug：
-  - 为你希望引起团队关注的讨论投票。我们的团队规模很小，可能无法回复每个帖子，但我们会持续关注，并在分配资源时将这些讨论纳入考虑。
-- 为生态系统作出贡献：
-  - 创建令你感兴趣的插件，并分享给其他人：
-    - 为你的 GitHub 项目添加 `dsh-plugin` 话题，让其他人更容易找到你的插件。
-  - 撰写有关 DeepSeek Harness 的博客文章和操作指南。
-  - 回答问题并帮助其他社区成员。
-
-DeepSeek Harness 的设计支持深度定制。我们并不认为官方仓库中的包天然就比社区开发的包更重要。你可以将本仓库看作一种理念、一份官方示例以及一处灵感来源，而不是我们要求社区遵循的方向。
-
-我们已经看到社区中涌现出令人期待的项目，也希望生态系统继续沿着自己的方向发展。
-
-探索未至之境。
+1. 确认问题是否也影响上游 DeepSeek Harness，并找出最小受影响上游组件。
+2. 面向上游拆出聚焦补丁，排除 Panedesk 品牌、私有集成、本地配置与无关改动；需要转换包名时使用[改名重放流程](scripts/panedesk/rename/README.zh.md)。
+3. 附最小复现与相关点名检查，依上游当前贡献政策提 PR；若上游不接 PR，则报告修复。
+4. 在 `scripts/panedesk/fork-divergences.json` 登记本地差异，填写唯一 `id`、简明 `description`、公开 `origin`、说明上游适用性与 PR 状态的 `reason`，以及 `match.type` 和精确 `match.paths` 或现有风格的通配路径。
+5. 上游更新包含修复后，在本地重放，仅删除过时差异条目或路径模式，并运行[台账检查器](scripts/panedesk/README.zh.md#fork-divergence-ledger)，确保未覆盖与过期计数均为零。

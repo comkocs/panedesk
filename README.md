@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-**Panedesk** (Chinese name 窗台, "window sill") is an open-source, plugin-based coding-agent harness: one runtime for the agent loop, model routing, subagents, a session ledger, permissions and sandboxing. The name joins *pane* (each agent works in its own window) and *desk* (the ticket desk that will dispatch them).
+**Panedesk** is an open-source, plugin-based coding-agent workspace; 1.0 brings model routing, subagents, a session ledger, permissions and sandboxing into one runtime with CLI, Web and desktop clients.
 
 > Built on DSH (DeepSeek Harness). Panedesk is an independent fork of [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 and is not affiliated with, endorsed by, or sponsored by DeepSeek. "DeepSeek Harness" is a registered trademark of DeepSeek; see [BRAND_GUIDELINES.md](BRAND_GUIDELINES.md).
 
@@ -10,7 +10,7 @@ English | [中文](README.zh.md)
 
 The public repository includes a headless CLI with model routing and subagents, plus Web and desktop clients. The Web composition provides a session subagent tree with read-only monitoring, ledger statistics, node health and administration, and a read-only skills catalog. Seat orchestration and its UI are opt-in; installing the packages does not enable automatic opening. Separate private plugins also exist; they are not described here.
 
-Planned next: public-release preparation, then long-running sessions and subagent supervision, then upstream-sync automation. See the [Panedesk architecture](docs/panedesk/architecture.md) for public composition and configuration.
+1.0 includes a default slim composition, an optional full composition, provider setup and plugin management; long-running session supervision and upstream-sync automation remain future work. See the [Panedesk architecture](docs/panedesk/architecture.md) for public composition and configuration.
 
 ## Platform behavior
 
@@ -18,7 +18,7 @@ On Linux, start the host in tmux or with `systemd-run --user --scope -p Delegate
 
 On Linux, the deny-only retired identity filter can mistake an ordinary owner connection for an unknown source and refuse admission; it neither permits historical product identities nor refuses new sandbox starts. At approximately 100,000, 1 million, and 2 million retired identities inserted, the estimated false-positive rates are 0.00047%, 2.07%, and 14.3%, respectively. A browser's cgroup identity is stable, so a false positive persists until host restart. Close all sandbox sockets before restarting the host to clear the filter. See the [Linux upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.md).
 
-Windows product-sandbox TCP connections cannot act as owner even with a valid cookie: admission checks host-owned Job membership, not browser integrity, AppContainer status, or token restrictions. Missing connection ownership refuses owner access. Ordinary browsers remain eligible. Windows behavior is verified with substitutes, not native hardware. Scheduled tasks, WMI, COM, and ShellExecute delegation to an outside process remain unverified hardening work required before the M9 stable release. This Windows-specific description supersedes the earlier platform limitation retained in the session-cookie section below. See the [Windows upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.md).
+Windows product-sandbox TCP connections cannot act as owner even with a valid cookie: admission checks host-owned Job membership, not browser integrity, AppContainer status, or token restrictions. Missing connection ownership refuses owner access. Ordinary browsers remain eligible. Windows behavior is verified with substitutes, not native hardware. Scheduled tasks, WMI, COM, and ShellExecute delegation to an outside process remain unverified; run untrusted workloads under a separate OS account. This Windows-specific description supersedes the earlier platform limitation retained in the session-cookie section below. See the [Windows upgrade guide](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.md).
 
 Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use an authenticated Web or desktop frontend for owner approval on Windows; console isolation is deferred. Interactive Windows CLI / TUI startup prints this warning.
 
@@ -57,11 +57,11 @@ When the workspace contains the product home, such as when starting in `$HOME`, 
 
 Bubblewrap gives both confined modes a private `/tmp` and masks host tmux, screen, session-bus, X11 and Wayland socket directories, including explicit runtime-directory overrides. Tools requiring these host sessions are unavailable inside that sandbox; ordinary temporary files use the private tmpfs. macOS Seatbelt denies outbound UNIX sockets under temporary and configured session directories; native macOS validation remains outstanding. See [runner details](packages/sandbox/sandbox-local/README.md#known-limitations-and-deferred-work).
 
-Linux runners apply Landlock abstract-UNIX socket scope on kernels with ABI 6 or later. Without that scope, abstract sockets remain reachable: on an X11 desktop a sandbox process may inject keys into other windows. Startup is not refused for this limitation. Sandbox network namespaces plus user-space networking are required before the M9 stable release.
+Linux runners apply Landlock abstract-UNIX socket scope on kernels with ABI 6 or later. Without that scope, abstract sockets remain reachable: on an X11 desktop a sandbox process may inject keys into other windows. Startup is not refused for this limitation. Network isolation remains incomplete; run untrusted workloads under a separate account.
 
-Landlock-only machines cannot hide pathname session sockets. If conventional user tmux, screen or session-bus locations exist, command startup warns in English and Chinese but does not refuse execution or change its exit code. Such sessions can execute commands outside confinement; run them under a separate user account. Sandbox network namespaces plus user-space networking are required before the M9 stable release.
+Landlock-only machines cannot hide pathname session sockets. If conventional user tmux, screen or session-bus locations exist, command startup warns in English and Chinese but does not refuse execution or change its exit code. Such sessions can execute commands outside confinement; run them under a separate user account. Network isolation remains incomplete; run untrusted workloads under a separate account.
 
-Loopback networking is unrestricted. If local sshd accepts an available private key, `ssh localhost` can escape the sandbox. `~/.ssh` is not masked, preserving SSH-based Git pushes. Local loopback restrictions are required before the M9 stable release. These limits also mean session isolation is not a general sandbox-network guarantee; explicit full-access execution remains unchanged.
+Loopback networking is unrestricted. If local sshd accepts an available private key, `ssh localhost` can escape the sandbox. `~/.ssh` is not masked, preserving SSH-based Git pushes. Do not give untrusted workloads credentials for local services. These limits also mean session isolation is not a general sandbox-network guarantee; explicit full-access execution remains unchanged.
 
 On Linux, host file operations performed for the model — reads, writes, edits, directory creation, staging and publication, metadata probes, and directory listing — open each canonical ancestor directory one component at a time without following links and address single entries through retained directory descriptors; a workspace directory replaced by a link cannot redirect these operations. On macOS, host file operations still resolve by path: a sandboxed process that replaces a workspace subdirectory with a link can direct host writes outside the authorized workspace, including in the default workspace-write mode. This restriction is maintained until a native directory-relative backend is verified on macOS. On Windows, the default `experimental` handle backend opens children relative to retained directory handles and refuses reparse points; its supported operations and replacement restrictions are described in [fs-local](packages/fs/fs-local/README.md#use-this-package). Set `windowsHandleBackend` to `disabled` only through an owner-approved protected profile or overlay to select the legacy path backend. With that backend, a sandboxed process can redirect host writes outside the authorized workspace by replacing a workspace subdirectory with a link once the owner grants workspace write; Windows defaults to read-only. This restriction remains for the legacy path backend.
 
@@ -76,7 +76,13 @@ Owner cookies default to browser-session storage; persistence requires protected
 - **Commands.** The CLI is `panedesk`, with the short name `pdesk`.
 - **Names after the rename.** The launcher package is `panedesk` (commands `panedesk` and `pdesk`), every other workspace package is `@panedesk/*` with only the scope swapped (`@panedesk/dsh-*` and the like remain), and the home directory defaults to `~/.panedesk`, overridden by `PANEDESK_HOME` — `~/.dsh` and `DSH_HOME` are never read. The user-facing variables are `PANEDESK_PERMISSION_MODE`, `PANEDESK_TELEMETRY_*`, `PANEDESK_TOOLS_MODE` and `PANEDESK_AGENTS_HOME` (still defaulting to `~/.agents`); the remaining `DSH_*` variables (tests, snapshots, CI, releases) keep their names. The rename itself is mapped and replayed by `scripts/panedesk/rename/` (English README included; upstream fixes go through that script first).
 
-## Quick start from source
+## Quick start
+
+### Windows 1.0 package
+
+Download the Windows 1.0 package from this repository's releases, extract it to a short path such as `C:\panedesk\`, double-click `start.cmd`, and open the printed local address in Edge; follow the first-run model setup prompts and accept browser login without confirmation only on a trusted machine.
+
+### Linux / macOS from source
 
 Requirements: Node.js `^22.19 || >=24`, pnpm 11 (via Corepack).
 
@@ -102,6 +108,49 @@ node apps/cli/lib/bin.js "summarize this repository"
 ```
 
 For manual provider overlays, use the [provider examples](examples/providers) and the [patch-order reference](docs/panedesk/architecture.md). Launcher flags (`--profile`, `--patch`, dumps) come before app flags such as `--json`. See the platform table before running tools on Windows.
+
+For the Web interface, run `pnpm run dev:web` from the same checkout and open the printed local address; Linux hosts must meet the user-scope delegation prerequisites above.
+
+## Known limitations
+
+- Windows console sharing allows sandboxed commands to inject approval keystrokes; use the authenticated Web frontend in Edge rather than CLI/TUI approval.
+- Windows Web has no native owner-confirmation dialog and rejects new logins by default; accept the first-run browser-login option only on a trusted machine and protect launch links and cookies.
+- Sandbox networking does not isolate loopback or all abstract sockets, allowing access to local services; use a separate OS account without local-service credentials for untrusted workloads.
+- Landlock-only hosts cannot hide named tmux, screen or D-Bus sockets that may execute outside the sandbox; run untrusted workloads under a separate account.
+- macOS and Windows host-mediated launch channels remain unverified; do not expose privileged host automation to an untrusted workload account.
+- Windows native sandbox enforcement and the desktop CLI launcher have not been validated on hardware, while handle-backend file operations have only administrator-account functional evidence; prefer the Web package and retain OS-account isolation.
+- Windows desktop third-party platform cookies remain readable to low-integrity commands; keep sensitive platform accounts out of the desktop browser used with untrusted tasks.
+- Owner-installed MCP servers and providers are outside sandbox write enforcement and can alter authoritative session state; install only trusted integrations.
+- Windows ledger, session and projection-cache trees lack independent structural validation; keep the product home private and deny untrusted host processes access.
+- macOS path-based file operations, and Windows with the legacy backend explicitly selected, can follow directory-replacement races outside a write grant; use read-only mode for untrusted workspaces and keep the default Windows handle backend.
+- Protected-input capture has no overall file-count, byte or duration limit and can delay authorization on large trees; start in a small project directory outside the product home.
+- Landlock protection rules are passed in argv and can exceed launch budgets on large directory layouts; reduce workspace scope instead of disabling protection.
+- The Linux execve binding uses a byte-budget refusal to avoid an argument-allocation defect; shorten oversized commands or split them into smaller invocations.
+- Windows protected-input rechecks have no USN fast path and can be slow on large trees; keep workspaces separate from installed plugin trees.
+- Linux owner-source verification is ineffective without delegated cgroup scopes and refusal diagnostics do not distinguish every cause; start in a delegated user scope and heed startup warnings.
+- Linux owner connections can be falsely refused by the retired-identity filter; close sandbox sockets and restart the host before reconnecting.
+- macOS Web cannot identify product-sandbox cookie replay; run untrusted processes under a separate account.
+- Persistent PowerShell terminals under the Linux native sandbox may produce no output and time out; use Bash there instead.
+- Plugin activation can lag installation under heavy load; wait for activation to finish before retrying or issuing plugin-dependent tasks.
+- A disappearing owner-material file during concurrent cleanup can refuse an operation; retry after cleanup finishes.
+- Linked workspace plugins can fail the first protected-input recheck after restart when the workspace includes home; use installed package tarballs and a separate project workspace.
+- Large developer symlink layouts can make warm authorization exceed three seconds; use the packaged plugin layout for daily work.
+- Cold recovery still scans each protected root and startup can pause before the first usable session; wait for readiness and avoid using home as the workspace.
+- Reauthorizing a revoked workspace in the same host process can be refused; restart the host before authorizing it again.
+- Unanswered ordinary approvals have no service-wide deadline and leave the turn waiting without writing; decide the request or cancel the turn.
+- Web session creation or submission has occasionally stalled without a confirmed cause; if a turn stops progressing, check the session and host logs before restarting.
+- Preset-heavy session scenarios have exhausted worker memory and ledger unavailability remains unexplained; reduce active presets and preserve logs if it occurs.
+- Windows inbox access fails when home inherits overly broad permissions; use the default home or restrict it to the owner, SYSTEM and Administrators.
+- Building optional integrations from non-ASCII paths can fail; use an ASCII-only source path.
+- Passing a custom port through start.cmd leaves the printed link and polling on the default port; use the default port until argument forwarding is fixed.
+- Windows handle-backend replacement refuses files with custom permissions, explicit integrity labels, EFS or enterprise protection and does not preserve short names; use ordinary inherited-permission files or edit protected files outside Panedesk.
+- An open Windows file handle can block replacement; close the program holding the file and retry.
+- Windows upgrade preparation can fail a directory rename with EPERM; close the previous host and retry preparation.
+- First-start upgrade preparation has taken several minutes without progress detail; leave the console open and wait rather than starting another copy.
+- Long extraction paths can exceed Windows path limits, especially with usernames longer than 20 characters; extract directly to a short path such as C:\panedesk\ without an extra nested folder.
+- Windows native rebuilds are not byte-for-byte reproducible because of linker metadata; use the distributed artifacts and verify their supplied checksums.
+- Reusing a build tree can include stale lib chunks in packages; package from a clean checkout or remove old lib output first.
+- Stopping or upgrading the Windows launcher can leave a hidden polling PowerShell process; inspect and close only the polling process associated with that launch.
 
 ## Presets
 

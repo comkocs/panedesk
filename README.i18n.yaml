@@ -3,23 +3,32 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /panedesk:
-  en: 1774274b8b83f43e
-  zh: 06d639722d52fc0b
+  en: 9cde8f887c7e9bd5
+  zh: c7eed8ec6e572082
 /panedesk/status:
-  en: b8cdb662d9e20b8f
-  zh: 753365af5c2e9694
+  en: 4e6e03288a7de632
+  zh: b6f639257637ace7
 /panedesk/platform-behavior:
-  en: ffac4813ade6c5de
-  zh: 13da5be1fcb70205
+  en: 6ad88f9b7a508a48
+  zh: 79736207f4c7b736
 /panedesk/sandbox-session-isolation-and-limitations:
-  en: 05b016730919b847
-  zh: c6d4bbf748d6a9f5
+  en: 09251de25257e158
+  zh: 6d403f2b763bd688
 /panedesk/what-changed-from-dsh:
   en: 302e1595bfe8bc0c
   zh: 1c10d9c920d2a712
-/panedesk/quick-start-from-source:
-  en: d1ceadb860539904
-  zh: 368121615d51270a
+/panedesk/quick-start:
+  en: 9535b10be9abb7a8
+  zh: 754bdf1f360f89ea
+/panedesk/quick-start/windows-1-0-package:
+  en: 2751c4181acd7b64
+  zh: 65c9e6e5ad0e25b8
+/panedesk/quick-start/linux-macos-from-source:
+  en: b1f9d0bd4d1f6962
+  zh: 172cff3e8c7cadf3
+/panedesk/known-limitations:
+  en: ffe09e931f7c7b48
+  zh: 78e5fa249e6c2c04
 /panedesk/presets:
   en: c888cc461783e7b2
   zh: be96cfbf6ad83513
