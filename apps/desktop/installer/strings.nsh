@@ -1,6 +1,4 @@
 ; NSIS owns installer localization independently of the Electron application locale.
-LangString INSTALLER_OWNER_RETAINED ${LANG_ENGLISH} "The Harness home and credential-directory read protection have been preserved. To remove them completely, stop all Panedesk processes, run panedesk cleanup-owner-labels --stopped <directory>, then delete the home."
-LangString INSTALLER_OWNER_RETAINED ${LANG_SIMPCHINESE} "已保留 Harness home 及其中凭据目录的读保护。要彻底移除，请先停掉全部 Panedesk 进程，运行 panedesk cleanup-owner-labels --stopped <目录>，再删除 home。"
 LangString INSTALLER_INSTALL ${LANG_ENGLISH} "Install now"
 LangString INSTALLER_INSTALL ${LANG_SIMPCHINESE} "立即安装"
 LangString INSTALLER_FINISH ${LANG_ENGLISH} "Finish"

@@ -1,9 +1,9 @@
-import type { ProductEventMap } from '@panedesk/dsh-client-product-analytics/types'
+import type { ProductEventMap, ProductEvent } from '@panedesk/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -15,6 +15,7 @@ import {
   powerMonitor,
   nativeImage,
   nativeTheme,
+  net,
   protocol,
   session,
   shell,
@@ -35,7 +36,7 @@ import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopCommandManager } from './command-management.ts'
-import { serveWebDocument, forwardWebRequest } from './web-document.ts'
+import { serveWebDocument, authenticateWebHost, forwardWebRequest } from './web-document.ts'
 import { DesktopFatalRecovery } from './fatal-recovery.ts'
 import { pruneCrashReports, RendererConsoleTail, writeCrashReport, type CrashReportSource } from './crash-report.ts'
 import { openWelcomeWindow } from './welcome-window.ts'
@@ -59,10 +60,7 @@ import { installDesktopShortcuts } from './keyboard.ts'
 import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
-import { redactDiagnostic } from './redact-diagnostic.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
-
-process.env.PANEDESK_TELEMETRY_DISABLED = '1'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -109,7 +107,7 @@ const recovery = new DesktopFatalRecovery({
 })
 
 function persistCrashReport(error: unknown, source: CrashReportSource): Promise<string | undefined> {
-  return writeCrashReport(app.getPath('crashDumps'), {
+  return writeCrashReport(app.getPath('logs'), {
     source,
     phase: backendReady ? 'running' : 'startup',
     error,
@@ -232,7 +230,6 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     } : {}),
     webPreferences: {
       preload,
-      ...(primary ? { partition: 'dsh-owner' } : {}),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -319,7 +316,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
 
 async function main(): Promise<void> {
   const desktopSettings = readDesktopSettings(app.getPath('userData'))
-  void pruneCrashReports(app.getPath('crashDumps'))
+  void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
@@ -405,13 +402,17 @@ async function main(): Promise<void> {
   const applicationUrl = `${SCHEME}://app/`
   let hostUrl: string | undefined
   let hostCookie: string | undefined
-  const ownerSession = session.fromPartition('dsh-owner', { cache: false })
   const browserGuests = new DesktopBrowserGuests(() => hostUrl)
   let injections: readonly unknown[] = []
   let welcomeBackend: DesktopWelcomeBackend | undefined
   let reportedLaunch = false
-  const analyticsEnabled = false
-  const track = async <K extends keyof ProductEventMap>(_eventName: K, _attributes: ProductEventMap[K]): Promise<void> => {}
+  let analyticsEnabled = false
+  const track = async <K extends keyof ProductEventMap>(eventName: K, attributes: ProductEventMap[K]): Promise<void> => {
+    const event = { eventName, attributes, timestamp: Date.now() } as ProductEvent
+    try {
+      if (analyticsEnabled) await welcomeBackend?.report(event)
+    } catch (_error) { /* Analytics cannot interrupt native actions. */ }
+  }
   let stopAccount: (() => void) | undefined
   let openedAttempt: string | undefined
   let returnedAttempt: string | undefined
@@ -444,36 +445,18 @@ async function main(): Promise<void> {
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, {
-        ...hostEnvironment,
-        PANEDESK_TELEMETRY_DISABLED: '1',
-        DSH_CLIENT_VERSION: desktopClientVersion(),
-        DSH_DESKTOP_PRIVATE_PATHS: JSON.stringify([
-          app.getPath('crashDumps'),
-          ...process.platform === 'win32' ? [] : [
-            app.getPath('userData'), app.getPath('sessionData'), app.getPath('logs'),
-            ...process.env.DSH_DESKTOP_DIAGNOSTIC_FILE === undefined ? [] : [dirname(process.env.DSH_DESKTOP_DIAGNOSTIC_FILE)],
-          ],
-        ]),
-      }, onFailure,
+      hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
     return {
       start: async () => {
         const ready = await host.start()
-        hostCookie = ready.cookie
-        const cleanHost = new URL(ready.url)
-        cleanHost.search = ''
-        cleanHost.hash = ''
-        hostUrl = cleanHost.href
+        hostCookie = await authenticateWebHost(ready.url)
+        hostUrl = ready.url
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
         injections = ready.injections
-        const ownerCookie = hostCookie
-        welcomeBackend = await connectDesktopWelcome(hostUrl, (input, init) => {
-          const headers = new Headers(init?.headers)
-          headers.set('cookie', ownerCookie)
-          return ownerSession.fetch(input, { ...init, headers })
-        }, () => Promise.resolve(ownerCookie))
+        welcomeBackend = await connectDesktopWelcome(ready.url, (input, init) => net.fetch(input, init), async () => (await session.defaultSession.cookies.get({ url: ready.url })).map(cookie => `${cookie.name}=${cookie.value}`).join('; '))
+        analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
         if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
         stopAccount?.()
         const accountBackend = welcomeBackend.account
@@ -512,9 +495,10 @@ async function main(): Promise<void> {
             const state = await accountBackend.state()
             if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
           }).catch(() => undefined)
-        })
+        }, (enabled) => { analyticsEnabled = enabled })
       },
       stop: async () => {
+        analyticsEnabled = false
         stopAccount?.()
         try { await host.stop(requireCleanStop) }
         catch (error) {
@@ -680,7 +664,7 @@ async function main(): Promise<void> {
     window.once('closed', () => { resolve() })
   })
 
-  const handleDocument = (request: Request): Promise<Response> => {
+  protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url)
     // Shell-owned documents live in the application bundle and never pass through the Host.
     if (url.hostname === 'shell') return serveWebDocument(request, join(app.getAppPath(), 'renderer'))
@@ -695,12 +679,10 @@ async function main(): Promise<void> {
       return forwardWebRequest(request, hostUrl, hostCookie)
     }
     return Promise.resolve(new Response(null, { status: 404 }))
-  }
-  protocol.handle(SCHEME, handleDocument)
-  ownerSession.protocol.handle(SCHEME, handleDocument)
+  })
 
   installDesktopDirectoryPicker(() => mainWindow)
-  installMicrophonePermissions(ownerSession, () => mainWindow?.webContents)
+  installMicrophonePermissions(session.defaultSession, () => mainWindow?.webContents)
   const shortcuts = installDesktopShortcuts(() => mainWindow, app.getPath('userData'),
     process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux', () => { refreshApplicationMenu() }, window => updateOverlays.input(window))
   app.on('will-quit', () => { shortcuts.dispose() })
@@ -730,7 +712,7 @@ async function main(): Promise<void> {
     return browserGuests.release(event.sender, lease)
   })
 
-  ownerSession.webRequest.onBeforeSendHeaders({ urls: ['ws://127.0.0.1/*', 'wss://127.0.0.1/*'] }, (details, callback) => {
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['ws://127.0.0.1/*', 'wss://127.0.0.1/*'] }, (details, callback) => {
     if (hostUrl === undefined || hostCookie === undefined || details.webContentsId !== mainWindow?.webContents.id) {
       callback({})
       return
@@ -1366,8 +1348,7 @@ if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unk
   console.error(error)
   const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE
   if (diagnosticFile !== undefined) {
-    await writeFile(diagnosticFile, `${redactDiagnostic(error instanceof Error ? error.stack ?? message : message)}\n`,
-      { mode: 0o600 }).catch(() => undefined)
+    await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }
   reportFatal(error, 'main')
 }).catch((error: unknown) => {

@@ -9,7 +9,6 @@
 import { mkdir, readdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
-import { redactDiagnostic } from './redact-diagnostic.ts'
 
 /** Where a fatal failure surfaced. */
 export type CrashReportSource = 'host' | 'web-boot' | 'renderer' | 'main'
@@ -117,7 +116,7 @@ export function renderCrashReport(input: CrashReportInput): string {
   const consoleSection = input.rendererConsole.length === 0
     ? '(no error-level renderer console output was captured)'
     : input.rendererConsole.join('\n')
-  return redactDiagnostic([
+  return [
     header.join('\n'),
     '',
     '--- error ---',
@@ -127,7 +126,7 @@ export function renderCrashReport(input: CrashReportInput): string {
     '--- renderer console (error level, oldest first) ---',
     consoleSection,
     '',
-  ].join('\n'))
+  ].join('\n')
 }
 
 function boundedErrorSection(error: unknown): string {
@@ -141,7 +140,7 @@ function boundedErrorSection(error: unknown): string {
  * Write one report into `directory`, creating it when absent. Failure is
  * reported to `console.error` and yields `undefined`: the recovery dialog
  * proceeds without a file rather than failing over a diagnostic aid.
- * @param directory - the protected application crash directory.
+ * @param directory - the application logs directory.
  * @param input - the failure and its context.
  * @returns the written file path, or `undefined` when writing failed.
  */
@@ -161,7 +160,7 @@ export async function writeCrashReport(directory: string, input: CrashReportInpu
  * Delete the oldest reports beyond `retained`, judged by file name order, and
  * leave every other file in the directory alone. Failure is reported to
  * `console.error`; a missing directory is not a failure.
- * @param directory - the protected application crash directory.
+ * @param directory - the application logs directory.
  * @param retained - reports to keep.
  */
 export async function pruneCrashReports(directory: string, retained = CRASH_REPORTS_RETAINED): Promise<void> {
