@@ -301,6 +301,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       // Keyed by id, so a half-typed row whose id is still empty is not a
       // match and the candidate joins as its own row — correct, since a row
       // without an id is not yet a model and the create/apply gates refuse it.
+      if (!byId.has(candidate.id)) props.onRowEdited?.(byId.size)
       byId.set(candidate.id, byId.get(candidate.id) ?? adopt(candidate))
     }
     onChange([...byId.values()])

@@ -1791,6 +1791,35 @@ describe('API key field', () => {
 })
 
 describe('custom provider recognition', () => {
+  it('stores picked recognized models when creating a provider past an untouched empty row', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'selected', name: 'Selected', contextWindow: 4096, maxTokens: 2048, inputModalities: ['text', 'image'] },
+      { id: 'unselected' },
+    ])))
+    const { face, mutate } = scriptedFace({ discover })
+    const onClose = vi.fn()
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://gateway.example/v1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+    const picker = await screen.findByRole('dialog', { name: en.fetchTitle })
+    fireEvent.click(within(picker).getByRole('button', { name: en.fetchDeselectAll }))
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'selected' }))
+    fireEvent.click(within(picker).getByRole('button', { name: en.fetchAdopt }))
+    fireEvent.click(screen.getByRole('button', { name: en.create }))
+
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(mutate).ops[0]?.value).toMatchObject({
+      models: [{ id: 'selected', name: 'Selected', contextWindow: 4096, maxTokens: 2048, input: ['text', 'image'] }],
+    })
+  })
+
   it('fetches available models once the address and key are filled, and again only when one of them changes', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([{ id: 'listed' }])))
     const { face } = scriptedFace({ discover })
