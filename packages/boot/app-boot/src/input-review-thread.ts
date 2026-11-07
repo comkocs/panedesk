@@ -29,6 +29,9 @@ export class InputReviewThread {
     this.worker = undefined
     this.pending?.(new Error('Protected input review was disposed'))
     if (worker !== undefined && worker.exitCode === null && worker.signalCode === null) {
+      // An idle resident isolate is unreferenced; its exit is dispatched only while it is referenced.
+      worker.ref()
+      worker.channel?.ref()
       this.stopping = new Promise<void>((resolve) => {
         worker.once('exit', () => { resolve() })
         worker.kill('SIGKILL')
@@ -103,6 +106,9 @@ export class InputReviewThread {
           if (this.worker === worker) this.worker = undefined
           if (worker.pid === undefined || worker.exitCode !== null || worker.signalCode !== null) finish()
           else {
+            // An idle resident isolate is unreferenced; its exit is dispatched only while it is referenced.
+            worker.ref()
+            worker.channel?.ref()
             this.stopping = new Promise<void>((done) => {
               worker.once('exit', () => { done(); finish() })
               worker.kill('SIGKILL')

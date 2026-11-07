@@ -76,7 +76,7 @@ Events are the extension points, and picking the right domain is the first decis
 - **Agent events** (`agent/*`) carry a live `Agent`: inbox, step, status, request, validation, continuation. Use one to observe or intercept work in flight.
 - **Capability events** attach policy and adapters to a seam (`fs/*`, `tools/*`, `telemetry/*`) without importing the loop.
 
-`agent/create-admitting` precedes factory effects; failed preparation is released. `agent/turn-admitting` can defer queued work until `wake()`. AgentLoop awaits serial `agent/created` before work, takes over prepared ownership, and rolls back failed initialization. Unload retains resources through teardown; [agent-loop](../packages/core/agent-loop/README.md#understand-the-implementation) defines ordering.
+`agent/create-admitting` precedes factory effects; failed preparation is released. `agent/turn-admitting` can defer queued work until `wake()`. AgentLoop owns preparation and rollback, awaiting serial `session/preparing` before publication and `agent/created` before work. Unload retains resources through teardown; [agent-loop](../packages/core/agent-loop/README.md#understand-the-implementation) defines ordering.
 
 The [event map](event-producer-consumer.md) lists every event's producers and consumers.
 

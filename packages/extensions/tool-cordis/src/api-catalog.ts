@@ -661,7 +661,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'rebuilt(id: string): string | undefined',
-        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph; protected trees are still verified.',
+        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph; explicit whole-tree verification still precedes reuse.',
         parameters: [{ name: 'id', description: 'entry id (package name).' }],
         returns: 'the current artifact rev, or undefined for an unknown id.',
       },
@@ -2336,9 +2336,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.',
       },
       {
-        signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void>',
+        signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void>',
         description: 'Fill every missing permission fact before a session is published. A genuinely fresh session uses the current user default; seeded or partially initialized sessions preserve their effective knob values and only gain the missing durable facts. A stored Auto identity requires its live integration and passes its admission check before publication. An unattended override uses the same initial event positions; an already initialized session records only a changed approval policy.',
-        parameters: [{ name: 'session', description: 'Session being prepared or restored.' }, { name: 'approvalOverride', description: 'Explicit caller policy; absent preserves the configured or stored policy.' }],
+        parameters: [{ name: 'session', description: 'Session being prepared or restored.' }, { name: 'approvalOverride', description: 'Explicit caller policy; absent preserves the configured or stored policy.' }, { name: 'signal', description: 'Optional creation cancellation; aborted preparation appends no permission facts.' }],
         returns: 'Capture completion when required; permission facts are published only after it succeeds.',
       },
     ],
@@ -6913,6 +6913,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Awaited parallel durability checkpoint: every listener runs and the caller awaits all of them, with no waterfall veto.',
     description: 'Awaited parallel durability checkpoint: every listener runs and the caller awaits all of them, with no waterfall veto. Scope-filtered dispatch (`@panedesk/dsh-scope`) reuses the session\'s owner scope.',
     parameters: [{ name: 'session', description: 'the session whose buffered events must reach durable storage.' }],
+  },
+  {
+    name: 'session/preparing',
+    mode: 'serial',
+    signature: '\'session/preparing\'(this: Scoped<Session>, session: Session, signal: AbortSignal): Promise<void> | void',
+    summary: 'Awaited preparation for a private session in an agent creation transaction.',
+    description: 'Awaited preparation for a private session in an agent creation transaction. Rejection prevents publication; the transaction owns resource rollback. Listeners must settle owned work and check cancellation before committing.',
+    parameters: [{ name: 'session', description: 'the unentered session being prepared.' }, { name: 'signal', description: 'caller and lifecycle cancellation for this transaction.' }],
   },
   {
     name: 'settings/document-updated',

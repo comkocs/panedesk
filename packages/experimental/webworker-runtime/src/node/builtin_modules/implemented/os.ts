@@ -5,7 +5,7 @@
  * during construction.
  */
 import { PANEDESK_HOME, DSH_TMP } from '../../../storage/paths.ts'
-import type { CpuInfo, NetworkInterfaceInfo } from 'node:os'
+import type { CpuInfo, NetworkInterfaceInfo, UserInfo } from 'node:os'
 
 /** Line ending of the virtual platform. */
 export const EOL = '\n'
@@ -24,6 +24,14 @@ export function tmpdir(): string {
  */
 export function homedir(): string {
   return PANEDESK_HOME
+}
+
+/**
+ * Virtual worker user identity, independent of the host account.
+ * @returns synthetic IDs and username with the VFS home directory.
+ */
+export function userInfo(): UserInfo<string> {
+  return { uid: -1, gid: -1, username: hostname(), homedir: homedir(), shell: null }
 }
 
 /**
@@ -108,10 +116,10 @@ export const __esModule = true
  * module's own value: Node declares the full `errno`, `priority`, and `dlopen`
  * tables, while only the signal-name mapping is read here.
  */
-type NodeFace = Partial<Omit<typeof import('node:os'), 'constants'>> & Record<'constants', unknown>
+type NodeFace = Partial<Omit<typeof import('node:os'), 'constants' | 'userInfo'>> & Record<'constants', unknown> & { userInfo: typeof userInfo }
 
 /** CommonJS default export: the members `require()` hands a caller of this module. */
 export default {
-  EOL, tmpdir, homedir, platform, type, arch, release, hostname, availableParallelism, cpus,
+  EOL, tmpdir, homedir, userInfo, platform, type, arch, release, hostname, availableParallelism, cpus,
   networkInterfaces, constants,
 } satisfies NodeFace

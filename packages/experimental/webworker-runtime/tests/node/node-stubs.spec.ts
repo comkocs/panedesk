@@ -184,6 +184,12 @@ describe('node:os', () => {
     expect(os.availableParallelism()).toBeGreaterThanOrEqual(1)
   })
 
+  it('answers userInfo with the virtual runtime identity', () => {
+    const info = os.userInfo()
+    expect(info).toEqual({ uid: -1, gid: -1, username: 'dsh-worker', homedir: PANEDESK_HOME, shell: null })
+    expect(os.default.userInfo()).toEqual(info)
+  })
+
   it('maps the terminal signal names its consumer reads', () => {
     expect(os.constants.signals.SIGTERM).toBe(15)
     expect(os.constants.signals.SIGKILL).toBe(9)

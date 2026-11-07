@@ -67,6 +67,21 @@ it('loads restarted modules with at most one root traversal per baseline', async
   expect(counts.slice(1, -1).map(count => count.siblingMetadata)).toEqual(Array(6).fill(0))
 })
 
+it.each(['added', 'modified'] as const)('checks %s siblings at tree admission without widening module reads', async (change) => {
+  const f = await fixture()
+  const entry = f.entries[0]!
+  expect(f.reader.readExecutableTree(entry)?.toString()).toBe('module.exports = "approved"')
+  const sibling = change === 'added' ? join(f.workspace, 'new-chunk.cjs') : f.entries[1]!
+  fs.writeFileSync(sibling, 'module.exports = "candidate"')
+  expect(f.reader.readExecutable(entry)?.toString()).toBe('module.exports = "approved"')
+  expect(() => f.reader.readExecutableTree(entry)).toThrow('requires owner confirmation')
+  expect(await f.reader.verify({ blocked() {}, confirm: () => Promise.resolve(false) })).toBe(false)
+  expect(() => f.reader.readExecutableTree(entry)).toThrow('requires owner confirmation')
+  expect(await f.reader.verify({ blocked() {}, confirm: () => Promise.resolve(true) })).toBe(true)
+  expect(f.reader.readExecutableTree(entry)?.toString()).toBe('module.exports = "approved"')
+  expect(f.reader.readExecutable(sibling)?.toString()).toBe('module.exports = "candidate"')
+})
+
 it('rejects changed bytes between repeated loads of the same URL', async () => {
   const f = await fixture()
   expect(f.load()).toBe('approved')
