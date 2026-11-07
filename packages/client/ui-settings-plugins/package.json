@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-settings-plugins",
   "description": "Built-in plugins settings section for the panedesk web client: the Settings navigation entry and the tab chrome feature-owned tabs register into",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publishConfig": {
     "access": "public"
   },
