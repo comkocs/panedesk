@@ -11348,9 +11348,9 @@
     },
     {
       "id": "product-rename-packages-session",
-      "description": "Upstream files under packages/session whose only divergence from the baseline is the replayable product rename.",
+      "description": "Upstream files under packages/session with the replayable product rename. Session persistence also exposes an optional sidecarDirectory(id) capability, its JSONL implementation, and documentation for sidecar directories.",
       "origin": "Panedesk product rename sweep since the upstream import",
-      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces these files byte for byte. The divergence is the product identity rename, carries no product logic, and is not planned for upstream contribution.",
+      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces the rename-only files byte for byte. The persistence service, JSONL provider, and sidecar documentation additionally retain product functionality. This inventory is not planned for direct upstream contribution.",
       "match": {
         "type": "rename-replay",
         "paths": [
@@ -11474,6 +11474,7 @@
           "packages/session/session-persistence-jsonl/src/catalog-migration.ts",
           "packages/session/session-persistence-jsonl/src/format.ts",
           "packages/session/session-persistence-jsonl/src/generation.ts",
+          "packages/session/session-persistence-jsonl/src/index.ts",
           "packages/session/session-persistence-jsonl/src/lease.ts",
           "packages/session/session-persistence-jsonl/src/win32.ts",
           "packages/session/session-persistence-jsonl/tests/built-migration-worker.e2e.ts",
@@ -11499,9 +11500,13 @@
           "packages/session/session-persistence-jsonl/tests/v3-restart-migration.spec.ts",
           "packages/session/session-persistence-jsonl/tests/zstd.spec.ts",
           "packages/session/session-persistence-jsonl/tsdown.config.ts",
+          "packages/session/session-persistence/README.i18n.yaml",
+          "packages/session/session-persistence/README.md",
+          "packages/session/session-persistence/README.zh.md",
           "packages/session/session-persistence/package.json",
           "packages/session/session-persistence/src/errors.ts",
           "packages/session/session-persistence/src/handle.ts",
+          "packages/session/session-persistence/src/index.ts",
           "packages/session/session-persistence/src/revision.ts",
           "packages/session/session-persistence/src/storage-contract.ts",
           "packages/session/session-persistence/tests/contract.ts",
@@ -11920,9 +11925,9 @@
     },
     {
       "id": "product-rename-packages-subagent",
-      "description": "Upstream files under packages/subagent whose only divergence from the baseline is the replayable product rename.",
+      "description": "Upstream files under packages/subagent with the replayable product rename. The subagent service entry also includes product-specific runtime behavior.",
       "origin": "Panedesk product rename sweep since the upstream import",
-      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces these files byte for byte. The divergence is the product identity rename, carries no product logic, and is not planned for upstream contribution.",
+      "reason": "Replaying scripts/panedesk/rename on the upstream baseline content reproduces the rename-only files byte for byte. The subagent service entry additionally retains product-specific runtime behavior. This inventory is not planned for direct upstream contribution.",
       "match": {
         "type": "rename-replay",
         "paths": [
@@ -11982,6 +11987,7 @@
           "packages/subagent/subagent/src/depth.ts",
           "packages/subagent/subagent/src/descriptor.ts",
           "packages/subagent/subagent/src/error.ts",
+          "packages/subagent/subagent/src/index.ts",
           "packages/subagent/subagent/src/internal.ts",
           "packages/subagent/subagent/src/list-children.ts",
           "packages/subagent/subagent/src/out-of-process.ts",
@@ -13923,7 +13929,7 @@
     },
     {
       "id": "product-fork-packages-client",
-      "description": "Upstream files under packages/client diverged by Panedesk product development.",
+      "description": "Upstream files under packages/client diverged by Panedesk product development. The connection Host compiler inputs include owner-confirmation locale text.",
       "origin": "Panedesk product development since the upstream import",
       "reason": "Feature work, fixtures, brand assets, and removed upstream-only workflows changed these files relative to the upstream baseline. Feature-scoped entries elsewhere in this registry document the upstreamable parts; this area inventory is not planned for direct upstream contribution.",
       "match": {
@@ -13931,6 +13937,7 @@
         "paths": [
           "packages/client/connection/README.i18n.yaml",
           "packages/client/connection/package.json",
+          "packages/client/connection/tsconfig.host.json",
           "packages/client/file-upload/README.i18n.yaml",
           "packages/client/file-upload/package.json",
           "packages/client/hmr/README.i18n.yaml",
@@ -14748,7 +14755,7 @@
     },
     {
       "id": "product-fork-packages-subagent",
-      "description": "Upstream files under packages/subagent diverged by Panedesk product development.",
+      "description": "Upstream files under packages/subagent diverged by Panedesk product development. The subagent tool implementation and documentation include queued admission tickets.",
       "origin": "Panedesk product development since the upstream import",
       "reason": "Feature work, fixtures, brand assets, and removed upstream-only workflows changed these files relative to the upstream baseline. Feature-scoped entries elsewhere in this registry document the upstreamable parts; this area inventory is not planned for direct upstream contribution.",
       "match": {
@@ -14784,7 +14791,11 @@
           "packages/subagent/subagent/src/activation.ts",
           "packages/subagent/subagent/tests/structured.spec.ts",
           "packages/subagent/subagent/tsconfig.json",
+          "packages/subagent/tool-subagent/README.i18n.yaml",
+          "packages/subagent/tool-subagent/README.md",
+          "packages/subagent/tool-subagent/README.zh.md",
           "packages/subagent/tool-subagent/package.json",
+          "packages/subagent/tool-subagent/src/index.ts",
           "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts",
           "packages/subagent/tool-subagent/tsconfig.json"
         ]
@@ -16057,7 +16068,6 @@
         "paths": [
           "packages/sandbox/sandbox/src/roots.ts",
           "packages/boot/app-boot/tests/input-integrity-messages.spec.ts",
-          "packages/session/message-delivery-local/tests/input-integrity.spec.ts",
           "packages/sandbox/sandbox/README.md",
           "packages/sandbox/sandbox/README.zh.md",
           "docs/subsystems/boot.md",
