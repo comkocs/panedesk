@@ -16179,6 +16179,19 @@
       }
     },
     {
+      "id": "worker-os-user-info",
+      "description": "Expose virtual user information in the worker Node OS bridge",
+      "origin": "Worker runtime Node compatibility",
+      "reason": "Provide a synthetic worker identity and virtual home directory through the named and default userInfo exports, without reading the host account. Cover both exports in the Node compatibility tests. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/os.ts",
+          "packages/experimental/webworker-runtime/tests/node/node-stubs.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "host-message-authoritative-tree",
       "description": "Treat host message storage as the fourth mutable authoritative home tree",
       "origin": "Protected-input review after host mailbox registration",
