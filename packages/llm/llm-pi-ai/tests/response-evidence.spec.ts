@@ -1,7 +1,7 @@
 /** Wire evidence and opt-in cache controls through the real SDK transport. */
 import { afterEach, describe, expect, it } from 'vitest'
 import { brandString } from '@panedesk/dsh-brand'
-import { LlmAdapter } from '@panedesk/dsh-llm'
+import { createAssistantMessage, LlmAdapter } from '@panedesk/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@panedesk/dsh-llm'
 import { PiAiAdapter } from '../src/adapter.ts'
 import { resolveProfiles } from '../src/config.ts'
@@ -222,6 +222,102 @@ describe('opt-in wire cache controls', () => {
     expect(server.requests[1]).not.toHaveProperty('prompt_cache_options')
     expect(result.finish).not.toHaveProperty('cacheRetention')
     expect(result.usage).not.toHaveProperty('cacheWriteLongTokens')
+  })
+
+  it.each([
+    { key: 'stable-key', sessionId: undefined, expected: 'stable-key' },
+    { key: undefined, sessionId: 'session-a', expected: 'session-a' },
+  ])('stamps Anthropic Messages session metadata for a non-Claude model (key=$key)', async ({ key, sessionId, expected }) => {
+    const server = await mockServer([{ events: frames('anthropic-messages', 'gpt-6-astra') }])
+    const result = await collect(adapter('anthropic-messages', server.url, 'gpt-6-astra'), 'gpt-6-astra', {
+      system: 'stable prefix',
+      tools: [{ name: 'read', description: 'Read', parameters: { type: 'object', properties: {} } }],
+      cache: { retention: 'auto', ...key === undefined ? {} : { key } },
+      ...sessionId === undefined ? {} : { sessionId: brandString<NonNullable<GenerateOptions['sessionId']>>(sessionId) },
+    })
+    const body = server.requests[0] as {
+      metadata?: { user_id?: string }
+      tools?: { cache_control?: { type?: string } }[]
+      system?: { cache_control?: { type?: string } }[]
+      messages: { content: string | { cache_control?: { type?: string } }[] }[]
+    }
+    const userId = JSON.parse(body.metadata?.user_id ?? '') as { device_id: string; account_uuid: string; session_id: string }
+    expect(JSON.stringify(userId)).toBe(JSON.stringify({ device_id: userId.device_id, account_uuid: '', session_id: expected }))
+    expect(userId.device_id).toMatch(/^[0-9a-f]{64}$/)
+    expect(server.headers[0]?.['x-claude-code-session-id']).toBe(expected)
+    const marked = (body.tools ?? []).some(block => block.cache_control?.type === 'ephemeral')
+      || (body.system ?? []).some(block => block.cache_control?.type === 'ephemeral')
+      || body.messages.some(message => Array.isArray(message.content)
+        && message.content.some(block => block.cache_control?.type === 'ephemeral'))
+    expect(marked).toBe(true)
+    expect(result.finish).toMatchObject({ cacheWriteTiering: { kind: 'unknown' } })
+    expect(result.finish).not.toHaveProperty('cacheRetention')
+  })
+
+  it.each([
+    { model: 'claude-model-a', retention: '1h' as const },
+    { model: 'gpt-6-astra', retention: 'auto' as const },
+  ])('stamps Claude Code session metadata for $model on anthropic-messages', async ({ model, retention }) => {
+    const gateway = await mockServer([{ events: frames('anthropic-messages', model) }])
+    const official = await mockServer([{ events: frames('anthropic-messages', model) }])
+    // The official-endpoint request is rewritten onto the local stand-in, so the
+    // test never leaves the machine, while the code still sees api.anthropic.com.
+    const realFetch = globalThis.fetch
+    const rewriting: typeof fetch = async (input, init) => {
+      const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const url = new URL(raw)
+      if (url.hostname === 'api.anthropic.com') {
+        const target = new URL(official.url)
+        url.protocol = target.protocol
+        url.host = target.host
+        return realFetch(url, init)
+      }
+      return realFetch(input, init)
+    }
+    globalThis.fetch = rewriting
+    try {
+      const controls: Partial<GenerateOptions> = {
+        system: 'stable prefix', cache: { retention, key: 'session-a' },
+        tools: [{ name: 'read', description: 'Read', parameters: { type: 'object', properties: {} } }],
+      }
+      await collect(adapter('anthropic-messages', gateway.url, model), model, controls)
+      await collect(adapter('anthropic-messages', 'https://api.anthropic.com', model), model, controls)
+      const userIds = [gateway, official].map((server) => {
+        const body = server.requests[0] as { metadata?: { user_id?: string } }
+        return JSON.parse(body.metadata?.user_id ?? '') as { device_id: string; account_uuid: string; session_id: string }
+      })
+      for (const userId of userIds) {
+        expect(JSON.stringify(userId)).toBe(JSON.stringify({
+          device_id: userId.device_id, account_uuid: '', session_id: 'session-a',
+        }))
+        expect(userId.device_id).toMatch(/^[0-9a-f]{64}$/)
+      }
+      expect(userIds[0]?.device_id).toBe(userIds[1]?.device_id)
+      expect(gateway.headers[0]?.['x-claude-code-session-id']).toBe('session-a')
+      expect(official.headers[0]?.['x-claude-code-session-id']).toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
+  it('keeps the shared prefix identical across two turns of one Anthropic Messages session', async () => {
+    const server = await mockServer([0, 1].map(() => ({ events: frames('anthropic-messages', 'gpt-6-astra') })))
+    const llm = adapter('anthropic-messages', server.url, 'gpt-6-astra')
+    const sessionId = brandString<NonNullable<GenerateOptions['sessionId']>>('session-a')
+    const first = [{ role: 'user' as const, content: [{ type: 'text' as const, text: 'hello' }] }]
+    const controls = { sessionId, cache: { retention: 'auto' as const, key: 'stable-key' }, system: 'stable prefix',
+      tools: [{ name: 'read', description: 'Read', parameters: { type: 'object', properties: {} } }] }
+    for await (const _chunk of llm.stream({ provider: 'route-a', model: 'gpt-6-astra', messages: first, ...controls })) { /* drain */ }
+    const second = [...first,
+      createAssistantMessage({ content: [{ type: 'text', text: 'hello' }], source: { provider: 'route-a', model: 'gpt-6-astra' } }),
+      { role: 'user' as const, content: [{ type: 'text' as const, text: 'again' }] }]
+    for await (const _chunk of llm.stream({ provider: 'route-a', model: 'gpt-6-astra', messages: second, ...controls })) { /* drain */ }
+    const before = server.requests[0] as { messages: unknown[] }
+    const after = server.requests[1] as { messages: unknown[] }
+    const head = { ...before, messages: before.messages.slice(0, -1) }
+    const tail = { ...after, messages: after.messages.slice(0, before.messages.length - 1) }
+    expect(JSON.stringify(tail)).toBe(JSON.stringify(head))
+    expect(after.messages.length).toBeGreaterThan(before.messages.length)
   })
 
   it.each(['deepseek-model-a', 'glm-model-a', 'grok-model-a'])('keeps %s untiered without fake cache switches', async (model) => {
