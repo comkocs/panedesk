@@ -16,6 +16,7 @@ import type { AgentPreset, Config } from './preset.ts'
 import { agentPresetProjectionDefinition } from './session.ts'
 import { auditRows, leakedServices, mountPreset, serviceForMount, type PresetMount } from './mount.ts'
 import { activeCompositionModules, definitionComposition, mountedCompositionRows, type AgentPresetComposition, type AgentPresetInspection } from './composition-inventory.ts'
+import { claudeAgentPresets, type ClaudeAgentSources } from './claude-agents.ts'
 
 export { agentPresetProjectionDefinition } from './session.ts'
 export { entryListProblem, type PresetDefinition } from './definition.ts'
@@ -23,6 +24,7 @@ export type { PresetExecutionPolicy } from './definition.ts'
 export { auditRows, leakedServices, type PresetMount, type RowAudit } from './mount.ts'
 export type { AgentPresetInspection } from './composition-inventory.ts'
 export type { AgentPreset, Config } from './preset.ts'
+export { claudeAgentPresets, type ClaudeAgentSources } from './claude-agents.ts'
 
 declare module '@panedesk/cordis' {
   interface Context {
@@ -100,6 +102,22 @@ export class AgentPresetRegistry extends TypertRemoteService {
     ctx.on('session/event', (session, event) => {
       if (event.type === 'agent-preset/selected') ctx.emit('agent-preset/selected', session.id, event.data.agentPreset)
     })
+  }
+
+  /** Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset.
+   * A project definition overrides the user definition of the same name. A model no configured
+   * provider advertises is listed broken with the cause; a tool name with no Panedesk tool is
+   * recorded on the preset and left out of the allowlist. Files are read once, never watched or written.
+   * @param sources - home and workspace roots; omitted roots use the process home and cwd.
+   */
+  async importClaudeAgents(sources: ClaudeAgentSources): Promise<void> {
+    for (const preset of await claudeAgentPresets(this.owner, sources)) {
+      const note = preset.unmappedTools.length === 0 ? undefined
+        : `Unmapped Claude Code tools: ${preset.unmappedTools.join(', ')}`
+      const definition = note === undefined ? preset.definition
+        : { ...preset.definition, description: [preset.definition.description, note].filter(Boolean).join(' ') }
+      await this.register(definition)
+    }
   }
 
   /** Default preset for a subsequently created session. */
