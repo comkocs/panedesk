@@ -54,6 +54,26 @@ class StubSubprocessRuntime extends SubprocessRuntime {
 }
 
 describe('SubprocessRuntime seam', () => {
+  it('forwards the Panedesk entrypoint without inventing a Claude Code entrypoint', () => {
+    const previous = process.env.PANEDESK_ENTRYPOINT
+    const claude = process.env.CLAUDE_CODE_ENTRYPOINT
+    try {
+      delete process.env.CLAUDE_CODE_ENTRYPOINT
+      for (const entrypoint of ['desktop', 'web', 'cli']) {
+        process.env.PANEDESK_ENTRYPOINT = entrypoint
+        expect(scrubbedParentEnv().PANEDESK_ENTRYPOINT).toBe(entrypoint)
+        expect(scrubbedParentEnv().CLAUDE_CODE_ENTRYPOINT).toBeUndefined()
+      }
+      process.env.CLAUDE_CODE_ENTRYPOINT = 'original'
+      expect(scrubbedParentEnv().CLAUDE_CODE_ENTRYPOINT).toBe('original')
+    } finally {
+      if (previous === undefined) delete process.env.PANEDESK_ENTRYPOINT
+      else process.env.PANEDESK_ENTRYPOINT = previous
+      if (claude === undefined) delete process.env.CLAUDE_CODE_ENTRYPOINT
+      else process.env.CLAUDE_CODE_ENTRYPOINT = claude
+    }
+  })
+
   it('a concrete subclass registers as ctx.subprocess and serves the abstract API', async () => {
     const ctx = new Context()
     await ctx.plugin(StubSubprocessRuntime)

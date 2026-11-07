@@ -285,6 +285,9 @@ export interface RunProfileOptions {
  * @throws after disposing startup resources; cleanup failures retain the original error.
  */
 export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
+  process.env.PANEDESK_ENTRYPOINT = options.profile === 'desktop' || options.profile === 'web'
+    ? options.profile
+    : options.profile === 'sdk' && process.env.PANEDESK_ENTRYPOINT !== undefined ? process.env.PANEDESK_ENTRYPOINT : 'cli'
   // Before the first plugin mounts and before anything can issue a request: Node's fetch ignores the
   // proxy environment on its own, so every profile would otherwise connect directly. Resolving from
   // the launcher's snapshot — not `process.env` — is what lets a proxy declared in a `.env` layer

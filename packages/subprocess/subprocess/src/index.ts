@@ -73,6 +73,7 @@ export function scrubbedParentEnv(): Record<string, string> {
       && !key.toUpperCase().startsWith(DSH_ENV_PREFIX)
       && !key.toUpperCase().startsWith('PANEDESK_')) env[key] = value
   }
+  if (process.env.PANEDESK_ENTRYPOINT !== undefined) env.PANEDESK_ENTRYPOINT = process.env.PANEDESK_ENTRYPOINT
   // A child Node ignores the inherited proxy variables unless the flag this adds is set, so an MCP
   // stdio server or subagent CLI would connect directly while its parent proxies. The same overlay
   // restores each proxy name to what the user exported, undoing this process's own normalization —
