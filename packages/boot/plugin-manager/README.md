@@ -167,6 +167,5 @@ Restoration rewrites only the two snapshotted files; user-authored patch configu
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The admission inventory in `tests/write-entry-routes.spec.ts` assigns every catalog package/tool pair exactly one category with a named executable test: A, model-selected filesystem writes; B, confined subprocess execution; C, fixed application storage; D, owner-configured provider delegation; or E, no filesystem writes or process launches. A/B entries also require a registered admission source. `tests/tool-admission-coverage.spec.ts` checks actual dispatch and rejects catalog entries without an execution cell. Delegation evidence uses normal provider behavior and checks forwarded arguments, not injected write callbacks. Synthetic workflow children settle with a child error rather than failing provider startup; isolated worktree repositories supply their own commit identity without depending on host Git configuration. Missing evidence remains a failure; a missing sandbox backend does not establish enforcement. Native execution cells skip locally with a reason when bubblewrap is unavailable. CI runners must set `PANEDESK_CI_NATIVE_SANDBOX=required`, which makes an unavailable backend fail; generic `CI=true` does not require native execution.
 
 </details>
