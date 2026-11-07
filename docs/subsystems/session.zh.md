@@ -1378,4 +1378,26 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
 Types: [Scoped](scope.zh.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="sessionpreparing--serial"></a>
+
+#### `session/preparing` — serial
+
+Awaited preparation for a private session in an agent creation transaction. Rejection prevents publication; the transaction owns resource rollback. Listeners must settle owned work and check cancellation before committing.
+
+```ts cordis-catalog
+/**
+ * Awaited preparation for a private session in an agent creation transaction.
+ * Rejection prevents publication; the transaction owns resource rollback.
+ * Listeners must settle owned work and check cancellation before committing.
+ * @param session - the unentered session being prepared.
+ * @param signal - caller and lifecycle cancellation for this transaction.
+ * @mode serial
+ */
+'session/preparing'(this: Scoped<Session>, session: Session, signal: AbortSignal): Promise<void> | void
+```
+
+Types: [Scoped](scope.zh.md)
+
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 <!-- END GENERATED cordis-surface -->

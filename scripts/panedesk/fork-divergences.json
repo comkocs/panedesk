@@ -1,6 +1,31 @@
 {
   "divergences": [
     {
+      "id": "private-session-permission-preparation",
+      "description": "Prepare permissions inside the composite agent creation transaction",
+      "origin": "Session publication ordering",
+      "reason": "Await scoped private-session preparation before storing prepared events and announcing either registry entry. Permission presets own capture and check transaction cancellation before appending permission facts. Failed or cancelled preparation closes the unmaterialized session handle without publishing a partial session. Preserve synchronous session announcements and capture-before-write authorization. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/core/agent-loop/src/index.ts",
+          "packages/core/agent-loop/tests/session-preparation.spec.ts",
+          "packages/core/agent-loop/README*",
+          "packages/core/session/src/index.ts",
+          "packages/core/session/README*",
+          "packages/interaction/permission-presets/src/index.ts",
+          "packages/interaction/permission-presets/tests/creation-barrier.spec.ts",
+          "packages/interaction/permission-presets/README*",
+          "docs/architecture*",
+          "docs/subsystems/session*",
+          "docs/subsystems/permission-presets*",
+          "docs/event-producer-consumer*",
+          "docs/config-catalog*",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ]
+      }
+    },
+    {
       "id": "path-local-protected-module-loads",
       "description": "Avoid repeated protected-root traversal during module loading",
       "origin": "Protected module startup performance",

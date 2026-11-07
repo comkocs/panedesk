@@ -31,6 +31,7 @@ import type {} from '@panedesk/dsh-session-projection'
 import type { ProjectionDefinition } from '@panedesk/dsh-session-projection'
 import { SessionPersistenceNotFoundError } from '@panedesk/dsh-session-persistence'
 import type { SessionHandle, SessionPersistence } from '@panedesk/dsh-session-persistence'
+import { scopeOf, scopeTarget } from '@panedesk/dsh-scope'
 import { ReactLoopAgent } from './agent.ts'
 import { beginAgentRun } from './ledger-run.ts'
 import type { LedgerIdentityOptions } from './ledger-identity.ts'
@@ -726,6 +727,11 @@ export class AgentLoop extends Service implements AgentFactory {
       throw error
     }
     return (await this.initializeAgent(prepared, async () => {
+      await prepared.agent.ctx.serial(
+        scopeTarget(preparation.session, scopeOf(prepared.agent.ctx)),
+        'session/preparing', preparation.session, prepared.signal,
+      )
+      prepared.signal.throwIfAborted()
       await this.appendUnstoredSuffix(stored, preparation.session)
       return await prepared.publish('startup')
     })).agent
@@ -842,6 +848,11 @@ export class AgentLoop extends Service implements AgentFactory {
     return await this.initializeAgent(prepared, async () => {
       const setupCommit = await raceAbort(setup?.(prepared.agent.ctx, prepared.agent), prepared.signal, id)
       setupCommit?.commit()
+      await prepared.agent.ctx.serial(
+        scopeTarget(session, scopeOf(prepared.agent.ctx)),
+        'session/preparing', session, prepared.signal,
+      )
+      prepared.signal.throwIfAborted()
       await this.appendUnstoredSuffix(stored, session)
       return await prepared.publish(source, releasePreparation)
     })

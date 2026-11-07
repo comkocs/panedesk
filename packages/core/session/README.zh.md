@@ -29,6 +29,8 @@ kind: "package-reference"
 
 ### 创建与检查会话
 
+智能体创建先等待串行 `session/preparing` 监听器，再存储准备好的事件并公告会话。监听器接收私有会话及其创建取消信号；拒绝时由创建事务所有者负责回滚。同步 `ctx.sessions.create()` 不运行这一步准备。
+
 `ctx.sessions.create()` 构建绑定到调用方 fiber 的实时会话；`get(id)` 与 `list()` 查找会话，`fork()` 从实时会话的精确前缀创建子会话。
 
 ```text
