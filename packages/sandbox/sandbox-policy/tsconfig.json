@@ -8,15 +8,6 @@
     "src"
   ],
   "references": [
-    { "path": "../../credentials/credentials" },
-    { "path": "../../boot/app-boot" },
-    { "path": "../../boot/hmr" },
-    { "path": "../../client/modules" },
-    { "path": "../../llm/llm" },
-    { "path": "../../interaction/user-approval" },
-    { "path": "../../util/atomic-write" },
-    { "path": "../../util/home-paths" },
-    { "path": "../sandbox-windows-acl" },
     {
       "path": "../../../vendor/cosmokit"
     },

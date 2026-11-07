@@ -36,17 +36,6 @@ kind: "package-reference"
 - name: '@panedesk/dsh-bash-local'
 ```
 
-<a id="linux-sandbox-connection-identity"></a>
-### Linux 沙箱连接身份
-
-消费者将实际 Linux 隔离返回的 `productSandbox: true` 保留至普通及终端启动请求。套接字归因及用户 cgroup 委派可用时，可信 bootstrap 在临时 scope 下创建子组、迁入自身，并等待宿主原子发布确认后才执行目标。握手文件位于不可读的所有者存储下。普通命令不登记。若原生套接字归因可用，但无法启动有效的委派 scope，提供者输出中英警告，并通过既有进程约束启动，不登记产品身份。这类进程使用其当前可见的非产品 cgroup；此已知限制不关闭命令的文件系统沙箱，也不放宽套接字查询失败的拒绝规则。
-
-宿主根身份服务跨传输及子进程提供者重载保留。IPv4 和 IPv6 查询使用客户端套接字四元组；登记组及其后代属于产品来源，观察失败为 unknown，两者均拒绝 owner 准入。整个进程范围退出后删除目录，但已观察到的标识在宿主寿命内继续拒绝，因为转交的套接字可能比创建它的进程活得更久。最近 4096 个退役标识精确保留，更早标识进入固定 1 MiB 的仅拒绝 Bloom 过滤器。淘汰不会放行来源：可能命中历史的标识返回 unknown，包括复用的 64 位标识。随着历史增长，过滤器误报可能拒绝无关 owner 连接，但不会拒绝新沙箱启动。查询成本有界，不随历史启动次数增长。缺少原生套接字归因或可写 cgroup 委派时，启动输出双语已知限制警告并判为非产品；此降级模式不能阻止 cookie 回放。参见[连接准入登记口](../../client/connection/README.zh.md)。
-
-### Windows 沙箱连接身份
-
-Windows 隔离将 `productSandbox: true` 传至普通和终端请求。两类启动前，提供者均要求连接来源已登记，并创建独立的宿主产品作业对象。可信 ACL runner 收到定位名，在受限执行前加入并关闭临时句柄。普通命令不加入。根所有者跨提供者重载保留身份。启动结算后，只有 `QueryInformationJobObject` 报告活动进程为零，才关闭并移除句柄；待启动进程与存活后代仍保留身份。失败启动立即触发回收，后续启动重试此前非空或无法核实的 Job。历史启动次数不构成准入上限。宿主退出关闭剩余句柄并终止成员；每条命令原有 Job 的关闭语义不变。连接查询同步有界，缺少事实时拒绝，沿用逐连接准入缓存。卸载提供者后新连接为 unknown。ConPTY 参数不变；Windows 原生行为尚未实机验证。
-
 ### 解析可执行文件
 
 绝对可执行文件路径会被验证；裸名称根据清理后的 PATH 并以平台感知的可执行文件扩展名（Windows 上为 `.COM`/`.EXE`/`.BAT`/`.CMD`）解析。含分隔符的相对路径会被拒绝——请提供绝对路径或裸 PATH 名称——相对 PATH 条目从宿主进程 cwd 解析。
@@ -74,15 +63,11 @@ Windows 普通子进程通过 `windowsHide` 启动私有 Job runner，并为原�
 
 ### 关闭行为
 
-`readProcessIdentity(pid)` 公开 Linux 启动 tick 与系统启动标识，或 Windows `GetProcessTimes` 创建 tick 及 Unix 毫秒值 `startedAt`。证据缺失或不可读时返回仅含 PID 的不可用观察；该检查不向进程发送信号。
-
 正常 dispose 会终止每个仍在运行的受管范围与终端会话并等待其完全停稳。在 JavaScript 可观察的宿主退出期间——直接 `process.exit()`、默认未捕获异常、默认未处理 rejection——同步最终清理会请求 Linux scope 终止其成员，同步终止每个 Windows runner 以关闭其唯一 Job handle，并为 fallback 使用既有 PGID、`taskkill` 或已捕获身份操作。它不创建 Promise 或定时器，也不声称已经完全停稳。同一退出阶段会删除未持有任何已完成 spill 文件的每进程私有 spill 目录；已完成的 spill 文件作为完整输出恢复产物保留，直到外部机制清理。未处理的 `SIGTERM`/`SIGINT`/`SIGHUP`、`SIGKILL`、fatal OOM、native crash 与断电需要外部 supervisor。
 
 Linux 普通进程和终端进程即使在 bootstrap 消费启动请求前被取消，也会保留实际观察到的终止信号。如果没有请求对应的终止信号，未消费的请求仍会报启动失败；已记录的 pre-exec 错误始终优先。`waitForExit()` 独立证明 scope 已为空，其中也包括 payload 在进入该 scope 的 cgroup 前就被杀死、manager 因此让它保持 active 却没有任何进程的 scope。状态查询期间若发出终止信号，会重新查询后再判定清理是否成功。请求终止后，启动请求已消费且 scope 进程数为零即可证明完全停稳，无需等待直接进程的退出通知。如果最终 scope 信号发送失败，直接进程接受 `SIGKILL` 或被独立确认已不存在，owner 才可以等待一次尚未送达的直接进程停稳通知，再重新查询尚未证明为空的 active 范围。此等待独立于输出排空和整个范围的停稳。新取得的 scope 状态必须证明范围已为空；仍有进程存活或进程数未知时，仍报告信号失败。
 
 ### 可能出错的地方
-
-Linux 在每次原生调用前用 Koffi 当前同步堆检查 [execve 分配限制](../../../docs/subsystems/subprocess.zh.md)，包括 Landlock 启动。总量超限即拒绝执行；单个长字符串仍受内核自身限制。
 
 无法解析的可执行文件会明确报出稳定错误。当 spawn 或提供方故障使 direct outcome 无法产生时，`done` 会 reject；该 rejection 不能证明 target 是否已经开始执行。若所选 owner 无法再证明其范围为空，`waitForExit()` 会 reject，清理仍会尝试终止。越过保留尾部的读取是 `lossy` 的，并在 spill 文件存在时指向它。fallback 进程组或已观察终端 session 可能遗漏在观察前逃逸的后代——见下文限制。
 

@@ -12,7 +12,6 @@ import {
   taskkillProcessTree,
   validateSubprocessSpec,
 } from '../src/spawn.ts'
-import * as subprocessIdentity from '@panedesk/dsh-subprocess'
 import type { SubprocessHandle, SubprocessOutputReader } from '@panedesk/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
 import { waitWithAbort } from '../src/managed-owner.ts'
@@ -205,51 +204,6 @@ async function waitForPidFile(path: string, timeoutMs = 5_000): Promise<number> 
 }
 
 describe('spawnSubprocess', () => {
-  it.skipIf(process.platform !== 'linux').each(['registration', 'signal'] as const)(
-    'kills a child with unknown identity at %s and reports the signal', async (stage) => {
-      const readIdentity = subprocessIdentity.readProcessIdentity
-      const identity = vi.spyOn(subprocessIdentity, 'readProcessIdentity')
-      if (stage === 'registration') identity.mockImplementation(pid => ({ pid }))
-      const child = spawnSubprocess({ argv: [process.execPath, '-e', 'setInterval(() => {}, 1000)'],
-        cwd: process.cwd(), stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: 20 })
-      try {
-        if (stage === 'registration') {
-          expect(child.processIdentity?.pid).toBeGreaterThan(0)
-          expect(child.processIdentity).toEqual({ pid: child.processIdentity?.pid })
-          identity.mockImplementation(readIdentity)
-        } else {
-          identity.mockImplementation(pid => ({ pid }))
-        }
-        child.terminate()
-        await expect(child.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
-        await expect(child.waitForExit()).resolves.toBe(true)
-      } finally {
-        identity.mockRestore()
-        child.terminateForHostExit()
-        await child.done
-        await child.waitForExit()
-      }
-    },
-  )
-
-  it.skipIf(process.platform !== 'linux')('fences actual group termination on mismatched creation evidence', async () => {
-    const child = spawnSubprocess({ argv: [process.execPath, '-e', 'setInterval(() => {}, 1000)'],
-      cwd: process.cwd(), stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: 20 })
-    const fence = vi.spyOn(subprocessIdentity, 'sameProcessIdentity').mockReturnValue(false)
-    let exited = false
-    void child.done.then(() => { exited = true })
-    try {
-      child.terminateForHostExit()
-      await new Promise<void>((resolve) => { setTimeout(resolve, 30) })
-      expect(fence).toHaveBeenCalledOnce()
-      expect(exited).toBe(false)
-    } finally {
-      fence.mockRestore()
-      child.terminateForHostExit()
-      await child.done
-      await child.waitForExit()
-    }
-  })
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, MAX_TIMER_DELAY_MS + 1])(
     'rejects an invalid grace before spawning: %s',
     (graceMs) => {

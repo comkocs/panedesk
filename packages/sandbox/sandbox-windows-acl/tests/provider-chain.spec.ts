@@ -7,10 +7,8 @@
  * runner.spec.ts on win32 hosts.
  */
 
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
@@ -27,15 +25,6 @@ async function setup(internals: LocalSandboxProvider['internals']) {
 }
 
 describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
-  let ownerState: string
-  let home: string
-  beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'provider-chain-owner-'))
-    vi.stubEnv('PANEDESK_HOME', home)
-    ownerState = join(home, 'windows-workspace-write')
-    mkdirSync(ownerState)
-    onTestFinished(() => { vi.unstubAllEnvs(); rmSync(home, { recursive: true, force: true }) })
-  })
   it('agentless workspace-write: runner argv prefix, temp root, mode flag, partial enforcement, ACL denial dialect', async () => {
     const probeWindowsAcl = vi.fn(() => true)
     const sandbox = await setup({
@@ -49,9 +38,6 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
       '--workspace', '/ws',
       '--temp', tmpdir(),
       '--mode', 'workspace-write',
-      '--unreadable-path', join(home, 'private'),
-      '--protected-path', ownerState,
-      '--state-directory', ownerState,
       '--',
       'pwsh', '/Command', 'x',
     ])
@@ -65,10 +51,7 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
   it('read-only: same runner and contract, read-only mode flag', async () => {
     const sandbox = await setup({ platform: 'win32', windowsAclRunnerArgs: ['node', 'windows-acl-runner.js'] })
     const confined = await sandbox.confine(['true'], RO)
-    expect(confined.argv).toEqual([
-      'node', 'windows-acl-runner.js', '--workspace', '/ws', '--temp', tmpdir(),
-      '--mode', 'read-only', '--unreadable-path', join(home, 'private'), '--', 'true',
-    ])
+    expect(confined.argv.slice(-4)).toEqual(['--mode', 'read-only', '--', 'true'])
     expect(confined.enforcement).toBe('partial')
     expect(confined.runnerFailureRules).toEqual([{ allowedExitCodes: [127], fatalSignatures: ['windows-acl-run: '] }])
   })

@@ -1,9 +1,5 @@
 {
   "meta": {
     "title": "sandbox-policy"
-  },
-  "workspaceWrite": {
-    "protectedProfile": "This directory is a protected profile directory; choose another workspace.",
-    "containsState": "The workspace contains the Panedesk state directory; choose one of its subdirectories."
   }
 }

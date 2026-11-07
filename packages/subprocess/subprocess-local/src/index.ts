@@ -8,7 +8,7 @@
  * @module @panedesk/dsh-subprocess-local
  */
 
-import { constants, mkdirSync } from 'node:fs'
+import { constants } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import { userInfo } from 'node:os'
 import { delimiter, extname, isAbsolute, resolve } from 'node:path'
@@ -17,8 +17,7 @@ import { Context } from '@panedesk/cordis'
 import type * as NodePty from 'node-pty'
 import type { IPtyForkOptions, IWindowsPtyForkOptions } from 'node-pty'
 import { createLazyRequire } from '@panedesk/dsh-lazy-require'
-import { SubprocessRuntime, SubprocessExecutableNotFoundError, readProcessIdentity } from '@panedesk/dsh-subprocess'
-import { readWindowsProcessIdentity } from './windows-inspector.ts'
+import { SubprocessRuntime, SubprocessExecutableNotFoundError } from '@panedesk/dsh-subprocess'
 import type {
   SubprocessHandle,
   SubprocessSpawnSpec,
@@ -47,17 +46,11 @@ import {
 import { LinuxScopeSelector } from './linux-scope-selector.ts'
 import type { LinuxScopeDecision } from './linux-scope-selector.ts'
 import { launchWindowsJob, probeWindowsJob } from './windows-job.ts'
-import { WindowsProductJobs } from './windows-product-jobs.ts'
-import { PRODUCT_JOB_ENV } from '@panedesk/dsh-win32-process'
 import { targetEnvironment } from './runner-launch.ts'
 import { createProcessInspector } from './process-inspector.ts'
 import type { ProcessInspector } from './process-inspector.ts'
 import { LocalTerminalHandle } from './terminal.ts'
 import { prepareShellActivity } from './shell-activity.ts'
-import { LinuxProductGroups, LINUX_SOURCE_LIMITATION } from './linux-product-groups.ts'
-import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import type {} from '@panedesk/dsh-client-connection'
-import type {} from '@panedesk/dsh-credentials'
 
 const requireNodePty = createLazyRequire<typeof NodePty>('node-pty', import.meta.url)
 
@@ -94,30 +87,8 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
   /** Test hook for platform process inspection; production resolves lazily on terminal spawn. */
   terminalInspector: ProcessInspector | undefined
 
-  private readonly productGroups: LinuxProductGroups | undefined
-  private readonly windowsJobs: WindowsProductJobs | undefined
-  private windowsSourceRegistered = false
-  private productScopeWarningIssued = false
-
   constructor(ctx: Context) {
     super(ctx)
-    this.productGroups = process.platform === 'linux' ? LinuxProductGroups.forHost(ctx) : undefined
-    this.windowsJobs = process.platform === 'win32' ? WindowsProductJobs.forHost(ctx) : undefined
-    if (this.windowsJobs !== undefined) {
-      ctx.inject(['connectionSources'], (owner) => {
-        owner.connectionSources.register('win32', socket => this.windowsJobs?.classify(socket) ?? 'unknown')
-        owner.effect(() => {
-          this.windowsSourceRegistered = true
-          return () => { this.windowsSourceRegistered = false }
-        }, 'Windows source readiness')
-      })
-    }
-    if (process.platform === 'linux') {
-      if (this.productGroups === undefined) ctx.logger.warn(LINUX_SOURCE_LIMITATION)
-      ctx.inject(['connectionSources'], (owner) => {
-        owner.connectionSources.register('linux', socket => this.productGroups?.classify(socket) ?? 'non-product')
-      })
-    }
     ctx.effect(() => {
       const onHostExit = (): void => { this.terminateForHostExit() }
       process.prependListener('exit', onHostExit)
@@ -181,10 +152,6 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     if (failures.length > 1) throw new AggregateError(failures, 'local subprocess teardown failed')
   }
 
-  override readProcessIdentity(pid: number) {
-    return process.platform === 'win32' ? readWindowsProcessIdentity(pid) : readProcessIdentity(pid)
-  }
-
   async resolveExecutable(
     command: string,
     env?: Readonly<Record<string, string>>,
@@ -227,51 +194,22 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       extensions.map(extension => resolve(process.cwd(), directory, command + extension)))
   }
 
-  private warnProductScopeUnavailable(): void {
-    if (this.productScopeWarningIssued) return
-    this.productScopeWarningIssued = true
-    this.ctx.logger.warn(LINUX_SOURCE_LIMITATION)
-  }
-
-  private productScopeOptions(productSandbox: true | undefined): Pick<import('./linux-scope.ts').LinuxScopeInternals, 'productGroups' | 'privateRoot'> {
-    if (productSandbox !== true || this.productGroups === undefined) return {}
-    const privateRoot = this.ctx.get('credentials')?.protectedStoragePaths[0] ?? resolve(resolveDshHome(), 'private')
-    mkdirSync(privateRoot, { recursive: true, mode: 0o700 })
-    return { productGroups: this.productGroups, privateRoot }
-  }
-
-  private windowsProductEnvironment(productSandbox: true | undefined, env: Record<string, string>): Record<string, string> {
-    if (this.windowsJobs === undefined) return env
-    const clean = Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== PRODUCT_JOB_ENV))
-    if (productSandbox !== true) return clean
-    if (!this.windowsSourceRegistered) throw new Error('Windows product source is not registered / Windows 产品来源尚未登记')
-    return this.windowsJobs.prepare(clean)
-  }
-
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     validateSubprocessSpec(spec)
+    const env = targetEnvironment(spec)
     const containmentMode = this.selectContainmentMode('ordinary')
-    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
     let handle: LocalSubprocessHandle
     const internals: SpawnInternals = { ...this.internals, onSpillFailure: this.reportSpillFailure }
-    try {
-      if (containmentMode === 'fallback') {
-        if (spec.productSandbox === true && this.productGroups !== undefined) {
-          this.warnProductScopeUnavailable()
-        }
-        handle = spawnSubprocess(this.windowsJobs === undefined ? spec : { ...spec, env }, internals)
-      } else {
-        const binding = prepareManagedProcessBinding(internals)
-        const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
-        const launch = linuxScope === undefined
-          ? launchWindowsJob(spec, env)
-          : launchLinuxScope(spec, env, linuxScope.literalArgv, this.productScopeOptions(spec.productSandbox))
-        handle = bindManagedProcess(spec, launch, binding)
-        if (linuxScope !== undefined) this.watchLinuxScopeStart(handle.done, linuxScope.generation)
-      }
-    } catch (error) {
-      this.windowsJobs?.settle(env)
-      throw error
+    if (containmentMode === 'fallback') {
+      handle = spawnSubprocess(spec, internals)
+    } else {
+      const binding = prepareManagedProcessBinding(internals)
+      const linuxScope = containmentMode === 'linux-scope' ? this.linuxScopeDecision : undefined
+      const launch = linuxScope === undefined
+        ? launchWindowsJob(spec, env)
+        : launchLinuxScope(spec, env, linuxScope.literalArgv)
+      handle = bindManagedProcess(spec, launch, binding)
+      if (linuxScope !== undefined) this.watchLinuxScopeStart(handle.done, linuxScope.generation)
     }
     this.live.add(handle)
     const control = handle.control
@@ -283,13 +221,8 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     // settlement — a TERM-trapping helper that outlives the leader must stay
     // owned so teardown can still escalate it. For the common no-survivor
     // case waitForExit resolves immediately after settlement.
-    const release = (): Promise<void> => {
-      this.windowsJobs?.settle(env)
-      return handle.waitForExit().then(() => {
-        this.live.delete(handle)
-        this.windowsJobs?.settle(env)
-      })
-    }
+    const release = (): Promise<void> =>
+      handle.waitForExit().then(() => { this.live.delete(handle) })
     void handle.done.then(release, release).catch(() => {})
     return handle
   }
@@ -362,10 +295,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     spec.signal?.throwIfAborted()
     const inspector = this.terminalInspector ?? createProcessInspector()
     const containmentMode = this.selectContainmentMode('terminal')
-    if (containmentMode === 'fallback' && spec.productSandbox === true && this.productGroups !== undefined) {
-      this.warnProductScopeUnavailable()
-    }
-    const env = this.windowsProductEnvironment(spec.productSandbox, targetEnvironment(spec))
+    const env = targetEnvironment(spec)
     const platform = this.internals.platform ?? process.platform
     const activity = prepareShellActivity(spec, env, platform)
     const launch = activity === undefined ? spec : { ...spec, argv: activity.argv, env: activity.env }
@@ -387,8 +317,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     try {
       scope = linuxScope === undefined
         ? undefined
-        : prepareLinuxTerminalScope(launch, { ...activity?.env ?? env, PWD: spec.cwd, TERM: spec.terminalType }, linuxScope.literalArgv,
-          this.productScopeOptions(spec.productSandbox))
+        : prepareLinuxTerminalScope(launch, { ...activity?.env ?? env, PWD: spec.cwd, TERM: spec.terminalType }, linuxScope.literalArgv)
       if (scope !== undefined) { options.cwd = scope.cwd; options.env = scope.env }
       terminal = requireNodePty().spawn(
         scope?.command ?? file,
@@ -398,7 +327,6 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     } catch (error) {
       scope?.cleanup()
       activity?.dispose()
-      this.windowsJobs?.settle(env)
       throw error
     }
     // oxlint-disable-next-line eslint/prefer-const -- The owner can query readiness before the handle is published.
@@ -418,10 +346,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       owner,
       scope?.resolveOutcome,
       activity,
-      () => {
-        this.terminals.delete(handle as LocalTerminalHandle)
-        this.windowsJobs?.settle(env)
-      },
+      () => { this.terminals.delete(handle as LocalTerminalHandle) },
       spec.shellActivity === true,
     )
     this.terminals.add(handle)

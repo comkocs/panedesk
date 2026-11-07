@@ -18,14 +18,11 @@
   en: 58b220faa66b2f05
   zh: dda42e4197d80bfe
 /panedesk-dsh-sandbox-windows-acl/use-this-package/when-to-choose-it:
-  en: 6d9b23462c310f46
-  zh: 26fdff1fb0329843
-/panedesk-dsh-sandbox-windows-acl/use-this-package/owner-label-removal-before-uninstall:
-  en: cf9ee81e546dce40
-  zh: db79870d1b7aa7a4
+  en: 510d0b1ef7db159d
+  zh: dc2cf25b3db14c63
 /panedesk-dsh-sandbox-windows-acl/use-this-package/direct-api:
-  en: d8dc3f3812b52d06
-  zh: a33c8a00d85ab041
+  en: 16596607bbccc2a3
+  zh: 30bc370a5281bf0d
 /panedesk-dsh-sandbox-windows-acl/use-this-package/what-confinement-gives-you:
   en: 289e65bddf20dd79
   zh: 7ff72ed64c4b4d1c
@@ -39,14 +36,14 @@
   en: a37ea37f2d527693
   zh: 749b5a263d0e1534
 /panedesk-dsh-sandbox-windows-acl/understand-the-implementation/modes-and-token-lists:
-  en: f569fa4913bba67a
-  zh: 512ffe15d1a842c4
+  en: 9c8d9af84f9abd99
+  zh: 1c82b355aa5f210f
 /panedesk-dsh-sandbox-windows-acl/understand-the-implementation/the-confinement-runner:
-  en: 43d4929808c56d65
-  zh: b3b11c07b60d2669
+  en: 0847de0e53e50061
+  zh: 90fa3dcaf080c3be
 /panedesk-dsh-sandbox-windows-acl/understand-the-implementation/verified-boundaries:
-  en: 2ca8af04130aa4b5
-  zh: 75ad589ade54fc36
+  en: ad02570eae90037f
+  zh: fd78c2318de18dda
 /panedesk-dsh-sandbox-windows-acl/understand-the-implementation/header-verification-and-source-map:
   en: 9267df19e8905887
   zh: 1a81f0aab3ececb0
@@ -60,8 +57,8 @@
   en: 817eb1b7de13872e
   zh: 06fe175e41e7459b
 /panedesk-dsh-sandbox-windows-acl/known-limitations-and-deferred-work:
-  en: 55105fa6169f7431
-  zh: 060dcb68155d204b
+  en: 046831a864786b2a
+  zh: 4a261fbab3396ea4
 /panedesk-dsh-sandbox-windows-acl/known-limitations-and-deferred-work/dev-note:
   en: cc273320f6a1beaf
   zh: 5c57a312ddc50651

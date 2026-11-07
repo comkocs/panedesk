@@ -31,8 +31,6 @@ Compose this service with one backend and a confined consumer, and every command
 
 Choose this package when a composition confines subprocesses on the host: it is the contract the local backends and the confined executors both implement, so mounting `sandbox-local` behind `ctx.sandbox` and a confined executor behind `ctx.shell` gives every bash or pwsh call a confined default. Choose something else when the process must run in an isolated environment — a container, microVM, or remote executor replaces the whole `ctx.shell`/`ctx.fs` capability rather than adding a backend here.
 
-A confinement result may carry `productSandbox: true` to identify actual Linux product confinement. Consumers must preserve that fact in the subprocess request alongside argv; it is not a request-controlled claim or a replacement for file enforcement.
-
 ### Confining a command
 
 Mount the service with a backend and a confined executor; the [base bundle](../../bundle/base/cordis.patch.yml) owns the shipped composition.
@@ -51,13 +49,9 @@ Mount the service with a backend and a confined executor; the [base bundle](../.
 
 With this composition, a bash call runs confined under `workspace-write`: writes inside the workspace succeed, writes outside it are denied, and the model can recover through the escalation flow below.
 
-Per-call policies can carry protected host inputs, excluded from confined write grants. The shared root helpers compare canonical overlap, resolving the nearest existing ancestor and appending any missing suffix so symlink prefixes cannot hide overlap; providers may exclude the inputs or refuse an overlapping recursive grant. [Sandbox policy](../sandbox-policy/README.md#protected-host-inputs) owns their collection. Providers that report `protectedInputs` distinguish native protection from names requiring host validation; a `host-fallback` record is not evidence that the host has approved or covered the input.
-
 ### Modes and enforcement
 
 The mode names the file effects a command may perform; enforcement completeness reports how fully the backend governs them.
-
-`ownerMaterialDirectories` owns canonical private-storage inventory, `assertOwnerWorkspace` rejects workspaces inside that storage and Windows write grants over it, and `protectedWorkspaceBranches` selects first-level exclusions shared by state records and owner isolation. Filesystem readers additionally compare file identity to reject hard-link aliases. `authoritativeHomeTrees` includes host message storage in the exact mutable home trees used by [host input capture and review](../../../docs/subsystems/boot.md#profile-input-paths), independently of native write exclusions.
 
 | Mode | Effect |
 |---|---|
@@ -67,17 +61,9 @@ The mode names the file effects a command may perform; enforcement completeness 
 
 Enforcement is reported per call: `full` means the backend governs every promised file effect, while `partial` means an active backend or older kernel ABI governs only a subset — the Windows ACL rung and older Landlock ABIs are the current partial cases, so a consumer that requires the absolute boundary can reject or surface them.
 
-Providers may implement `inspect(policy)` to report enforcement and the complete protected-input inventory without producing executable argv or materializing workspace grants. Diagnostic consumers must report unsupported inspection rather than execute a command as a probe. Host fallback coverage does not remove native backend limitations.
-
 ### Denied calls and escalation
 
 When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the approval service obtains consent for the operation. The request retains its audit reason and supplies English and Chinese presentation copy with the model's justification unchanged. Missing translations follow the locale service's fallback chain, ultimately English; requesters own their translated presentation text. A wider mode requires approval and applies to that one call only. Repeating the call's effective mode succeeds without approval; narrower targets remain invalid.
-
-First-workspace-write consent is separate from one-call escalation: the [policy service](../sandbox-policy/README.md#windows-workspace-records) can persist authorization for the named Windows directory. Providers may expose `materializeWorkspaceWriteGrant()` to apply an accepted session policy without launching a process.
-
-### Windows workspace management
-
-Providers advertise native local workspace management through `supportsWorkspaceWriteAccess`, which defaults to false. A supported provider implements `hasWorkspaceWriteGrant` for read-only inspection and `revokeWorkspaceWriteGrant` for explicit native revocation and cache invalidation. Settings consumers require both the configured capability and the inspection/revocation methods; a custom runner does not acquire Windows ACL management merely by using the local provider.
 
 ### Fail-closed behavior
 

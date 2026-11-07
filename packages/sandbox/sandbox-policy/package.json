@@ -34,30 +34,18 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-llm": "workspace:*",
-    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   },
   "dependencies": {
-    "@panedesk/dsh-atomic-write": "workspace:*",
-    "@panedesk/dsh-home-paths": "workspace:*",
-    "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@panedesk/dsh-credentials": "workspace:*",
-    "@panedesk/cordis-plugin-loader": "workspace:~",
-    "@panedesk/dsh-app-boot": "workspace:*",
-    "@panedesk/dsh-hmr": "workspace:*",
-    "@panedesk/dsh-client-modules": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-llm": "workspace:*",
-    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   }
 }

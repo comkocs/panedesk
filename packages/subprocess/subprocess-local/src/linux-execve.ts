@@ -2,7 +2,6 @@
 
 import { getSystemErrorMessage, getSystemErrorName } from 'node:util'
 import { SUBPROCESS_CONTROL_FD } from '@panedesk/dsh-subprocess/control'
-import { assertExecveArgumentBudget, readSyncHeapSize } from '@panedesk/dsh-subprocess'
 import { createLazyRequire } from '@panedesk/dsh-lazy-require'
 
 const requireKoffi = createLazyRequire<typeof import('koffi')['default']>('koffi', import.meta.url)
@@ -58,8 +57,6 @@ export function loadLinuxExecve(): LinuxExecve {
     'int fcntl(int fd, int cmd, int arg)',
   ) as NativeFcntl
   cachedExecve = (file, argv, env, control) => {
-    const envp = Object.entries(env).map(([key, value]) => `${key}=${value}`)
-    assertExecveArgumentBudget(file, argv, envp, readSyncHeapSize(koffi.config()))
     const descriptors = control === 'pipe'
       ? [...STANDARD_FILE_DESCRIPTORS, SUBPROCESS_CONTROL_FD]
       : STANDARD_FILE_DESCRIPTORS
@@ -74,7 +71,7 @@ export function loadLinuxExecve(): LinuxExecve {
     nativeExecve(
       file,
       [...argv, null],
-      [...envp, null],
+      [...Object.entries(env).map(([key, value]) => `${key}=${value}`), null],
     )
     throw systemError(koffi.errno(), 'execve', file)
   }

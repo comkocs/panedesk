@@ -9,9 +9,6 @@
   ],
   "references": [
     {
-      "path": "../../boot/app-boot"
-    },
-    {
       "path": "../../../vendor/cosmokit"
     },
     {
@@ -31,15 +28,6 @@
     },
     {
       "path": "../sandbox-windows-acl"
-    },
-    {
-      "path": "../sandbox-policy"
-    },
-    {
-      "path": "../../subprocess/subprocess"
-    },
-    {
-      "path": "../../util/home-paths"
     },
     {
       "path": "../../core/session"

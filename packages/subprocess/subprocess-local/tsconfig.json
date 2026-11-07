@@ -8,10 +8,6 @@
     "src"
   ],
   "references": [
-    { "path": "../../../native/system/packages/entry" },
-    { "path": "../../util/home-paths" },
-    { "path": "../../credentials/credentials" },
-    { "path": "../../client/connection/tsconfig.host.json" },
     {
       "path": "../../../vendor/cosmokit"
     },

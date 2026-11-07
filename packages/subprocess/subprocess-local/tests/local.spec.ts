@@ -10,7 +10,6 @@ import type { IPtyForkOptions, IWindowsPtyForkOptions } from 'node-pty'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import type { SubprocessSpawnSpec, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from '@panedesk/dsh-subprocess'
 import { childEnv } from '../src/spawn.ts'
-import { LinuxProductGroups, LINUX_SOURCE_LIMITATION } from '../src/linux-product-groups.ts'
 import { LinuxScopeNotStartedError, signalLinuxDirectProcess } from '../src/linux-scope.ts'
 
 function mockWin32ForIsolatedRuntime(): void {
@@ -60,28 +59,6 @@ function spec(command: string, overrides: Partial<SubprocessSpawnSpec> = {}): Su
 }
 
 describe('LocalSubprocessRuntime', () => {
-  it('warns exactly when Linux product attribution lacks delegation', async () => {
-    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
-    const ctx = new Context()
-    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
-    const attribution = vi.spyOn(LinuxProductGroups, 'forHost').mockReturnValue(undefined)
-    try {
-      const unavailable = ctx.plugin(LocalSubprocessRuntime)
-      await unavailable.await()
-      expect(warn.mock.calls).toEqual([[LINUX_SOURCE_LIMITATION]])
-      await unavailable.dispose()
-      warn.mockClear()
-      attribution.mockReturnValue(Object.create(LinuxProductGroups.prototype) as LinuxProductGroups)
-      await ctx.plugin(LocalSubprocessRuntime).await()
-      expect(warn.mock.calls).toEqual([])
-    } finally {
-      await ctx.fiber.dispose()
-      attribution.mockRestore()
-      warn.mockRestore()
-      platform.mockRestore()
-    }
-  })
-
   it('discovers the platform shell without inventing a missing default and honors cancellation', async () => {
     let loginShell: string | null = '/account/shell'
     const userInfo = vi.spyOn(os, 'userInfo').mockImplementation(() => ({
@@ -668,7 +645,6 @@ describe('LocalSubprocessRuntime', () => {
         expect.objectContaining({ argv: ['shell', '--literal'] }),
         expect.objectContaining({ PWD: targetCwd, TERM: 'dumb', TARGET_VALUE: 'preserved' }),
         ['--expand-environment=no'],
-        {},
       )
       expect(nodePtySpawn).toHaveBeenCalledWith(
         '/usr/bin/systemd-run',
@@ -1068,7 +1044,7 @@ describe('LocalSubprocessRuntime', () => {
       expect(probeLinuxNative).toHaveBeenCalledOnce()
       expect(confirmLinuxManager).toHaveBeenCalledTimes(2)
       expect(launchLinuxScope).toHaveBeenCalledTimes(2)
-      expect(launchLinuxScope).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), [], {})
+      expect(launchLinuxScope).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), [])
       await linuxRuntime.spawn(spec('true')).done
       expect(confirmLinuxManager).toHaveBeenCalledTimes(3)
       expect(spawnSubprocess).toHaveBeenCalledOnce()

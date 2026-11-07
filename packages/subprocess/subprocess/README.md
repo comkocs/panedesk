@@ -36,8 +36,6 @@ One provider registers `ctx.subprocess` per composition; load it beside the cons
 - name: '@panedesk/dsh-bash-local'
 ```
 
-Consumers preserve an explicit `productSandbox: true` from Linux confinement in ordinary and terminal spawn requests. Providers use it for trusted pre-exec identity registration, never as an inferred argv property; ordinary and full-access commands omit it.
-
 ### Starting a managed process
 
 The request is fully explicit: the program and arguments, the working directory, one stdio disposition per stream, a termination grace, an optional abort signal, and optional environment overrides. Target and managed-range identities remain provider-private. `done` resolves with the direct command's exit facts (`exitCode` and `signal`) and rejects for spawn or provider failures; collected output stays readable after exit.
@@ -69,8 +67,6 @@ Set `stdio.control: 'pipe'` to receive a separate raw `Duplex` in `handle.contro
 
 ### Managing process lifetime
 
-`readProcessIdentity(pid)` observes OS creation evidence without granting termination authority. A provider that cannot verify creation returns only the PID; consumers must treat that as unavailable rather than dead or live. `sameProcessIdentity` rejects missing evidence and PID reuse.
-
 Termination and waiting use one provider-managed range. `terminate()` starts the provider's documented procedure, is idempotent, and becomes a no-op after that range is empty; the request's abort signal starts the same procedure. `waitForExit()` observes the same range and resolves only after the provider proves it quiescent, so direct command completion does not hide a surviving descendant. It rejects when the selected owner can no longer prove quiescence. Providers document their native owners and weaker fallbacks; callers own deadlines, teardown ladders, and cause classification.
 
 ### Running a terminal session
@@ -84,8 +80,6 @@ A terminal request can opt into `shellActivity`. `inspectActivity()` combines su
 Children never inherit the harness's ambient secrets: credential-shaped names and ambient `DSH_*` facts are scrubbed, and the caller's explicit `env` merges after that scrub. A deliberately forwarded credential or a current `DSH_*` deployment fact still reaches the child; an explicit `undefined` tombstone removes an ordinary ambient entry.
 
 ### What can go wrong
-
-The shared allocation helpers count pathname, argv, envp, and both terminated pointer tables. Callers supply the runtime heap size matching the native call mode, and `readSyncHeapSize` refuses a missing or non-positive synchronous heap instead of assuming a default; see [execve allocation limits](../../../docs/subsystems/subprocess.md).
 
 An executable that cannot be resolved fails loudly with a stable error. A spawn that never starts rejects `done`; there is no buffered output for a process that never ran. `waitForExit()` also rejects when the provider cannot prove its selected range is empty, and a provider fallback may not own descendants that escape its process group or observed session. When a transport owns its own spawn (the SDK client, MCP), route around the service and import `scrubbedParentEnv` directly so environment policy stays single-sourced.
 
@@ -109,7 +103,6 @@ The seam is built on one separation: the service owns process coordinates and li
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: abstract `SubprocessRuntime`, `ctx.subprocess` registration, the shared `scrubbedParentEnv` scrub |
 | [`src/types.ts`](src/types.ts) | Vocabulary: spawn spec, stdio modes, handles, readers, outcomes, `DSH_*` namespace |
-| [`src/execve-budget.ts`](src/execve-budget.ts) | Shared execve allocation accounting and the synchronous heap read |
 
 ### Data model and flow
 

@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import type { SubprocessIdentity, SubprocessTerminalSignal } from '@panedesk/dsh-subprocess'
+import type { SubprocessTerminalSignal } from '@panedesk/dsh-subprocess'
 import { createLazyRequire } from '@panedesk/dsh-lazy-require'
 import type { ProcessIdentity, ProcessInspector, ProcessSnapshot } from './process-inspector.ts'
 
@@ -334,25 +334,6 @@ function windowsProcessState(bindings: Win32Bindings, pid: number): WindowsProce
   } finally {
     bindings.closeHandle(handle)
   }
-}
-
-/** Read GetProcessTimes evidence through the subprocess provider, retaining exact FILETIME ticks.
- * @param pid - process to observe, without acquiring termination authority.
- * @param inspect - platform reader; omission uses the existing lazy Win32 bindings.
- * @returns creation evidence for a live incarnation, or a PID-only unavailable observation.
- */
-export function readWindowsProcessIdentity(
-  pid: number,
-  inspect: (pid: number) => WindowsProcessState | undefined = value => windowsProcessState(win32Bindings(), value),
-): SubprocessIdentity {
-  const state = inspect(pid)
-  if (!state?.active || !/^\d+:\d+$/.test(state.started)) return Object.freeze({ pid })
-  const [high, low] = state.started.split(':').map(BigInt)
-  if (high === undefined || low === undefined || high > 0xffffffffn || low > 0xffffffffn) return Object.freeze({ pid })
-  const ticks = (high << 32n) | low
-  const startedAt = Number((ticks - 116444736000000000n) / 10000n)
-  if (!Number.isSafeInteger(startedAt) || startedAt < 0) return Object.freeze({ pid })
-  return Object.freeze({ pid, startIdentity: state.started, startedAt })
 }
 
 /** The koffi-backed default internals; bindings resolve lazily on first use. */

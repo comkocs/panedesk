@@ -29,26 +29,11 @@ kind: "package-library"
 
 ### 何时选择
 
-为在 `read-only` 或 `workspace-write` 下隔离子进程文件操作的 Windows 组合选择它。`WRITE_RESTRICTED` 只交叉检查写访问。经 `unreadablePaths` 传入的专用所有者目录还会设置可继承的 Medium 禁止向上读写标签，并在设置后及 spawn 前检查。这些标签在释放后保留，不标记桌面 userData。通用读取隔离与网络限制需要其他机制。
-
-<a id="owner-label-removal-before-uninstall"></a>
-### 卸载前移除所有者标签
-
-卸载桌面端刻意保留 Harness home 及其所有者目录标签，包括与 CLI 会话共用的保护。手动撤销保护并删除 home 前，停止全部 Panedesk 宿主与沙箱。在不受限、Medium 或更高完整性级别的 PowerShell 中，对每个专用私密目录（凭据与崩溃存储，绝非桌面 userData）分别运行已安装 CLI。`--stopped` 表示确认此前置条件，不会终止进程。命令不启动 profile，保留 DACL，拒绝其他标签及链接，先清后代再清根，并逐项读回核验；中断后可以重跑。普通 `dispose()` 刻意保留保护，避免影响其他活跃会话。本包不提供桌面安装器自动接线；移除 CLI 前须先执行此步骤。
-
-```powershell
-$Private = Read-Host 'Absolute dedicated private directory'
-panedesk cleanup-owner-labels --stopped "$Private"
-if ($LASTEXITCODE -ne 0) { throw 'Owner label cleanup failed; keep the application installed and retry offline.' }
-icacls "$Private" /T /L
-if ($LASTEXITCODE -ne 0) { throw 'Security descriptor readback failed.' }
-```
-
-CLI 执行权威读回：每个对象都不得残留强制完整性标签 ACE。`icacls` 另行显示整棵树供人工检查，并非工作区能力 SID 撤销命令。原生操作调用 [`SetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow)，使用 [`LABEL_SECURITY_INFORMATION`](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information)，随后调用 [`GetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getnamedsecurityinfow)；[微软 icacls 参考](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)说明显示选项。清理已有原生调用替身覆盖；Windows 原生移除尚未经实机验证。
+为在 `read-only` 或 `workspace-write` 下隔离子进程文件操作的 Windows 组合选择它。当子进程还需要读侧隔离或网络限制时请另选机制：`WRITE_RESTRICTED` 只交叉检查写访问，因此请把此后端与读侧策略或 AppContainer 能力令牌配对以获得更强隔离。
 
 ### 直接 API
 
-`AclSandbox` 以捕获 stdio 的方式 spawn 受限子进程（runner 风格使用可用继承 stdio）。两条路径都在子进程运行前分配 kill-on-close Job；`wait()` 在直接子进程结束后关闭该 Job，终止剩余成员。管道读取失败时，先关闭 Job 再等待进程终止；清理失败仍会报告。child 暴露进程内借用的 `job` 句柄供识别；调用方不得关闭它，也不得把其数值传给其他进程。它要求显式提供私有临时目录，或用 `tempDir: null` 禁用临时写入——环境临时根目录绝不会被隐式授权。
+`AclSandbox` 以捕获 stdio 的方式 spawn 受限子进程（runner 风格使用可用继承 stdio）。它要求显式提供私有临时目录，或用 `tempDir: null` 禁用临时写入——环境临时根目录绝不会被隐式授权。
 
 ```ts
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -78,13 +63,7 @@ sandbox.dispose() // revokes the revocable (temp) grant and label, keeps the sta
 rmSync(tempDir, { recursive: true, force: true })
 ```
 
-工作区的安全描述符改动以常驻方式授予——`dispose()` 将其保留为跨实例复用缓存——不同的临时 SID 则以可回收方式授予。每次授权组合能力 SID 允许 ACE、环境性删除拒绝与 Low 禁止上调标签。`AclWriteGrant.add(path, standing)` 物化这些改动；`has(path)` 检测精确的可继承能力 ACE；`hasEffectiveWrite(path)` 用受限工作区令牌检查根写权，包括部分授权或继承授权，不修改 ACL；`revoke(path)` 显式撤销常驻或旧版授权。撤销失败仍保留跟踪信息以便重试。`dispose()` 撤销临时授权并释放 SID，不能替代显式工作区撤销。
-
-`revokeTree(root)` 盘点整个工作区，包括依赖目录，删除精确匹配工作区 SID 的显式项，再用受限令牌 AccessCheck 核验根和每个命中点。它不依赖进程内的授权历史。链接对象使用不跟随目标的安全句柄；不遍历外部目标。残留写权或父目录删除子项权限都会令撤销失败。其他主体和完整性标签保持不变。撤销前应停止活跃的工作区进程；既有句柄不会被关闭。
-
-所有者状态信任通过 AccessCheck 判定，而非根据 SID 前缀猜测归属：存储及其后代拒绝任何写、删除、`WRITE_DAC` 与 `WRITE_OWNER`；祖先拒绝自身 `DELETE`、`WRITE_DAC`、`WRITE_OWNER` 及父目录 `FILE_DELETE_CHILD`。只有缺失名称的最低一级已存在父目录检查文件／目录创建权限；更高祖先上不继承的写权限不会使现存存储失去信任。内置运行器接收 `--state-directory`，并使用包含私有临时能力的实际进程令牌检查。不安全记录不能授权首次写入；只读启动会省略不可信的工作区配置。见 [Windows 迁移及精确 ACE 恢复步骤](../../../docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。Windows 原生执行仍未经验证；确定性测试和 Linux 遍历测量并非 Windows 强制执行证据。
-
-10 万文件撤销遍历的 204.6 ms 测量使用 ACL 替身，非 Windows 实机数。它测量遍历及记账，不代表 Windows ACL 或 AccessCheck 延迟。
+工作区的安全描述符改动以常驻方式授予——`dispose()` 保留它们，因为它们是跨实例的复用缓存——而不同的临时 SID 以可回收方式授予。每次授权就是一次调用，同时携带能力 SID 允许 ACE、环境性删除拒绝与 Low 禁止上调标签。服务端对应实现是 `AclWriteGrant` 类：每个目录一次 `add(path, standing)`，`dispose()` 撤销可回收路径并释放各 SID。
 
 ### 隔离给你带来什么
 
@@ -124,15 +103,11 @@ rmSync(tempDir, { recursive: true, force: true })
 
 `workspace-write`（登录 SID、Everyone、工作区 SID、临时 SID）为工作区与会话的私有临时子目录分别授予 Write；`read-only`（登录 SID、Everyone——不含写入 SID）不授予任何内容。两种模式都 spawn 降级为 Low 完整性的令牌，对它而言只有被标记 Low 的目录保持可写。保活组（登录 SID + Everyone）在两种模式下都存在：没有它，早期 DLL 初始化会以 `0xC0000142` 死亡、CNG 会让 pwsh 以 `0xE0434352` 崩溃。写入 SID 有意留在 read-only 列表之外：先前 workspace-write 时期留下的常驻授权 ACE 仍然失效，因为 write-restricted 的 pass-2 检查只授予 restricting 列表所携带的内容，而常驻安全描述符改动让重新升级免于重新传播。
 
-两种模式还都携带产品限制 SID `S-1-4-1346457157-1145393995-1396853070-2`：非唯一 authority 4、`PANE`、`DESK`、`SBIN` 对应的大端 ASCII 整数，以及身份版本 2。其四个子 authority 区别于工作区的两个和临时目录的三个。本包不为此 SID 添加 ACE；对不含该 SID 的既有 ACL，加入它不改变访问结果。此标记本身不认证连接，也不能证明全部后代在进一步限制令牌后仍保留它。Windows 原生标记行为尚未经验证。
-
 NUL 写入是环境性的、不是被授权的：设备 DACL 授予 Everyone 读+写+执行（`0x1201BF`），因此访问掩码落在其内的打开者（cmd 的 `> NUL`、node 的 `\\.\NUL`）在两种模式下都能写。`Set-Content NUL` 在两种模式下都失败（PowerShell/.NET 层效应，非设备 DACL 所致），而 PowerShell 的 `> $null` 重定向不受影响。
 
 Authenticated Users 在两种列表中都不存在——WMI 命名空间安全检查失败（`0x80041003`），因此 CIM cmdlet 与 `Get-ComputerInfo` 在所有受限模式下都不可用，且 C:\-root 树创建逃逸被关闭。INTERACTIVE/LOCAL 同样不存在：宿主的 Public 树向 INTERACTIVE 授予写权限，因此 Public 写入被拒绝。
 
 ### 隔离 runner
-
-带有宿主产品作业对象定位名时，`AclSandbox.init()` 在创建令牌前加入该 Job，并从环境中删除定位名。piped 与继承 stdio 的子进程都继承其成员身份，同时保留原有独立 kill-on-close Job。仅宿主持有父句柄。不带定位名的独立库调用不会取得宿主产品身份。此路径不改控制台或 ConPTY 设置；成员身份与连接归因仅有替身覆盖，尚未通过 Windows 原生验收。
 
 面向 seam 的形态是 runner 入口（`./runner`）：`dsh-sandbox-local` 在调用者命令的位置 spawn 的 argv 前缀包装——与 bwrap/landlock-run/sandbox-exec 同一架构。runner 创建受限令牌，在它之下 spawn 包装后的 argv，调用者的 stdio 直接透传，把子进程包进 `KILL_ON_JOB_CLOSE` job，镜像子进程的退出码，并在退出时撤销其自行管理的临时授权。每个 runner 侧失败都会向 stderr 打印 `windows-acl-run: <detail>` 并以 127 退出——seam 的 runner 失败规则匹配该签名。
 
@@ -149,10 +124,10 @@ seam 先把确定性工作区 SID 的 ACE 常驻物化（每个工作区每服�
 - **Everyone 仍留在两种 restricting 列表中，但不再带来写权限。** 保活组是早期 DLL 初始化与 CNG 所必需的；如今 Low 标签会拒绝对被标记根目录之外、由 Everyone 授权的写入，因此这一旧缺口已关闭。
 - **在授权根目录内，能力 ACE 的 DELETE 位是唯一的删除授权来源。** 授权会向 world SID 拒绝 `FILE_DELETE_CHILD`，这同时移除了环境性默认行为：自身 DACL 未授予 DELETE 的文件不再能凭父目录权限删除——受限子进程与用户自身进程皆然。用户日常删除仍然可用，因为工作区 DACL 直接向其授予 DELETE。
 - **拒绝项只继承到子目录，且子目录的 FullControl 打开会被拒。** `FILE_DELETE_CHILD` 只在目录上被评估，因此该 ACE 带 `CONTAINER_INHERIT_ACE`、绝不落到文件上（它的位 `0x40` 属于 `FILE_ALL_ACCESS`，若落到文件上会让用户、Administrators、SYSTEM 或 DSH host 的每次 `GENERIC_ALL`／`FullControl` 打开都被拒绝）。授权根内的目录保留该拒绝项，因而会拒绝这类打开；基于 `DELETE` 的删除、`MAXIMUM_ALLOWED` 与常规读写打开不受影响——两种结果都已被 runner 套件钉住。
-- **读取保护覆盖已登记的所有者目录，而非任意调用者可读文件。** Medium 禁止向上读标签拒绝 Low 完整性子进程访问专用所有者目录。准入会逐项核验根目录及所有既有后代的精确 Medium 读写策略，遇到链接或标签缺失即拒绝。显式所有者标签清理先访问后代再访问根目录；普通沙箱释放保留这项保护。原生继承及既有子项行为仍需平台验证。其他读取、网络访问与进程可见性仍不受限。登记存储之外的副本不在保护范围内。
+- **写入与删除受限；读取、网络与进程可见性不受限。** 两层都不交叉检查读取，因此受限子进程可以读取调用者可读的任何文件（包括其他工作区中的文件）并打开套接字；`read-only` 因而需要读侧策略才能表达。
 - **硬链接是文件对象别名，而非路径别名。** 传播到已有硬链接上的可继承工作区授权会标记并授权底层同一文件的安全描述符，因此同一对象也可通过外部别名写入；拒绝工作区中的所有多链接文件不具可行性，因为普通 pnpm 安装会使用硬链接。
-- **控制台隔离不可用。** 以 `CREATE_NO_WINDOW` / `CREATE_NEW_CONSOLE` 创建的子进程在 DLL 初始化期间以 `STATUS_DLL_INIT_FAILED`（`0xC0000142`）死亡；子进程共享宿主控制台，基于管道的 stdio 重定向不受影响。沙箱进程能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请用桌面端。控制台隔离为后续工作；CLI / TUI 交互启动时提示但不阻断。
-- **安全描述符改动是对真实目录的驻留改动。** 工作区 ACE、拒绝项与标签在普通释放后保留；显式 `revoke(path)` 移除能力 ACE，并在无其他能力需要时清除标签，环境性删除拒绝项仍保留；临时改动由 `dispose()` 撤销——但若该目录上仍留有其他能力授权，撤销会保留共享的 Low 标签——撤销后残留的那条拒绝项会随临时目录本身一并消失；手工 `icacls` 清理无法在本平台回收它们（`ERROR_NONE_MAPPED` 1332），请通过本模块回收。
+- **控制台隔离不可用。** 以 `CREATE_NO_WINDOW` / `CREATE_NEW_CONSOLE` 创建的子进程在 DLL 初始化期间以 `STATUS_DLL_INIT_FAILED`（`0xC0000142`）死亡；子进程共享宿主控制台，基于管道的 stdio 重定向不受影响。
+- **安全描述符改动是对真实目录的驻留改动。** 工作区 ACE、拒绝项与标签按设计常驻（复用缓存，绝不撤销）；临时改动由 `dispose()` 撤销——但若该目录上仍留有其他能力授权，撤销会保留共享的 Low 标签——撤销后残留的那条拒绝项会随临时目录本身一并消失；手工 `icacls` 清理无法在本平台回收它们（`ERROR_NONE_MAPPED` 1332），请通过本模块回收。
 - **常驻 Low 标签的生命期长于 DSH，并会向其他 Low 完整性的进程放宽该目录树。** 工作区的可继承标签在会话结束后（以及同卷移动后）依然存在，因此任何以同一用户身份运行在 Low 完整性的其他进程——别家产品的 Low-IL 沙箱、受保护模式阅读器——都能写入与删除工作区内的内容，而在 Medium 标签下这会被拒绝。这个标签是写边界的代价：没有它受限子进程根本无法写入，而按会话回收会导致每次供给都要重新传播整棵树。
 - **被授权目录必须由调用者拥有并授予 `WRITE_OWNER`。** 所有者隐式获得的只有 `READ_CONTROL` 与 `WRITE_DAC`；标签位于 SACL，因此合并应用还需要 `WRITE_OWNER`（完全控制目录——即正常工作区情形——本就具备）。DACL 只授予 Modify 的目录现在会大声失败，而不是静默跳过隔离。
 - **环境临时根目录绝不会被隐式授权。** 直接调用方必须提供已存在的私有 `tempDir` 及其不同的 `tempWriteSid`，或用 `tempDir: null` 禁用临时写入；实际临时目录不得与任何可写根目录重叠。
@@ -199,7 +174,6 @@ Windows 上多一个目录条目：技能描述随目录进入上下文，正文
 
 ## 已知限制与延期工作
 
-- **默认用户配置祖先链只有部分出处**——系统盘根目录 DACL 取自 MSDN Magazine 2008 年 11 月《Access Control: Understanding Windows File And Registry Permissions》(https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions) 所列 SDDL，其中 Users 仅在该文件夹本身可建子目录。`C:\Users`、用户配置目录与 AppData 未找到官方默认 ACE 表，信任夹具只给这些目录继承来的读取与属主的完全控制。
 - **诊断保留完整性标签**——它无法修复 Low 标签的可执行文件影响用户在 DSH 外启动程序的问题，也无法修复调用者缺少 `WRITE_DAC` 的情况；提取的脚本和恢复脚本均可由用户写入，不支持作为提权入口。非正常退出后可能残留资源目录。
 
 <a id="known-limitations-and-deferred-work"></a>
@@ -207,7 +181,6 @@ Windows 上多一个目录条目：技能描述随目录进入上下文，正文
 
 这些限制说明后端何时不合适，或何时需要特别运维。它们是当前包约束，不是通用 Windows 对比或任务积压。
 
-- **保护输入不能只靠拒写**——`protectedPaths` 在工作区授权后，对现存输入加入能力专属的拒写／拒删，对祖先加入不继承的拒删。普通后代保留写授权。既有 Everyone `FILE_DELETE_CHILD` 拒绝可阻止继承的父目录删除权限，但子目录显式权限、缺失名称及重解析点替换仍需宿主在加载变更的可执行输入前校验。拒绝 ACE 持续保留，每次原生调用前重验；它们不终止已有进程或关闭句柄。
 - **每个工作区一个写入白名单**——写入 SID 是白名单的基本单位，且就是工作区身份；同一沙盒实例跨两个工作区复用时，两个根目录会互相扩大授权面。请按工作区根目录各建一个实例——seam 正是这样做的，以工作区路径为键。
 - **清理按设计尽力而为**——`dispose()` 会尝试全部临时撤销并把失败聚合为 `AggregateError`；清理失败可能留下随机目录及其仅含临时 SID 的 ACE。进程退出后，不会再有令牌携带该 SID，因此残留保持失效，直到 OS 临时目录卫生或手动移除目录将其回收。
 - **常驻工作区 ACE 是不可见残留。** 工作区改名会派生新的 SID；旧路径上的旧 ACE 留在原地（失效、仅含写入 SID），未来的清理命令可以回收它们。

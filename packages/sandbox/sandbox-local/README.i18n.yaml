@@ -24,11 +24,8 @@
   en: 444a6fbe2d0a1436
   zh: cccccb2e61809f55
 /panedesk-dsh-sandbox-local/use-this-package/confined-execution-and-enforcement:
-  en: 62d2e9550cab0b41
-  zh: 6c7f09cd424368e6
-/panedesk-dsh-sandbox-local/use-this-package/windows-workspace-revocation:
-  en: 9c1ca4a29e05b860
-  zh: 6503e65f1edfddc6
+  en: 7282c9ec77fd6f01
+  zh: 10e385a9489105e3
 /panedesk-dsh-sandbox-local/use-this-package/failures-and-recovery:
   en: 3808edb37dde5761
   zh: a8fef8a4fd33e364
@@ -36,11 +33,11 @@
   en: 15db6ec303151ccc
   zh: 91f62c1f64192f92
 /panedesk-dsh-sandbox-local/understand-the-implementation/runner-selection:
-  en: 6d4c0c2bd017b862
-  zh: 9009c1662bf16752
+  en: f0c44248c2ca6acc
+  zh: 554e9f706671d222
 /panedesk-dsh-sandbox-local/understand-the-implementation/platform-profiles:
-  en: bda33e6473c4f8f7
-  zh: a3f8d48db8aac5dd
+  en: e35549f7376ccb2f
+  zh: 107dfdc32f9c77d8
 /panedesk-dsh-sandbox-local/understand-the-implementation/denial-and-runner-failure-dialects:
   en: 62adfc9229c656cc
   zh: 11b1534b6d61e5de
@@ -57,8 +54,8 @@
   en: e290ccc9b3c92c08
   zh: 469589ac12cdadab
 /panedesk-dsh-sandbox-local/known-limitations-and-deferred-work:
-  en: d340093ed5540d5e
-  zh: bb557929a0e78cbd
+  en: b2a6a72e340bc620
+  zh: 9d9b2894850a131d
 /panedesk-dsh-sandbox-local/known-limitations-and-deferred-work/dev-note:
   en: cc273320f6a1beaf
   zh: 5c57a312ddc50651

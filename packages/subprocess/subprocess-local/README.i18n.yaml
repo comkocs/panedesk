@@ -18,14 +18,8 @@
   en: a26b360a0d1b847a
   zh: c0e1139451e51fc8
 /panedesk-dsh-subprocess-local/use-this-package/mounting-the-provider:
-  en: 86df96b8552badfb
-  zh: bab985b832959f6f
-/panedesk-dsh-subprocess-local/use-this-package/linux-sandbox-connection-identity:
-  en: 65ce4e7a2021b382
-  zh: c6ed8585d72bd162
-/panedesk-dsh-subprocess-local/use-this-package/windows-sandbox-connection-identity:
-  en: bff1223a6fcba3a7
-  zh: eb5d50230d3e0417
+  en: 7fe1c62a71f22310
+  zh: 25fe64af82c42004
 /panedesk-dsh-subprocess-local/use-this-package/resolving-executables:
   en: b770dddf2a9c3d1e
   zh: f5cb27e63a589a1b
@@ -39,11 +33,11 @@
   en: cc8e9b90f1d2e3de
   zh: f85fdcd1c783bbfc
 /panedesk-dsh-subprocess-local/use-this-package/shutdown-behavior:
-  en: 94284fdac08692ed
-  zh: a42432d87234c59b
+  en: cd0b8a5dc61335a5
+  zh: ac5077a9ac277141
 /panedesk-dsh-subprocess-local/use-this-package/what-can-go-wrong:
-  en: 1a1aac66aaec749c
-  zh: 47327a5732ad1a2e
+  en: 1e1ce532b004c92b
+  zh: ca7274b7a9207a5d
 /panedesk-dsh-subprocess-local/understand-the-implementation:
   en: 531a48766c666ea0
   zh: b40df533a2fd7244

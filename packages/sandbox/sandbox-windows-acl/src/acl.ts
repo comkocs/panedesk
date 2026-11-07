@@ -22,13 +22,12 @@
  */
 
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { allocOverlapped, allocPtrSlot, decodePtr, decodeUint8At, decodeUint16At, decodeUint32At, getTempPath, isInvalidHandle, isNullPtr, ptrAddress, sameSidAt, throwLastError, throwWin32 } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import * as abi from './win32-abi.ts'
-import { withSecurityHandle } from './file-handle.ts'
 
 /**
  * Pack one EXPLICIT_ACCESS_W (48 bytes, layout verified by abi-probe.cpp):
@@ -204,122 +203,6 @@ function hasExactLabel(labelAcl: NativePtr, lowLabelSidPtr: NativePtr): boolean 
 }
 
 /**
- * Apply or remove an owner directory's Medium no-read-up label without changing its DACL.
- * Admission requires an exact readback; the label inherits to new files and atomic replacements.
- * @param api - Native binding table.
- * @param path - Dedicated private directory, disjoint from writable roots.
- * @param mediumSid - Medium integrity SID (S-1-16-8192).
- * @param enabled - Apply protection when true; remove the label when false.
- */
-export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumSid: NativePtr, enabled: boolean): void {
-  withPathLock(api, path, () => {
-    let label: NativePtr | null = null
-    const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
-    if (enabled) {
-      const sidLength = api.getLengthSid(mediumSid)
-      if (sidLength === 0) throwLastError(api, 'GetLengthSid', path)
-      const length = abi.ACL_HEADER_SIZE + abi.MANDATORY_ACE_OVERHEAD + sidLength
-      label = api.localAlloc(abi.LPTR, length)
-      if (isNullPtr(label)) throwLastError(api, 'LocalAlloc', path)
-      if (api.initializeAcl(label, length, abi.ACL_REVISION) === 0
-        || api.addMandatoryAce(label, abi.ACL_REVISION, abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, policy, mediumSid) === 0) {
-        const code = api.getLastError()
-        api.localFree(label)
-        throwWin32(api, 'AddMandatoryAce', code, path)
-      }
-    }
-    try {
-      const apply = (entry: string): void => {
-        if (!enabled && existsSync(entry)) {
-          const info = lstatSync(entry)
-          if (info.isSymbolicLink()) {
-            throw new Error('Owner directory contains an unverified link. / 所有者目录包含未核验链接。')
-          }
-          if (info.isDirectory()) {
-            for (const child of readdirSync(entry)) apply(join(entry, child))
-          }
-        }
-        if (!enabled) {
-          const current = readCurrentSecurity(api, entry)
-          try {
-            const existingLabel = current.labelAcl
-            if (existingLabel !== null && decodeUint16At(existingLabel, 4) !== 0) {
-              const flags = [0, abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, abi.INHERITED_ACE,
-                abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT | abi.INHERITED_ACE]
-              if (decodeUint16At(existingLabel, 4) !== 1 || !flags.some(flag => hasExactEntry(
-                existingLabel, abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE, flag, policy, mediumSid))) {
-                throw new Error('Refusing to remove an unrelated integrity label. / 拒绝移除不属于本产品的完整性标签。')
-              }
-            }
-          } finally {
-            if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
-              throwLastError(api, 'LocalFree', entry)
-            }
-          }
-        }
-        const code = api.setNamedSecurityInfoW(entry, abi.SE_FILE_OBJECT, abi.LABEL_SECURITY_INFORMATION,
-          null, null, null, label)
-        if (code !== abi.ERROR_SUCCESS) throwWin32(api, 'SetNamedSecurityInfoW', code, entry)
-        if (!enabled) {
-          const current = readCurrentSecurity(api, entry)
-          try {
-            if (current.labelAcl !== null && decodeUint16At(current.labelAcl, 4) !== 0) {
-              throw new Error('Owner directory integrity label cleanup verification failed. / 所有者目录完整性标签清理核验失败。')
-            }
-          } finally {
-            if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
-              throwLastError(api, 'LocalFree', entry)
-            }
-          }
-        }
-      }
-      apply(path)
-    } finally {
-      if (label !== null) api.localFree(label)
-    }
-    if (enabled) assertOwnerReadProtection(api, path, mediumSid)
-  })
-}
-
-/**
- * Refuse process creation if an owner directory lost its mandatory read protection.
- * @param api - Native binding table.
- * @param path - Protected private directory.
- * @param mediumSid - Medium integrity SID.
- */
-export function assertOwnerReadProtection(api: Win32Bindings, path: string, mediumSid: NativePtr): void {
-  const verify = (entry: string, descendant: boolean): void => {
-    const info = existsSync(entry) ? lstatSync(entry) : undefined
-    if (info?.isSymbolicLink()) {
-      throw new Error('Owner directory contains an unverified link. / 所有者目录包含未核验链接。')
-    }
-    const current = readCurrentSecurity(api, entry)
-    try {
-      const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
-      // INHERITED_ACE is metadata; INHERIT_ONLY_ACE must never authorize this object.
-      const inheritance = abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT
-      const inherited = inheritance | abi.INHERITED_ACE
-      const flags = descendant
-        ? info?.isDirectory() ? [inheritance, inherited] : [0, inheritance, abi.INHERITED_ACE, inherited]
-        : [inheritance]
-      const label = current.labelAcl
-      if (label === null || !flags.some(flag => hasExactEntry(label,
-        abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE, flag, policy, mediumSid))) {
-        throw new Error('Owner directory integrity label verification failed. / 所有者目录完整性标签核验失败。')
-      }
-    } finally {
-      if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
-        throwLastError(api, 'LocalFree', entry)
-      }
-    }
-    if (info?.isDirectory()) {
-      for (const child of readdirSync(entry)) verify(join(entry, child), true)
-    }
-  }
-  verify(path, false)
-}
-
-/**
  * The mandatory-label half of an apply: set the given label ACL, clear the
  * label, or leave it untouched. `clear` is what a revoke does when the
  * directory carries no other capability grant; `keep` is what it does while
@@ -431,90 +314,6 @@ function hasExactGrant(oldAcl: NativePtr, sidPtr: NativePtr): boolean {
 }
 
 /**
- * Inspect the product's exact workspace capability without modifying security descriptors.
- * @param api - Native binding table.
- * @param path - Canonical workspace directory.
- * @param sidPtr - Workspace-derived capability SID.
- * @returns Whether the product's inheritable write ACE is present.
- */
-export function hasWriteGrant(api: Win32Bindings, path: string, sidPtr: NativePtr): boolean {
-  const { oldAcl, descriptor } = readCurrentSecurity(api, path)
-  try {
-    return oldAcl !== null && hasExactGrant(oldAcl, sidPtr)
-  } finally {
-    if (descriptor !== null) {
-      const freed = api.localFree(descriptor)
-      if (!isNullPtr(freed)) throwLastError(api, 'LocalFree', `hasWriteGrant(${path}) descriptor`)
-    }
-  }
-}
-
-/**
- * Inspect or remove explicit allow/deny ACEs for one exact capability SID.
- * Inherited entries and all other trustees remain unchanged.
- * @param api Native security bindings.
- * @param path Existing file or directory.
- * @param sidPtr Exact workspace capability SID.
- * @param remove Whether to apply removal while holding the object lock.
- * @returns Whether an explicit capability entry was found.
- */
-export function explicitCapabilityEntries(api: Win32Bindings, path: string, sidPtr: NativePtr, remove: boolean): boolean {
-  const inspect = (): boolean => withSecurityHandle(api, path, remove, (handle) => {
-    const owner = allocPtrSlot()
-    const group = allocPtrSlot()
-    const dacl = allocPtrSlot()
-    const sacl = allocPtrSlot()
-    const output = allocPtrSlot()
-    const read = api.getSecurityInfo(handle, abi.SE_FILE_OBJECT, abi.DACL_SECURITY_INFORMATION, owner, group, dacl, sacl, output)
-    if (read !== abi.ERROR_SUCCESS) throwWin32(api, 'GetSecurityInfo', read, path)
-    const oldAcl = decodePtr(dacl)
-    const descriptor = decodePtr(output)
-    try {
-      if (oldAcl === null) return false
-      const size = decodeUint16At(oldAcl, 2)
-      const count = decodeUint16At(oldAcl, 4)
-      const matches: number[] = []
-      let offset = 8
-      for (let index = 0; index < count; index++) {
-        if (offset + 8 > size) throw new Error(`Invalid workspace ACL: ${path}`)
-        const length = decodeUint16At(oldAcl, offset + 2)
-        if (length < 8 || offset + length > size) throw new Error(`Invalid workspace ACE: ${path}`)
-        const type = decodeUint8At(oldAcl, offset)
-        const flags = decodeUint8At(oldAcl, offset + 1)
-        if ((flags & 0x10) === 0) {
-          // Object ACEs put optional GUIDs before the SID; callback ACEs retain
-          // the corresponding ordinary/object layout and append condition data.
-          let sidOffset: number
-          if ([0, 1, 9, 10].includes(type)) sidOffset = 8
-          else if ([5, 6, 11, 12].includes(type)) {
-            if (length < 12) throw new Error(`Invalid workspace object ACE: ${path}`)
-            const objectFlags = decodeUint32At(oldAcl, offset + 8)
-            if ((objectFlags & ~3) !== 0) throw new Error(`Unsupported workspace object ACE flags: ${path}`)
-            sidOffset = 12 + ((objectFlags & 1) === 0 ? 0 : 16) + ((objectFlags & 2) === 0 ? 0 : 16)
-          } else throw new Error(`Unsupported explicit workspace DACL ACE type ${type}: ${path}`)
-          if (sidOffset + 8 > length) throw new Error(`Invalid workspace ACE SID: ${path}`)
-          const subauthorities = decodeUint8At(oldAcl, offset + sidOffset + 1)
-          if (sidOffset + 8 + subauthorities * 4 > length) throw new Error(`Invalid workspace ACE SID size: ${path}`)
-          if (sameSidAt(oldAcl, offset + sidOffset, sidPtr, 0)) matches.push(index)
-        }
-        offset += length
-      }
-      if (remove && matches.length > 0) {
-        for (const index of matches.reverse()) {
-          if (api.deleteAce(oldAcl, index) === 0) throwLastError(api, 'DeleteAce', path)
-        }
-        const result = api.setSecurityInfo(handle, abi.SE_FILE_OBJECT, abi.DACL_SECURITY_INFORMATION, null, null, oldAcl, null)
-        if (result !== abi.ERROR_SUCCESS) throwWin32(api, 'SetSecurityInfo', result, path)
-      }
-      return matches.length > 0
-    } finally {
-      if (descriptor !== null && !isNullPtr(api.localFree(descriptor))) throwLastError(api, 'LocalFree', path)
-    }
-  })
-  return remove ? withPathLock(api, path, inspect) : inspect()
-}
-
-/**
  * True when the explicit DACL already carries the EXACT ambient-delete deny:
  * the container-inherited Deny ACE for {@link abi.FILE_DELETE_CHILD} naming
  * the world SID. It is part of the idempotent skip, so a root granted by an
@@ -611,31 +410,6 @@ export function grantWrite(
       ]),
       oldAcl, { kind: 'apply', acl: label }, descriptor, 'grantWrite',
     )
-  })
-}
-
-/**
- * Deny a capability writes to a protected input, or deletion of one ancestor.
- * Parent FILE_DELETE_CHILD permissions and absent names require separate protection.
- * @param api - Native binding table.
- * @param path - Existing protected input or ancestor.
- * @param sidPtr - Workspace capability denied by this entry.
- * @param recursive - Deny inherited writes when true; deny only this object's deletion otherwise.
- */
-export function denyProtectedWrite(api: Win32Bindings, path: string, sidPtr: NativePtr, recursive: boolean): void {
-  withPathLock(api, path, () => {
-    const { oldAcl, descriptor } = readCurrentSecurity(api, path)
-    const mask = recursive ? abi.GRANT_MASK : abi.DELETE
-    const inheritance = recursive ? abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT : 0
-    if (oldAcl !== null && hasExactEntry(oldAcl, abi.ACCESS_DENIED_ACE_TYPE, inheritance, mask, sidPtr)) {
-      if (descriptor !== null) {
-        const freed = api.localFree(descriptor)
-        if (!isNullPtr(freed)) throwLastError(api, 'LocalFree', `denyProtectedWrite(${path}) descriptor`)
-      }
-      return
-    }
-    mergeAndApply(api, path, buildExplicitAccess(sidPtr, abi.DENY_ACCESS, mask, inheritance),
-      oldAcl, { kind: 'keep' }, descriptor, 'denyProtectedWrite')
   })
 }
 

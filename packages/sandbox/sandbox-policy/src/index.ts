@@ -20,33 +20,191 @@
  * @module @panedesk/dsh-sandbox-policy
  */
 
-import { isAbsolute } from 'node:path'
+import { isAbsolute, resolve } from 'node:path'
 import { Context, Service } from '@panedesk/cordis'
 import { z as zod } from 'zod'
 import z from '@panedesk/schemastery'
-import type { Agent } from '@panedesk/dsh-agent'
-import { createUserMessage, type ToolCallId } from '@panedesk/dsh-llm'
-import type {} from '@panedesk/dsh-user-approval'
+import type {} from '@panedesk/dsh-agent'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
 import type { Session } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-session-projection'
 import type {} from '@panedesk/dsh-system-prompt'
 
-import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import { resolveEffectivePermissionMode } from './effective-mode.ts'
-import type { EffectivePermissionMode } from './effective-mode.ts'
-import { UnsafeWindowsStateError } from '@panedesk/dsh-sandbox-windows-acl'
-import { WorkspaceWriteAccess, WorkspaceWriteRuleError } from './workspace-access.ts'
-import { resolveProtectedPaths } from './protected-paths.ts'
-import { resolveOwnerMaterialPaths } from './owner-material.ts'
-import { en, zh } from './locales.ts'
-
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
-export { resolveEffectivePermissionMode } from './effective-mode.ts'
-export { resolveProtectedPaths } from './protected-paths.ts'
-export { resolveOwnerMaterialPaths } from './owner-material.ts'
-export { WorkspaceWriteAccess } from './workspace-access.ts'
-export type { WorkspaceWriteRecord } from './workspace-access.ts'
+
+/** No host-input exclusion list. Returns an empty list.
+ * @param _ctx - ignored.
+ * @param _workspace - ignored.
+ * @returns no protected paths.
+ */
+export function resolveProtectedPaths(_ctx: unknown, _workspace?: string): string[] {
+  return []
+}
+
+/** No owner-material exclusion list. Returns an empty list.
+ * @param _ctx - ignored.
+ * @returns no owner-material paths.
+ */
+export function resolveOwnerMaterialPaths(_ctx: unknown): string[] {
+  return []
+}
+
+/** How a workspace write was recorded before the authorization ledger was retired. */
+export type WorkspaceWriteSource = 'first-confirmation' | 'settings-preauthorization'
+
+/** One workspace-write record. The retired ledger never stores one. */
+export interface WorkspaceWriteRecord {
+  /** Absolute workspace directory. */
+  workspace: string
+  /** Former consent source. */
+  source: WorkspaceWriteSource
+  /** ISO timestamp, present only on a freshly returned record. */
+  grantedAt?: string
+}
+
+/** Request accepted by {@link SandboxPolicyService.requestWrite}. Extra fields are ignored. */
+export interface WorkspaceWriteRequest {
+  /** Calling agent, when the caller has one. */
+  agent?: { session?: Session }
+  /** Tool name recorded by the former approval prompt. */
+  toolName?: string
+  /** Tool call id recorded by the former approval prompt. */
+  callId?: string
+  /** Cancellation for the former approval wait. */
+  signal?: AbortSignal
+}
+
+/**
+ * Workspace-write authorization ledger retired to a no-op. Nothing is written,
+ * nothing is refused, and previously stored records are left untouched on disk.
+ */
+export class WorkspaceWriteAccess {
+  /** No durable record path. Returns the workspace spelling only.
+   * @param workspace - directory the caller asked about.
+   * @returns the absolute spelling, without creating a file.
+   */
+  recordPath(workspace: string): string {
+    return resolve(workspace)
+  }
+
+  /** No stored record.
+   * @param _workspace - ignored.
+   * @returns nothing.
+   */
+  find(_workspace: string): WorkspaceWriteRecord | undefined {
+    return undefined
+  }
+
+  /** Nothing is recorded as authorized.
+   * @param _workspace - ignored.
+   * @returns false.
+   */
+  isAuthorized(_workspace: string): boolean {
+    return false
+  }
+
+  /** No inventory.
+   * @returns no records.
+   */
+  list(): WorkspaceWriteRecord[] {
+    return []
+  }
+
+  /** No revocation is pending.
+   * @returns no workspaces.
+   */
+  pendingRevocations(): string[] {
+    return []
+  }
+
+  /** Preserve the caller's spelling. Missing directories are not an error.
+   * @param workspace - directory to spell.
+   * @returns the absolute spelling.
+   */
+  canonical(workspace: string): string {
+    return resolve(workspace)
+  }
+
+  /** Authorization is not checked.
+   * @param _workspace - ignored.
+   */
+  assertCanAuthorize(_workspace: string): void {}
+
+  /** No grant transaction to open.
+   * @param _workspace - ignored.
+   * @returns a checkpoint that does nothing.
+   */
+  beginGrant(_workspace: string): () => void {
+    return () => {}
+  }
+
+  /** No grant transaction to open.
+   * @param _workspace - ignored.
+   * @returns a checkpoint that does nothing.
+   */
+  checkpoint(_workspace: string): () => void {
+    return () => {}
+  }
+
+  /** No capability issuance to record.
+   * @param _workspace - ignored.
+   */
+  issuedCapability(_workspace: string): void {}
+
+  /** Accept the request and return a record that is not stored.
+   * @param workspace - directory the caller named.
+   * @param source - former consent source.
+   * @param _grantedAt - ignored.
+   * @param _checkpoint - ignored.
+   * @returns a record that is not written anywhere.
+   */
+  authorize(
+    workspace: string,
+    source: WorkspaceWriteSource,
+    _grantedAt?: string,
+    _checkpoint?: () => void,
+  ): WorkspaceWriteRecord {
+    return { workspace: resolve(workspace), source, grantedAt: new Date().toISOString() }
+  }
+
+  /** Run the caller's body without an authorization gate.
+   * @param _workspace - ignored.
+   * @param body - work that used to require a grant.
+   * @returns the body's result.
+   */
+  async withAuthorization<T>(_workspace: string, body: () => Promise<T> | T): Promise<T> {
+    return await body()
+  }
+
+  /** Drop the request without calling a native revoke and without deleting user files.
+   * @param _workspace - ignored.
+   * @param _revokeAcl - ignored; native ACL changes are not requested.
+   */
+  revoke(_workspace: string, _revokeAcl?: (workspace: string) => Promise<void> | void): Promise<void> {
+    return Promise.resolve()
+  }
+
+  /** Drop the rollback without changing files.
+   * @param _workspace - ignored.
+   * @param _current - ignored.
+   * @param _revokeAcl - ignored.
+   */
+  rollback(
+    _workspace: string,
+    _current?: () => void,
+    _revokeAcl?: (workspace: string) => Promise<void> | void,
+  ): Promise<void> {
+    return Promise.resolve()
+  }
+}
+
+/** No extra denial text. Writes are not held for authorization.
+ * @param _mode - ignored.
+ * @returns no hint.
+ */
+export function writeDenialHint(_mode: SandboxMode): string {
+  return ''
+}
 
 /** Preserve execution-world spelling; enforcing providers resolve filesystem identity on their host. */
 function resolveWorkspaceRoot(path: string): string {
@@ -78,13 +236,14 @@ declare module '@panedesk/cordis' {
 }
 
 /**
- * Plugin config: the deployment's sandbox default. Without an explicit mode
- * or environment choice, Windows is read-only and Linux/macOS are workspace-writable. The
+ * Plugin config: the deployment's sandbox default. All optional — `Config`
+ * supplies the defaults (`mode: 'read-only'` is the fail-safe default; a
+ * deployment that wants a workspace-writable agent opts in explicitly). The
  * runner choice is NOT here (it is the `ctx.sandbox` provider's config), nor
  * is any per-family knob: this is the one shared policy home.
  */
 export interface Config {
-  /** Explicit file-sandbox mode; otherwise the environment or platform default applies. */
+  /** File-sandbox mode a session starts from (default: `read-only`). */
   mode?: SandboxMode
   /**
    * Absolute fallback root for agentless calls and sessions without a cwd (default:
@@ -125,7 +284,7 @@ declare module '@panedesk/dsh-session-projection/types' {
 export class SandboxPolicyService extends Service {
   // Inline schema call: the config catalog walks `static Config` statically.
   static Config: z<Config> = z.object({
-    mode: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const),
+    mode: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('read-only'),
     // No schema default: process.cwd() is resolved in the constructor so the
     // stored root is always absolute regardless of how it was supplied.
     workspaceRoot: z.string(),
@@ -135,50 +294,17 @@ export class SandboxPolicyService extends Service {
 
   /** The deployment default mode — the fallback beneath a session override. */
   readonly defaultMode: SandboxMode
-  /** Whether configuration or the environment explicitly selected the deployment mode. */
-  readonly defaultSource: EffectivePermissionMode['source']
-  /** True only when Windows is using the implicit platform default. */
-  readonly windowsDefault: boolean
-  /** Product-home workspace authorizations, read afresh at each policy resolution. */
-  readonly workspaceAccess: WorkspaceWriteAccess
   /** The absolute `workspace-write` fallback root for calls without a session cwd. */
   readonly workspaceRoot: string
+  /** Retired authorization ledger. Present so callers type-check; it stores nothing. */
+  readonly workspaceAccess = new WorkspaceWriteAccess()
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
-    const effective = resolveEffectivePermissionMode(config.mode)
-    this.defaultMode = effective.mode
-    this.defaultSource = effective.source
-    this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
-    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), workspace => resolveProtectedPaths(this.ctx, workspace),
-      () => this.ctx.get('profileContext')?.dir, () => resolveOwnerMaterialPaths(this.ctx), (workspace) => {
-        const profile = this.ctx.get('profileContext')
-        const readers = new Set([profile?.inputIntegrity, ...profile?.inputIntegrities?.values() ?? [],
-          ...profile?.workspaceInputReaders?.values() ?? []])
-        for (const reader of readers) reader?.invalidateWorkspace(workspace)
-      })
+    // schemastery (static Config) already filled `mode`; the cast records that
+    // runtime fact. `workspaceRoot` has NO schema default, so its fallback to
+    // the process cwd is real branching, resolved absolute either way.
+    this.defaultMode = config.mode as SandboxMode
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
-
-    ctx.on('agent/created', ({ agent }) => {
-      if (process.platform !== 'win32') return
-      const sandbox = ctx.get('sandbox')
-      if (sandbox?.supportsWorkspaceWriteAccess !== true) return
-      const directory = agent.session.header.cwd ?? this.workspaceRoot
-      let workspace: string
-      try {
-        workspace = this.workspaceAccess.canonical(directory)
-        if (this.workspaceAccess.find(workspace) !== undefined || !sandbox.hasWorkspaceWriteGrant?.(workspace)) return
-      } catch (error) {
-        agent.inject(createUserMessage({
-          content: [{ type: 'text', text: `${en.inspectionFailed} / ${zh.inspectionFailed} ${directory}\n${error instanceof Error ? error.message : String(error)}` }],
-          source: { kind: 'user-approval' },
-        }))
-        return
-      }
-      agent.inject(createUserMessage({
-        content: [{ type: 'text', text: `${en.legacyWrite} / ${zh.legacyWrite} ${workspace}` }],
-        source: { kind: 'user-approval' },
-      }))
-    })
 
     ctx.sessionProjections.register({
       key: 'sandboxMode',
@@ -209,100 +335,15 @@ export class SandboxPolicyService extends Service {
    * configured root is the fallback for agentless calls and sessions without a
    * cwd.
    * @param request - optional session and approved mode override.
-   * @returns The per-call mode, absolute workspace root, and current protected host inputs when present.
+   * @returns the fully resolved per-call mode and absolute workspace root.
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
-    const workspaceRoot = resolveWorkspaceRoot(session?.header.cwd ?? this.workspaceRoot)
-    const explicit = request.mode ?? (session === undefined ? undefined : this.overrideOf(session))
-    const mode = explicit ?? (this.windowsDefault && this.workspaceAccess.isAuthorized(workspaceRoot)
-      ? 'workspace-write' : this.defaultMode)
-    const protectedPaths = resolveProtectedPaths(this.ctx, mode === 'workspace-write' ? workspaceRoot : undefined)
     return {
-      mode,
-      workspaceRoot,
-      ...protectedPaths.length === 0 ? {} : { protectedPaths },
-      ...mode === 'danger-full-access' ? {} : { unreadablePaths: resolveOwnerMaterialPaths(this.ctx) },
+      mode: request.mode ?? (session === undefined ? undefined : this.overrideOf(session)) ?? this.defaultMode,
+      workspaceRoot: resolveWorkspaceRoot(session?.header.cwd ?? this.workspaceRoot),
       ...session === undefined ? {} : { sessionId: session.id },
-      ...this.windowsDefault && explicit === undefined && mode === 'workspace-write'
-        ? { requiresWorkspaceAuthorization: true as const } : {},
     }
-  }
-
-  /**
-   * Request persistent workspace consent before a potentially writing operation.
-   * Explicit modes and non-Windows defaults never prompt. Missing, unattended,
-   * rejected, withdrawn, or unavailable answerers leave the policy read-only.
-   * @param request - Calling agent, tool identity, and cancellation lifetime.
-   * @returns The freshly resolved policy after consent, or the unchanged standing policy.
-   */
-  async requestWrite(
-    request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal },
-  ): Promise<SandboxExecutionPolicy> {
-    const session = request.agent?.session
-    const policy = this.resolve(session === undefined ? {} : { session })
-    if (!this.windowsDefault || policy.mode !== 'read-only'
-      || (session !== undefined && this.overrideOf(session) !== undefined)) return policy
-    const approval = this.ctx.get('approval')
-    if (request.agent === undefined || approval === undefined) return policy
-    if ((approval.overrideOf(request.agent.session) ?? approval.config.policy) === 'never') return policy
-    const workspace = this.workspaceAccess.canonical(policy.workspaceRoot)
-    const sandbox = this.ctx.get('sandbox')
-    let committed = false
-    let current: (() => void) | undefined
-    const outcome = await approval.request({
-      ...request, agent: request.agent,
-      purpose: { type: 'workspace-write', workspace },
-      reason: `Allow sandboxed writes to ${workspace}? This adds a Windows directory write ACL. Revoke in Settings > General > Windows workspace write access.`,
-      displayReason: {
-        en: `Allow sandboxed writes to ${workspace}? This adds a Windows directory write ACL. Revoke in Settings > General > Windows workspace write access.`,
-        zh: `允许向目录 ${workspace} 写入吗？这会添加 Windows 目录写入 ACL。可在设置 > 通用 > Windows 工作区写权限中撤销。`,
-      },
-    }, {
-      check: () => {
-        try { this.workspaceAccess.assertCanAuthorize(workspace) } catch (error) {
-          if (error instanceof WorkspaceWriteRuleError || error instanceof UnsafeWindowsStateError) return error
-          throw error
-        }
-      },
-      begin: () => { current = this.workspaceAccess.beginGrant(workspace) },
-      commit: async () => {
-        if (session !== undefined && this.overrideOf(session) !== undefined) return
-        if (current === undefined) throw new Error('Workspace authorization has no owner generation')
-        current()
-        await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal, current)
-        committed = true
-        request.signal?.throwIfAborted()
-        const granted = this.resolve(session === undefined ? {} : { session })
-        if (sandbox?.supportsWorkspaceWriteAccess === true) {
-          await sandbox.materializeWorkspaceWriteGrant?.(granted, request.signal)
-        }
-        current()
-      },
-      rollback: async () => {
-        if (!committed || current === undefined) return
-        await this.workspaceAccess.rollback(workspace, current, (path) => { sandbox?.revokeWorkspaceWriteGrant?.(path) })
-        committed = false
-      },
-    })
-    if (outcome !== 'allowed-once' || request.signal?.aborted) {
-      throw new Error(`Workspace write confirmation ${outcome}; access remains read-only. ${this.writeDenialHint('read-only')}`)
-    }
-    // An explicit policy change while the owner answers remains authoritative.
-    if (session !== undefined && this.overrideOf(session) !== undefined) return this.resolve({ session })
-    request.signal?.throwIfAborted()
-    return this.resolve(session === undefined ? {} : { session })
-  }
-
-  /**
-   * Explain owner-managed workspace access after a Windows default read-only denial.
-   * @param mode - The settled operation's mode, not a fresh policy resolution.
-   * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
-   */
-  writeDenialHint(mode: SandboxMode): string | undefined {
-    return this.windowsDefault && mode === 'read-only'
-      ? `${en.readOnly} / ${zh.readOnly}`
-      : undefined
   }
 
   /**
@@ -312,6 +353,23 @@ export class SandboxPolicyService extends Service {
    */
   overrideOf(session: Session): SandboxMode | undefined {
     return this.ctx.sessionProjections.stateOf(session, 'sandboxMode') ?? undefined
+  }
+
+  /** Resolve the standing policy without waiting for workspace authorization.
+   * @param request - agent and ignored approval fields.
+   * @returns the same policy {@link resolve} returns for that session.
+   */
+  requestWrite(request: WorkspaceWriteRequest = {}): SandboxExecutionPolicy {
+    request.signal?.throwIfAborted()
+    return this.resolve(request.agent?.session === undefined ? {} : { session: request.agent.session })
+  }
+
+  /** No extra denial text.
+   * @param _mode - ignored.
+   * @returns an empty string.
+   */
+  writeDenialHint(_mode: SandboxMode): string {
+    return ''
   }
 }
 

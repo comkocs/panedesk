@@ -8,13 +8,12 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import * as fs from 'node:fs'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, sep } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
-import { LAUNCHER_FAILURE_EXIT, launcherPath } from '@panedesk/node-addon-system/landlock-run'
+import { LAUNCHER_FAILURE_EXIT } from '@panedesk/node-addon-system/landlock-run'
 import { SANDBOX_UNAVAILABLE, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import {
@@ -22,28 +21,13 @@ import {
 } from '@panedesk/dsh-sandbox-local'
 import type { Config } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from '../src/profiles.ts'
-import { sessionEnvironmentArgs, sessionSocketDirectories } from '../src/session-sockets.ts'
-
-vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
 const RO: SandboxPolicy = { mode: 'read-only', workspaceRoot: '/ws' }
 const WW: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: '/ws' }
 
 /** Every temp dir created by this file (fake launchers and runner entries), removed after each test. */
 const tempDirs: string[] = []
-let ownerState: string
-let ownerPrivate: string
-beforeEach(() => {
-  const home = mkdtempSync(join(tmpdir(), 'sandbox-owner-'))
-  tempDirs.push(home)
-  vi.stubEnv('PANEDESK_HOME', home)
-  vi.stubEnv('TMUX_TMPDIR', '')
-  vi.stubEnv('XDG_RUNTIME_DIR', '')
-  ownerState = join(home, 'windows-workspace-write')
-  ownerPrivate = join(home, 'private')
-})
 afterEach(() => {
-  vi.unstubAllEnvs()
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -87,39 +71,17 @@ function fakeSeatbeltExec(status: number): string {
 
 /** The seatbelt read-only profile — every seatbelt profile starts with these forms. */
 const SEATBELT_RO_PROFILE = '(version 1) (allow default) (deny file-write*) (allow file-write* (literal "/dev/null"))'
-const SEATBELT_SESSIONS = [...new Set(['/tmp', '/private/tmp', ...process.env.TMPDIR ? [process.env.TMPDIR, realpathSync(process.env.TMPDIR)] : []])]
-  .map(path => `(deny network-outbound (remote unix-socket (path-prefix "${path}/")))`).join(' ')
 
 describe('profile dialects', () => {
   it('bwrap read-only: whole tree read-only with fresh /dev and private PID-scoped /proc, no writable mounts', () => {
-    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session', '--tmpfs', '/tmp',
-      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]),
-      '--ro-bind', '/sys/fs/cgroup', '/sys/fs/cgroup', ...sessionEnvironmentArgs()])
+    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent'])
   })
 
   it('bwrap workspace-write: adds an ephemeral /tmp and rebinds the workspace root', () => {
     expect(bwrapProfileArgs(WW)).toEqual([
-      '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session',
+      '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent',
       '--tmpfs', '/tmp', '--bind', '/ws', '/ws',
-      ...sessionSocketDirectories().flatMap(path => ['--perms', '0700', '--tmpfs', path]),
-      '--ro-bind', '/sys/fs/cgroup', '/sys/fs/cgroup', ...sessionEnvironmentArgs(),
     ])
-  })
-
-  it('landlock keeps an unrelated workspace writable when host inputs occupy shared temp', () => {
-    const workspace = mkdtempSync(join(tmpdir(), 'landlock-workspace-'))
-    tempDirs.push(workspace)
-    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace, protectedPaths: ['/tmp/active-host/plugin.js'] }))
-      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', workspace])
-  })
-
-  it('landlock grants only unrelated first-level children beside an active host input', () => {
-    const workspace = mkdtempSync(join(tmpdir(), 'landlock-protected-'))
-    tempDirs.push(workspace)
-    fs.mkdirSync(join(workspace, 'active-host'))
-    fs.mkdirSync(join(workspace, 'project'))
-    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace, protectedPaths: [join(workspace, 'active-host', 'plugin.js')] }))
-      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', join(workspace, 'project')])
   })
 
   it('landlock read-only: readable tree plus a writable /dev/null, nothing else', () => {
@@ -129,14 +91,11 @@ describe('profile dialects', () => {
   })
 
   it('landlock workspace-write: adds the host /tmp and the workspace root', () => {
-    const workspace = mkdtempSync(join(tmpdir(), 'landlock-workspace-'))
-    tempDirs.push(workspace)
-    expect(landlockProfileArgs({ ...WW, workspaceRoot: workspace }))
-      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', workspace])
+    expect(landlockProfileArgs(WW)).toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', '/ws'])
   })
 
   it('seatbelt read-only: allow-default with every file write denied except the /dev/null literal', () => {
-    expect(seatbeltProfileArgs(RO)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${SEATBELT_SESSIONS}`])
+    expect(seatbeltProfileArgs(RO)).toEqual(['-p', SEATBELT_RO_PROFILE])
   })
 
   it('seatbelt workspace-write: one more allow for the canonicalized workspace root, /tmp, and the user temp dir', () => {
@@ -147,7 +106,7 @@ describe('profile dialects', () => {
     // where they resolve to the same directory.
     const roots = [...new Set(['/ws', realpathSync('/tmp'), realpathSync(tmpdir())])]
     const allow = `(allow file-write* ${roots.map(root => `(subpath "${root}")`).join(' ')})`
-    expect(seatbeltProfileArgs(WW)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow} ${SEATBELT_SESSIONS}`])
+    expect(seatbeltProfileArgs(WW)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow}`])
   })
 
   it('seatbelt workspace-write dedups a workspace root that already IS the temp dir', () => {
@@ -169,10 +128,8 @@ describe('runnerCommand config', () => {
     }, { probeBwrap, probeLandlock, probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: ['fake-runner', '--flag', ...bwrapProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
-      productSandbox: true,
+      argv: ['fake-runner', '--flag', ...bwrapProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       // An operator runner's kernel mechanism is unknown: both Linux
       // file-denial dialects, never bare EPERM.
       denialSignatures: ['read-only file system', 'permission denied'],
@@ -219,15 +176,10 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: ['bwrap', ...bwrapProfileArgs({ ...RO, unreadablePaths: [ownerPrivate] }), '--', launcherPath(), '--scope-only', '--', 'true'],
-      productSandbox: true,
+      argv: ['bwrap', ...bwrapProfileArgs(RO), '--', 'true'],
       enforcement: 'full',
-      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['read-only file system'],
-      runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }, {
-        allowedExitCodes: [LAUNCHER_FAILURE_EXIT], fatalSignatures: ['landlock-run: '],
-        informationalLines: ['landlock-run: partial enforcement (older Landlock ABI)'],
-      }],
+      runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }],
     })
     expect(probeLandlock).not.toHaveBeenCalled()
   })
@@ -237,25 +189,10 @@ describe('the platform chains', () => {
     const probeLandlock = vi.fn(() => 'full' as const)
     const launcher = fakeLauncher()
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
-    // Enumerate only the owned fixture's ancestry and contents. Caching directory
-    // entries alone cannot stabilize later stat calls on other workers' paths.
-    const home = realpathSync(process.env.PANEDESK_HOME!)
-    const readable = join(home, 'readable')
-    fs.mkdirSync(readable)
-    const readDirectory = fs.readdirSync
-    const directories = vi.spyOn(fs, 'readdirSync').mockImplementation((...args) => {
-      const listing = readDirectory(...args)
-      return listing.filter((entry) => {
-        const path = join(String(args[0]), String(entry.name))
-        return path === home || home.startsWith(`${path}${sep}`) || path.startsWith(`${home}${sep}`)
-      })
-    })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
-      productSandbox: true,
+      argv: [launcher, ...landlockProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['permission denied'],
       runnerFailureRules: [{
         allowedExitCodes: [LAUNCHER_FAILURE_EXIT],
@@ -263,7 +200,6 @@ describe('the platform chains', () => {
         informationalLines: ['landlock-run: partial enforcement (older Landlock ABI)'],
       }],
     })
-    directories.mockRestore()
     expect(probeLandlock).toHaveBeenCalledWith(launcher)
   })
 
@@ -275,9 +211,8 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'darwin', probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], RO)
     expect(confined).toEqual({
-      argv: ['sandbox-exec', ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
+      argv: ['sandbox-exec', ...seatbeltProfileArgs(RO), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })
@@ -441,9 +376,8 @@ describe('the default seatbelt probe (sandbox-exec contract)', () => {
     const { sandbox } = await setup({}, { chain: ['bwrap', 'seatbelt'], probeBwrap: () => false, seatbeltExec: exec })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: [exec, ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'true'],
+      argv: [exec, ...seatbeltProfileArgs(RO), '--', 'true'],
       enforcement: 'full',
-      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })
@@ -469,7 +403,7 @@ describe('the windows-acl probe (runner invocation contract)', () => {
     })
     const confined = await sandbox.confine(['true'], RO)
     expect(probeWindowsAcl).toHaveBeenCalledTimes(1)
-    expect(confined.argv.slice(-6)).toEqual(['--mode', 'read-only', '--unreadable-path', ownerPrivate, '--', 'true'])
+    expect(confined.argv.slice(-4)).toEqual(['--mode', 'read-only', '--', 'true'])
     expect(confined.enforcement).toBe('partial')
     expect(confined.denialSignatures).toEqual(['access is denied', 'access to the path', 'permission denied', 'operation not permitted'])
     expect(confined.runnerFailureRules).toEqual([{ allowedExitCodes: [127], fatalSignatures: ['windows-acl-run: '] }])

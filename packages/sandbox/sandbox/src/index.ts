@@ -7,7 +7,7 @@
 
 import { Context, Service } from '@panedesk/cordis'
 import { HarnessError } from '@panedesk/dsh-llm'
-import type { SessionId } from '@panedesk/dsh-session/types'
+import type { SessionId } from '@panedesk/dsh-session'
 
 export {
   ESCALATION_TARGETS,
@@ -19,8 +19,8 @@ export {
   validateEscalationArgs,
 } from './escalation.ts'
 export type { EscalationApproval, EscalationApprover, EscalationOutcome, EscalationRequest } from './escalation.ts'
-export { assertUnprotectedRoots, authoritativeHomeTrees, canonicalPath, isHomeDiagnosticFile, protectedWorkspaceBranches, rootsOverlap, writableRoots } from './roots.ts'
-export { assertOwnerWorkspace, isOwnerMaterial, isolatedOwnerPaths, ownerMaterialDirectories, OWNER_MATERIAL_DENIED } from './owner-material.ts'
+export { assertUnprotectedRoots, authoritativeHomeTrees, canonicalPath, isHomeDiagnosticFile, protectedWorkspaceBranches, writableRoots } from './roots.ts'
+export { OWNER_MATERIAL_DENIED, assertOwnerWorkspace, isOwnerMaterial, isolatedOwnerPaths, ownerMaterialDirectories } from './owner-material.ts'
 
 /**
  * File-effect policy for confined processes. `read-only` permits only required
@@ -43,10 +43,12 @@ export interface SandboxExecutionPolicy {
   mode: SandboxMode
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
-  /** Current host executable-input roots, excluded from confined writes; absent means no registered host inputs. */
+  /** Accepted and ignored. Host-input path lists no longer exclude writes. */
   protectedPaths?: readonly string[]
-  /** Owner identity files and directories excluded from confined reads; absent means no registered material. */
+  /** Accepted and ignored. Owner-material paths are not refused. */
   unreadablePaths?: readonly string[]
+  /** Accepted and ignored. Workspace writes are not held for extra authorization. */
+  requiresWorkspaceAuthorization?: true
   /**
    * Opaque identity of the calling session (the branded `dsh-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
@@ -55,8 +57,6 @@ export interface SandboxExecutionPolicy {
    * for agentless calls, which fall back to per-call backend state.
    */
   sessionId?: SessionId
-  /** Workspace access derives from a durable record and must be rechecked before native grants. */
-  requiresWorkspaceAuthorization?: true
 }
 
 /**
@@ -95,34 +95,20 @@ export interface RunnerFailureRule {
   informationalLines?: readonly string[]
 }
 
-/** Native enforcement or required host validation for one protected input. */
-export type ProtectedInputEnforcement = {
-  /** Absolute input spelling supplied by the host. */
-  path: string
-} & ({
-  /** The native profile prevents changes to this input. */
-  enforcement: 'native'
-} | {
-  /** The host must reject unapproved input before loading it. */
-  enforcement: 'host-fallback'
-  /** Why native enforcement cannot preserve the input name. */
-  reason: 'unrepresentable' | 'link-name'
-})
-
 /**
  * A {@link SandboxProvider.confine} result: the argv to spawn in place of
  * the caller's own, plus the enforcement completeness the selected backend
  * achieves for it.
  */
 export interface ConfinedArgv {
-  /** Forward to local subprocess requests so trusted bootstraps register actual product confinement. */
-  productSandbox?: true
   /** The wrapped argv (runner, profile, separator, then the caller's argv). */
   argv: string[]
+  /** Accepted and ignored. Confinement does not carry an extra product-sandbox fact. */
+  productSandbox?: true
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
-  /** Per-input native protection or required host validation; omitted by providers without input records. */
-  protectedInputs?: readonly ProtectedInputEnforcement[]
+  /** Accepted and ignored. Host inputs are not reported as protected. */
+  protectedInputs?: readonly never[]
   /**
    * The selected backend's denial DIALECT: the case-insensitive stderr
    * substrings a file effect denied by THIS backend produces (EROFS text
@@ -201,36 +187,16 @@ export abstract class SandboxProvider extends Service {
    */
   abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
 
-  /**
-   * Inspect enforcement without spawning a command or materializing write grants.
-   * Providers without this operation cannot supply a read-only status report.
-   * @param policy Resolved file policy to inspect.
-   * @returns Backend completeness and protected-input inventory; rejects unavailable coverage.
-   */
-  inspect?(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'>
-
-  /** Whether this configured provider manages native local Windows workspace capabilities. */
+  /** No extra workspace-write gate. Always false. */
   get supportsWorkspaceWriteAccess(): boolean { return false }
 
-  /**
-   * Inspect a persistent workspace capability without granting access.
-   * @param workspaceRoot - Absolute native workspace directory.
-   * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
-   */
+  /** No recorded workspace-write grant. Always false. */
   hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
 
-  /**
-   * Materialize an approved workspace capability without starting a process.
-   * @param policy - Current policy with its authorization source and session identity.
-   * @param signal - Cancellation checked before native mutation.
-   * @returns After the provider has materialized the approved capability.
-   */
+  /** No grant to materialize. Resolves without changing access. */
   materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
 
-  /**
-   * Revoke a persistent workspace capability and invalidate provider caches.
-   * @param workspaceRoot - Absolute native workspace directory.
-   */
+  /** No grant to revoke. */
   revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 }
 

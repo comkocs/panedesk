@@ -12,9 +12,7 @@
  * @module @panedesk/dsh-sandbox-windows-acl/grant
  */
 
-import { denyProtectedWrite, explicitCapabilityEntries, grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
-import { RestrictedFileAccess } from './access-token.ts'
-import { revokeWorkspaceTree } from './revoke-tree.ts'
+import { grantWrite, revokeWrite } from './acl.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32Sync } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { makeWellKnownSid } from './token.ts'
@@ -107,65 +105,6 @@ export class AclWriteGrant {
   add(path: string, standing = false): void {
     ;(standing ? this.standingPaths : this.revocablePaths).push(path)
     grantWrite(this.api, path, this.sidPtr, this.lowLabelSidPtr, this.worldSidPtr)
-  }
-
-  /**
-   * Retain a protected input's deny ACE across provider disposal.
-   * @param path - Existing protected input or its ancestor.
-   * @param recursive - Deny writes below the input; false denies only ancestor deletion.
-   */
-  protect(path: string, recursive = true): void {
-    denyProtectedWrite(this.api, path, this.sidPtr, recursive)
-  }
-
-  /**
-   * Inspect an existing grant, including one left by an earlier product version.
-   * @param path - Canonical directory whose ACL is inspected without mutation.
-   * @returns Whether this capability's exact write ACE is present.
-   */
-  has(path: string): boolean {
-    return hasWriteGrant(this.api, path, this.sidPtr)
-  }
-
-  /**
-   * Inspect effective root write access using the workspace token, without changing ACLs.
-   * @param path Canonical workspace root.
-   * @returns Whether any write, deletion, or security-descriptor change is permitted.
-   */
-  hasEffectiveWrite(path: string): boolean {
-    const probe = RestrictedFileAccess.create([this.writeSid])
-    try {
-      return [2, 4, 0x10, 0x100, 0x10000, 0x40, 0x40000, 0x80000].some(mask => probe.permits(path, mask))
-    } finally { probe.dispose() }
-  }
-
-  /**
-   * Explicitly revoke a workspace or temporary grant; failed removal remains retryable.
-   * @param path - Canonical directory whose capability ACE is removed.
-   */
-  revoke(path: string): void {
-    revokeWrite(this.api, path, this.sidPtr)
-    for (const paths of [this.standingPaths, this.revocablePaths]) {
-      for (let index = paths.length - 1; index >= 0; index--) {
-        if (paths[index] === path) paths.splice(index, 1)
-      }
-    }
-  }
-
-  /**
-   * Revoke every explicit workspace capability across provider restarts.
-   * @param root Canonical workspace tree; link objects are inspected without traversing targets.
-   */
-  revokeTree(root: string): void {
-    const probe = RestrictedFileAccess.create([this.writeSid])
-    try {
-      revokeWorkspaceTree(root, {
-        hasExplicit: path => explicitCapabilityEntries(this.api, path, this.sidPtr, false),
-        removeExplicit: (path) => { explicitCapabilityEntries(this.api, path, this.sidPtr, true) },
-        permits: (path, mask) => probe.permits(path, mask, true),
-      })
-      this.standingPaths.length = 0
-    } finally { probe.dispose() }
   }
 
   /** Every directory currently carrying the grant, in grant order. */

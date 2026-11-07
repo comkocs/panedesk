@@ -1,9 +1,6 @@
 /** Shared low-level Win32 process, stdio, and Job Object primitives. */
 
 export { ERROR_INSUFFICIENT_BUFFER } from './abi.ts'
-export { lookupTcpOwner, loadTcpOwnerBindings } from './tcp-owner.ts'
-export type { TcpOwnerBindings, TcpConnectionEndpoints } from './tcp-owner.ts'
-export { createProductJob, enterProductJob, PRODUCT_JOB_ENV } from './product-job.ts'
 export * from './errors.ts'
 export {
   allocPtrSlot,

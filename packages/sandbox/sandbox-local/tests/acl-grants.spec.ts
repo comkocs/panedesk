@@ -5,15 +5,14 @@
  * is mocked; native access checks live in sandbox-windows-acl's runner suite.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { SessionId } from '@panedesk/dsh-session'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
-import { provideBrowserCredentials } from '../../../api/gateway/tests/browser-credentials.ts'
 
 /** Cross-file state shared with the vi.mock factory (hoisting contract). */
 const mockState = vi.hoisted(() => ({
@@ -23,8 +22,6 @@ const mockState = vi.hoisted(() => ({
   addFailureStanding: undefined as boolean | undefined,
   createTempFailure: undefined as Error | undefined,
   disposeFailure: undefined as Error | undefined,
-  legacyGrant: false,
-  revoked: [] as string[],
 }))
 
 vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
@@ -47,9 +44,6 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
         throw mockState.addFailure
       }
     }
-    has(): boolean { return mockState.legacyGrant }
-    hasEffectiveWrite(): boolean { return mockState.legacyGrant }
-    revokeTree(path: string): void { mockState.revoked.push(path) }
     dispose(): void {
       if (mockState.disposeFailure !== undefined) throw mockState.disposeFailure
       this.disposed = true
@@ -91,25 +85,14 @@ function flag(argv: readonly string[], name: string): string | undefined {
 
 describe('windows-acl write grants (LocalSandboxProvider)', () => {
   const scratch: string[] = []
-  let ownerState: string
-  let home: string
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'acl-grants-owner-'))
-    scratch.push(home)
-    vi.stubEnv('PANEDESK_HOME', home)
-    ownerState = join(home, 'windows-workspace-write')
-    mkdirSync(ownerState)
     mockState.grants = []
     mockState.addFailure = undefined
     mockState.addFailureStanding = undefined
     mockState.createTempFailure = undefined
     mockState.disposeFailure = undefined
-    mockState.legacyGrant = false
-    mockState.revoked = []
   })
-
-  afterEach(() => { vi.unstubAllEnvs(); cleanup() })
 
   const cleanup = () => {
     for (const grant of mockState.grants) {
@@ -119,70 +102,6 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     }
     for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true })
   }
-
-  it('inspects legacy workspace access without granting and invalidates the cache on revocation', async () => {
-    const { sandbox, fiber } = await setup()
-    try {
-      const ws = workspaceRoot()
-      scratch.push(ws)
-      mockState.legacyGrant = true
-      expect(sandbox.hasWorkspaceWriteGrant(ws)).toBe(true)
-      expect(mockState.grants.flatMap(grant => grant.added)).toEqual([])
-      const policy: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: ws, sessionId: SessionId('revoke') }
-      await sandbox.confine(['true'], policy)
-      sandbox.revokeWorkspaceWriteGrant(ws)
-      expect(mockState.revoked).toEqual([ws])
-      await sandbox.confine(['true'], policy)
-      expect(mockState.grants.flatMap(grant => grant.added).filter(grant => grant.standing)).toHaveLength(2)
-    } finally { await fiber.dispose(); cleanup() }
-  })
-
-  it('advertises workspace ACL management only for the built-in Windows runner', async () => {
-    const { sandbox, fiber } = await setup()
-    const customContext = new Context()
-    const custom = await customContext.plugin(LocalSandboxProvider, {
-      runnerCommand: ['custom-runner'], runnerFailureSignatures: ['custom runner refused'],
-    })
-    try {
-      expect(sandbox.supportsWorkspaceWriteAccess).toBe(true)
-      sandbox.internals = { platform: 'linux' }
-      expect(sandbox.supportsWorkspaceWriteAccess).toBe(false)
-      const provider = customContext.sandbox as LocalSandboxProvider
-      provider.internals = { platform: 'win32' }
-      expect(provider.supportsWorkspaceWriteAccess).toBe(false)
-      expect(mockState.grants).toEqual([])
-    } finally { await fiber.dispose(); await custom.dispose() }
-  })
-
-  it('requires a session write policy before materializing workspace access', async () => {
-    const { sandbox, fiber } = await setup()
-    const ws = workspaceRoot()
-    scratch.push(ws)
-    try {
-      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'read-only', workspaceRoot: ws,
-        sessionId: SessionId('read-only-materialization') })).rejects.toThrow('requires an approved session policy')
-      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws }))
-        .rejects.toThrow('requires an approved session policy')
-      expect(mockState.grants).toEqual([])
-      await sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws,
-        sessionId: SessionId('approved-materialization'), protectedPaths: [] })
-      expect(mockState.grants.filter(grant => grant.added.some(entry => entry.standing))).toHaveLength(1)
-    } finally { await fiber.dispose(); cleanup() }
-  })
-
-  it('refuses ACL management on a provider without the built-in Windows runner', async () => {
-    const { sandbox, fiber } = await setup()
-    const ws = workspaceRoot()
-    scratch.push(ws)
-    sandbox.internals = { platform: 'linux' }
-    try {
-      expect(() => sandbox.hasWorkspaceWriteGrant(ws)).toThrow('requires the built-in Windows sandbox provider')
-      expect(() => { sandbox.revokeWorkspaceWriteGrant(ws) }).toThrow('requires the built-in Windows sandbox provider')
-      await expect(sandbox.materializeWorkspaceWriteGrant({ mode: 'workspace-write', workspaceRoot: ws,
-        sessionId: SessionId('unsupported-materialization') })).rejects.toThrow('requires the built-in Windows sandbox provider')
-      expect(mockState.grants).toEqual([])
-    } finally { await fiber.dispose(); cleanup() }
-  })
 
   it('does not create grants for a cancelled confinement request', async () => {
     const { sandbox, fiber } = await setup()
@@ -218,9 +137,6 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--mode', 'workspace-write',
         '--write-sid', WORKSPACE_SID,
         '--temp-write-sid', tempSid,
-        '--unreadable-path', join(home, 'private'),
-        '--protected-path', ownerState,
-        '--state-directory', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])
@@ -241,22 +157,6 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     }
   })
 
-  it('requires host coverage for missing inputs inside the session private temporary directory', async () => {
-    const { sandbox, fiber } = await setup()
-    try {
-      const ws = workspaceRoot()
-      scratch.push(ws)
-      const policy: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: ws, sessionId: SessionId('private-input') }
-      const confined = await sandbox.confine(['true'], policy)
-      const temp = flag(confined.argv, '--temp')
-      if (temp === undefined) throw new Error('Private temporary directory missing')
-      const protectedPolicy = { ...policy, protectedPaths: [join(temp, 'missing.yml')] }
-      expect(() => sandbox.inspect(protectedPolicy)).toThrow('Protected host input has no fallback coverage')
-      await expect(sandbox.confine(['true'], protectedPolicy)).rejects.toThrow('Protected host input has no fallback coverage')
-      expect(mockState.grants).toHaveLength(2)
-    } finally { await fiber.dispose(); cleanup() }
-  })
-
   it('read-only materializes no capability; upgrade creates them and downgrade leaves them reusable', async () => {
     try {
       const { sandbox, fiber } = await setup()
@@ -270,7 +170,6 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--workspace', ws,
         '--temp', tmpdir(),
         '--mode', 'read-only',
-        '--unreadable-path', join(home, 'private'),
         '--',
         'true',
       ])
@@ -361,9 +260,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
   })
 
   it('rejects a workspace containing the ambient temp root before any ACL mutation', async () => {
-    const { ctx, sandbox } = await setup()
-    provideBrowserCredentials(ctx)
-    Object.defineProperty(ctx.credentials, 'protectedStoragePaths', { value: [] })
+    const { sandbox } = await setup()
     await expect(sandbox.confine(['true'], {
       mode: 'workspace-write', workspaceRoot: realpathSync.native(tmpdir()), sessionId: SessionId('overlap'),
     })).rejects.toThrow(/temp root must be outside the workspace/u)
@@ -421,9 +318,6 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--workspace', '/ws',
         '--temp', tmpdir(),
         '--mode', 'workspace-write',
-        '--unreadable-path', join(home, 'private'),
-        '--protected-path', ownerState,
-        '--state-directory', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])

@@ -261,7 +261,6 @@
         "paths": [
           "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
           "packages/fs/tool-fs/README*",
-          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
           "packages/sandbox/sandbox-policy/README*"
         ]
       }
@@ -402,7 +401,6 @@
           "packages/boot/app-boot/src/input-review-thread.ts",
           "packages/boot/app-boot/src/input-review-worker.ts",
           "packages/boot/app-boot/README*",
-          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
           "packages/sandbox/sandbox-policy/src/index.ts",
           "packages/sandbox/sandbox-policy/README*",
           "packages/sandbox/sandbox-local/src/index.ts",
@@ -502,18 +500,6 @@
       }
     },
     {
-      "id": "product-identity-eviction-iteration",
-      "description": "Iterate the oldest retired identity without an impossible empty-value fallback",
-      "origin": "Linux product identity coverage review",
-      "reason": "Evict the first bigint from the native retired identity Set only after its size exceeds 4096, using one iteration followed by a break instead of an unreachable undefined-value return. Preserve insertion-order eviction, deny-only filter bits, identity bounds and connection classifications. These changes can be contributed upstream.",
-      "match": {
-        "type": "maintenance",
-        "paths": [
-          "packages/subprocess/subprocess-local/src/linux-product-groups.ts"
-        ]
-      }
-    },
-    {
       "id": "authoritative-home-structural-review",
       "description": "Validate mutable authoritative home trees without content baselines",
       "origin": "Protected host input review",
@@ -550,34 +536,25 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/subprocess/subprocess/src/execve-budget*.ts",
           "packages/subprocess/subprocess/src/index.ts",
-          "packages/subprocess/subprocess/tests/execve-budget.spec.ts",
           "packages/subprocess/subprocess/README*",
           "packages/subprocess/subprocess-local/README*",
           "packages/sandbox/sandbox-local/README*",
-          "packages/subprocess/subprocess-local/tests/execve-vectors.spec.ts",
-          "packages/subprocess/subprocess-local/tests/fixtures/execve-vectors.ts",
           "packages/subprocess/subprocess-local/src/linux-execve.ts",
           "packages/subprocess/subprocess-local/src/linux-scope.ts",
           "packages/subprocess/subprocess-local/src/output.ts",
           "packages/subprocess/subprocess-local/src/runner-protocol.ts",
           "packages/subprocess/subprocess-local/src/spawn-runner.ts",
           "packages/subprocess/subprocess-local/src/spawn.ts",
-          "packages/subprocess/subprocess-local/tests/launch-resource-regression.spec.ts",
           "packages/subprocess/subprocess-local/tests/linux-execve.spec.ts",
           "packages/subprocess/subprocess-local/tests/linux-scope.spec.ts",
           "packages/subprocess/subprocess-local/tests/native-containment.spec.ts",
           "packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts",
           "packages/sandbox/sandbox/src/diagnostics.ts",
-          "packages/sandbox/sandbox/tests/diagnostics.spec.ts",
           "packages/shell/bash-sandbox/tests/partial-landlock.spec.ts",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/src/launch-budget-locales.ts",
-          "packages/sandbox/sandbox-local/tests/launch-budget.spec.ts",
           "packages/sandbox/sandbox-local/package.json",
-          "packages/sandbox/sandbox-local/tsconfig.json",
           "pnpm-lock.yaml",
           "docs/subsystems/subprocess.md",
           "docs/subsystems/subprocess.zh.md",
@@ -610,21 +587,8 @@
         "type": "behavior",
         "paths": [
           "scripts/check-workspace-constraints.ts",
-          "packages/subprocess/win32-process/tests/process-allocation-failure.spec.ts",
           "scripts/no-unknown-casts.baseline.json",
           "scripts/rescope-vendor.ts"
-        ]
-      }
-    },
-    {
-      "id": "linux-native-owner-source-tests",
-      "description": "Exercise native Linux owner admission and report delegation warnings per case",
-      "origin": "Owner authentication isolation",
-      "reason": "Run host and Chromium owner controls, confined cookie replay, orphan descendants, cgroup migration denial, nested namespaces and native socket queries in the ordinary unit inventory. Report exact limitation counts and fail required native sandboxing on unavailable delegation. Select the nested namespace executable through PANEDESK_TEST_UNSHARE for both host and confined calls; required runs assert exact permission denial inside the product sandbox instead of skipping when the host probe is denied, and explicitly leave permissive hosts unverified. These tests can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/sandbox/sandbox-local/tests/linux-owner-source-native.spec.ts"
         ]
       }
     },
@@ -637,7 +601,6 @@
         "type": "behavior",
         "paths": [
           "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/tests/product-scope.spec.ts",
           "packages/subprocess/subprocess-local/README*",
           "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*"
         ]
@@ -652,16 +615,10 @@
         "type": "behavior",
         "paths": [
           "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/src/linux-product-groups.ts",
-          "packages/subprocess/subprocess-local/src/windows-product-jobs.ts",
-          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts",
-          "packages/subprocess/subprocess-local/tests/windows-product-jobs.spec.ts",
           "packages/subprocess/subprocess-local/README*",
           "README.md",
           "README.zh.md",
           "README.i18n.yaml",
-          "packages/subprocess/win32-process/src/product-job.ts",
-          "packages/subprocess/win32-process/tests/product-job.spec.ts",
           "packages/subprocess/win32-process/README*",
           "docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/*",
           "docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/*"
@@ -706,15 +663,8 @@
           "README.md",
           "README.zh.md",
           "README.i18n.yaml",
-          "packages/subprocess/win32-process/src/index.ts",
-          "packages/subprocess/win32-process/src/product-job.ts",
-          "packages/subprocess/win32-process/src/tcp-owner.ts",
-          "packages/subprocess/win32-process/tests/product-job.spec.ts",
-          "packages/subprocess/win32-process/tests/tcp-owner.spec.ts",
           "packages/subprocess/win32-process/README*",
           "packages/subprocess/subprocess-local/src/index.ts",
-          "packages/subprocess/subprocess-local/src/windows-product-jobs.ts",
-          "packages/subprocess/subprocess-local/tests/windows-product-jobs.spec.ts",
           "packages/subprocess/subprocess-local/README*",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/README*",
@@ -793,15 +743,12 @@
           "README.md",
           "README.zh.md",
           "README.i18n.yaml",
-          "packages/subprocess/subprocess-local/src/linux-product-*.ts",
           "packages/subprocess/subprocess-local/src/index.ts",
           "packages/subprocess/subprocess-local/src/linux-scope.ts",
           "packages/subprocess/subprocess-local/src/runner-protocol.ts",
           "packages/subprocess/subprocess-local/src/spawn-runner.ts",
-          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts",
           "packages/subprocess/subprocess-local/tests/local.spec.ts",
           "packages/subprocess/subprocess-local/package.json",
-          "packages/subprocess/subprocess-local/tsconfig.json",
           "packages/subprocess/subprocess-local/README*",
           "packages/subprocess/subprocess/README*",
           "packages/subprocess/subprocess/src/types.ts",
@@ -810,7 +757,6 @@
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
           "packages/sandbox/sandbox-local/README*",
           "packages/shell/bash-local/src/index.ts",
           "packages/shell/bash-local/README*",
@@ -890,18 +836,13 @@
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/subprocess/win32-process/src/process.ts",
-          "packages/subprocess/win32-process/tests/process.spec.ts",
-          "packages/subprocess/win32-process/tests/process-allocation-failure.spec.ts",
           "packages/subprocess/win32-process/README.md",
           "packages/subprocess/win32-process/README.zh.md",
-          "packages/subprocess/win32-process/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
           "packages/sandbox/sandbox-windows-acl/src/spawn.ts",
           "packages/sandbox/sandbox-windows-acl/tests/index-failure-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml"
+          "packages/sandbox/sandbox-windows-acl/README.zh.md"
         ]
       }
     },
@@ -977,10 +918,8 @@
           "packages/sandbox/sandbox-windows-acl/src/ffi.ts",
           "packages/sandbox/sandbox-windows-acl/src/token.ts",
           "packages/sandbox/sandbox-windows-acl/tests/token-failure-paths.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/process-marker.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
-          "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml"
+          "packages/sandbox/sandbox-windows-acl/README.zh.md"
         ]
       }
     },
@@ -1008,15 +947,9 @@
           "native/system/test/launcher.test.js",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/src/session-sockets.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
-          "packages/sandbox/sandbox-local/tests/session-sockets.spec.ts",
-          "packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts",
-          "packages/sandbox/sandbox-local/tests/session-warning.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "packages/boot/plugin-manager/tests/native-profile-capture.ts",
           "packages/fs/tool-fs-search/tests/tools.spec.ts",
           "docs/upgrade-guide/v0.2.1-rc.2/sandbox-session-sockets/*"
@@ -1113,22 +1046,14 @@
           "packages/sandbox/sandbox/src/index.ts",
           "packages/sandbox/sandbox/README.md",
           "packages/sandbox/sandbox/README.zh.md",
-          "packages/sandbox/sandbox/README.i18n.yaml",
           "packages/sandbox/sandbox-policy/src/index.ts",
-          "packages/sandbox/sandbox-policy/src/owner-material.ts",
-          "packages/sandbox/sandbox-policy/src/protected-paths.ts",
-          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
           "packages/sandbox/sandbox-policy/README.md",
           "packages/sandbox/sandbox-policy/README.zh.md",
-          "packages/sandbox/sandbox-policy/README.i18n.yaml",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/tests/state-directory.spec.ts",
-          "packages/sandbox/sandbox-local/tests/owner-nested-workspace.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/src/runner.ts",
           "packages/boot/app-boot/src/input-integrity.ts",
           "packages/boot/app-boot/package.json",
@@ -1158,14 +1083,9 @@
           "native/system/README.zh.md",
           "native/system/README.i18n.yaml",
           "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/tests/landlock-missing-siblings.spec.ts",
-          "packages/sandbox/sandbox-local/tests/landlock-launcher.ts",
-          "packages/sandbox/sandbox-local/tests/landlock-grant-roots.spec.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
-          "packages/sandbox/sandbox-local/tests/owner-nested-workspace.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
-          "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml"
+          "packages/sandbox/sandbox-local/README.zh.md"
         ]
       }
     },
@@ -1266,7 +1186,6 @@
           "README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
           "apps/cli/src/profile-boot.ts",
           "apps/cli/src/windows-permission-notice.ts",
           "apps/cli/tests/windows-permission-notice.spec.ts"
@@ -1307,8 +1226,6 @@
           "packages/terminal/terminal-bash/tests/local.spec.ts",
           "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
           "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
-          "packages/sandbox/sandbox-local/tests/state-directory.spec.ts",
           "packages/sandbox/sandbox-windows-acl/tests/provider-chain.spec.ts",
           "packages/experimental/webworker-runtime/tests/node/sandbox-stack.spec.ts"
         ]
@@ -1323,12 +1240,10 @@
         "type": "behavior",
         "paths": [
           "packages/sandbox/sandbox-local/tests/bwrap.e2e.ts",
-          "packages/sandbox/sandbox-local/tests/native-profile-handoff.spec.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
           "packages/sandbox/sandbox-local/package.json",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "pnpm-lock.yaml"
         ]
       }
@@ -1348,14 +1263,11 @@
           "apps/cli/README.md",
           "apps/cli/README.zh.md",
           "apps/cli/README.i18n.yaml",
-          "packages/sandbox/sandbox-windows-acl/src/owner-cleanup.ts",
           "packages/sandbox/sandbox-windows-acl/src/acl.ts",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/owner-cleanup.spec.ts",
           "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
           "pnpm-lock.yaml"
         ]
       }
@@ -1429,29 +1341,19 @@
           "packages/sandbox/sandbox/src/index.ts",
           "packages/sandbox/sandbox/src/owner-material.ts",
           "packages/sandbox/sandbox-policy/package.json",
-          "packages/sandbox/sandbox-policy/tsconfig.json",
           "packages/sandbox/sandbox-policy/src/index.ts",
-          "packages/sandbox/sandbox-policy/src/owner-material.ts",
           "packages/sandbox/sandbox-policy/tests/policy.spec.ts",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
-          "packages/sandbox/sandbox-local/tests/owner-directories.spec.ts",
-          "packages/sandbox/sandbox-local/tests/owner-material.spec.ts",
-          "packages/sandbox/sandbox-local/tests/terminal-isolation.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-bwrap-native.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/package.json",
-          "packages/sandbox/sandbox-windows-acl/tsconfig.json",
           "packages/sandbox/sandbox-windows-acl/src/acl.ts",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
           "packages/sandbox/sandbox-windows-acl/src/runner.ts",
-          "packages/sandbox/sandbox-windows-acl/src/win32-abi.ts",
           "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
           "pnpm-lock.yaml"
         ]
       }
@@ -14839,11 +14741,7 @@
       "match": {
         "type": "product-development",
         "paths": [
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
-          "packages/sandbox/sandbox-policy/README.i18n.yaml",
-          "packages/sandbox/sandbox-policy/package.json",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
-          "packages/sandbox/sandbox/README.i18n.yaml"
+          "packages/sandbox/sandbox-policy/package.json"
         ]
       }
     },
@@ -15097,7 +14995,6 @@
       "match": {
         "type": "product-development",
         "paths": [
-          "packages/subprocess/subprocess-local/README.i18n.yaml",
           "packages/subprocess/subprocess-local/README.md",
           "packages/subprocess/subprocess-local/README.zh.md",
           "packages/subprocess/subprocess-local/src/index.ts",
@@ -15106,12 +15003,10 @@
           "packages/subprocess/subprocess-local/src/windows-inspector.ts",
           "packages/subprocess/subprocess-local/tests/spawn.spec.ts",
           "packages/subprocess/subprocess-local/tests/windows-inspector.spec.ts",
-          "packages/subprocess/subprocess/README.i18n.yaml",
           "packages/subprocess/subprocess/README.md",
           "packages/subprocess/subprocess/README.zh.md",
           "packages/subprocess/subprocess/src/index.ts",
-          "packages/subprocess/subprocess/src/types.ts",
-          "packages/subprocess/win32-process/README.i18n.yaml"
+          "packages/subprocess/subprocess/src/types.ts"
         ]
       }
     },
@@ -15561,12 +15456,10 @@
           "packages/boot/app-boot/src/profile-context.ts",
           "packages/boot/app-boot/tests/input-integrity.spec.ts",
           "packages/boot/app-boot/tests/input-integrity-async.spec.ts",
-          "packages/sandbox/sandbox-local/tests/authority-write-boundary.spec.ts",
           "packages/boot/app-boot/tests/input-integrity-metadata.spec.ts",
           "packages/boot/app-boot/tests/input-integrity-home.spec.ts",
           "packages/sandbox/sandbox/src/roots.ts",
           "packages/sandbox/sandbox/src/index.ts",
-          "packages/sandbox/sandbox-policy/tests/protected-paths.spec.ts",
           "packages/client/ui-workspace/tests/apply.client.spec.ts",
           "packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts",
           "docs/subsystems/boot*",
@@ -15603,8 +15496,6 @@
           "packages/experimental/webworker-runtime/tests/node/fs.spec.ts",
           "packages/experimental/webworker-runtime/README*",
           "apps/web/tests/preview-boot.e2e.ts",
-          "packages/sandbox/sandbox-local/tests/host-coverage-fixture.ts",
-          "packages/sandbox/sandbox-local/tests/host-fallback.spec.ts",
           "packages/boot/app-boot/README*",
           "packages/boot/hmr/src/index.ts",
           "packages/boot/hmr/tests/profile.spec.ts",
@@ -15670,7 +15561,6 @@
           "packages/boot/app-boot/package.json",
           "packages/boot/app-boot/src/input-integrity.ts",
           "packages/boot/app-boot/tsconfig.json",
-          "packages/sandbox/sandbox-policy/tests/platform-default.spec.ts",
           "snapshots/session/background-confinement-failure/session.v4.jsonl",
           "snapshots/session/deepseek-fetch/session.v4.jsonl",
           "snapshots/session/ptc-node-read-only/session.v4.jsonl",
@@ -15688,26 +15578,13 @@
           "benchmarks/workspace-revocation/workspace-revocation.bench.ts",
           "benchmarks/workspace-revocation/workspace-revocation.worker.ts",
           "packages/boot/app-boot/tests/windows-record-trust.spec.ts",
-          "packages/sandbox/sandbox-policy/tests/windows-state-trust.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/src/access-check.ts",
-          "packages/sandbox/sandbox-windows-acl/src/access-token.ts",
-          "packages/sandbox/sandbox-windows-acl/src/ace-diagnostic.ts",
-          "packages/sandbox/sandbox-windows-acl/src/file-handle.ts",
           "packages/sandbox/sandbox-windows-acl/src/revoke-tree.ts",
           "packages/sandbox/sandbox-windows-acl/src/state-access.ts",
-          "packages/sandbox/sandbox-windows-acl/src/state-trust.ts",
-          "packages/sandbox/sandbox-windows-acl/src/locales.ts",
-          "packages/sandbox/sandbox-policy/src/locales.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/state-trust-locale.spec.ts",
           "docs/persistence-changes/2026-11-03-approval-refusal-reason*",
-          "packages/sandbox/sandbox-windows-acl/tests/access-check.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/file-handle.spec.ts",
           "packages/bundle/base/tests/windows-workspace-policy.spec.ts",
           "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
           "packages/interaction/permission-presets/tests/workspace-access.spec.ts",
           "packages/interaction/user-approval/tests/workspace-capture.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/revoke-tree.spec.ts",
-          "packages/sandbox/sandbox-windows-acl/tests/state-access.spec.ts",
           "README.i18n.yaml",
           "README.md",
           "README.zh.md",
@@ -15824,29 +15701,21 @@
           "packages/interaction/user-approval/tests/windows-acl-fixture.ts",
           "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
           "packages/interaction/user-approval/tsconfig.json",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
           "packages/sandbox/sandbox-local/package.json",
           "packages/sandbox/sandbox-local/src/index.ts",
           "packages/sandbox/sandbox-local/tests/acl-grants.spec.ts",
-          "packages/sandbox/sandbox-local/tsconfig.json",
-          "packages/sandbox/sandbox-policy/README.i18n.yaml",
           "packages/sandbox/sandbox-policy/README.md",
           "packages/sandbox/sandbox-policy/README.zh.md",
           "packages/sandbox/sandbox-policy/package.json",
           "packages/sandbox/sandbox-policy/src/index.ts",
           "packages/sandbox/sandbox-policy/tests/policy.spec.ts",
-          "packages/sandbox/sandbox-policy/tsconfig.json",
-          "packages/sandbox/sandbox-policy/locale/en.json",
-          "packages/sandbox/sandbox-policy/locale/zh.json",
-          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
           "packages/sandbox/sandbox-windows-acl/src/acl.ts",
           "packages/sandbox/sandbox-windows-acl/src/grant.ts",
           "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
-          "packages/sandbox/sandbox/README.i18n.yaml",
           "packages/sandbox/sandbox/README.md",
           "packages/sandbox/sandbox/README.zh.md",
           "packages/sandbox/sandbox/src/index.ts",
@@ -15919,7 +15788,6 @@
           "packages/boot/hmr/README.md",
           "packages/boot/hmr/README.zh.md",
           "packages/boot/hmr/src/index.ts",
-          "packages/sandbox/sandbox-policy/src/protected-paths.ts",
           "packages/ssh/ssh/README.i18n.yaml",
           "packages/ssh/ssh/README.md",
           "packages/ssh/ssh/README.zh.md",
@@ -15927,14 +15795,12 @@
           "packages/ssh/ssh/src/index.ts",
           "packages/ssh/ssh/src/schemas.ts",
           "packages/fs/fs-sandbox/tests/live-inputs.spec.ts",
-          "packages/sandbox/sandbox-local/tests/missing-protected-paths.spec.ts",
           "packages/ssh/ssh/tests/local-protection.spec.ts",
           "packages/ssh/ssh/tests/local-write-admission.spec.ts",
           "packages/boot/plugin-manager/tests/live-input-matrix.spec.ts",
           "packages/boot/plugin-manager/tests/source-clone-writes.spec.ts",
           "docs/module-graph.md",
           "docs/module-graph.zh.md",
-          "packages/sandbox/sandbox-policy/tests/protected-paths.spec.ts",
           "packages/bundle/headless/README.i18n.yaml",
           "packages/bundle/headless/README.md",
           "packages/bundle/headless/README.zh.md",
@@ -15947,18 +15813,9 @@
           "packages/boot/plugin-manager/tests/complete-input-matrix.spec.ts",
           "packages/boot/plugin-manager/tests/native-profile-capture.ts",
           "packages/fs/fs-sandbox/tests/protected-paths.spec.ts",
-          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
-          "packages/sandbox/sandbox-policy/tests/workspace-access.spec.ts",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
           "packages/sandbox/sandbox-windows-acl/src/runner.ts",
-          "packages/sandbox/sandbox-local/src/protected-acl.ts",
-          "packages/sandbox/sandbox-local/tests/protected-native-matrix.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-workspace-holes.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
-          "packages/sandbox/sandbox-local/tests/protected-bwrap-native.spec.ts",
           "packages/boot/app-boot/tests/state-directory.spec.ts",
-          "packages/sandbox/sandbox-local/tests/state-directory.spec.ts",
-          "packages/sandbox/sandbox-policy/tests/state-directory.spec.ts",
           "packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts",
           "packages/experimental/ptc-runtime-python/tests/runtime.spec.ts",
           "packages/spill/spill-local/tests/loader-composition.spec.ts",
@@ -16156,30 +16013,6 @@
       }
     },
     {
-      "id": "identity-owner-exact-comparison-cost",
-      "description": "Avoid deep diagnostics for distinct host identity owners",
-      "origin": "Coverage instrumentation test cost",
-      "reason": "Assert Object.is is false for distinct host registries, exactly preserving the negated toBe identity condition without Vitest's eager deep-equality diagnostics over two large identity buffers. Keep the same-host identity assertion and all production filter and admission semantics unchanged. This test performance repair can be contributed upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts"
-        ]
-      }
-    },
-    {
-      "id": "native-session-tmux-lifetime-fixture",
-      "description": "Keep the test-owned tmux server alive through native socket checks",
-      "origin": "Service-account native session fixture",
-      "reason": "Select an explicit POSIX shell for the isolated tmux pane rather than inheriting a service account's non-login shell. Verify the same server PID before and after sandbox connection attempts, retaining all unreachable-socket assertions and successful explicit server teardown. This fixture repair can be contributed upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/sandbox/sandbox-local/tests/session-sockets-native.spec.ts"
-        ]
-      }
-    },
-    {
       "id": "worktree-native-admission-time-budget",
       "description": "Allow real worktree operations to settle across path variants",
       "origin": "Worktree test lifecycle",
@@ -16204,18 +16037,6 @@
       }
     },
     {
-      "id": "protected-link-session-mount-fixture",
-      "description": "Own virtual session mount destinations in linked-input tests",
-      "origin": "Host-independent sandbox mount fixtures",
-      "reason": "Model session mount destinations with a test-owned directory instead of assuming the host already has every conventional session directory. Retain the exact per-ancestor symlink assertions and protected-input mount expectations. This fixture repair can be contributed upstream.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts"
-        ]
-      }
-    },
-    {
       "id": "persistent-pwsh-native-output-limitation",
       "description": "Document unavailable native PowerShell terminal output capture",
       "origin": "Native sandbox PowerShell output limitation",
@@ -16227,18 +16048,6 @@
           "README.md",
           "README.zh.md",
           "README.i18n.yaml"
-        ]
-      }
-    },
-    {
-      "id": "windows-tcp-owner-mixed-ipv6-coverage",
-      "description": "Cover mixed IPv6 refusal in the Windows TCP owner lookup",
-      "origin": "Windows TCP owner coverage",
-      "reason": "Coverage admission requires 100 percent on this line's new tcp-owner.ts file. Line 31 is a refusal branch a legal mixed IPv6 address can reach, and only the test was missing. Add tests only; change no published artifact. These tests can be contributed upstream.",
-      "match": {
-        "type": "maintenance",
-        "paths": [
-          "packages/subprocess/win32-process/tests/tcp-owner-mixed-ipv6.spec.ts"
         ]
       }
     },
@@ -16298,10 +16107,8 @@
           "apps/cli/README.md",
           "apps/cli/README.zh.md",
           "apps/cli/README.i18n.yaml",
-          "packages/sandbox/sandbox-local/tests/landlock-signal.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
-          "packages/sandbox/sandbox-local/README.i18n.yaml",
           "native/system/packages/entry/src/main.c",
           "native/system/README.md",
           "native/system/README.zh.md",
@@ -16446,12 +16253,10 @@
         "type": "behavior",
         "paths": [
           "packages/sandbox/sandbox/src/roots.ts",
-          "packages/sandbox/sandbox/tests/authority-roots.spec.ts",
           "packages/boot/app-boot/tests/input-integrity-messages.spec.ts",
           "packages/session/message-delivery-local/tests/input-integrity.spec.ts",
           "packages/sandbox/sandbox/README.md",
           "packages/sandbox/sandbox/README.zh.md",
-          "packages/sandbox/sandbox/README.i18n.yaml",
           "docs/subsystems/boot.md",
           "docs/subsystems/boot.zh.md",
           "docs/subsystems/boot.i18n.yaml"

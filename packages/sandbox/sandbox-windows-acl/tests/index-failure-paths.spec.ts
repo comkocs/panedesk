@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path'
 import { Win32Error } from '@panedesk/dsh-win32-process'
 import { ERROR_BROKEN_PIPE } from '@panedesk/dsh-win32-process/src/abi.ts'
 import { processInformationType } from '@panedesk/dsh-win32-process/src/ffi.ts'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import koffi from 'koffi'
 
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
@@ -39,12 +39,7 @@ interface HappyStubs {
   addMandatoryAce: MockFn
 }
 
-const state = vi.hoisted(() => ({ stubs: undefined as HappyStubs | undefined, enterProductJob: vi.fn() }))
-vi.mock('@panedesk/dsh-win32-process', async original => ({
-  ...await original<typeof import('@panedesk/dsh-win32-process')>(),
-  enterProductJob: state.enterProductJob,
-}))
-afterEach(() => { vi.unstubAllEnvs(); state.enterProductJob.mockReset() })
+const state = vi.hoisted(() => ({ stubs: undefined as HappyStubs | undefined }))
 
 vi.mock('../src/ffi.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/ffi.ts')>()
@@ -377,35 +372,6 @@ describe('AclSandbox init', () => {
 })
 
 describe('AclSandbox spawn', () => {
-  it.each(['pipe', 'inherit'] as const)('joins the product Job before %s execution and removes the locator', async (stdio) => {
-    vi.stubEnv('DSH_WINDOWS_PRODUCT_JOB', 'host-job')
-    const stubs = happyStubs()
-    state.stubs = stubs
-    state.enterProductJob.mockImplementation((name: string | undefined) => {
-      expect(name).toBe('host-job')
-      expect(stubs.createRestrictedToken).not.toHaveBeenCalled()
-      expect(stubs.createJobObjectW).not.toHaveBeenCalled()
-    })
-    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
-    try {
-      await sandbox.init()
-      expect(state.enterProductJob).toHaveBeenCalledExactlyOnceWith('host-job')
-      expect(process.env.DSH_WINDOWS_PRODUCT_JOB).toBeUndefined()
-      const child = sandbox.spawn({ command: 'probe.exe', stdio })
-      await child.wait()
-    } finally { sandbox.dispose() }
-  })
-
-  it('refuses restricted execution when product membership cannot be established', async () => {
-    vi.stubEnv('DSH_WINDOWS_PRODUCT_JOB', 'host-job')
-    state.enterProductJob.mockImplementation(() => { throw new Error('membership unavailable') })
-    const stubs = happyStubs()
-    state.stubs = stubs
-    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
-    await expect(sandbox.init()).rejects.toThrow('membership unavailable')
-    expect(stubs.createRestrictedToken).not.toHaveBeenCalled()
-    expect(stubs.createJobObjectW).not.toHaveBeenCalled()
-  })
   it('refuses control with piped stdio before starting a restricted process', async () => {
     const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
     await sandbox.init()
@@ -439,36 +405,6 @@ describe('AclSandbox spawn', () => {
     await expect(child.wait()).resolves.toEqual(expected)
     // The second wait reuses the settled exit-code promise instead of re-waiting.
     await expect(child.wait()).resolves.toEqual(expected)
-  })
-
-  it.each(['pipe', 'inherit'] as const)('exposes a borrowed %s Job and closes it once across repeated waits', async (stdio) => {
-    const { closeHandle, createJobObjectW } = state.stubs as HappyStubs
-    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
-    await sandbox.init()
-    const child = sandbox.spawn({ command: 'probe.exe', stdio })
-    expect(child.job).toBe(createJobObjectW.mock.results.at(-1)?.value)
-    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(0)
-    await child.wait()
-    await child.wait()
-    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(1)
-    sandbox.dispose()
-  })
-
-  it('closes the piped Job once and settles the process after a drain failure', async () => {
-    const { api, closeHandle } = state.stubs as HappyStubs
-    const sandbox = new AclSandbox({ writableDirs: [], tempDir: null, mode: 'read-only' })
-    await sandbox.init()
-    api.getLastError = () => 5
-    const waitForSingleObject = vi.fn(() => 0)
-    api.waitForSingleObject = waitForSingleObject
-    const child = sandbox.spawn({ command: 'probe.exe', stdio: 'pipe' })
-    await expect(child.wait()).rejects.toMatchObject({ api: 'PeekNamedPipe' })
-    await expect(child.wait()).rejects.toMatchObject({ api: 'PeekNamedPipe' })
-    expect(closeHandle.mock.calls.filter(call => call[0] === child.job)).toHaveLength(1)
-    expect(waitForSingleObject).toHaveBeenCalledOnce()
-    expect(closeHandle.mock.invocationCallOrder[closeHandle.mock.calls.findIndex(call => call[0] === child.job)])
-      .toBeLessThan(waitForSingleObject.mock.invocationCallOrder[0] ?? 0)
-    sandbox.dispose()
   })
 
   it('inherit spawn settles with empty stdio and closes the kill-on-close job', async () => {

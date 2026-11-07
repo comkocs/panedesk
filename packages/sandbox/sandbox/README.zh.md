@@ -31,8 +31,6 @@ kind: "package-reference"
 
 当组合需要在宿主机上隔离子进程时选择本包：本地后端与受限执行器都实现这个约定，因此在 `ctx.sandbox` 后挂载 `sandbox-local`、在 `ctx.shell` 后挂载受限执行器，就能使每次 bash 或 pwsh 调用默认在限制下运行。当进程必须在隔离环境中运行时请另选方案——容器、microVM 或远程执行器会替换整个 `ctx.shell`/`ctx.fs` 能力，而不是在这里添加后端。
 
-隔离结果可携带 `productSandbox: true`，标明实际的 Linux 产品隔离。消费者必须将该事实与 argv 一起保留到子进程请求；它不是请求方可控制的声明，也不替代文件强制执行。
-
 ### 隔离命令
 
 挂载服务、后端与受限执行器；随附的组合由[基础组合包（base bundle）](../../bundle/base/cordis.patch.yml)定义。
@@ -51,13 +49,9 @@ kind: "package-reference"
 
 使用该组合时，bash 调用在 `workspace-write` 下受限运行：工作区内写入成功，工作区外写入被拒绝，模型可以通过下面的升权流程恢复。
 
-逐调用策略可携带受保护宿主输入，将其排除在受限写授权之外。共享根助手解析最近的现存祖先并补上缺失后缀，再比较规范化后的重叠关系，使符号链接前缀不能隐藏重叠；提供方可排除这些输入，或拒绝重叠的递归授权。[沙盒策略](../sandbox-policy/README.zh.md#protected-host-inputs)负责收集它们。报告 `protectedInputs` 的提供方区分原生保护与需要宿主校验的名称；`host-fallback` 记录不是宿主已经批准或覆盖该输入的证据。
-
 ### 模式与强制执行
 
 模式指明命令可以执行的文件操作；强制执行完整度报告后端对这些操作的管辖程度。
-
-`ownerMaterialDirectories` 归属规范化私密存储清单，`assertOwnerWorkspace` 拒绝位于该存储内的工作区及覆盖它的 Windows 写授权，`protectedWorkspaceBranches` 选择状态记录与所有者隔离共用的第一级排除分支。文件读器还比较文件身份，以拒绝硬链接别名。`authoritativeHomeTrees` 为[宿主输入捕获与复核](../../../docs/subsystems/boot.zh.md#profile-input-paths)定义精确的可变 home 树，其中包含宿主消息存储，与原生写排除相互独立。
 
 | 模式 | 效果 |
 |---|---|
@@ -67,17 +61,9 @@ kind: "package-reference"
 
 强制执行逐调用报告：`full` 表示后端管辖模式承诺的每个文件操作，`partial` 表示活动后端或较旧的内核 ABI 只管辖子集——Windows ACL 档与较旧的 Landlock ABI 是当前的部分强制执行情形，需要绝对边界的消费方可以拒绝或向上暴露它们。
 
-提供方可实现 `inspect(policy)`，在不产生可执行参数、不物化工作区授权的情况下报告强制执行等级与完整保护输入清单。诊断消费方必须明确报告不支持查询，不能以执行命令代替查询。宿主兜底覆盖不会消除原生后端限制。
-
 ### 被拒绝的调用与升权
 
 受限调用被拒绝时，操作会报告指明模式的拒绝标记——`[sandbox: file access denied under <mode> mode]`——组合声明升权能力时还会给出升权提示。模型可以用 `sandbox_permissions`（足以放行的最窄更宽模式）加 `justification` 重试一次完全相同的调用；审批服务为操作取得同意。请求保留审计原因，同时提供英文和中文展示文案，模型给出的理由保持原样。缺失的译文遵循语言服务的回退链，最终回退到英文；请求方负责自己的展示译文。更宽的模式需要审批，且只作用于该次调用。重复指定调用的生效模式无需审批即可成功；更窄的目标仍然无效。
-
-首次工作区写入同意与单次升权不同：[策略服务](../sandbox-policy/README.zh.md#windows-workspace-records)可为具名 Windows 目录保存授权。提供方可通过 `materializeWorkspaceWriteGrant()` 应用已批准的会话策略，无需启动进程。
-
-### Windows 工作区管理
-
-提供方通过 `supportsWorkspaceWriteAccess` 声明本机原生工作区管理能力，缺省为 false。支持此能力的提供方实现只读检查 `hasWorkspaceWriteGrant`，以及显式原生撤销和缓存失效 `revokeWorkspaceWriteGrant`。设置消费方同时要求配置后的实际能力与检查、撤销方法存在；自定义 runner 不会仅因使用本地提供方就获得 Windows ACL 管理能力。
 
 ### 故障关闭行为
 

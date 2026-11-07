@@ -434,7 +434,7 @@ describe('createRestrictedToken failure paths', () => {
       count: number, _sids: unknown, slot: NativePtr,
     ) => {
       koffi.encode(slot, PVOID, 9n)
-      expect(count).toBe(3)
+      expect(count).toBe(2)
       return 1
     })
     const api = { createRestrictedToken: create } as unknown as Win32Bindings
@@ -448,7 +448,7 @@ describe('createRestrictedToken failure paths', () => {
       count: number, _sids: unknown, slot: NativePtr,
     ) => {
       koffi.encode(slot, PVOID, 9n)
-      expect(count).toBe(4)
+      expect(count).toBe(3)
       return 1
     })
     const api = { createRestrictedToken: create } as unknown as Win32Bindings

@@ -13,8 +13,8 @@
  * @module dsh-sandbox/roots
  */
 
-import { lstatSync, realpathSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { realpathSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { SandboxExecutionPolicy } from './index.ts'
 
@@ -46,80 +46,46 @@ export function canonicalPath(path: string): string {
 }
 
 /**
- * Test whether two recursive filesystem roots share any writable path.
- * @param left - First file or directory root.
- * @param right - Second file or directory root.
- * @returns Whether either canonical root contains the other.
+ * The roots one confined execution may WRITE under — the mode's meaning as a
+ * canonical, deduplicated allow-list. `read-only` allows nothing;
+ * `workspace-write` allows the policy's workspace root, the host `/tmp`, and
+ * the per-user platform temp dir (`os.tmpdir()` — the real temp area for
+ * mkstemp-family tools; omitting it would deny what the mode promises).
+ * @param policy - the file-effect policy to derive the allow-list from.
+ * @returns the canonical writable roots; empty exactly under `read-only`.
  */
-export function rootsOverlap(left: string, right: string): boolean {
-  const contains = (root: string, path: string): boolean => {
-    const suffix = relative(canonicalPath(root), canonicalPath(path))
-    return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
-  }
-  return contains(left, right) || contains(right, left)
+/** No workspace branch is excluded.
+ * @param _workspace - ignored.
+ * @param _paths - ignored.
+ * @returns no branches.
+ */
+export function protectedWorkspaceBranches(_workspace: string, _paths: readonly string[]): string[] {
+  return []
 }
 
-const homeDiagnosticFiles = new Set(['run/kernel-boot.json', 'run/kernel-status.json', 'logs/host-errors.log'])
-const homeAuthorityTrees = ['ledger', 'sessions', 'storages/session_projcache/sessions', 'messages'] as const
-
-/**
- * List authoritative host trees whose mutable contents are not input baselines.
- * Their native sandbox write exclusions remain unchanged.
- * @param home - Canonical product-home directory.
- * @returns Exact tree roots requiring structural checks on Linux and macOS.
+/** Mutable home trees are not treated as a separate authority inventory.
+ * @param _home - ignored.
+ * @returns no trees.
  */
-export function authoritativeHomeTrees(home: string): readonly string[] {
-  return homeAuthorityTrees.map(path => join(home, path))
+export function authoritativeHomeTrees(_home: string): readonly string[] {
+  return []
 }
 
-/**
- * Identify diagnostic-only regular files omitted from a product-home input snapshot.
- * Sandbox write exclusions still protect their entire registered home branch.
- * @param home - Canonical product-home directory whose inputs are being captured.
- * @param path - Physical entry being visited; links and directories remain protected.
- * @returns Whether the entry is an exact diagnostic file without a redirected path.
+/** Diagnostic home files are not special-cased.
+ * @param _home - ignored.
+ * @param _path - ignored.
+ * @returns false.
  */
-export function isHomeDiagnosticFile(home: string, path: string): boolean {
-  if (!homeDiagnosticFiles.has(relative(home, path).split(sep).join('/'))) return false
-  try { return lstatSync(path).isFile() && realpathSync(path) === path } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
-    throw error
-  }
+export function isHomeDiagnosticFile(_home: string, _path: string): boolean {
+  return false
 }
 
-/**
- * Refuse a broad native grant that could cover a current host input.
- * @param roots - Directories the backend would grant recursively.
- * @param protectedPaths - Current executable-input roots; absent means none were registered.
+/** Grants are not refused for overlapping host paths.
+ * @param _roots - ignored.
+ * @param _protectedPaths - ignored.
  */
-export function assertUnprotectedRoots(roots: readonly string[], protectedPaths: readonly string[] = []): void {
-  for (const root of roots) for (const path of protectedPaths) {
-    if (rootsOverlap(root, path)) {
-      throw new Error(`Cannot grant sandbox writes across protected host path ${JSON.stringify(path)}`)
-    }
-  }
-}
+export function assertUnprotectedRoots(_roots: readonly string[], _protectedPaths: readonly string[] = []): void {}
 
-/**
- * Protect the first workspace child leading to any private or state directory.
- * @param workspace - Canonical workspace root.
- * @param paths - The shared private/state inventory, prepared by the host.
- * @returns Distinct first children; paths outside the workspace do not add exclusions.
- */
-export function protectedWorkspaceBranches(workspace: string, paths: readonly string[]): string[] {
-  const root = canonicalPath(workspace)
-  return [...new Set(paths.flatMap((path) => {
-    const suffix = relative(root, canonicalPath(path))
-    if (suffix === '' || isAbsolute(suffix) || suffix === '..' || suffix.startsWith(`..${sep}`)) return []
-    return [join(root, suffix.split(sep)[0] ?? '')]
-  }))]
-}
-
-/**
- * Derive canonical writable roots before applying protected-host exclusions.
- * @param policy - Per-call file policy.
- * @returns Workspace and platform temporary roots in workspace-write; otherwise empty.
- */
 export function writableRoots(policy: SandboxExecutionPolicy): string[] {
   if (policy.mode !== 'workspace-write') return []
   return [...new Set([policy.workspaceRoot, '/tmp', tmpdir()].map(canonicalPath))]
