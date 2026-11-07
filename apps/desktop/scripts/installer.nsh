@@ -42,6 +42,12 @@ ManifestDPIAware true
     Quit
   ${EndIf}
   !insertmacro setInstallModePerUser
+  ${If} $perUserInstallationFolder == ""
+    !insertmacro GetDParameter $R0
+    ${If} $R0 == ""
+      StrCpy $INSTDIR "$LOCALAPPDATA\Programs\Panedesk"
+    ${EndIf}
+  ${EndIf}
   StrCpy $hasPerMachineInstallation 0
   StrCpy $hasPerUserInstallation 1
   StrCpy $InstallerPath $INSTDIR

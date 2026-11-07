@@ -105,8 +105,9 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: 'Panedesk', schemes: ['dsh'] }],
+    protocols: [{ name: 'Panedesk', schemes: ['panedesk'] }],
     extraMetadata: {
+      name: 'panedesk',
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
       ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }),
@@ -115,7 +116,7 @@ export function createElectronBuilderConfig(
     },
     productName: 'Panedesk',
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `panedesk-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -236,6 +237,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
+      executableName: 'Panedesk',
       icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
       forceCodeSigning: !unsigned,
       signtoolOptions: {
@@ -250,6 +252,7 @@ export function createElectronBuilderConfig(
       target: ['AppImage'],
     },
     nsis: {
+      shortcutName: 'Panedesk',
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: fileURLToPath(new URL('./installer.nsh', import.meta.url)),
