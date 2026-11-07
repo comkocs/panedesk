@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "empty-conversation-brand-mark",
+      "description": "Replace the empty conversation whale mark with the product mark",
+      "origin": "Product branding",
+      "reason": "The empty conversation uses the same four-square mark as the desktop application and does not animate it.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css"
+        ]
+      }
+    },
+    {
       "id": "desktop-welcome-other-provider",
       "description": "Open model provider setup from the welcome page",
       "origin": "Desktop welcome flow",

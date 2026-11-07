@@ -394,6 +394,17 @@ function mount(
 }
 
 describe('Hero chrome', () => {
+  it('renders the Panedesk mark without whale animation', () => {
+    const renderSlot: HeroShellProps['renderSlot'] = (_name, _props, options) => options?.fallback
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
+    const mark = view.getByLabelText('Panedesk')
+    expect(mark.getAttribute('viewBox')).toBe('0 0 1104 1104')
+    expect(mark.querySelectorAll('rect')).toHaveLength(5)
+    fireEvent.mouseEnter(mark)
+    expect(view.container.querySelector('animate')).toBeNull()
+    expect(view.container.querySelector('path')).toBeNull()
+  })
+
   it('renders the English preview badge through the hero locale seat', () => {
     const renderSlot = vi.fn<HeroShellProps['renderSlot']>(() => null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
