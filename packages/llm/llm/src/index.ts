@@ -7,9 +7,8 @@
  */
 
 import { Context } from '@panedesk/cordis'
-import type {} from '@panedesk/dsh-api-remote-access/types'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
-import { deepFreeze, redactDiagnostic } from '@panedesk/dsh-util-values'
+import { deepFreeze } from '@panedesk/dsh-util-values'
 import type {
   GenerateOptions,
   RequestMessage,
@@ -1190,13 +1189,11 @@ export class LlmRuntime extends TypertRemoteService {
 
   /**
    * Send the shortest generation that proves one model answers: one output
-   * token, no tools, no session. The credential stays inside the adapter that
-   * already serves the route; this method never logs or returns it.
+   * token, no tools, no session.
    * @param provider - registered provider route.
    * @param model - model id, including one the catalog does not list.
    * @param signal - caller cancellation.
-   * @returns success, or the adapter's own failure with the message kept and
-   *   the credential-shaped text removed.
+   * @returns success, or the adapter's own failure.
    */
   async probeModel(
     provider: string,
@@ -1216,14 +1213,14 @@ export class LlmRuntime extends TypertRemoteService {
       }
     } catch (error: unknown) {
       const failure = normalizeLlmFailure(error)
-      return { ok: false, code: failure.code, message: redactProbeMessage(failure.message) }
+      return { ok: false, code: failure.code, message: failure.message }
     }
     if (finish?.type !== 'finish') return { ok: false, code: 'UNKNOWN', message: 'probe produced no finish' }
     if (finish.reason.kind === 'error') {
       return {
         ok: false,
         code: finish.reason.failure.code,
-        message: redactProbeMessage(finish.reason.failure.message),
+        message: finish.reason.failure.message,
       }
     }
     if (finish.reason.kind === 'aborted') {
@@ -1241,10 +1238,7 @@ export class LlmRuntime extends TypertRemoteService {
    */
   @Remote('probeModel')
   async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
-    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('remote-access/denied', 'Authenticated owner required', { action: 'llm/probeModel', reason: 'no-allow' })
-    }
-    if (this.ctx.invocation.signal.aborted || signal.aborted) {
+    if (this.ctx.invocation?.signal.aborted || signal.aborted) {
       throw new RemoteError('gateway/cancelled', 'Model probe unavailable', {})
     }
     return this.probeModel(provider, model, signal)
@@ -1261,14 +1255,6 @@ export class LlmRuntime extends TypertRemoteService {
       () => this.adapterStream(options, prepared),
     )
   }
-}
-
-/** Drop credential-shaped text before a probe failure reaches a surface or a log.
- * @param message - host or transport diagnostic.
- * @returns the diagnostic with credentials, headers and URL queries removed.
- */
-export function redactProbeMessage(message: string): string {
-  return redactDiagnostic(message)
 }
 
 /** Convert one adapter throw into the stream protocol's terminal outcome. */

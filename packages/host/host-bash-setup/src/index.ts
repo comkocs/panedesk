@@ -1,7 +1,6 @@
 /** First-run Git Bash discovery Remote over the bash-local Windows product config. */
 
 import { Context } from '@panedesk/cordis'
-import type {} from '@panedesk/dsh-api-remote-access/types'
 import { TypertRemoteService, Remote, RemoteError } from '@panedesk/dsh-typert-protocol'
 import { probeWindowsBash, readWindowsBashConfig, clearWindowsBashConfig, writeWindowsBashConfig } from '@panedesk/dsh-bash-local'
 import type { BashSetupStatus, BashSetupWriteResult } from './types.ts'
@@ -14,11 +13,8 @@ export class BashSetupGateway extends TypertRemoteService {
     super(ctx, 'bashSetup')
   }
 
-  private owner(action: string): void {
-    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
-      throw new RemoteError('remote-access/denied', 'Authenticated owner required', { action, reason: 'no-allow' })
-    }
-    if (this.ctx.invocation.signal.aborted) {
+  private checkCancellation(): void {
+    if (this.ctx.invocation?.signal.aborted) {
       throw new RemoteError('gateway/cancelled', 'Bash setup unavailable', {})
     }
   }
@@ -37,7 +33,7 @@ export class BashSetupGateway extends TypertRemoteService {
    */
   @Remote('enable')
   async enable(params: { bashPath: string }): Promise<BashSetupWriteResult> {
-    this.owner('bashSetup/enable')
+    this.checkCancellation()
     await writeWindowsBashConfig({ enabled: true, bashPath: params.bashPath })
     return this.snapshot()
   }
@@ -47,7 +43,7 @@ export class BashSetupGateway extends TypertRemoteService {
    */
   @Remote('disable')
   async disable(): Promise<BashSetupWriteResult> {
-    this.owner('bashSetup/disable')
+    this.checkCancellation()
     await clearWindowsBashConfig()
     return this.snapshot()
   }

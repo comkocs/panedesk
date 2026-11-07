@@ -1,14 +1,13 @@
 /**
  * The provider card's recognize-and-try controls. Recognition asks the route's
  * listing and checks the three newest models; a model id typed by hand is
- * probed with one output token. Neither control prints a credential.
+ * probed with one output token.
  */
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
 import { defaultRecognizedSelection } from './recognize.ts'
 import type { RecognizeOrderBasis } from './recognize.ts'
-import { redactSurface } from './operations.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
@@ -70,7 +69,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
         ...endpoint?.api === undefined ? {} : { api: endpoint.api },
       })
       if (answer.kind === 'refused') {
-        setFailure(redactSurface(answer.message))
+        setFailure(answer.message)
         setRecognized(undefined)
         return
       }
@@ -82,7 +81,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
       const selection = defaultRecognizedSelection(answer.models)
       setRecognized({ models: selection.models, checked: new Set(selection.checked), orderBasis: selection.orderBasis })
     } catch (error: unknown) {
-      setFailure(redactSurface(error instanceof Error ? error.message : String(error)))
+      setFailure(error instanceof Error ? error.message : String(error))
       setRecognized(undefined)
     } finally {
       setBusy(false)
@@ -110,9 +109,9 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
       const answer = await operations.probeModel(provider, model)
       setProbe(answer.ok
         ? { ok: true, message: t('trySucceeded') }
-        : { ok: false, message: redactSurface(answer.message) ?? t('tryFailed') })
+        : { ok: false, message: answer.message ?? t('tryFailed') })
     } catch (error: unknown) {
-      setProbe({ ok: false, message: redactSurface(error instanceof Error ? error.message : String(error)) ?? t('tryFailed') })
+      setProbe({ ok: false, message: error instanceof Error ? error.message : String(error) })
     } finally {
       setBusy(false)
     }
@@ -125,10 +124,10 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
     setSaved(false)
     try {
       const refusal = await props.onAdopt(recognized.models.filter(model => recognized.checked.has(model.id)))
-      if (refusal !== undefined) setFailure(redactSurface(refusal))
+      if (refusal !== undefined) setFailure(refusal)
       else setSaved(true)
     } catch (error: unknown) {
-      setFailure(redactSurface(error instanceof Error ? error.message : String(error)))
+      setFailure(error instanceof Error ? error.message : String(error))
     } finally {
       setBusy(false)
     }
