@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+
+- Models added from recognition are now saved when creating a custom provider.
+- Requests to non-Claude models through Anthropic Messages gateways carry session metadata even when no cache option is set.
+
 ## 1.2.0
 
 ### Added
