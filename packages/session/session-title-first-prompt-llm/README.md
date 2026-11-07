@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-title-first-prompt-llm` summarizes the first eligible human message through `ctx.llm` as an optional `ctx.sessionTitle` provider. It registers the `first-prompt` cadence, runs automatically only when a fresh non-fork session first creates its fallback, and attributes the result to that message's exact seq. An automatic failure retains the fallback and is retried only through `ctx.sessionTitle.refresh()`. The plugin owns its system instruction, JSON framing, and output parsing; it shares only the [execution module](../session-title-llm/README.md) from `dsh-session-title-llm` with the all-prompts provider. Automatic behavior and configuration come first; the implementation is a small provider strategy over that executor.
+`dsh-session-title-first-prompt-llm` summarizes the first eligible human message through `ctx.llm` as an optional `ctx.sessionTitle` provider. It registers the `first-prompt` cadence, titles a fresh non-fork session from its first message, and refreshes its title from recent rounds after the third completed round and every twelve rounds thereafter. An automatic failure retains the fallback and is retried only through `ctx.sessionTitle.refresh()`. The plugin owns its system instruction, JSON framing, and output parsing; it shares only the [execution module](../session-title-llm/README.md) from `dsh-session-title-llm` with the all-prompts provider. Automatic behavior and configuration come first; the implementation is a small provider strategy over that executor.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this plugin beside the title service when a session should be titled from 
 
 ### When titles are generated
 
-Automatic generation runs only for a fresh session with no parent and no prior title: after its first eligible human message, the fallback is created and one auxiliary request summarizes that message. Later prompts, explicit user renames, and inherited fork history do not trigger another automatic call. An automatic failure keeps the fallback; `ctx.sessionTitle.refresh()` is the explicit retry. Forks keep their inherited title and never run this provider automatically, even when their seeded first message came from the parent.
+Automatic generation runs only for a fresh session with no parent and no prior title: after its first eligible human message, the fallback is created and one auxiliary request summarizes that message. After the third completed round and every twelve rounds thereafter, an automatic call uses recent rounds; user-renamed sessions and inherited fork history do not trigger retitling. An automatic failure keeps the fallback; `ctx.sessionTitle.refresh()` is the explicit retry. Forks keep their inherited title and never run this provider automatically, even when their seeded first message came from the parent.
 
 ### Configuration
 
@@ -61,7 +61,7 @@ A small provider strategy: it builds the first-message system instruction and JS
 
 ### Scheduling
 
-The title service schedules automatic work: for the `first-prompt` cadence it starts a revision only when the session has no parent, holds exactly one eligible message, and has no title yet; the provider call begins after the exact main-request route is logged, and a newer revision supersedes older work.
+The title service schedules automatic work: for the `first-prompt` cadence it starts an opening revision for a fresh non-fork session, then retitles after round 3 and every 12 completed rounds unless the user renamed it; the provider call begins after the exact main-request route is logged, and a newer revision supersedes older work.
 
 </details>
 
@@ -86,11 +86,11 @@ Read these pages when the provider contract is not enough. They move from the sh
 
 #### What the model sees
 
-The title model receives this provider's title instruction and a JSON array containing only the first eligible human message; it never receives a `currentTitle`. Later prompts and inherited fork history do not trigger another automatic call.
+The title model receives this provider's title instruction and a JSON array containing the first eligible human message for the opening title, or up to the two latest messages for a scheduled retitle; it never receives a `currentTitle`. Inherited fork history does not trigger an automatic call.
 
 #### Token effect
 
-At most one automatic auxiliary request is made for a fresh session, bounded by `maxInputBytes` and `maxOutputTokens`; explicit refreshes may make additional calls. It selects the route's least supported reasoning effort, or leaves effort unspecified when the route exposes none. The main agent request gains zero tokens.
+A fresh session makes an opening auxiliary request and scheduled retitle requests, bounded by `maxInputBytes` and `maxOutputTokens`; explicit refreshes may make additional calls. It selects the route's least supported reasoning effort, or leaves effort unspecified when the route exposes none. The main agent request gains zero tokens.
 
 #### KV Cache effect
 
@@ -103,7 +103,7 @@ No main-request invalidation. The auxiliary request uses the configured or logge
 
 These limits define when this provider stops representing the session. They are current package constraints.
 
-- **First message may go stale** — the first message alone may cease to represent a long-running session; use the all-messages provider when later prompts should retitle it.
+- **Retitles are periodic** — use the all-messages provider when every later prompt should retitle the session.
 - **Forks never retitle automatically** — a fork keeps its inherited title and never runs this provider automatically, even when its seeded first message came from the parent.
 
 <a id="dev-note"></a>
