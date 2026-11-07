@@ -17,6 +17,7 @@ import type { ContentBlock } from '@panedesk/dsh-llm'
 import { SessionSeq } from '@panedesk/dsh-session'
 import type { Session } from '@panedesk/dsh-session'
 import {
+  SubagentError,
   assertSubagentMaxDepth,
   delegationDepthOf,
   parentAgentOptionsForDelegation,
@@ -282,21 +283,23 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           schema: {
             type: 'object',
             additionalProperties: false,
-            properties: admissionEnabled ? {
-              kind: { type: 'string', required: true, enum: ['activation', 'queued'] },
-              subagentId: { type: 'string' },
+            properties: {
+              model: { type: 'object', additionalProperties: false, properties: {
+                provider: { type: 'string', required: true }, model: { type: 'string', required: true },
+              } },
+              kind: admissionEnabled
+                ? { type: 'string', required: true, enum: ['activation', 'queued'] }
+                : { type: 'string', required: true, const: 'activation' },
+              subagentId: admissionEnabled ? { type: 'string' } : { type: 'string', required: true },
               ticketId: { type: 'string' },
               position: { type: 'number' },
-            } : {
-              kind: { type: 'string', required: true, const: 'activation' },
-              subagentId: { type: 'string', required: true },
             },
           },
           render: (_args, value) => [{ type: 'text', text: value.kind === 'queued'
             ? value.position === undefined
               ? `queued subagent ${value.ticketId}; register a wait for this ticket and end the turn instead of retrying`
               : `queued subagent ${value.ticketId} at position ${value.position}; continue other work or close an idle child to free capacity`
-            : `started subagent ${value.subagentId}` }],
+            : `started subagent ${value.subagentId}${value.model === undefined ? '' : `; model ${value.model.provider}/${value.model.model}`}` }],
         },
         isConcurrencySafe: () => true,
         async execute(args, exec) {
@@ -346,13 +349,18 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             if (llm === undefined) {
               throw new Error('cannot resolve the selected child LLM route because the `llm` service is unavailable')
             }
-            await preflightChildLlmRoute(
-              llm,
-              parentOptions,
-              requestedChildAgentOptions,
-              exec.signal,
-              providerRouteDefaults === undefined,
-            )
+            try {
+              await preflightChildLlmRoute(
+                llm,
+                parentOptions,
+                requestedChildAgentOptions,
+                exec.signal,
+                providerRouteDefaults === undefined,
+              )
+            } catch (error: unknown) {
+              if (error instanceof Error) error.message = `subagent failed during model-connection: ${error.message}`
+              throw error
+            }
             if (runtimeCtx.subagents.getProvider(config.provider) !== subagentProvider) {
               throw new Error(`subagent provider "${config.provider}" changed while resolving the child LLM route; retry the delegation`)
             }
@@ -381,7 +389,12 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             : runtimeCtx.subagents.requestActivation(spec))
           if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId,
             ...started.position === undefined ? {} : { position: started.position } }
-          return { kind: 'activation' as const, subagentId: started.childId }
+          const ready = await started.ready
+          if (ready?.failureStage !== undefined) {
+            throw new SubagentError(`subagent ${started.childId} failed during ${ready.failureStage}`, 'SUBAGENT_START_FAILED')
+          }
+          return { kind: 'activation' as const, subagentId: started.childId,
+            ...ready?.model === undefined ? {} : { model: ready.model } }
         },
       })
       const disposeTool = runtimeCtx.effect(() => {

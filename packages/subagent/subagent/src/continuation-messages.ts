@@ -146,6 +146,9 @@ export function createSettlementMessage(
 ): ReturnType<typeof createUserMessage> {
   const reportPaths = includeReportPaths ? terminal.deliveryPaths?.filter(path => path.length > 0) : undefined
   const summary = settlementSummary(childId, terminal.stopReason, continuable)
+    + (terminal.sessionId === undefined || terminal.sessionId === childId ? '' : ` Session: ${terminal.sessionId}.`)
+    + (terminal.model === undefined ? '' : ` Model: ${terminal.model.provider}/${terminal.model.model}.`)
+    + (terminal.failureStage === undefined ? '' : ` Failed during ${terminal.failureStage}.`)
     + (terminal.deliveryState === 'missing' ? ' Declared delivery files were not written.'
       : terminal.deliveryState === 'uncheckable' ? ' Declared delivery files could not be checked.' : '')
   // Parent providers receive this notice as a user message and may reject

@@ -9,6 +9,24 @@ const reasoning: ContentBlock = { type: 'reasoning', text: 'private child reason
 const toolCall: ContentBlock = { type: 'tool-call', id: ToolCallId('child-call'), name: 'read', arguments: '{}' }
 
 describe('continuable settlement content', () => {
+  it('reports the session and actual model on successful settlement', () => {
+    const message = createSettlementMessage(childId, {
+      sessionId: childId, stopReason: 'completed', output: [],
+      model: { provider: 'observed-provider', model: 'observed-model' },
+    })
+    expect(message.content[0]).toEqual({ type: 'text', text: summary.text + ' Model: observed-provider/observed-model.' })
+    expect(message.source).toHaveProperty('senderSessionId', childId)
+  })
+
+  it('reports model connection failure without inventing an unresolved model', () => {
+    const message = createSettlementMessage(childId, {
+      sessionId: childId, stopReason: 'error', output: [], failureStage: 'model-connection',
+    })
+    expect(JSON.stringify(message.content)).toContain(childId)
+    expect(JSON.stringify(message.content)).toContain('Failed during model-connection.')
+    expect(JSON.stringify(message.content)).not.toContain('Model:')
+  })
+
   it('includes reported delivery paths as untrusted hints without inventing absent paths', () => {
     const paths = ['/workspace/report.md', 'D:\\work\\report.md']
     const message = createSettlementMessage(childId, {

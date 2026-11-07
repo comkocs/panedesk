@@ -698,6 +698,34 @@ describe('dsh-tool-subagent local activation', () => {
     return { ctx, parent }
   }
 
+  it('reports the child session and actual request model without waiting for completion', async () => {
+    const { ctx, parent } = await continuableSetup()
+    ctx.on('agent/request', async ({ agent }, next) => {
+      const config = await next()
+      return agent === parent ? config : { ...config, model: 'actual-child-model' }
+    })
+    const started = await callSubagent(ctx, { description: 'actual route', prompt: 'work' }, { agent: parent })
+    expect(started.isError).toBe(false)
+    if (started.isError) throw new Error(text(started))
+    expect(started.value).toMatchObject({
+      kind: 'activation',
+      model: { provider: 'mock', model: 'actual-child-model' },
+    })
+    expect(text(started)).toContain('mock/actual-child-model')
+  })
+
+  it('reports model connection failure with the created child session', async () => {
+    const { ctx, parent } = await continuableSetup()
+    ctx.on('agent/request', async ({ agent }, next) => {
+      if (agent !== parent) throw new Error('simulated model connection failure')
+      return next()
+    })
+    const started = await callSubagent(ctx, { description: 'failed route', prompt: 'work' }, { agent: parent })
+    expect(started.isError).toBe(true)
+    expect(text(started)).toMatch(/subagent \S+ failed during model-connection/)
+    expect(text(started)).not.toContain('mock/mock')
+  })
+
   it('classifies local activations concurrency-safe', async () => {
     const { ctx } = await continuableSetup()
     expect(ctx.tools.executionMode({
@@ -733,7 +761,7 @@ describe('dsh-tool-subagent local activation', () => {
       { agent: parent },
     )
     expect(started.isError).toBe(false)
-    const match = /^started subagent (\S+)$/.exec(text(started))
+    const match = /^started subagent (\S+); model mock\/mock$/.exec(text(started))
     expect(match).not.toBeNull()
     const [, childId] = match!
     // No Task was created for the continuable child.
@@ -809,6 +837,7 @@ describe('dsh-tool-subagent local activation', () => {
     expect(succeeded.isError ? undefined : succeeded.value).toEqual({
       kind: 'activation',
       subagentId: survivingChildId,
+      model: { provider: 'mock', model: 'mock' },
     })
     await vi.waitFor(() => {
       expect(ctx.agents.get(survivingChildId!)).toBeUndefined()
