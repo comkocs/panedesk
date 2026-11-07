@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
-import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import { UnsafeWindowsStateError, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
@@ -88,7 +87,6 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
   if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local sandbox provider missing')
   sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['windows-acl-runner'] }
   const policy = ctx.sandboxPolicy
-  const reader = new ProtectedInputIntegrity(workspace, home)
   const order: string[] = []
   windowsAcl.beforeAdd = (path) => {
     if (path !== workspace) return
@@ -104,7 +102,6 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
     expect(frame.value.request.purpose).toEqual({ type: 'workspace-write', workspace })
     expect(policy.workspaceAccess.isAuthorized(workspace)).toBe(false)
     expect(windowsAcl.additions).toEqual([])
-    expect(reader.covers(input)).toBe(false)
     writeFileSync(input, 'present when owner confirms')
     const response = await ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/$events/result', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -114,7 +111,7 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
     expect(await response.json()).toMatchObject({ result: { ok: true } })
     return settled
   }
-  return { ctx, harness, workspace, home, profile, input, policy, sandbox, agent, approve, reader, order }
+  return { ctx, harness, workspace, home, profile, input, policy, sandbox, agent, approve, order }
 }
 
 it('writes after authenticated owner consent, a durable record and one ACL materialization', async () => {
@@ -123,7 +120,6 @@ it('writes after authenticated owner consent, a durable record and one ACL mater
   if ('error' in result) throw result.error
   expect(result.value.mode).toBe('workspace-write')
   expect(f.order).toEqual(['record-before-acl'])
-  expect(f.reader.readTrusted(f.input)?.toString()).toBe('present when owner confirms')
   if (result.value.mode !== 'workspace-write') throw new Error('Expected approved workspace mode')
   const handed = await f.sandbox.confine(['node', 'write.js'], { ...result.value, mode: result.value.mode })
   expect(windowsAcl.additions.filter(path => path === f.workspace)).toHaveLength(1)
@@ -325,7 +321,6 @@ it('keeps a rejected Windows owner decision read-only without a record or ACL', 
     .toMatchObject({ outcome: 'rejected', reason: 'Owner rejected / owner 拒' })
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
   expect(windowsAcl.additions).toEqual([])
-  expect(f.reader.covers(f.input)).toBe(false)
 })
 
 it('warns when opening an unrecorded writable workspace and revokes its exact SID across the tree', async () => {

@@ -71,16 +71,8 @@ export interface WorkspaceWriteApproval {
   readonly workspace: string
 }
 
-/** Consent to one exact executable-input identity and digest, not general filesystem access. */
-export interface ProtectedInputApproval {
-  readonly type: 'protected-input'
-  readonly path: string
-  readonly previous: string
-  readonly current: string
-}
-
 /** Explicit owner decisions with purpose-specific consumers. */
-export type ApprovalPurpose = WorkspaceWriteApproval | ProtectedInputApproval
+export type ApprovalPurpose = WorkspaceWriteApproval
 
 /** Client-safe payload declared for the approval answerer waterfall. */
 export interface ApprovalRequestEvent {

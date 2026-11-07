@@ -35,7 +35,6 @@ import type {} from '@panedesk/dsh-session-query'
 import type {} from '@panedesk/dsh-subagent'
 import { internals } from './runner-internals.ts'
 import { projectJsonRun, boundJsonLine } from './json-stream.ts'
-import { sandboxStatus } from './sandbox-status.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'headless-runner'
@@ -51,15 +50,12 @@ export interface Config {
   sessionId?: string
   /** Whether stdout carries the machine-readable event stream instead of final text. */
   json?: boolean
-  /** Inspect confinement without reading a task or requesting a model. */
-  sandboxStatus?: 'en' | 'zh'
 }
 
 export const Config: z<Config> = z.object({
   task: z.string(),
   sessionId: z.string(),
   json: z.boolean(),
-  sandboxStatus: z.union(['en', 'zh'] as const),
 })
 
 /** Outcome of one owned run interval. */
@@ -319,14 +315,6 @@ async function run(ctx: Context, config: Config, io: HeadlessIo): Promise<void> 
   // Loader siblings mount concurrently. Await the complete application before
   // creating an Agent so its scoped tools and adapters are not half-composed.
   await ctx.get('loader')?.await()
-  if (config.sandboxStatus !== undefined) {
-    const status = sandboxStatus(ctx, config.sandboxStatus)
-    io.stdout.write(config.json === true
-      ? `${JSON.stringify(status)}\n`
-      : `${status.enforcement}: ${status.message}\n${status.protectedInputs.map(input => `${input.enforcement}\t${input.path}`).join('\n')}\n`)
-    io.exit(0)
-    return
-  }
   const agents = ctx.get('agents')
   const defaultModel = ctx.get('agentDefaultModel')
   const sessions = ctx.get('sessions')

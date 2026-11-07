@@ -332,8 +332,6 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     }
     const ctx = await boot(NAME, rootConfig, readProfilePatches(NAME, profileContext, composed.profile), async (hostCtx) => {
       app.current = hostCtx
-      profileContext.protectedInputPaths = () => hostCtx.get('sandboxPolicy')?.resolve().protectedPaths ?? []
-      profileContext.protectedWorkspaceRoot = () => hostCtx.get('sandboxPolicy')?.workspaceRoot ?? profileContext.cwd
       hostCtx.provide('profileContext', profileContext)
       // Before any config-tree entry mounts, so plugins resolve all launch-time
       // environment values from the same immutable launch snapshot.

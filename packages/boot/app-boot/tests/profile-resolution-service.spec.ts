@@ -1,7 +1,7 @@
 /** Package metadata queries share the active runtime resolution. */
 
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { createRequire, registerHooks } from 'node:module'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -9,8 +9,6 @@ import { getEnvironmentData } from 'node:worker_threads'
 import { Context } from '@panedesk/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PluginPackages } from '../src/profile-resolution/service.ts'
-import { auditStartupEntries, boot } from '../src/index.ts'
-import { ProtectedInputIntegrity } from '../src/input-integrity.ts'
 import { createRuntimeResolution, initProfile, loadProfileDirectory, type RuntimeResolution } from '../src/profile.ts'
 
 const roots: string[] = []
@@ -55,177 +53,6 @@ function resolution(
 }
 
 describe('profile package metadata service', () => {
-  it('refuses memory-only loading on a Node host', async () => {
-    const ctx = new Context()
-    contexts.push(ctx)
-    await expect(ctx.plugin(PluginPackages, { inputFilesystem: 'memory' }))
-      .rejects.toThrow('cannot disable Node host input verification')
-  })
-
-  it('blocks changed CommonJS bytes without HMR and releases the load hook on disposal', async () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-module-load-')))
-    roots.push(root)
-    const workspace = join(root, 'workspace')
-    const home = join(root, 'owner')
-    const entry = join(workspace, 'entry.cjs')
-    file(entry, 'module.exports = "trusted"')
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const ctx = new Context()
-    contexts.push(ctx)
-    ctx.provide('profileContext', {
-      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
-      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-    })
-    await ctx.plugin(PluginPackages)
-    writeFileSync(entry, 'module.exports = "changed"')
-    const require = createRequire(join(workspace, 'caller.cjs'))
-    expect(() => { require(entry) }).toThrow('requires owner confirmation')
-    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
-    expect(require(entry)).toBe('changed')
-    Reflect.deleteProperty(require.cache, entry)
-    writeFileSync(entry, 'module.exports = "after-disposal"')
-    await ctx.fiber.dispose()
-    expect(require(entry)).toBe('after-disposal')
-    Reflect.deleteProperty(require.cache, entry)
-  })
-
-  it('checks native dynamic imports and newly added modules without HMR', async () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-dynamic-load-')))
-    roots.push(root)
-    const workspace = join(root, 'workspace')
-    const home = join(root, 'owner')
-    const entry = join(workspace, 'entry.mjs')
-    const caller = join(root, 'caller.cjs')
-    file(caller, 'module.exports = (url) => import(url)')
-    file(entry, 'export const value = "trusted"')
-    const integrity = new ProtectedInputIntegrity(workspace, home)
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const ctx = new Context()
-    contexts.push(ctx)
-    ctx.provide('profileContext', {
-      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
-      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
-      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
-    })
-    await ctx.plugin(PluginPackages)
-    const require = createRequire(caller)
-    const load = require(caller) as (url: string) => Promise<{ value: string }>
-    expect(await load(pathToFileURL(entry).href)).toMatchObject({ value: 'trusted' })
-    const dynamic = join(workspace, 'dynamic.mjs')
-    file(dynamic, 'export const value = "new"')
-    await expect(load(pathToFileURL(dynamic).href)).rejects.toThrow('requires owner confirmation')
-    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
-    expect(await load(pathToFileURL(dynamic).href + '?approved')).toMatchObject({ value: 'new' })
-    writeFileSync(entry, 'export const value = "changed"')
-    await expect(load(pathToFileURL(entry).href + '?changed')).rejects.toThrow('requires owner confirmation')
-    Reflect.deleteProperty(require.cache, caller)
-  })
-
-  it('returns approved bytes instead of an earlier custom loader transformation', async () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-custom-load-')))
-    roots.push(root)
-    const workspace = join(root, 'workspace')
-    const entry = join(workspace, 'entry.cjs')
-    file(entry, 'module.exports = "approved"')
-    const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const custom = registerHooks({
-      load(url, context, nextLoad) {
-        if (url === pathToFileURL(entry).href) return { format: 'commonjs', source: 'module.exports = "transformed"', shortCircuit: true }
-        return nextLoad(url, context)
-      },
-    })
-    const ctx = new Context()
-    contexts.push(ctx)
-    ctx.provide('profileContext', {
-      name: 'custom', dir: workspace, patchPath: entry, installAnchor: entry, cwd: workspace,
-      home: join(root, 'owner'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
-      inputIntegrity: integrity,
-    })
-    const require = createRequire(join(root, 'caller.cjs'))
-    try {
-      await ctx.plugin(PluginPackages)
-      expect(require(entry)).toBe('approved')
-      Reflect.deleteProperty(require.cache, entry)
-      writeFileSync(entry, 'module.exports = "unconfirmed"')
-      expect(() => { require(entry) }).toThrow('requires owner confirmation')
-    } finally {
-      await ctx.fiber.dispose()
-      custom.deregister()
-      Reflect.deleteProperty(require.cache, entry)
-    }
-  })
-
-  it.each(['.node', '.unsupported'])('refuses protected %s loading while an ordinary plugin remains loadable', async (extension) => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-format-load-')))
-    roots.push(root)
-    const workspace = join(root, 'workspace')
-    const entry = join(workspace, `entry${extension}`)
-    const good = join(workspace, 'good.cjs')
-    const caller = join(root, 'caller.cjs')
-    file(caller, 'module.exports = (url) => import(url)')
-    file(entry, 'unsupported payload')
-    file(good, 'module.exports = "ordinary plugin"')
-    const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const ctx = new Context()
-    contexts.push(ctx)
-    ctx.provide('profileContext', {
-      name: 'format', dir: workspace, patchPath: entry, installAnchor: entry, cwd: workspace,
-      home: join(root, 'owner'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
-      inputIntegrity: integrity,
-    })
-    await ctx.plugin(PluginPackages)
-    const require = createRequire(caller)
-    const load = require(caller) as (url: string) => Promise<unknown>
-    await expect(load(pathToFileURL(entry).href)).rejects.toThrow('format cannot consume verified bytes')
-    expect(require(good)).toBe('ordinary plugin')
-    Reflect.deleteProperty(require.cache, good)
-    Reflect.deleteProperty(require.cache, caller)
-  })
-
-  it.each(['.node', '.unsupported'])('keeps a composed plugin active when a protected %s sibling cannot load', async (extension) => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-composed-load-')))
-    roots.push(root)
-    const workspace = join(root, 'workspace')
-    const entry = join(workspace, `entry${extension}`)
-    const good = join(workspace, 'good.cjs')
-    const config = join(root, 'cordis.yml')
-    file(entry, 'unsupported payload')
-    file(good, 'exports.apply = (ctx) => { ctx.provide("protectedSiblingActive", true) }')
-    file(config, JSON.stringify([
-      { id: 'unsupported-sibling', name: pathToFileURL(entry).href },
-      { id: 'ordinary-sibling', name: pathToFileURL(good).href },
-    ]))
-    const integrity = new ProtectedInputIntegrity(workspace, join(root, 'owner'))
-    integrity.observe(workspace)
-    await integrity.grantWrite()
-    const warnings: string[] = []
-    const ctx = await boot('protected-composition', config, [], async (ctx) => {
-      ctx.logger.exporter({
-        levels: { default: 2 },
-        export: ({ type, args }) => { if (type === 'warn' || type === 'error') warnings.push(args.map(String).join(' ')) },
-      })
-      ctx.provide('profileContext', {
-        name: 'composed', dir: root, patchPath: config, installAnchor: config, cwd: workspace,
-        home: join(root, 'owner'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
-        inputIntegrity: integrity,
-      })
-      await ctx.plugin(PluginPackages)
-    })
-    contexts.push(ctx)
-    await auditStartupEntries(ctx, 'protected-composition', (line) => { warnings.push(line) })
-    expect(ctx.get('protectedSiblingActive')).toBe(true)
-    expect(warnings.join('\n')).toContain('unsupported-sibling')
-    expect(warnings.join('\n')).toContain('format cannot consume verified bytes')
-  })
-
   it('refreshes the installed resolution from its own profile and installation', async () => {
     const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-package-service-refresh-')))
     roots.push(root)

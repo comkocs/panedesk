@@ -22,8 +22,7 @@ import { z as zod } from 'zod'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import type { SandboxMode } from '@panedesk/dsh-sandbox'
-import { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
-import { grantProtectedWorkspace, regrantProtectedWorkspace } from '@panedesk/dsh-app-boot'
+import { SANDBOX_MODES, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 // Side-effect type import: declaration-merges `ctx.shell` (the capability fact
 // `sandboxMode` this service reads), without a value dependency on the seam.
 import type {} from '@panedesk/dsh-shell'
@@ -212,7 +211,6 @@ export class PermissionPresetService extends TypertRemoteService {
   private readonly presets: Record<string, PresetSpec>
   private autoAdmit: (() => void) | undefined
   private defaultSettings: () => PermissionSettings
-  private readonly implicitWindowsDefault: () => boolean
   private readonly workspaceDirectorySources = new Set<() => Promise<readonly string[]>>()
 
   constructor(ctx: Context, config: Config) {
@@ -230,8 +228,6 @@ export class PermissionPresetService extends TypertRemoteService {
     if (ctx.shell.sandboxMode === undefined) {
       throw new Error('permission: the mounted bash executor does not confine (no sandboxMode) — presets bundle a sandbox mode, so composing this plugin over an unconfined executor is a misconfiguration')
     }
-    this.implicitWindowsDefault = () => ctx.get('sandboxPolicy')?.windowsDefault === true
-      && config.defaultPreset.get() === undefined
     const inferredDefault = this.derive(EMPTY_KNOBS)
     const defaultPreset = config.defaultPreset.get() ?? inferredDefault
     if (defaultPreset === CUSTOM_PRESET) {
@@ -281,7 +277,7 @@ export class PermissionPresetService extends TypertRemoteService {
         // No settlement text labels its value with this command's own name: a
         // surface that renders `name · text` (the web command row) would
         // otherwise read `permission · Permission preset: workspace-write.`
-        handler: async ({ agent, rawInput }) => {
+        handler: ({ agent, rawInput }) => {
           const name = rawInput.trim()
           if (name === '') {
             return { kind: 'success', text: `current preset ${this.current(agent.session)} (available: ${this.names.join(', ')})` }
@@ -289,7 +285,7 @@ export class PermissionPresetService extends TypertRemoteService {
           if (!this.names.includes(name)) {
             return { kind: 'error', text: `unknown preset "${name}" (available: ${this.names.join(', ')})` }
           }
-          await this.apply(agent.session, name, (policy) => { this.ctx.approval.setPolicy(agent, policy) })
+          this.apply(agent.session, name, (policy) => { this.ctx.approval.setPolicy(agent, policy) })
           return { kind: 'success', text: `preset ${name}` }
         },
       })
@@ -363,7 +359,7 @@ export class PermissionPresetService extends TypertRemoteService {
    * @param workspace - Existing absolute directory selected by the owner.
    */
   @Remote('authorizeWorkspaceWrite')
-  async authorizeWorkspaceWrite(workspace: string): Promise<void> {
+  authorizeWorkspaceWrite(workspace: string): Promise<void> {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
     const current = policy.workspaceAccess.beginGrant(workspace)
@@ -372,12 +368,11 @@ export class PermissionPresetService extends TypertRemoteService {
       throw new RemoteError('permission/workspace-unavailable',
         'Revoke the existing workspace write capability and finish its tasks before reauthorizing. / 请先撤销已有工作区写权限并结束相关任务，再重新授权。', {})
     }
-    const profile = this.ctx.get('profileContext')
-    if (profile !== undefined) await regrantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
     current()
-    await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization', undefined, current)
+    policy.workspaceAccess.authorize(workspace, 'settings-preauthorization', undefined, current)
     current()
     this.emitChanged('permission-presets/workspace-write-changed')
+    return Promise.resolve()
   }
 
   /**
@@ -526,44 +521,24 @@ export class PermissionPresetService extends TypertRemoteService {
    * setter. Selecting the effective preset again appends nothing.
    * @param session - the session the switch belongs to.
    * @param name - the preset to switch to; unknown names throw.
-   * @returns Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.
    */
-  set(session: Session, name: string): void | Promise<void> {
-    return this.apply(session, name, (policy) => { setApprovalPolicy(session, policy) })
-  }
-
-  private captureWorkspace(workspace: string): Promise<void> | undefined {
-    const profile = this.ctx.get('profileContext')
-    if (profile !== undefined) return grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
-    return undefined
-  }
-
-  private captureSession(session: Session, mode: SandboxMode): Promise<void> | undefined {
-    if (mode !== 'workspace-write') return undefined
-    const policy = this.ctx.get('sandboxPolicy')
-    const workspace = session.header.cwd ?? policy?.workspaceRoot
-    return workspace === undefined ? undefined : this.captureWorkspace(workspace)
+  set(session: Session, name: string): void {
+    this.apply(session, name, (policy) => { setApprovalPolicy(session, policy) })
   }
 
   /** Apply one preset through its durable identity and canonical knob setters. */
-  private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void | Promise<void> {
+  private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void {
     const spec = this.resolve(name)
     if (name === AUTO_PRESET) this.autoAdmit?.()
-    const captured = this.captureSession(session, spec.sandbox)
-    const commit = (): void => {
-      const current = this.current(session)
-      const knobs = this.permissionState(session)
-      if (current !== name) session.append('permission/preset', { preset: name })
-      if (spec.sandbox !== (knobs.sandbox ?? this.ctx.shell.sandboxMode)
-        || (knobs.sandbox === null && this.ctx.get('sandboxPolicy')?.windowsDefault === true)) {
-        setSandboxMode(session, spec.sandbox)
-      }
-      if (spec.approval !== (knobs.approval ?? this.ctx.approval.config.policy ?? 'ask')) {
-        setApproval(spec.approval)
-      }
+    const current = this.current(session)
+    const knobs = this.permissionState(session)
+    if (current !== name) session.append('permission/preset', { preset: name })
+    if (spec.sandbox !== (knobs.sandbox ?? this.ctx.shell.sandboxMode)) {
+      setSandboxMode(session, spec.sandbox)
     }
-    if (captured === undefined) commit()
-    else return captured.then(commit)
+    if (spec.approval !== (knobs.approval ?? this.ctx.approval.config.policy ?? 'ask')) {
+      setApproval(spec.approval)
+    }
   }
 
   /**
@@ -577,7 +552,6 @@ export class PermissionPresetService extends TypertRemoteService {
    * @param session - Session being prepared or restored.
    * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
    * @param signal - Optional creation cancellation; aborted preparation appends no permission facts.
-   * @returns Capture completion when required; permission facts are published only after it succeeds.
    */
   initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void> {
     signal?.throwIfAborted()
@@ -592,28 +566,22 @@ export class PermissionPresetService extends TypertRemoteService {
     if (preset === null && sandbox === null && approval === null && !seeded) {
       const name = this.defaultPreset
       const spec = this.resolve(name)
-      const implicit = this.implicitWindowsDefault()
-      const captured = implicit ? undefined : this.captureSession(session, spec.sandbox)
-      const commit = (): void | Promise<void> => {
-        signal?.throwIfAborted()
-        if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride, signal)
-        session.append('permission/preset', { preset: name })
-        if (!implicit) setSandboxMode(session, spec.sandbox)
-        setApprovalPolicy(session, approvalOverride ?? spec.approval)
-      }
-      if (captured === undefined) return commit()
-      else return captured.then(commit)
-    }
-
-    const captured = this.captureSession(session, sandbox ?? this.ctx.shell.sandboxMode as SandboxMode)
-    const commit = (): void | Promise<void> => {
       signal?.throwIfAborted()
       if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride, signal)
+      session.append('permission/preset', { preset: name })
+      setSandboxMode(session, spec.sandbox)
+      setApprovalPolicy(session, approvalOverride ?? spec.approval)
+      return
+    }
+
+    const commit = (): void => {
+      signal?.throwIfAborted()
+      if (this.permissionState(session) !== state) return
       const effective = this.derive(state)
       if (preset === null && effective !== CUSTOM_PRESET) {
         session.append('permission/preset', { preset: effective })
       }
-      if (sandbox === null && !this.implicitWindowsDefault()) {
+      if (sandbox === null) {
         setSandboxMode(session, this.ctx.shell.sandboxMode as SandboxMode)
       }
       if (approvalOverride !== undefined && approvalOverride !== approval) {
@@ -622,8 +590,8 @@ export class PermissionPresetService extends TypertRemoteService {
         setApprovalPolicy(session, this.ctx.approval.config.policy ?? 'ask')
       }
     }
-    if (captured === undefined) return commit()
-    else return captured.then(commit)
+    if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride, signal)
+    commit()
   }
 
   /** Publish non-vetoing inventory or catalog invalidation after a state change. */

@@ -29,8 +29,6 @@ export interface HeadlessStartupValues {
   sessionId: string | undefined
   /** Whether stdout carries the machine-readable event stream instead of final text. */
   json: boolean
-  /** Inspect confinement without creating an Agent or requesting a model. */
-  sandboxStatus?: 'en' | 'zh'
 }
 
 /**
@@ -44,7 +42,6 @@ function headlessCommand(): Command {
     .helpOption('-h, --help', 'show this help')
     .option('--json', 'write newline-delimited run events to stdout instead of the final message')
     .option('--session-id <id>', 'adopt the persisted Session with this id; an unknown id is an error')
-    .option('--sandbox-status <locale>', 'inspect sandbox coverage without a model request (en or zh)')
     .argument('[task...]', 'the task text; multiple words are joined by spaces, and `-` reads stdin')
     .addHelpText('after', `
 Examples:
@@ -104,15 +101,8 @@ export function apply(ctx: Context): void {
       program.error('error: a task is required, for example: panedesk --profile headless "run the tests"')
     }
     const task = program.args.length === 0 ? undefined : joined
-    const options = program.opts<{ json?: boolean; sessionId?: string; sandboxStatus?: string }>()
-    const sandboxStatus = options.sandboxStatus
-    if (sandboxStatus !== undefined && sandboxStatus !== 'en' && sandboxStatus !== 'zh') {
-      program.error('error: --sandbox-status expects en or zh')
-    }
-    if (sandboxStatus !== undefined && (task !== undefined || options.sessionId !== undefined)) {
-      program.error('error: --sandbox-status cannot be combined with a task or --session-id')
-    }
-    if (task === undefined && sandboxStatus === undefined && internals.stdinIsTty()) {
+    const options = program.opts<{ json?: boolean; sessionId?: string }>()
+    if (task === undefined && internals.stdinIsTty()) {
       program.error('error: a task is required, for example: panedesk --profile headless "run the tests"')
     }
     // A SessionId is opaque, so whitespace is part of the identity: validate
@@ -125,7 +115,6 @@ export function apply(ctx: Context): void {
       task,
       sessionId,
       json: options.json === true,
-      ...(sandboxStatus === 'en' || sandboxStatus === 'zh' ? { sandboxStatus } : {}),
     } satisfies HeadlessStartupValues)
   })
   parseCmdline(ctx, program)
