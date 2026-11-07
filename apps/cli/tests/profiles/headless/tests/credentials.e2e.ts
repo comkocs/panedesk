@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url'
 import { startMockLlmServer } from '@panedesk/dsh-llm-mock-server'
 import { runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
 import { describe, expect, it } from 'vitest'
-import { stderrBeyondStartupReview } from './startup-review-stderr.ts'
 
 const binScript = fileURLToPath(new URL('../../../../../../apps/cli/src/bin.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url))
@@ -77,17 +76,17 @@ describe('headless credential policy', { retry: 0 }, () => {
           DEEPSEEK_API_KEY: scenario.launch, DEEPSEEK_BASE_URL: server.baseURL, PANEDESK_TELEMETRY_DISABLED: '1',
         },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.panedesk'), { recursive: true })
-          await writeFile(join(cwd, '.panedesk', '.credentials.yaml'), credentials, { mode: 0o600 })
+          await mkdir(join(cwd, '.panedesk', 'private'), { recursive: true })
+          await writeFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), credentials, { mode: 0o600 })
           if (scenario.project !== undefined) await writeFile(join(cwd, '.env'), `DEEPSEEK_API_KEY=${scenario.project}\n`)
           if (scenario.home !== undefined) await writeFile(join(cwd, '.panedesk', '.env'), `DEEPSEEK_API_KEY=${scenario.home}\n`)
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(credentials)
+          expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(credentials)
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
-      expect(stderrBeyondStartupReview(result.stderr)).toBe('')
+      expect(result.stderr).toBe('')
       expect(server.requests.length).toBeGreaterThan(0)
       expect(server.requests.every(request => request.headers['x-api-key'] === scenario.expected)).toBe(true)
     } finally {
@@ -109,8 +108,8 @@ describe('headless credential policy', { retry: 0 }, () => {
           DEEPSEEK_API_KEY: undefined, PANEDESK_TELEMETRY_DISABLED: '1',
         },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.panedesk'), { recursive: true })
-          await writeFile(join(cwd, '.panedesk', '.credentials.yaml'), credentials, { mode: 0o600 })
+          await mkdir(join(cwd, '.panedesk', 'private'), { recursive: true })
+          await writeFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), credentials, { mode: 0o600 })
           await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify([
             { id: 'agent-default-model', config: { provider: 'anthropic', model: 'headless-auth-model' } },
             { id: 'llm-pi-ai', config: { providers: { anthropic: {
@@ -121,11 +120,11 @@ describe('headless credential policy', { retry: 0 }, () => {
           ]))
         },
         inspect: async (cwd) => {
-          expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(credentials)
+          expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(credentials)
         },
       })
       expect(result.stdout.trim()).toBe('mock response recovered')
-      expect(stderrBeyondStartupReview(result.stderr)).toBe('')
+      expect(result.stderr).toBe('')
       expect(server.keys.length).toBeGreaterThan(0)
       expect(server.keys.every(key => key === launchKey)).toBe(true)
     } finally {
@@ -148,20 +147,15 @@ describe('headless credential policy', { retry: 0 }, () => {
         processTimeoutMs, expectedExitCode: missing ? 1 : 0,
         env: { DEEPSEEK_API_KEY: empty ? '' : missing ? undefined : launchKey, DEEPSEEK_BASE_URL: server.baseURL, PANEDESK_TELEMETRY_DISABLED: '1' },
         prepare: async (cwd) => {
-          await mkdir(join(cwd, '.panedesk'), { recursive: true })
-          await writeFile(join(cwd, '.panedesk', '.credentials.yaml'), document, { mode: 0o600 })
+          await mkdir(join(cwd, '.panedesk', 'private'), { recursive: true })
+          await writeFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), document, { mode: 0o600 })
           if (empty) await writeFile(join(cwd, '.env'), `DEEPSEEK_API_KEY=${projectKey}\n`)
           if (restoring) await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify(
             ['credentials', 'authorization', 'deepseek-account'].map(id => ({ id, disabled: false })),
           ))
         },
         inspect: async (cwd) => {
-          if (restoring) {
-            // Enabling the stored provider relocates the legacy document into its private directory.
-            expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(document)
-          } else {
-            expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(document)
-          }
+          expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(document)
         },
       })
       if (missing) {
@@ -170,11 +164,11 @@ describe('headless credential policy', { retry: 0 }, () => {
         expect(server.requests).toHaveLength(0)
       } else if (mode === 'invalid stored document') {
         expect(result.stdout.trim()).toBe('mock response recovered')
-        expect(stderrBeyondStartupReview(result.stderr)).toBe('')
+        expect(result.stderr).toBe('')
         expect(server.requests.length).toBeGreaterThan(0)
       } else {
         expect(result.stdout.trim()).toBe('mock response recovered')
-        expect(stderrBeyondStartupReview(result.stderr)).toBe('')
+        expect(result.stderr).toBe('')
         expect(server.requests.length).toBeGreaterThan(0)
         expect(server.requests.every(request => request.headers['x-api-key'] === savedKey)).toBe(true)
       }
@@ -194,8 +188,8 @@ describe('headless credential policy', { retry: 0 }, () => {
       processTimeoutMs, expectedExitCode: 1,
       env: { DEEPSEEK_API_KEY: undefined, OPENAI_API_KEY: undefined, PANEDESK_TELEMETRY_DISABLED: '1' },
       prepare: async (cwd) => {
-        await mkdir(join(cwd, '.panedesk'), { recursive: true })
-        await writeFile(join(cwd, '.panedesk', '.credentials.yaml'), credentials, { mode: 0o600 })
+        await mkdir(join(cwd, '.panedesk', 'private'), { recursive: true })
+        await writeFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), credentials, { mode: 0o600 })
         await writeFile(join(cwd, 'auth.patch.json'), JSON.stringify([
           { id: 'agent-default-model', config: { provider, model } },
           ...provider === 'openai-codex' ? [{ id: 'llm-pi-ai', config: { providers: {
@@ -204,7 +198,7 @@ describe('headless credential policy', { retry: 0 }, () => {
         ]))
       },
       inspect: async (cwd) => {
-        expect(await readFile(join(cwd, '.panedesk', '.credentials.yaml'), 'utf8')).toBe(credentials)
+        expect(await readFile(join(cwd, '.panedesk', 'private', '.credentials.yaml'), 'utf8')).toBe(credentials)
       },
     })
     expect(result.stdout).toBe('\n')

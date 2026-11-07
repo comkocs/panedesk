@@ -3,7 +3,6 @@ import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
-import { stripInputReviewStderr } from '../../../support/input-review-stderr.ts'
 import {
   runScenario,
   type InputScript,
@@ -117,7 +116,7 @@ it('pins Messages Files offload and inline fallback in assembled requests', asyn
         DSH_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
       },
     })
-    expect(stripInputReviewStderr(result.stderr)).toBe('')
+    expect(result.stderr).toBe('')
     expect(requests).toHaveLength(2)
     expect(fileRequests).toEqual([{ method: 'POST', path: filesPath, bytes: 69 }])
     const attachmentDigest = 'b1ff9c8ea3a780bad09b346c423d2d0e46815926879b18e841d928376a946640'
@@ -187,7 +186,7 @@ it('pins Messages Files offload and inline fallback in assembled requests', asyn
         DSH_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
       },
     })
-    expect(stripInputReviewStderr(fallback.stderr)).toBe('')
+    expect(fallback.stderr).toBe('')
     expect(fileRequests).toEqual([
       { method: 'POST', path: filesPath, bytes: 69 },
       { method: 'POST', path: filesPath, bytes: 69 },
