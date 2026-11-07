@@ -179,9 +179,10 @@ set(session: Session, name: string): void | Promise<void>
  * an already initialized session records only a changed approval policy.
  * @param session - Session being prepared or restored.
  * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
+ * @param signal - Optional creation cancellation; aborted preparation appends no permission facts.
  * @returns Capture completion when required; permission facts are published only after it succeeds.
  */
-initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void>
+initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void>
 ```
 
 Types: [ApprovalPolicy](approval.zh.md) · [Session](session.zh.md)

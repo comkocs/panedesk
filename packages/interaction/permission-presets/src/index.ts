@@ -256,14 +256,15 @@ export class PermissionPresetService extends TypertRemoteService {
       wire: { viewSchema: selectionSchema, view: state => ({ currentValue: this.derive(state) }) },
     })
     const initializations = new WeakMap<Session, Promise<void>>()
-    const initialize = (session: Session): Promise<void> => {
+    const initialize = (session: Session, signal?: AbortSignal): Promise<void> => {
       const pending = initializations.get(session)
       if (pending !== undefined) return pending
-      const operation = Promise.resolve(this.initialize(session))
+      const operation = Promise.resolve(this.initialize(session, undefined, signal))
       initializations.set(session, operation)
       void operation.catch(() => {})
       return operation
     }
+    ctx.on('session/preparing', async (session, signal) => { await initialize(session, signal) })
     ctx.on('session/created', (session) => { void initialize(session) })
     ctx.on('agent/created', async ({ agent }) => { await initialize(agent.session) })
     for (const session of ctx.sessions.list()) void initialize(session)
@@ -575,9 +576,11 @@ export class PermissionPresetService extends TypertRemoteService {
    * an already initialized session records only a changed approval policy.
    * @param session - Session being prepared or restored.
    * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
+   * @param signal - Optional creation cancellation; aborted preparation appends no permission facts.
    * @returns Capture completion when required; permission facts are published only after it succeeds.
    */
-  initialize(session: Session, approvalOverride?: ApprovalPolicy): void | Promise<void> {
+  initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void> {
+    signal?.throwIfAborted()
     const state = this.permissionState(session)
     const { preset, sandbox, approval, seeded } = state
     if (preset === AUTO_PRESET) {
@@ -592,7 +595,8 @@ export class PermissionPresetService extends TypertRemoteService {
       const implicit = this.implicitWindowsDefault()
       const captured = implicit ? undefined : this.captureSession(session, spec.sandbox)
       const commit = (): void | Promise<void> => {
-        if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride)
+        signal?.throwIfAborted()
+        if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride, signal)
         session.append('permission/preset', { preset: name })
         if (!implicit) setSandboxMode(session, spec.sandbox)
         setApprovalPolicy(session, approvalOverride ?? spec.approval)
@@ -603,7 +607,8 @@ export class PermissionPresetService extends TypertRemoteService {
 
     const captured = this.captureSession(session, sandbox ?? this.ctx.shell.sandboxMode as SandboxMode)
     const commit = (): void | Promise<void> => {
-      if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride)
+      signal?.throwIfAborted()
+      if (this.permissionState(session) !== state) return this.initialize(session, approvalOverride, signal)
       const effective = this.derive(state)
       if (preset === null && effective !== CUSTOM_PRESET) {
         session.append('permission/preset', { preset: effective })

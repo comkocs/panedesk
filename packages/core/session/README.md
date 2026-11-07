@@ -29,6 +29,8 @@ Mount `dsh-session` wherever a session must exist. It creates and holds event-so
 
 ### Create and inspect sessions
 
+Agent creation awaits serial `session/preparing` listeners before storing prepared events and announcing the session. Listeners receive the private session and its creation cancellation signal; rejection leaves rollback to the owning creation transaction. Synchronous `ctx.sessions.create()` does not run this preparation phase.
+
 `ctx.sessions.create()` builds a live session bound to the calling fiber; `get(id)` and `list()` find sessions, and `fork()` creates a child session from a stable prefix of a live one.
 
 ```text
