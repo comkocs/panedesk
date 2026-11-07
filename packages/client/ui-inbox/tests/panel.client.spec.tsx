@@ -25,7 +25,7 @@ function props(locale: typeof en, value: InboxView | undefined,
   const view = {
     sessionId: 'receiver',
     useSessions,
-    useResource: () => ({ status, value, ...(code ? { failure: { code } } : {}) }),
+    useResource: () => ({ status, value, ...(code ? { failure: { code, name: 'Error', message: code, isDSHRemoteError: true as const } } : {}) }),
     t: (key: keyof typeof en, args?: Record<string, string | number>) => Object.entries(args ?? {})
       .reduce((text, [name, argument]) => text.replaceAll(`{${name}}`, String(argument)), locale[key]),
   }
@@ -34,7 +34,7 @@ function props(locale: typeof en, value: InboxView | undefined,
 it.each([en, zh])('shows the home permissions reason', (locale) => {
   const view = props(locale, undefined, 'failed', 'inbox/unavailable')
   view.useResource = () => ({ status: 'failed', value: undefined, failure: {
-    code: 'inbox/unavailable', message: 'unavailable', details: { reason: { code: 'home-permissions', path: '/data/home' } },
+    code: 'inbox/unavailable', name: 'Error', isDSHRemoteError: true, message: 'unavailable', details: { reason: { code: 'home-permissions', path: '/data/home' } },
   } })
   render(<InboxPanel {...view} />)
   fireEvent.click(screen.getByRole('button', { name: locale.title }))

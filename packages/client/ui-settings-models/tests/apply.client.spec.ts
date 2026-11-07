@@ -108,9 +108,9 @@ describe('ui-settings-models apply', () => {
       await b.ctx.plugin({ inject: [...inject], apply }).await()
       expect(openSection).toHaveBeenCalledWith('models')
       const entry = b.slots.entries('settings.section')[0]!
-      const injected = entry.inject!() as import('../src/client/ModelsSection.tsx').ModelsSectionInjected
+      const injected = entry.inject!() as unknown as import('../src/client/ModelsSection.tsx').ModelsSectionInjected
       expect(injected.initialAddOpen).toBe(true)
-      expect((entry.inject!() as import('../src/client/ModelsSection.tsx').ModelsSectionInjected).initialAddOpen).toBe(false)
+      expect((entry.inject!() as unknown as import('../src/client/ModelsSection.tsx').ModelsSectionInjected).initialAddOpen).toBe(false)
       expect(replaceState).toHaveBeenCalledOnce()
       expect(String(replaceState.mock.calls[0]![2])).toBe('https://example.test/?keep=1')
     } finally {

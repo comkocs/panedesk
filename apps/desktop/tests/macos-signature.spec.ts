@@ -153,7 +153,7 @@ describe('desktop macOS release signature', () => {
     })
     // Unsigned Windows packages carry no mandatory-update policy even when an origin is supplied.
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
-    expect(config.extraMetadata.dshDesktopUpdateChannel).toBe('latest')
+    expect(config.extraMetadata).toHaveProperty('dshDesktopUpdateChannel', 'latest')
   })
 
   it('builds an unsigned Windows package without a mandatory-update origin or embedded policy', async () => {
@@ -164,7 +164,7 @@ describe('desktop macOS release signature', () => {
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
-    expect(config.extraMetadata.dshDesktopUpdateChannel).toBe('latest')
+    expect(config.extraMetadata).toHaveProperty('dshDesktopUpdateChannel', 'latest')
     expect(config.publish).toEqual([{ provider: 'github', owner: 'comkocs', repo: 'panedesk', channel: 'latest' }])
     expect(config.win.signtoolOptions.publisherName).toBeUndefined()
   })
