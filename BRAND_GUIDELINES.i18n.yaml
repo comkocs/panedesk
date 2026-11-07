@@ -2,6 +2,12 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write BRAND_GUIDELINES.md
-/deepseek-harness-brand-asset-usage-guidelines:
-  en: 23933888033edf18
-  zh: eaa5afb9e2cb4d25
+/panedesk-brand-guidelines:
+  en: a976922a42355d7f
+  zh: 07720703099fabfc
+/panedesk-brand-guidelines/product-identity:
+  en: fd10469b994790cb
+  zh: b31c33d92ef53605
+/panedesk-brand-guidelines/upstream-trademarks:
+  en: 0ae5f48bea2bbcd6
+  zh: e4539acd40326d31

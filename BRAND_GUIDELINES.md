@@ -1,6 +1,16 @@
-# DeepSeek Harness Brand Asset Usage Guidelines
+# Panedesk Brand Guidelines
 
 English | [中文](BRAND_GUIDELINES.zh.md)
+
+## Product identity
+
+Panedesk (Chinese name 窗台) 1.0 is an open-source coding-agent workspace with model routing, subagents and durable sessions across CLI, Web and desktop clients.
+
+Use the name Panedesk for the product, `panedesk` for the launcher package and command, and `pdesk` for the short command; describe it as an independent fork built on DeepSeek Harness, not an official DeepSeek product.
+
+## Upstream trademarks
+
+The following guidelines apply to inherited DeepSeek Harness names and assets, not to Panedesk's own name.
 
 To maintain the long\-term healthy development of the DeepSeek Harness ecosystem, avoid user confusion, and facilitate the retrieval and identification of related resources, we have established these specifications and hope that everyone will adhere to them:
 

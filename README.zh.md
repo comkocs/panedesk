@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-**Panedesk**（中文名「窗台」）是一套开源、全插件化的编码代理运行框架（harness）：代理循环、模型路由、子代理、会话账本、权限与沙盒都在同一个运行时里。名字由 *pane*（每个代理在自己的窗格里干活，即「开窗」）和 *desk*（以后派发它们的工单台）拼成。
+**Panedesk**（中文名「窗台」）是一套开源、全插件化的 coding agent（编程智能体）工作台；1.0 将模型路由、subagent、会话账本、权限与沙箱放在同一运行时，支持 CLI（命令行界面）、Web 与桌面客户端。
 
 > Built on DSH (DeepSeek Harness)。Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系。「DeepSeek Harness」是 DeepSeek 的注册商标，见 [BRAND_GUIDELINES.zh.md](BRAND_GUIDELINES.zh.md)。
 
@@ -10,7 +10,7 @@
 
 公开仓包含支持模型路由与 subagent 的 headless CLI（命令行界面），以及 Web 和桌面客户端。Web 组合提供会话 subagent 树与只读监看、账本统计台、节点健康与管理页、只读 skill（技能）清单。工位编排及其界面需显式启用；安装相关包不会自动开窗。另有私有插件，本页不展开。
 
-下一步规划：先准备对外发布，再完善长窗与 subagent 守护，随后实现上游同步自动化。公开组合与配置见 [Panedesk 架构](docs/panedesk/architecture.zh.md)。
+1.0 提供默认 slim 组合、按需 full 组合、提供方配置向导与插件管理；长窗、subagent 守护和上游同步自动化留待后续版本。公开组合与配置见 [Panedesk 架构](docs/panedesk/architecture.zh.md)。
 
 ## 平台行为
 
@@ -18,7 +18,7 @@ Linux 上请在 tmux 中，或用 `systemd-run --user --scope -p Delegate=yes` �
 
 Linux 的仅拒绝退役身份过滤器可能将普通 owner 连接误判为未知来源并拒绝准入；它既不会放行历史产品身份，也不会拒绝新沙箱启动。插入约 10 万、100 万、200 万个退役身份时，估算误报率分别为 0.00047%、2.07%、14.3%。浏览器的 cgroup 身份固定，一旦误中会持续到宿主重启。请先关闭所有沙箱套接字，再重启宿主以清空过滤器。详见 [Linux 升级指南](docs/upgrade-guide/v0.2.1-rc.2/linux-owner-source/guide.zh.md)。
 
-Windows 本产品沙箱的 TCP 连接即使持有有效 cookie 也不能充当 owner：准入检查宿主持有的作业对象成员身份，不按浏览器完整性、AppContainer 状态或令牌限制判断。查不出连接属主时拒绝 owner；普通浏览器仍可认证。Windows 行为仅经替身验证，未在原生实机验收。经计划任务、WMI、COM、ShellExecute 委托沙箱外进程代起尚未核验，列入 M9 正式发布前必到的加固工作。Windows 行为以本段为准，取代下方会话 cookie 段保留的旧平台限制描述。参见 [Windows 升级指南](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。
+Windows 本产品沙箱的 TCP 连接即使持有有效 cookie 也不能充当 owner：准入检查宿主持有的作业对象成员身份，不按浏览器完整性、AppContainer 状态或令牌限制判断。查不出连接属主时拒绝 owner；普通浏览器仍可认证。Windows 行为仅经替身验证，未在原生实机验收。经计划任务、WMI、COM、ShellExecute 委托沙箱外进程代起尚未核验；请用独立系统账号运行不可信任务。Windows 行为以本段为准，取代下方会话 cookie 段保留的旧平台限制描述。参见 [Windows 升级指南](docs/upgrade-guide/v0.2.1-rc.2/windows-owner-source/guide.zh.md)。
 
 Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请使用经过认证的 Web 或桌面前端；控制台隔离为后续工作。Windows CLI / TUI 交互启动时会输出此提示。
 
@@ -57,11 +57,11 @@ Web 模式下，owner 的登录 cookie 存在系统浏览器的配置目录里�
 
 Bubblewrap 在两种受限模式下均提供私有 `/tmp`，遮挡宿主 tmux、screen、会话总线、X11 与 Wayland 套接字目录，包括显式指定的运行时目录。依赖这些宿主会话的工具在该沙箱内不可用；普通临时文件使用私有 tmpfs。macOS Seatbelt 拒绝临时目录及配置的会话目录下的 UNIX 套接字出站连接；macOS 原生验收仍待实机。见 [runner 细节](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)。
 
-Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scope。没有该 scope 时，抽象套接字仍可达：在 X11 桌面上，沙箱进程可能向其他窗口注入按键。此限制不导致拒绝启动。M9 正式发布前补沙箱网络命名空间 + 用户态网络。
+Linux runner 在 ABI 6 及以上内核应用 Landlock 抽象 UNIX 套接字 scope。没有该 scope 时，抽象套接字仍可达：在 X11 桌面上，沙箱进程可能向其他窗口注入按键。此限制不导致拒绝启动。网络隔离尚未补齐；不可信任务请分账号运行。
 
-仅有 Landlock 的机器无法遮挡具名会话套接字路径。若常规用户 tmux、screen 或会话总线落点存在，命令启动会给出中英提示，但不拦启动、不改退出码。这些会话可能在沙箱外执行命令；建议分用户运行。M9 正式发布前补沙箱网络命名空间 + 用户态网络。
+仅有 Landlock 的机器无法遮挡具名会话套接字路径。若常规用户 tmux、screen 或会话总线落点存在，命令启动会给出中英提示，但不拦启动、不改退出码。这些会话可能在沙箱外执行命令；建议分用户运行。网络隔离尚未补齐；不可信任务请分账号运行。
 
-本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。M9 正式发布前补本机回环网络限制。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
+本机回环网络未受限制。本机 sshd 若接受可用私钥，`ssh localhost` 可绕出沙箱。本轮不遮 `~/.ssh`，以保留经 SSH 的 Git 推送。请勿向不可信任务提供本地服务凭据。因此，会话隔离不等于一般性的沙箱网络保证；显式 full-access 执行仍保持不变。
 
 Linux 上，宿主替模型执行的文件操作——读、写、编辑、建目录、暂存与发布、元数据探查、列目录——逐段打开各规范祖先目录且不跟随链接，经保留的目录描述符处理单个条目；工作区内被换成链接的目录不能使这些操作改道。macOS 上，宿主文件操作仍按路径解析：沙箱内进程把工作区子目录换成链接，可使宿主写到授权工作区之外，缺省 workspace-write 模式下即如此。在 macOS 验证过目录相对的原生后端之前，维持此限制。Windows 缺省的 `experimental` 句柄后端相对保留的目录句柄打开子项，并拒绝重解析点；支持的操作及覆盖限制见 [fs-local](packages/fs/fs-local/README.zh.md#use-this-package)。仅可通过 owner 批准的受保护 profile 或 overlay 将 `windowsHandleBackend` 设为 `disabled`，以选择旧路径后端。使用该后端时，Windows 缺省只读，但 owner 授予工作区写之后，沙箱内进程把工作区子目录换成链接可使宿主写到授权工作区之外。此限制对旧路径后端仍然成立。
 
@@ -76,7 +76,13 @@ owner cookie 缺省使用浏览器会话存储；持久化只可通过受保护�
 - **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
 - **改名后的命名。** 启动器包是 `panedesk`（命令 `panedesk` 与 `pdesk`），其余工作区包一律 `@panedesk/*`、只换了作用域（所以仍有 `@panedesk/dsh-*` 这样的名字）；主目录默认 `~/.panedesk`，用 `PANEDESK_HOME` 覆盖，`~/.dsh` 与 `DSH_HOME` 一律不读。用户变量有 `PANEDESK_PERMISSION_MODE`、`PANEDESK_TELEMETRY_*`、`PANEDESK_TOOLS_MODE`、`PANEDESK_AGENTS_HOME`（缺省仍 `~/.agents`），其余 `DSH_*`（测试、快照、CI、发布用）名字不变。改名本身由 `scripts/panedesk/rename/` 做映射与重放（那里有英文 README，上游修复先过这个脚本再合）。
 
-## 从源码快速上手
+## 快速上手
+
+### Windows 1.0 包
+
+从本仓库的发行页下载 Windows 1.0 包，解压到 `C:\panedesk\` 等短路径，双击 `start.cmd`，再用 Edge 打开控制台打印的本机地址；按首次运行提示配置模型，并仅在可信机器接受浏览器登录免确认选项。
+
+### Linux / macOS 源码启动
 
 需要 Node.js `^22.19 || >=24`，pnpm 11（经 Corepack）。
 
@@ -102,6 +108,52 @@ node apps/cli/lib/bin.js "summarize this repository"
 ```
 
 手动提供方叠加配置见[提供方示例](examples/providers)与[补丁顺序说明](docs/panedesk/architecture.zh.md)。启动器参数（`--profile`、`--patch`、各种 dump）要写在 `--json` 这类应用参数前面。在 Windows 上运行工具前，请先看平台表。
+
+需要 Web 界面时，在同一检出中运行 `pnpm run dev:web`，再打开打印的本机地址；Linux 宿主须满足上文的用户 scope 委派前提。
+
+## 已知限制
+
+- Windows 共用控制台可能让沙箱命令注入审批按键；请使用 Edge 中经过认证的 Web 前端审批，不用 CLI/TUI 审批。
+- Windows Web 没有原生 owner 确认框且默认拒绝新登录；仅在可信机器接受首次运行的浏览器登录选项，并保护启动链接与 cookie。
+- 沙箱网络未隔离本机回环与所有抽象套接字，仍可访问本地服务；不可信任务请使用没有本地服务凭据的独立系统账号。
+- 仅有 Landlock 的主机不能隐藏可能在沙箱外执行命令的 tmux、screen 或 D-Bus 具名套接字；不可信任务请分账号运行。
+- macOS 与 Windows 的宿主代起进程通道尚未核验；不要向不可信任务账号开放高权限宿主自动化。
+- Windows 原生沙箱权限执行与桌面 CLI 启动器尚未经实机验收，句柄后端文件操作仅有管理员账号功能证据；优先使用 Web 包并保留系统账号隔离。
+- Windows 桌面端第三方平台 cookie 仍可被低完整性命令读取；不要在运行不可信任务的桌面浏览器中登录敏感平台账号。
+- owner 自装的 MCP 服务器与 provider 不受沙箱写限制且能改动权威会话状态；只安装可信集成。
+- Windows 的账本、会话与投影缓存树缺少独立结构核验；请保持产品 home 私有并禁止不可信宿主进程访问。
+- macOS 路径式文件操作及显式选择旧后端的 Windows 可能因目录替换竞态写出授权范围；不可信工作区请用只读模式，Windows 保持默认句柄后端。
+- 受保护输入采集没有整体文件数、字节数或耗时上限，大目录可能拖慢授权；请在产品 home 之外的小项目目录启动。
+- Landlock 保护规则经 argv 传递，大目录布局可能超过启动预算；请缩小工作区范围，不要关闭保护。
+- Linux execve 绑定用字节预算拒绝规避参数分配缺陷；请缩短超大命令或拆成多次调用。
+- Windows 受保护输入复核没有 USN 快路，大目录可能较慢；请将工作区与已安装插件树分开。
+- Linux 缺少委派 cgroup scope 时 owner 来源核验不生效，拒因也未细分全部原因；请在已委派用户 scope 启动并留意启动警告。
+- Linux 退役身份过滤器可能误拒 owner 连接；请关闭沙箱套接字并重启宿主后重连。
+- macOS Web 无法识别产品沙箱的 cookie 回放；请用独立账号运行不可信进程。
+- Linux 原生沙箱下 PowerShell 持久终端可能无输出并超时；请改用 Bash。
+- 高负载下插件激活可能晚于安装返回；请等激活完成后再重试或执行依赖该插件的任务。
+- 并发清理时 owner 材料文件中途消失可能导致操作被拒；请等清理结束后重试。
+- 工作区包含 home 时，软链工作区插件可能在重启首轮受保护输入复核被拒；请使用安装好的包 tarball 与独立项目工作区。
+- 大型开发软链布局可能使热态授权超过三秒；日常使用请采用发行包插件布局。
+- 冷恢复仍扫描各受保护根，首个可用会话之前启动可能停顿；请等就绪并避免把 home 用作工作区。
+- 同一宿主进程内撤权后重新授权可能被拒；请重启宿主后再授权。
+- 无人决定的普通审批没有服务级统一期限，轮次会一直等且不执行写入；请处理请求或取消轮次。
+- Web 会话创建或提交曾偶发停滞且原因未定；轮次不再推进时请先检查会话与宿主日志，再重启。
+- 预设密集的会话场景曾耗尽 worker 内存，账本不可用现象仍未定因；遇到时请减少活跃预设并保留日志。
+- Windows home 继承过宽权限时收件页不可用；请用默认 home，或只允许本人、SYSTEM 与 Administrators 访问。
+- 从非 ASCII 路径构建可选集成可能失败；请使用纯 ASCII 源码路径。
+- 向 start.cmd 传自定义端口后，打印链接与轮询仍指默认端口；参数贯通修复前请用默认端口。
+- Windows 句柄后端覆盖拒绝自定义权限、显式完整性标签、EFS 或企业保护文件且不保留短名；请用普通继承权限文件，受保护文件在 Panedesk 外编辑。
+- Windows 文件被既有句柄占用可能阻止覆盖；请关闭占用程序后重试。
+- Windows 升级准备可能以 EPERM 拒绝目录改名；请关闭旧宿主后重跑准备。
+- 升级首启准备曾耗时数分钟且没有分段进度；请保持控制台开启并等待，不要另起一份。
+- 过长解压路径可能超过 Windows 路径限制，用户名超过 20 字符时尤其要注意；请直接解到 C:\panedesk\ 等短路径，不再嵌套一层。
+- Windows 原生件因链接元数据无法逐字节复现构建；请使用发行产物并核对随附校验值。
+- 复用构建树可能把旧 lib 构建块带进包；请从干净检出打包或先清掉旧 lib 输出。
+- 停止或升级 Windows 启动器可能遗留隐藏的 PowerShell 轮询进程；请核对并仅关闭对应启动的轮询进程。
+- 团队模式下偶尔会有队友子会话未被保存；若发现某位队友的记录缺失，请重新运行该团队任务。
+- 部分子代理预设可能被报告为找不到；请改用其他预设，或先在配置中定义该预设再使用。
+- 在命令行用相对路径或包别名安装插件可能失败；请改用插件管理器，并填写安装包的绝对路径。
 
 ## 预设
 

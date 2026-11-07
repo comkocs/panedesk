@@ -2,22 +2,14 @@
 
 English | [中文](CONTRIBUTING.zh.md)
 
-Thank you for your interest in contributing to DeepSeek Harness!
+Panedesk is an independent fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), with its own product identity and plugin compositions.
 
-We deeply believe in the power of open source communities, and that belief has shaped this project from the very beginning.
+External pull requests to this repository are not currently accepted; you can share reproducible bug reports, publish plugins with the `dsh-plugin` topic, and help other users.
 
-DeepSeek Harness is still at an early stage and under active development. We are sorry that we cannot accept external pull requests at the moment. However, contributing code to this repository is far from the only way to help. There are many other ways to get involved:
+## Upstreaming fixes
 
-- Identify and report issues or bugs in GitHub Discussions:
-  - Upvote discussions that you would like to bring to the team's attention. We are a very small team and may not be able to reply to every post, but we monitor them and consider them when allocating resources.
-- Contribute to the ecosystem:
-  - Create a plugin that excites you and share it with others:
-    - Associate your GitHub project with the `dsh-plugin` topic to help others discover your plugin.
-  - Write blog posts and how-to guides about DeepSeek Harness.
-  - Answer questions and help other members of the community.
-
-DeepSeek Harness is designed to be deeply customizable. We do not believe that packages in the official repository are inherently more important than packages created by the community. You may consider this repository an idea, an official showcase, and a source of inspiration, but not a mandate from us.
-
-We have already seen exciting projects emerge from the community, and we hope to see the ecosystem continue to grow in its own directions.
-
-Into the unknown.
+1. Check whether the bug also affects upstream DeepSeek Harness and identify the smallest affected upstream component.
+2. Extract a focused patch against upstream, excluding Panedesk branding, private integrations, local configuration and unrelated changes; use the [rename replay procedure](scripts/panedesk/rename/README.md) to translate package names where needed.
+3. Include a minimal reproduction and relevant focused checks, then follow upstream's current contribution policy to propose a PR or report the fix if PRs are closed.
+4. Record the local difference in `scripts/panedesk/fork-divergences.json` with a unique `id`, concise `description`, public `origin`, a `reason` stating upstream applicability and PR status, and `match.type` plus exact `match.paths` or existing-style globs.
+5. When an upstream update includes the fix, replay it locally, remove only the obsolete divergence or patterns, and run the [ledger checker](scripts/panedesk/README.md#fork-divergence-ledger) so uncovered and expired counts both remain zero.

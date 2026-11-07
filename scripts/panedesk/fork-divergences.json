@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "panedesk-product-release-documentation",
+      "description": "Describe Panedesk 1.0 usage, identity and upstream contribution flow",
+      "origin": "Panedesk product release",
+      "reason": "Document the fork's current product capabilities, Windows package quick start, user-facing limitations, brand identity, upstreaming workflow and release notes; set the root and publishable launcher versions independently of upstream package versions. Product branding and release numbering are fork-specific, while generally applicable fixes should be proposed upstream separately.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md", "README.zh.md", "README.i18n.yaml",
+          "CONTRIBUTING.md", "CONTRIBUTING.zh.md", "CONTRIBUTING.i18n.yaml",
+          "BRAND_GUIDELINES.md", "BRAND_GUIDELINES.zh.md", "BRAND_GUIDELINES.i18n.yaml",
+          "CHANGELOG.md", "package.json", "apps/cli/package.json"
+        ]
+      }
+    },
+    {
       "id": "desktop-session-telemetry-disabled",
       "description": "Disable desktop session telemetry and native product events",
       "origin": "Desktop telemetry policy",

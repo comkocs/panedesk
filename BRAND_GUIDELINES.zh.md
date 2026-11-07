@@ -1,6 +1,16 @@
-# DeepSeek Harness 品牌素材使用规范
+# Panedesk 品牌规范
 
 [English](BRAND_GUIDELINES.md) | 中文
+
+## 产品身份
+
+Panedesk（中文名「窗台」）1.0 是开源 coding agent（编程智能体）工作台，在 CLI（命令行界面）、Web 与桌面客户端提供模型路由、subagent 与持久会话。
+
+产品名使用 Panedesk，启动器包名与命令使用 `panedesk`，短命令使用 `pdesk`；对外说明它是基于 DeepSeek Harness 的独立分叉，而非 DeepSeek 官方产品。
+
+## 上游商标
+
+以下规范适用于继承的 DeepSeek Harness 名称与素材，不适用于 Panedesk 自身名称。
 
 为了维护 DeepSeek Harness 生态的长期健康发展，避免用户混淆，方便用户对相关资源进行检索和识别，我们特别制定本规范，希望大家共同遵守：
 
