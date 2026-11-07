@@ -409,11 +409,12 @@
       "id": "desktop-memory-owner-session",
       "description": "Keep desktop owner authentication in memory and protect diagnostic storage",
       "origin": "Owner credential read isolation",
-      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Redact fragmented stderr fields before truncation and suppress the remainder of sensitive lines. Document platform limitations and assert the uncached owner partition and crash-directory registration with Electron substitutes. These changes can be contributed upstream.",
+      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Redact fragmented stderr fields before truncation and suppress the remainder of sensitive lines. Document platform limitations and assert the uncached owner partition and crash-directory registration with Electron substitutes. The packaged runtime smoke loads the frontend with the cookie delivered over IPC. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
           "apps/desktop-host/src/index.ts",
+          "apps/desktop/scripts/smoke-runtime.ts",
           "apps/desktop/src/crash-report.ts",
           "apps/desktop/src/host-process.ts",
           "apps/desktop/src/main.ts",
