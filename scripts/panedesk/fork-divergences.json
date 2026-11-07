@@ -16198,6 +16198,19 @@
           "docs/subsystems/boot.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "protected-input-review-worker-entry",
+      "description": "Publish the protected-input review worker and start it from an explicit asynchronous entry",
+      "origin": "Protected-input review worker publication and module evaluation",
+      "reason": "Register the private review worker bundle in the exact package publication list beside the existing worker bootstrap, and move the worker's asynchronous review loop into an explicit main function that handles a rejected entry with a non-zero exit while keeping the review message protocol and IPC close unchanged. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/src/input-review-worker.ts",
+          "scripts/check-workspace-constraints.ts"
+        ]
+      }
     }
   ]
 }
