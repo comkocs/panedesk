@@ -64,6 +64,9 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           exit $LASTEXITCODE
+      - name: Prepare Windows native toolchain
+        working-directory: native/system
+        run: ./scripts/prepare-windows-build.ps1
       - name: Check unsigned packaging configuration and toolchain
         run: |
           pnpm run package:desktop:win:x64:unsigned -- --check
