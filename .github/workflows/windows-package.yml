@@ -51,7 +51,6 @@ jobs:
           @(
             'DSH_DESKTOP_APP_ID=com.deepseek.harness'
             'DSH_DESKTOP_AUTO_UPDATE_ENV=production'
-            'DSH_DESKTOP_UPDATE_CHANNEL=nightly'
             'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN=https://example.com'
             "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG='{}'"
           ) | Set-Content -Encoding ascii -NoNewline:$false -Path (Join-Path $root 'presets/production.env')
