@@ -31,9 +31,16 @@ export default class AgentPreset {
     plugins: z.array(z.any()).required(),
   }) as z<Config>
 
-  constructor(private readonly ctx: Context, private readonly config: Config) {}
+  private readonly registered: Promise<() => Promise<void>>
+
+  constructor(private readonly ctx: Context, private readonly config: Config) {
+    // Record the id before this fiber yields. Sibling rows that inject the same
+    // registry validate during the same activation turn; waiting for Service.init
+    // lets them observe an empty roster.
+    this.registered = this.ctx.agentPresets.register(this.config)
+  }
 
   async* [Service.init]() {
-    yield await this.ctx.agentPresets.register(this.config)
+    yield await this.registered
   }
 }
