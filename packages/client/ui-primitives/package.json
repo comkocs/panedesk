@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-primitives",
   "description": "Pure React atoms for the panedesk web UI: controls, icons, markdown, and JSON inspectors (zero cordis)",
-  "version": "0.2.1-rc.2",
+  "version": "1.0.0",
   "publishConfig": {
     "access": "public"
   },
