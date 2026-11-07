@@ -471,70 +471,14 @@
       }
     },
     {
-      "id": "windows-handle-inherited-replacement",
-      "description": "Restrict Native Windows replacement to inherited file permissions",
-      "origin": "Handle-only Windows replacement compatibility review",
-      "reason": "Keep only OpenProcessToken and GetTokenInformation from advapi32 to compare the retained file owner only with the process token's default owner, not its user. Admit elevated tokens whose user differs from their default owner when the file owner matches that default owner; retain refusal when the file owner differs from it. Open the retained file with ordinary reads and READ_CONTROL only, without ACCESS_SYSTEM_SECURITY, and query it with NtQuerySecurityObject for the owner, group, DACL and integrity label but not audit information. Audit settings are neither detected nor preserved. Refuse explicit ACEs, protected inheritance, different ownership, an integrity label that is not inherited, unsupported ACLs and failed detection with a bilingual reason before staging. Remove descriptor synthesis, policy comparison and parent-policy fixtures, including CreatePrivateObjectSecurityEx, DestroyPrivateObjectSecurity and ReOpenFile. Create the replacement exclusively in the same destination directory with a null descriptor so Windows inherits permissions; do not synthesize or install replacement permissions. Preserve Native FileRenameInformationEx with POSIX and replace-if-exists flags, occupied-file refusal, no path fallback and committed-file cleanup. Retain creation time, observed attribute combinations, compression and named-stream preparation; reject encryption, possible enterprise protection, resource attributes and detection failures. Bind GetCurrentProcess for token queries without changing Koffi version, argument heap configuration or execve. Substitute tests cover readable replacement, the old-file open mask without ACCESS_SYSTEM_SECURITY and a query without audit information, and explicit, protected, different-owner, query-failure and non-inherited-integrity-label refusals, plus replacement of a file whose integrity label is inherited from its directory and readable replacement under an elevated token whose default owner differs from its user, with unchanged refused targets and no path writes; real Windows functional acceptance remains pending. ObjectId and short names are neither retained nor refusal reasons. Keep the backend disabled by default and Linux unchanged. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/fs-local/src/win32-write-security.ts",
-          "packages/fs/fs-local/src/win32-security-descriptor.ts",
-          "packages/fs/fs-local/tests/fixtures/windows-security.ts",
-          "packages/fs/fs-local/tests/windows-encrypted-replacement.spec.ts",
-          "packages/fs/fs-local/tests/windows-observed-attributes.spec.ts",
-          "packages/fs/fs-local/tests/windows-native-security-chain.spec.ts",
-          "packages/fs/fs-local/src/win32-write-abi.ts",
-          "packages/fs/fs-local/src/win32-stage.ts",
-          "packages/fs/fs-local/src/win32-write-backend.ts",
-          "packages/fs/fs-local/src/win32-write-read.ts",
-          "packages/fs/fs-local/src/win32-replacement-metadata.ts",
-          "packages/fs/fs-local/src/win32-metadata-abi.ts",
-          "packages/fs/fs-local/tests/windows-replacement-chain.spec.ts",
-          "packages/fs/fs-local/tests/windows-native-replacement.spec.ts",
-          "packages/fs/fs-local/README*"
-        ]
-      }
-    },
-    {
-      "id": "windows-directory-handle-read-backend",
-      "description": "Add an opt-in fail-closed Windows directory-handle read backend",
-      "origin": "Host filesystem directory-relative capability review",
-      "reason": "Route provider operations through an instance-owned backend and retained target capabilities. Preserve Linux descriptor traversal and default legacy Windows behavior. Add experimental Windows x64 local NTFS root and relative opens, metadata, enumeration and same-handle reads on a dedicated worker with fixed-width Koffi bindings. Reject reparse points and unsupported operations without path fallback; keep Windows mutations unavailable without the fixed package-owned write module and keep watching unavailable. Supply worker-local WriteFile/FlushFileBuffers and relative NtCreateFile/NtSetInformationFile primitives, owned secure-before-write staging, partial-write handling, no-replace links, disposition deletion and settled cleanup. New-file staging refuses before creation until caller-specific private security and destination inheritance are available; replacement is limited to inherited permissions as documented in the dedicated replacement entry. Substitute tests cover ordering, ownership, cancellation and failure cleanup without asserting native acceptance. Define walk and owned-stage operations, shared mutation messages and native handle ownership access for that optional module, automatically included in builds when present. Keep compatibility path fields display-only and descriptor I/O adapter-private, preserving the existing provider write transaction. Select the Windows handle backend by default; a protected profile or overlay sets windowsHandleBackend to disabled to select the legacy path backend. Add deterministic substitute checks and paired package documentation; native ABI, filesystem and packaged-worker acceptance remains required. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/fs-local/src/directory-*.ts",
-          "packages/fs/fs-local/src/win32-handle-*.ts",
-          "packages/fs/fs-local/src/win32-write-*.ts",
-          "packages/fs/fs-local/src/win32-stage.ts",
-          "packages/fs/fs-local/src/win32.ts",
-          "packages/fs/fs-local/src/read-handle.ts",
-          "packages/fs/fs-local/tests/directory-capability-extension.spec.ts",
-          "packages/fs/fs-local/src/fsio.ts",
-          "packages/fs/fs-local/src/index.ts",
-          "packages/fs/fs-local/tests/windows-*.spec.ts",
-          "packages/fs/fs-local/tests/fixtures/windows-directory-api.ts",
-          "packages/fs/fs-local/tsdown.config.ts",
-          "packages/fs/fs-local/README*"
-        ]
-      }
-    },
-    {
       "id": "host-directory-handle-operations",
-      "description": "Anchor Linux host filesystem operations to retained directory descriptors",
+      "description": "Anchor sandboxed Linux writes to an authorized directory root",
       "origin": "Host filesystem ancestor replacement review",
-      "reason": "Traverse canonical directories one component at a time without following replaced links, retain the mutation parent across pre-read and publication, and retain a separate staging directory. Share traversal with opened-file reads, metadata and directory listing without changing writable roots or protected input registrations. Preserve existing macOS and Windows backends and document their native directory-relative gap. Add deterministic replacement checks and a 1024-attempt write race. These changes can be contributed upstream.",
+      "reason": "The sandboxed filesystem selects an authorized directory root before a mutation opens its parent and rejects writes outside it. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/fs/fs-local/src/directory-handle.ts",
-          "packages/fs/fs-local/src/fsio.ts",
-          "packages/fs/fs-local/src/index.ts",
-          "packages/fs/fs-local/src/read-handle.ts",
-          "packages/fs/fs-local/README*",
           "packages/fs/fs-sandbox/src/index.ts",
-          "packages/fs/fs-sandbox/tests/directory-handle-race.spec.ts",
           "packages/fs/fs-sandbox/README*",
           "docs/config-catalog.md",
           "docs/config-catalog.zh.md"
@@ -16312,15 +16256,12 @@
     },
     {
       "id": "descriptor-bound-file-reads",
-      "description": "Authorize file content using the opened handle identity",
+      "description": "Reject owner material through sandboxed reads and the owner inventory",
       "origin": "Filesystem read confidentiality",
-      "reason": "Bind restricted reads, edit pre-reads, and overwrite diff bases to one inspected descriptor across final-name and ancestor replacement. Preserve the owner inventory, normal links, cancellation, and bounded reads. These changes can be contributed upstream.",
+      "reason": "The sandboxed filesystem and the owner inventory reject canonical and inode aliases of owner identity material on restricted reads, while full access stays unrestricted. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/fs/fs-local/src/fsio.ts",
-          "packages/fs/fs-local/src/index.ts",
-          "packages/fs/fs-local/src/read-handle.ts",
           "packages/experimental/webworker-runtime/src/storage/types.ts",
           "packages/experimental/webworker-runtime/src/storage/memory.ts",
           "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/fs.ts",
@@ -16328,13 +16269,7 @@
           "packages/experimental/webworker-runtime/README.md",
           "packages/experimental/webworker-runtime/README.zh.md",
           "packages/experimental/webworker-runtime/README.i18n.yaml",
-          "packages/fs/fs-local/tests/fsio.spec.ts",
-          "packages/fs/fs-local/tests/read-handle.spec.ts",
-          "packages/fs/fs-local/README.md",
-          "packages/fs/fs-local/README.zh.md",
-          "packages/fs/fs-local/README.i18n.yaml",
           "packages/fs/fs-sandbox/src/index.ts",
-          "packages/fs/fs-sandbox/tests/read-handle-race.spec.ts",
           "packages/fs/fs-sandbox/README.md",
           "packages/fs/fs-sandbox/README.zh.md",
           "packages/fs/fs-sandbox/README.i18n.yaml",
@@ -16397,19 +16332,12 @@
     },
     {
       "id": "explicit-worker-filesystem-and-linux-directory-capability",
-      "description": "Refuse Linux hosts without directory handles and identify the deployed virtual filesystem explicitly",
+      "description": "Run the built Linux directory-anchor smoke with the gate suite",
       "origin": "Linux host filesystem capability review",
-      "reason": "Use the deployed Worker's existing process title to select virtual path operations for metadata, listing, and atomic publication. Refuse other Linux processes missing O_DIRECTORY with FS_IO_ERROR before filesystem operations instead of silently falling back to paths. Preserve Linux directory anchoring, writable roots, protected input registrations, and existing macOS and Windows behavior. Verify the built host package retains parent and staging directory anchors and refuses a simulated non-Worker host without O_DIRECTORY, and include that test in built-bin smoke. Update the virtual filesystem regression and paired package documentation. These changes can be contributed upstream.",
+      "reason": "The built-binary smoke gate runs the filesystem package directory-anchor check alongside the other built smokes.",
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/fs/fs-local/src/directory-handle.ts",
-          "packages/fs/fs-local/src/fsio.ts",
-          "packages/fs/fs-local/tests/virtual-directory.spec.ts",
-          "packages/fs/fs-local/tests/built-directory-handle.e2e.ts",
-          "packages/fs/fs-local/README.md",
-          "packages/fs/fs-local/README.zh.md",
-          "packages/fs/fs-local/README.i18n.yaml",
           "scripts/run-gates.ts"
         ]
       }
@@ -16441,21 +16369,6 @@
           "packages/boot/app-boot/README.zh.md",
           "packages/boot/app-boot/README.i18n.yaml",
           "packages/interaction/user-approval/src/index.ts"
-        ]
-      }
-    },
-    {
-      "id": "windows-handle-new-file-destination-staging",
-      "description": "Create new files through the Windows handle backend with destination-inherited staging and no-replace publication",
-      "origin": "Windows handle backend new-file creation",
-      "reason": "Stage a new file exclusively in its destination directory with no supplied security descriptor so Windows inherits permissions and integrity labels. Flush before handle-relative no-replace hard-link publication, and do not fall back to path writes. Leave the handle backend disabled by default. An abnormal process exit or a failed cleanup may leave one staging file under that directory's ordinary inherited permissions; cleanup is best-effort only. These changes can be contributed upstream.",
-      "match": {
-        "type": "behavior",
-        "paths": [
-          "packages/fs/fs-local/tests/windows-native-new-file.spec.ts",
-          "packages/fs/fs-local/README.md",
-          "packages/fs/fs-local/README.zh.md",
-          "packages/fs/fs-local/README.i18n.yaml"
         ]
       }
     },

@@ -134,15 +134,6 @@ export class SandboxedFileSystem extends LocalFileSystem {
     return this.defaultMode
   }
 
-  protected override async writeRoot(target: FsTarget, sandboxPolicy?: SandboxExecutionPolicy): Promise<string> {
-    const policy = sandboxPolicy ?? this.ctx.sandboxPolicy.resolve()
-    if (policy.mode === 'danger-full-access') return '/'
-    for (const root of writableRoots(policy)) {
-      if (await isPathUnder(target.targetKey, root)) return canonicalPath(root)
-    }
-    throw new FsError(`cannot write "${target.displayPath}": file access denied under workspace-write mode`, 'FS_SANDBOX_DENIED')
-  }
-
   /**
    * Fence the write by the per-call policy, then delegate to the inherited
    * atomic write. See {@link checkedTarget}.
@@ -161,7 +152,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
-    return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal, sandboxPolicy)
+    return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal)
   }
 
   /**
@@ -182,7 +173,7 @@ export class SandboxedFileSystem extends LocalFileSystem {
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsEditOutcome> {
-    return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal, sandboxPolicy)
+    return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal)
   }
 
   /**
