@@ -378,8 +378,11 @@ describe('ModelsSection', () => {
   it('shows recognition only for providers with registered discovery', async () => {
     const scripted = scriptedFace()
     scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
-      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [] as string[], hasModelDiscovery: true },
-      { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], hasModelDiscovery: false },
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], hasModelDiscovery: true },
+      {
+        provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], hasModelDiscovery: false,
+        defaultBaseURL: 'https://api.openai.com/v1', baseURLEnv: ['FIXTURE_ENDPOINT'], nativeAuth: { env: ['OPENAI_API_KEY'], oauth: false },
+      },
     ]))
     await mountFace(scripted)
     const deepseek = screen.getByText('DeepSeek', { selector: 'span' }).closest('li')!
