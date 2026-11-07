@@ -1,4 +1,4 @@
-import type { ProductEventMap, ProductEvent } from '@panedesk/dsh-client-product-analytics/types'
+import type { ProductEventMap } from '@panedesk/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
@@ -61,6 +61,8 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { redactDiagnostic } from './redact-diagnostic.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+
+process.env.PANEDESK_TELEMETRY_DISABLED = '1'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -408,13 +410,8 @@ async function main(): Promise<void> {
   let injections: readonly unknown[] = []
   let welcomeBackend: DesktopWelcomeBackend | undefined
   let reportedLaunch = false
-  let analyticsEnabled = false
-  const track = async <K extends keyof ProductEventMap>(eventName: K, attributes: ProductEventMap[K]): Promise<void> => {
-    const event = { eventName, attributes, timestamp: Date.now() } as ProductEvent
-    try {
-      if (analyticsEnabled) await welcomeBackend?.report(event)
-    } catch (_error) { /* Analytics cannot interrupt native actions. */ }
-  }
+  const analyticsEnabled = false
+  const track = async <K extends keyof ProductEventMap>(_eventName: K, _attributes: ProductEventMap[K]): Promise<void> => {}
   let stopAccount: (() => void) | undefined
   let openedAttempt: string | undefined
   let returnedAttempt: string | undefined
@@ -449,6 +446,7 @@ async function main(): Promise<void> {
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, {
         ...hostEnvironment,
+        PANEDESK_TELEMETRY_DISABLED: '1',
         DSH_CLIENT_VERSION: desktopClientVersion(),
         DSH_DESKTOP_PRIVATE_PATHS: JSON.stringify([
           app.getPath('crashDumps'),
@@ -476,7 +474,6 @@ async function main(): Promise<void> {
           headers.set('cookie', ownerCookie)
           return ownerSession.fetch(input, { ...init, headers })
         }, () => Promise.resolve(ownerCookie))
-        analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
         if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
         stopAccount?.()
         const accountBackend = welcomeBackend.account
@@ -515,10 +512,9 @@ async function main(): Promise<void> {
             const state = await accountBackend.state()
             if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
           }).catch(() => undefined)
-        }, (enabled) => { analyticsEnabled = enabled })
+        })
       },
       stop: async () => {
-        analyticsEnabled = false
         stopAccount?.()
         try { await host.stop(requireCleanStop) }
         catch (error) {

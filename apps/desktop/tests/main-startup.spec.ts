@@ -1815,21 +1815,14 @@ describe('desktop main startup', () => {
     await expect(preparing).resolves.toBe(true)
   })
 
-  it.each(['accepted', 'failed'] as const)('settles analytics intake before locking API admission and continues after intake failure: %s', async (outcome) => {
+  it('does not send analytics during update preparation', async () => {
     const host = await readyForUpdate()
-    await vi.waitFor(() => { expect(harness.analytics).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'desktop_app_launch' })) })
-    const intake = Promise.withResolvers<undefined>()
-    harness.analytics.mockImplementationOnce(() => intake.promise)
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
     const preparing = harness.prepareUpdate()
-    await vi.waitFor(() => { expect(harness.analytics).toHaveBeenLastCalledWith(expect.objectContaining({ eventName: 'desktop_upgrade_install_restart_click' })) })
-    expect(host.updateTasks.mock.calls).toEqual([['inspect']])
-    expect(host.stop).not.toHaveBeenCalled()
-    if (outcome === 'accepted') intake.resolve(undefined)
-    else intake.reject(new Error('local analytics intake timed out'))
     await host.stopping.promise
     host.exited.resolve()
     await expect(preparing).resolves.toBe(true)
+    expect(harness.analytics).not.toHaveBeenCalled()
   })
 
   it('reports a Platform storage cleanup failure as preparation failure without stopping the Host', async () => {
@@ -2253,7 +2246,7 @@ describe('desktop main startup', () => {
     expect(harness.hosts[0]!.environment?.DSH_CLIENT_VERSION).toBe('1.2.3')
     expect(harness.hosts[0]!.environment?.DSH_TEST_LOGIN_SHELL).toBe('login')
     expect(console.warn).toHaveBeenCalledWith('desktop login shell: /account/shell failed (timeout)')
-    expect(harness.analytics).toHaveBeenCalledExactlyOnceWith({ eventName: 'desktop_app_launch', timestamp: Date.now(), attributes: {} })
+    expect(harness.analytics).not.toHaveBeenCalled()
     expect(harness.hosts[0]!.start).toHaveBeenCalledTimes(1)
     expect(harness.windows).toHaveLength(1)
     expect(window.urls).toEqual(['dsh-app://app/'])
@@ -2377,6 +2370,18 @@ it.each([['light', false], ['dark', true]] as const)('opens Platform authorizati
   harness.publishAccount(state)
   harness.publishAccount(state)
   expect(harness.openExternal).toHaveBeenCalledExactlyOnceWith(`https://platform.deepseek.com/dsh/authorize?state=state-1&theme=${theme}`)
+})
+
+it('disables session telemetry even when feedback-only mode is requested', async () => {
+  vi.stubEnv('PANEDESK_TELEMETRY_MODE', 'FEEDBACK_ONLY')
+  vi.stubEnv('PANEDESK_TELEMETRY_DISABLED', '')
+  await import('../src/main.ts')
+  await harness.preparing.promise
+  harness.prepared.resolve()
+  await harness.hostStarted.promise
+  harness.hosts[0]!.ready.resolve()
+  await harness.navigated.promise
+  expect(harness.hosts[0]!.environment?.PANEDESK_TELEMETRY_DISABLED).toBe('1')
 })
 
 it('disables native product events for a disabled Desktop launch', async () => {

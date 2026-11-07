@@ -1,5 +1,21 @@
 {
   "divergences": [
+    {
+      "id": "desktop-session-telemetry-disabled",
+      "description": "Disable desktop session telemetry and native product events",
+      "origin": "Desktop telemetry policy",
+      "reason": "The desktop shell forces the existing session telemetry opt-out before startup and suppresses native product events independent of the live policy. Shared product analytics plugins retain their existing behavior.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/src/main.ts",
+          "apps/desktop/tests/main-startup.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml"
+        ]
+      }
+    },
   {
     "id": "desktop-unsigned-windows-no-mandatory-update",
     "description": "Ship unsigned Windows desktop packages without a mandatory-update policy",
