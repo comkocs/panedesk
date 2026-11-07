@@ -49,9 +49,8 @@ jobs:
           $root = $env:DSH_PACKAGING_CONFIG_DIR
           New-Item -ItemType Directory -Force -Path (Join-Path $root 'presets') | Out-Null
           @(
-            'DSH_DESKTOP_APP_ID=com.deepseek.harness'
+            'DSH_DESKTOP_APP_ID=io.github.comkocs.panedesk'
             'DSH_DESKTOP_AUTO_UPDATE_ENV=production'
-            'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN=https://example.com'
             "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG='{}'"
           ) | Set-Content -Encoding ascii -NoNewline:$false -Path (Join-Path $root 'presets/production.env')
       - uses: pnpm/action-setup@v5.0.0
