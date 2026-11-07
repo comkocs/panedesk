@@ -14,7 +14,7 @@
  * rows the user can still fill in by hand.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
@@ -84,6 +84,15 @@ export interface ModelListEditorProps {
   onReset?: () => void
   /** Endpoint facts for the fetch action. */
   probe: ProbeTarget
+  /**
+   * Fetch once, without a click, whenever this is set and the endpoint can be
+   * asked. A later change of the endpoint or the key asks again.
+   */
+  autoDiscover?: boolean
+  /** Called with the row a field edit just changed, so the owner can tell a typed row from an untouched one. */
+  onRowEdited?: (index: number) => void
+  /** Called with the row just removed, so the owner can drop its bookkeeping. */
+  onRowRemoved?: (index: number) => void
   /**
    * Copy key naming why the fetch action is unavailable, or `undefined` when
    * it is. The card owns this because the key it would send is judged there:
@@ -222,6 +231,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   }
 
   const patch = (index: number, next: Record<string, string | number | undefined>): void => {
+    props.onRowEdited?.(index)
     onChange(models.map((model, at) => {
       if (at !== index) return model
       // Rebuilt rather than spread over: an emptied optional field has to leave
@@ -328,6 +338,17 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   // A route the adapter already describes answers without an endpoint; only a
   // draft with neither has nothing to ask about.
   const askable = probe.provider !== undefined || (probe.baseURL !== undefined && probe.baseURL.length > 0)
+  const { autoDiscover } = props
+  // The address and the key are what an interrogation answers about, so either
+  // one moving is a new question; everything else the form edits is not.
+  const askedFor = `${probe.baseURL ?? ''}\u0000${probe.apiKey ?? ''}`
+  const asked = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (autoDiscover !== true || !askable || props.probeBlocked !== undefined
+      || probe.apiKey === undefined || asked.current === askedFor) return
+    asked.current = askedFor
+    void fetchModels()
+  })
   return (
     <section className={styles['modelCatalog']} aria-label={t('models')}>
       <div className={styles['modelListHead']}>
@@ -355,7 +376,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           : null}
         <button
           type="button"
-          className={styles['linkButton']}
+          className={styles['addModelButton']}
           disabled={disabled || busy || !askable || props.probeBlocked !== undefined}
           title={props.probeBlocked !== undefined
             ? t(props.probeBlocked)
@@ -390,9 +411,10 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
               onChange: (text) => { editCapacity(index, 'maxTokens', text) },
             }}
             onFieldChange={(field, value) => { patch(index, { [field]: value }) }}
-            onChange={(next) => { onChange(models.map((row, at) => at === index ? next : row)) }}
+            onChange={(next) => { props.onRowEdited?.(index); onChange(models.map((row, at) => at === index ? next : row)) }}
             onToggle={() => { toggleExpanded(index) }}
             onRemove={() => {
+              props.onRowRemoved?.(index)
               onChange(models.filter((_model, at) => at !== index))
               setExpanded((current) => {
                 const next = new Set<number>()
