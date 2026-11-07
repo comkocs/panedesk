@@ -148,11 +148,12 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.directories.output)).toContain('/targets/win-x64/unsigned-artifacts')
     expect(portablePath(config.nsis.include)).toMatch(/\/scripts\/installer\.nsh$/u)
     expect(config).toMatchObject({
-      win: { forceCodeSigning: false, signtoolOptions: { sign: undefined } },
-      publish: null,
+      win: { forceCodeSigning: false, signtoolOptions: { sign: undefined, publisherName: undefined } },
+      publish: [{ provider: 'github', owner: 'comkocs', repo: 'panedesk', channel: 'latest' }],
     })
     // Unsigned Windows packages carry no mandatory-update policy even when an origin is supplied.
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
+    expect(config.extraMetadata.dshDesktopUpdateChannel).toBe('latest')
   })
 
   it('builds an unsigned Windows package without a mandatory-update origin or embedded policy', async () => {
@@ -163,7 +164,9 @@ describe('desktop macOS release signature', () => {
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
-    expect(config.publish).toBeNull()
+    expect(config.extraMetadata.dshDesktopUpdateChannel).toBe('latest')
+    expect(config.publish).toEqual([{ provider: 'github', owner: 'comkocs', repo: 'panedesk', channel: 'latest' }])
+    expect(config.win.signtoolOptions.publisherName).toBeUndefined()
   })
 
   it.each(['arm64', 'x64'])('builds local macOS %s DMGs without release credentials or update metadata', async (arch) => {
