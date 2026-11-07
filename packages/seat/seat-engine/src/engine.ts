@@ -823,22 +823,13 @@ export class SeatEngine extends SeatEngineService {
     if (!Number.isSafeInteger(request.limit) || request.limit < 1) throw new EngineError('invalid-request',
       'Pending limit must be positive')
     const now = Date.now(), view = this.journal.projection
-    const candidates: { item: T.PendingSeatItem; error?: T.SeatFailure }[] = [...view.pending.values()].map(item => ({ item }))
-    if (request.includeRejected) for (const decision of view.decisions) {
-      const refusal = decision.effects.find(effect => effect.kind === 'open/rejected')
-      if (refusal?.kind !== 'open/rejected' || refusal.data.error.message !== 'Pre-open retention limit reached') continue
-      for (const effect of decision.effects) {
-        if (effect.kind === 'queue/cancelled') candidates.push({ item: effect.data.pending, error: refusal.data.error })
-      }
-    }
+    const candidates = [...view.pending.values()].map(item => ({ item }))
     const all = candidates.filter(({ item }) => (!request.projectId || item.projectId === request.projectId)
       && (!request.seat || item.seat === request.seat) && (!request.cursor || item.sequence > request.cursor.sequence))
       .sort((a, b) => a.item.sequence - b.item.sequence)
     const page = all.slice(0, request.limit), items: T.PendingSeatObservation[] = []
-    const rejected: NonNullable<T.ListPendingSeatsResult['rejected']>[number][] = []
-    for (const { item, error } of page) {
+    for (const { item } of page) {
       const metadata = redactPending(item)
-      if (error) { rejected.push({ item: metadata, error }); continue }
       const source = item.sources[0], definition = item.frozenOpen?.definition
       const ruleMode = definition && source && externalRuleMiss(definition, source) ? 'off'
         : definition && source ? triggerRule(definition, source)?.mode : undefined
@@ -852,7 +843,7 @@ export class SeatEngine extends SeatEngineService {
         phase: remainingMs === 0 ? 'expired' : remainingMs <= 300000 ? 'expiring' : 'retained' } })
     }
     const last = page.at(-1)?.item
-    return { items, ...(request.includeRejected ? { rejected } : {}), complete: all.length <= request.limit, watermark: view.sequence,
+    return { items, complete: all.length <= request.limit, watermark: view.sequence,
       ...(last ? { nextCursor: { nodeId: this.options.nodeId, sequence: last.sequence, effectIndex: 0 } } : {}) }
   }
   private async mutatePending(request: T.ApprovePendingSeatRequest, kind: 'queue/approved' | 'queue/cancelled'): Promise<T.PendingSeatMutationResult> {

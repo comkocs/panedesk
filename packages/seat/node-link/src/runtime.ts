@@ -14,7 +14,6 @@ import { ChainRuntime } from './chain-runtime.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 import { decodeChainRequest, encodeChainFrame, isChainMethod } from './chain-codec.ts'
 import { helloCapability, helloRefusal, helloAdvertisement } from './chain-hello.ts'
-import { MessageEvidenceChannel } from './message-evidence.ts'
 import { ChainSlots } from './chain-slots.ts'
 
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
@@ -46,14 +45,16 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     if (explicit) return explicit
     const policy = ctx.get('nodeDelegationReceivingPolicy'), authorization = ctx.get('seatAuthorizationTransactions')
     const localSeats = ctx.get('seats'), localAdmission = ctx.get('nodeAuthorizedLocalAdmission')
-    if (!policy || !authorization || !localSeats || !localAdmission) return undefined
-    const messages = ctx.get('routedMessageReceiver'), messageAuthority = ctx.get('nodeMessageAuthority')
+    if (!localSeats) return undefined
+    const messages = ctx.get('routedMessageReceiver')
     const seatMessages = ctx.get('routedSeatMessageReceiver')
     return createNodeLinkExecutor({ nodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
       peer: { sourceNodeId: options.peerNodeId as import('@panedesk/dsh-seat').SeatNodeId,
         targetNodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
-        authenticatedAt: new Date().toISOString() }, policy, authorization, localSeats, localAdmission,
-      ...(messages === undefined ? {} : { messages }), ...(messageAuthority === undefined ? {} : { messageAuthority }),
+        authenticatedAt: new Date().toISOString() }, localSeats,
+      ...(policy === undefined ? {} : { policy }), ...(authorization === undefined ? {} : { authorization }),
+      ...(localAdmission === undefined ? {} : { localAdmission }),
+      ...(messages === undefined ? {} : { messages }),
       ...(seatMessages === undefined ? {} : { seatMessages }) })
   }
   const receiver = new NodeReceiver(options.nodeId, options.peerNodeId, store, localExecutor)
@@ -76,9 +77,6 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     await store.load(); await outgoing.load()
     if (inactive()) return
     let credentialsReady = true
-    const messageEvidence = new MessageEvidenceChannel(options, () => outbound, () => ctx.get('nodeMessageEvidence'),
-      () => !stopped && credentialsReady && router?.isConnected() === true)
-    ctx.provide('nodeMessageEvidenceRemote', messageEvidence)
     const services = ctx.get('nodeWorkChain'), business = ctx.get('nodeWorkChainBusiness')
     if (services !== undefined) {
       if (!(business instanceof ChainBusinessRegistry)) throw new Error('Node chain registry unavailable')
@@ -116,22 +114,21 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
         if (status === undefined) throw new Error('Local node provider unavailable')
         return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
           nonce: value.nonce, status, ...helloAdvertisement(capability),
-          ...(executor && ctx.get('routedSeatMessageReceiver') && ctx.get('nodeMessageAuthority')
-            && ctx.get('nodeDelegationReceivingPolicy')
+          ...(executor && ctx.get('routedSeatMessageReceiver')
             ? { seatMessages: 'seat-messages/v1' } : {}) }
       }
       if (object(value) && value.type === 'receipt') {
         const request = decodeRequest(value.request)
         const executor = localExecutor()
         if (request.sourceNodeId !== options.peerNodeId || request.targetNodeId !== options.nodeId
-          || Date.parse(request.delegation.expiresAt) <= Date.now() || executor === undefined || !await executor.authorize(request)) {
+          || !request.method.startsWith('messages.') && Date.parse(request.delegation.expiresAt) <= Date.now()
+          || executor === undefined || !await executor.authorize(request)) {
           throw new Error('Receipt authority rejected')
         }
         return store.query(JSON.stringify([request.sourceNodeId, request.delegation.principalId, request.operationId]),
           digest({ method: request.method, payload: request.payload, principalId: request.delegation.principalId,
             seat: request.delegation.seat ?? null, sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds }))
       }
-      if (object(value) && value.type === 'message-delegation-evidence') return messageEvidence.receive(value)
       if (chain && object(value) && (value.type === 'delegation-evidence' || isChainMethod(value.method))) {
         const capability = chain.capability()
         if (!capability) throw new Error('Node chain capability unavailable')

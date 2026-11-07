@@ -31,8 +31,8 @@ declare module '@panedesk/cordis' {
 export interface NodeLinkExecutionDependencies {
   readonly nodeId: Seat.SeatNodeId
   readonly peer: NodeAuthenticatedPeer
-  readonly policy: NodeDelegationReceivingPolicy
-  readonly authorization: Seat.SeatAuthorizationTransactions
+  readonly policy?: NodeDelegationReceivingPolicy
+  readonly authorization?: Seat.SeatAuthorizationTransactions
   readonly localSeats: Seat.SeatService
   readonly messages?: RoutedMessageReceiver
   readonly seatMessages?: import('@panedesk/dsh-message-delivery').RoutedSeatMessageReceiver
@@ -48,8 +48,8 @@ export interface NodeLinkExecutionAdapter {
    * Only after durable admission may local effects run. Transport OperationStore is not an audit
    * transaction. Failed or absent authorization persistence must never call an unaudited provider.
    * Receiving calls target this node with hop=1; no local provider may route them onward.
-   * messages.send requires the identity-bearing payload and both trusted message capabilities;
-   * missing capabilities reject cross-node-unsupported, never fall back to ordinary send().
+   * Message methods use the frozen identity-bearing payload without a separate delegation check;
+   * missing receivers reject cross-node-unsupported, never fall back to ordinary send().
    * @param dependencies - Host-owned local providers, receiving policy and journal capability.
    * @returns Existing executor interface; missing adapter leaves ingress refusing as before.
    */

@@ -24,13 +24,11 @@ test('retains causal identity, returns the original ack after restart and reject
     const mailbox = new FileMailbox({ home, nodeId: 'node-b', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
     await mailbox.initialize()
     const input = request()
-    // Only the test authorization owner may accept this process-local capability double.
     const authority = { sourceNodeId: input.delivery.sourceNodeId,
       targetNodeId: input.delivery.message.target.nodeId } as RoutedDeliveryAuthority
     const recipient: MessageRecipient = { ...input.delivery.message.target, title: 'recipient', status: 'idle',
       window: null, matchedFields: ['sessionId'], observedAt: Date.now() }
     const options = { mailbox, maxContentBytes: 4096,
-      authorize: async (value: RoutedDeliveryAuthority) => value === authority,
       resolve: async () => recipient, notify: () => {} }
     const receiver = createRoutedMailboxReceiver(options)
     const ack = await receiver.receive(input, authority)
@@ -43,7 +41,6 @@ test('retains causal identity, returns the original ack after restart and reject
       request('changed', 'operation-b', 'message-a', 'delivery-b'), request('changed', 'operation-a', 'message-b', 'delivery-b')]) {
       expect(await receiver.receive(conflict, authority)).toMatchObject({ reason: 'operation-conflict' })
     }
-    expect(await receiver.receive(input, { ...authority })).toMatchObject({ reason: 'unauthorized' })
     expect((await mailbox.snapshot('session-b')).records).toHaveLength(1)
   } finally { await rm(home, { recursive: true, force: true }) }
 })

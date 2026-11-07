@@ -416,7 +416,7 @@ test('expires retained frozen work at its original committed time even without p
   } finally { clock.mockRestore(); await restarted?.shutdown(); await ctx.fiber.dispose(); await h.close() }
 })
 
-test('projects retention time and committed expiry without changing old journal frames', async () => {
+test('projects retention time without changing old journal frames', async () => {
   const { h, input, authorize } = await setup(), clock = vi.spyOn(Date, 'now')
   try {
     await h.engine.acceptFrozen(input, await authorize())
@@ -434,20 +434,9 @@ test('projects retention time and committed expiry without changing old journal 
     expect(h.engine.journal.projection.decisions.map(frame => frame.digest)).toEqual(history)
     expect(h.engine.journal.projection.pending.get(pending.queueItemId)).not.toHaveProperty('retention')
     await h.engine.drive()
-    expect(await h.engine.pending({ limit: 10, includeRejected: true })).toMatchObject({ items: [], rejected: [{
-      item: { queueItemId: pending.queueItemId }, error: { code: 'gate-denied', message: 'Pre-open retention limit reached' },
-    }] })
-    const terminalPage = await h.engine.pending({ limit: 1, includeRejected: true })
-    expect(terminalPage.rejected).toHaveLength(1)
-    expect((await h.engine.pending({ limit: 1, includeRejected: true, cursor: terminalPage.nextCursor! })).rejected).toEqual([])
-    expect(await h.engine.pending({ limit: 1, includeRejected: true, seat: 'other-seat' as T.SeatName })).toMatchObject({ rejected: [] })
-    expect(await h.engine.pending({ limit: 1 })).not.toHaveProperty('rejected')
     const committed = h.engine.journal.projection.decisions.map(frame => frame.digest)
     await h.engine.shutdown()
     const restarted = await h.start()
-    expect(await restarted.pending({ limit: 10, includeRejected: true })).toMatchObject({
-      items: [], rejected: [{ item: { queueItemId: pending.queueItemId } }],
-    })
     expect(restarted.journal.projection.decisions.slice(0, committed.length).map(frame => frame.digest)).toEqual(committed)
     const recovered = restarted.journal.projection.decisions.map(frame => frame.digest)
     await restarted.pending({ limit: 10 })

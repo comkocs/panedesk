@@ -23,12 +23,12 @@ export type SeatNodeObservation =
   | { readonly nodeId: NodeId; readonly state: 'unknown'; readonly reason: MessageReason }
 /** Host-authenticated ingress does not route again or create a replacement sender. */
 export interface RoutedSeatMessageReceiver {
-  /** Commit original identities after rechecking exact-envelope authority and local receive policy.
+  /** Commit original identities after checking local receive policy.
    * @param request - Sender-frozen seat target and message.
-   * @param authority - Process-local host capability.
+   * @param authority - Optional legacy host metadata; delivery does not require authorization.
    * @returns Durable original acknowledgement or safe refusal.
    */
-  receive(request: RoutedSeatMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>
+  receive(request: RoutedSeatMessageRequest, authority?: RoutedDeliveryAuthority): Promise<SendMessageResult>
   /** Observe only this node's verified windows without reserving delivery.
    * @returns Current local busy and idle windows.
    */

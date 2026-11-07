@@ -51,7 +51,7 @@ export interface RoutedDeliveryAuthorizer {
 }
 /** This optional receiver never mints a replacement message, delivery, operation or causal identity. */
 export interface RoutedMessageReceiver {
-  /** Recheck authority and durably commit the original message plus deduplication result before ack.
+  /** Durably commit the original message plus deduplication result before ack.
    * Compare all request fields with delivery.message and verify the canonical envelope digest.
    * Same source/message/delivery/operation identity and digest returns the original durable ack;
    * reusing any retained identity with different content or causal evidence rejects operation-conflict.
@@ -60,10 +60,10 @@ export interface RoutedMessageReceiver {
    * Call only the local mailbox provider, never send(), a router or another node. Hop is one.
    * Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.
    * @param request - Sender-frozen message, transport identity, digest and matching legacy fields.
-   * @param authority - Host-issued exact-envelope permission, never deserialized request data.
+   * @param authority - Optional legacy host metadata; delivery does not require authorization.
    * @returns Original correlated acknowledgement after durable admission, or the existing refusal.
    */
-  receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>
+  receive(request: RoutedSendMessageRequest, authority?: RoutedDeliveryAuthority): Promise<SendMessageResult>
 }
 
 /** The authority owner verifies identity rather than trusting a structurally similar object. */

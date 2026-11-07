@@ -28,21 +28,6 @@ async function corrupt(path: string) {
 }
 
 describe('mailbox record quarantine', () => {
-  it('queries unidentified quarantine by the original mailbox digest without changing old events', async () => {
-    const f = await setup()
-    try {
-      const name = '0000000000000001.json'
-      await publish(join(f.root, 'records', name), { sequence: 1, operationId: 'bad-a', digest: 'bad', value: {} }, 1048576)
-      await f.resume()
-      const before = (await f.ledger.read()).events
-      expect(await f.service.quarantined!({ targetSessionId: f.session.id })).toMatchObject({ complete: true,
-        items: [{ targetSessionId: f.session.id, reason: 'invalid-fields', originalFileName: name }] })
-      expect((await f.service.quarantined!({ targetSessionId: 'other-session' as typeof f.session.id })).items).toEqual([])
-      expect((await f.ledger.read()).events).toEqual(before)
-      expect(before.find(event => event.kind === 'message/quarantined')?.data).not.toHaveProperty('targetSessionId')
-    } finally { await f.cleanup() }
-  })
-
   it('adds optional metadata to the existing list, including messages awaiting their first receipt', async () => {
     const f = await setup()
     try {
@@ -88,21 +73,6 @@ describe('mailbox record quarantine', () => {
       })
       expect((await f.ledger.read()).events.filter(event => event.kind === 'message/quarantined')).toHaveLength(1)
       expect(warn.mock.calls.filter(call => call[0] === 'Mailbox record quarantined')).toHaveLength(1)
-    } finally { await f.cleanup() }
-  })
-
-  it('rejects an already journaled message with the record-corrupt reason', async () => {
-    const f = await setup()
-    try {
-      const sent = await f.send('send-a')
-      const scheduler = await f.resume()
-      const name = (await publishedFiles(join(f.root, 'records')))[0]!
-      await corrupt(join(f.root, 'records', name))
-      await f.ctx.serial('agent/input-preparing', { agent: scheduler.agent, turn: 1, step: 1, signal: new AbortController().signal })
-      const status = await f.service.status(sent.messageId)
-      expect(status).toMatchObject({ state: 'rejected', phase: 'settled', revision: 0, stateVersion: 1 })
-      expect(status.transitions.at(-1)?.data.reason).toBe('record-corrupt')
-      expect(scheduler.queue).toEqual([])
     } finally { await f.cleanup() }
   })
 

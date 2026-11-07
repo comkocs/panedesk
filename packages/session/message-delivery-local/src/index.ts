@@ -256,7 +256,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
     this.policy = new RecipientPolicy(this.ctx)
     this.ctx.effect(() => this.ctx.provide('routedMessageReceiver', createRoutedMailboxReceiver({ mailbox: this.mailbox,
       maxContentBytes: this.config.maxContentBytes,
-      authorize: async (authority, request) => await this.ctx.get('routedDeliveryVerifier')?.verify(authority, request.delivery) ?? false,
       resolve: async (request) => {
         const [resolution] = await this.resolve([request.target])
         if (!resolution) return 'unavailable'
@@ -269,7 +268,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
     })))
     if (this.config.seatAddressing) this.ctx.effect(() => this.ctx.provide('routedSeatMessageReceiver', createSeatMessageReceiver({
       mailbox: this.mailbox, maxContentBytes: this.config.maxContentBytes,
-      authorize: async (authority, request) => await this.ctx.get('routedDeliveryVerifier')?.verify(authority, request.delivery) ?? false,
       resolve: async (request) => {
         const seats = this.ctx.get('seatLocalRead')
         if (!seats) return 'unavailable'
@@ -347,15 +345,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
       }
       if (this.owners.size > 0) await this.registry.heartbeat()
       try {
-        await recoverRoutedMessages(this.ctx, this.mailbox, async (sender, work) => {
-          if (sender.kind !== 'session') return false
-          const owner = this.owners.get(sender.sessionId)
-          if (!owner || owner.closing || !this.canAdopt(owner.agent)) return false
-          const live = () => !this.stopped && this.owners.get(sender.sessionId) === owner
-            && !owner.closing && this.canAdopt(owner.agent)
-          await this.ctx.agents.withInitiator(owner.agent, () => work(live))
-          return true
-        }, () => !this.stopped, this.recoveryScan)
+        await recoverRoutedMessages(this.ctx, this.mailbox, () => !this.stopped, this.recoveryScan)
       } catch (error) { void error; this.ctx.logger.error('Routed message recovery unavailable; uncertain operations remain retained') }
     }
   }
@@ -433,14 +423,15 @@ export default class LocalMessageDelivery extends MessageDelivery {
     const local: import('@panedesk/dsh-message-delivery').SeatNodeObservation = {
       nodeId: this.nodeId, state: 'observed', seats: await this.listOnlineSeats(),
     }
-    return [local, ...await observeRemoteSeats(this.ctx, this.nodeId, this.config.maxBatchSize, this.lifetime.signal)]
+    return [local, ...await observeRemoteSeats(this.ctx, this.nodeId, this.config.maxBatchSize,
+      this.lifetime.signal, this.config.lockTimeoutMs)]
   }
 
   async send(request: SendMessageRequest): Promise<SendMessageResult> {
     await this.ready
     const sender = this.sender()
     if (request.target.nodeId !== undefined && request.target.nodeId !== this.nodeId
-      && this.ctx.get('nodeRouter') && this.ctx.get('nodeDelegationIssuer')) {
+      && this.ctx.get('nodeRouter')) {
       return sendRoutedMessage(this.ctx, this.mailbox, request, sender)
     }
     const digest = createHash('sha256').update(JSON.stringify({ sender, request })).digest('hex')
@@ -533,22 +524,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   async status(messageId: MessageId): Promise<MessageStatus> {
     await this.ready
-    const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
-    const events = (await ledger?.read({}))?.events ?? []
-    const isolated = events.filter(event => event.kind === 'message/quarantined' && event.nodeId === this.nodeId && event.data.messageId === messageId)
-      .sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId)).at(-1)
-    if (isolated) {
-      const states = events.filter(event => event.kind === 'message/state' && event.nodeId === this.nodeId && event.data.messageId === messageId)
-      const transitions = states.flatMap(event => event.kind === 'message/state'
-        ? [{ cursor: event.eventId as string as MessageStateEvent['cursor'], nodeId: event.nodeId, data: event.data }] : [])
-        .sort((a, b) => a.data.stateVersion - b.data.stateVersion)
-      const last = transitions.at(-1)
-      if (!last) throw new MailboxUnavailableError('message-not-found')
-      const data = { ...last.data, state: 'rejected' as const, transition: 'rejected' as const, reason: 'record-corrupt' as const,
-        observedAt: isolated.observedAt, deliveryOutcome: 'rejected' as const, pending: false }
-      return { messageId, state: 'rejected', phase: 'settled', revision: data.revision, stateVersion: data.stateVersion,
-        transitions: [...transitions, { cursor: isolated.eventId as string as MessageStateEvent['cursor'], nodeId: isolated.nodeId, data }] }
-    }
     const message = await this.findMessage(messageId)
     if (!message) throw new MailboxUnavailableError('message-not-found')
     const root = await this.mailbox.target(message.target.sessionId)
@@ -615,33 +590,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
     return { items: page, complete: items.length <= limit,
       ...query.pagination && items.length > limit && last !== undefined
         ? { nextCursor: `message-list:${last.messageId}` as MessageCursor } : {} }
-  }
-
-  override async quarantined(query: import('@panedesk/dsh-message-delivery').MessageQuarantineQuery): Promise<import('@panedesk/dsh-message-delivery').MessageQuarantinePage> {
-    await this.ready
-    const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
-    if (!ledger || query.nodeId !== undefined && query.nodeId !== this.nodeId) return { items: [], complete: false }
-    const limit = query.limit ?? this.config.maxBatchSize
-    if (!Number.isSafeInteger(limit) || limit < 1) throw new MailboxUnavailableError('Quarantine query limit must be positive')
-    const page = await ledger.read({})
-    const events = page.events.filter((event) => {
-      if (event.kind !== 'message/quarantined' || event.nodeId !== this.nodeId) return false
-      if (query.from !== undefined && event.observedAt < query.from || query.to !== undefined && event.observedAt >= query.to) return false
-      if (query.targetSessionId === undefined) return true
-      const expected = `message/quarantined:${createHash('sha256').update(JSON.stringify([
-        event.nodeId, query.targetSessionId, event.data.originalFileName,
-      ])).digest('hex')}`
-      return event.eventId === expected
-    }).sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId))
-    const position = query.cursor === undefined ? -1 : events.findIndex(event => String(event.eventId) === query.cursor)
-    if (query.cursor !== undefined && position < 0) throw new MailboxUnavailableError('Quarantine cursor is unavailable')
-    const selected = events.slice(position + 1, position + 1 + limit)
-    const last = selected.at(-1), more = events.length > position + 1 + selected.length
-    return { items: selected.flatMap(event => event.kind === 'message/quarantined' ? [{ ...event.data,
-      cursor: event.eventId as string as MessageCursor, nodeId: event.nodeId, observedAt: event.observedAt,
-      ...(query.targetSessionId === undefined ? {} : { targetSessionId: query.targetSessionId }),
-    }] : []), complete: page.complete,
-    ...(more && last ? { nextCursor: last.eventId as string as MessageCursor } : {}) }
   }
 
   async sendBatch(request: SendBatchRequest): Promise<SendBatchResult> {

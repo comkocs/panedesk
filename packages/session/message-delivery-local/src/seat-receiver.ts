@@ -1,17 +1,15 @@
 /** Target-local seat resolution commits the original identity and never routes a delivery onward. */
 import { join } from 'node:path'
-import type { MessageReason, MessageRecipient, RoutedDeliveryAuthority, RoutedSeatMessageRequest,
+import type { MessageReason, MessageRecipient, RoutedSeatMessageRequest,
   RoutedSeatMessageReceiver, SendMessageResult, OnlineSeat } from '@panedesk/dsh-message-delivery'
 import type { FileMailbox } from './mailbox.ts'
 import { MailboxUnavailableError, object, publish, readValue } from './files.ts'
 import { decodeCommand, decodeSendResult } from './codec.ts'
 
-/** Local-only admission dependencies; the host owns the unforgeable capability. */
+/** Local-only mailbox admission and seat observations. */
 export interface SeatReceiverOptions {
   readonly mailbox: FileMailbox
   readonly maxContentBytes: number
-  /** @param authority - Host-issued capability. @param request - Frozen request. @returns Current exact permission. */
-  authorize(authority: RoutedDeliveryAuthority, request: RoutedSeatMessageRequest): Promise<boolean>
   /** @param request - Exact seat and classification. @returns Current local target or refusal. */
   resolve(request: RoutedSeatMessageRequest): Promise<MessageRecipient | MessageReason>
   /** @param recipient - Durably admitted target. */
@@ -25,19 +23,17 @@ export interface SeatReceiverOptions {
  */
 export function createSeatMessageReceiver(options: SeatReceiverOptions): RoutedSeatMessageReceiver {
   const mailbox = options.mailbox
-  return { online: () => options.online(), receive: async (input, authority) => {
+  return { online: () => options.online(), receive: async (input) => {
     const { decodeRoutedSeatSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
     const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
     const request = decodeRoutedSeatSend(input), envelope = request.delivery, message = envelope.message
     const reject = (reason: Exclude<MessageReason, 'target-closed-pending'>): SendMessageResult => ({
       messageId: message.messageId, operationId: message.operationId, deliveryOutcome: 'rejected',
       messageState: 'rejected', pending: false, reason, candidates: [] })
-    if (authority.sourceNodeId !== envelope.sourceNodeId || authority.targetNodeId !== mailbox.options.nodeId
-      || message.target.nodeId !== mailbox.options.nodeId || !await options.authorize(authority, request)) return reject('unauthorized')
+    if (message.target.nodeId !== mailbox.options.nodeId) return reject('cross-node-unsupported')
     return mailbox.locked(join(mailbox.root, 'operations', 'routed.lock'), async () => {
       const paths = [envelope.deliveryId, message.messageId, message.operationId].map((id, index) =>
         join(mailbox.root, 'operations', `routed-${index}-${digest([envelope.sourceNodeId, id])}.json`))
-      if (!await options.authorize(authority, request)) return reject('unauthorized')
       let recipient: MessageRecipient | undefined
       let settled: SendMessageResult | undefined
       for (const path of paths) {
@@ -75,8 +71,9 @@ export function createSeatMessageReceiver(options: SeatReceiverOptions): RoutedS
       let result: SendMessageResult
       if (recipient === undefined) {
         const resolved = await options.resolve(request)
-        if (typeof resolved === 'string') result = reject(resolved === 'target-closed-pending' ? 'offline' : resolved)
-        else if (resolved.status === 'closed') result = reject('offline')
+        if (typeof resolved === 'string') result = reject(resolved === 'target-closed-pending'
+          || resolved === 'offline' || resolved === 'busy-not-accepting' ? 'unavailable' : resolved)
+        else if (resolved.status === 'closed') result = reject('unavailable')
         else if (!message.content.trim() || Buffer.byteLength(message.content) > options.maxContentBytes) result = reject('invalid-content')
         else if (message.messageClass === 'notice' && message.priority !== 'queue') result = reject('invalid-priority')
         else { recipient = resolved; result = { messageId: message.messageId, operationId: message.operationId,
@@ -100,7 +97,6 @@ export function createSeatMessageReceiver(options: SeatReceiverOptions): RoutedS
         result = { messageId: message.messageId, operationId: message.operationId,
           deliveryOutcome: 'accepted', messageState: 'queued', pending: false, recipient }
       }
-      if (!await options.authorize(authority, request)) return reject('unauthorized')
       // Pin the resolved window before append so a crash cannot redirect an uncertain original send.
       for (const path of paths) await publish(path, { digest: envelope.digest, delivery: envelope,
         ...(recipient ? { recipient } : { result }) }, mailbox.options.maxRecordBytes)

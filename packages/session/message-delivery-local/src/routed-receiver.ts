@@ -1,6 +1,6 @@
 /** Routed mailbox admission retains original identities and durable acknowledgements. */
 import { join } from 'node:path'
-import type { MessageReason, MessageRecipient, RoutedDeliveryAuthority, RoutedMessageReceiver,
+import type { MessageReason, MessageRecipient, RoutedMessageReceiver,
   RoutedSendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
 import type { FileMailbox } from './mailbox.ts'
 import { component, MailboxUnavailableError, object, publish, readValue } from './files.ts'
@@ -10,12 +10,6 @@ import { decodeCommand, decodeSendResult } from './codec.ts'
 export interface RoutedMailboxOptions {
   readonly mailbox: FileMailbox
   readonly maxContentBytes: number
-  /** Verify the process-local authority against its original exact envelope.
-   * @param authority - Host-owned capability, never reconstructed from JSON.
-   * @param request - Decoded request with its original sender and causal evidence.
-   * @returns Whether the current local policy still permits this exact delivery.
-   */
-  authorize(authority: RoutedDeliveryAuthority, request: RoutedSendMessageRequest): Promise<boolean>
   /** Resolve only the receiving node's target and receive policy.
    * @param request - Exact target identity and message classification.
    * @returns Local recipient or a safe refusal reason.
@@ -32,7 +26,7 @@ export interface RoutedMailboxOptions {
  */
 export function createRoutedMailboxReceiver(options: RoutedMailboxOptions): RoutedMessageReceiver {
   const mailbox = options.mailbox
-  return { receive: async (input, authority) => {
+  return { receive: async (input) => {
     // Register synchronously, but load optional transports only for routed traffic.
     const { decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
     const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
@@ -40,8 +34,7 @@ export function createRoutedMailboxReceiver(options: RoutedMailboxOptions): Rout
     const rejected = (reason: Exclude<MessageReason, 'target-closed-pending'>): SendMessageResult => ({
       messageId: message.messageId, operationId: message.operationId, deliveryOutcome: 'rejected',
       messageState: 'rejected', pending: false, reason, candidates: [] })
-    if (authority.sourceNodeId !== envelope.sourceNodeId || authority.targetNodeId !== mailbox.options.nodeId
-      || message.target.nodeId !== mailbox.options.nodeId || !await options.authorize(authority, request)) return rejected('unauthorized')
+    if (message.target.nodeId !== mailbox.options.nodeId) return rejected('cross-node-unsupported')
     return mailbox.locked(join(mailbox.root, 'operations', 'routed.lock'), async () => {
       const identities = [envelope.deliveryId, message.messageId, message.operationId].map((id, index) =>
         join(mailbox.root, 'operations', `routed-${index}-${digest([envelope.sourceNodeId, id])}.json`))
