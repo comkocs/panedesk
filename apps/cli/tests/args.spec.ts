@@ -21,11 +21,6 @@ function exitCode(argv: string[], manageDesktopProfile = false): number {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('parseDshArgs', () => {
-  it('routes explicit offline owner cleanup without booting a profile', () => {
-    expect(parse(['cleanup-owner-labels', '--stopped', 'C:\\private']))
-      .toEqual({ mode: 'cleanup-owner-labels', path: 'C:\\private' })
-    expect(exitCode(['cleanup-owner-labels', 'C:\\private'])).toBe(1)
-  })
   it('passes runtime identity labels separately from application arguments', () => {
     expect(parse(['--seat', 'seat-a', '--window', 'window-a', '--task-id', 'task-a', 'run the tests']))
       .toMatchObject({ mode: 'profile', profile: 'slim', ledgerIdentity: { seat: 'seat-a', window: 'window-a', taskId: 'task-a' }, args: ['run the tests'] })

@@ -153,7 +153,7 @@ declare module '@panedesk/cordis' {
        */
       rebuildTransport(peerNodeId?: Seat.SeatNodeId): Promise<{ status: 'rebuilt' | 'unavailable' }>
     }
-    /** Optional Windows ACL/path implementation; POSIX uses checked owner-only files when absent. */
+    /** Optional file implementation; absent providers use ordinary Windows files or the POSIX implementation. */
     hostAdminFiles: (directory: string) => PrivateFiles
   }
 }
@@ -205,8 +205,5 @@ export function apply(_ctx: Context, _config: Config): void | Promise<() => Prom
 export { waitForPrivateFiles, PrivateFilesWaitCancelled, isPrivateFilesContextActive } from './private-files-ready.ts'
 export type * from './execution.ts'
 export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.ts'
-export { WindowsPrivateFiles, WINDOWS_PRIVATE_FILE_CODES } from './windows-private-files.ts'
-export type { WindowsPrivateFilesOptions, WindowsPrivateFileCode } from './windows-private-files.ts'
-export type { WindowsPrivateFilesExecutor } from './windows-private-files-system.ts'
 export { LoopbackConnectionError, LoopbackHostMismatchError, isLoopbackAuthority } from './loopback.ts'
 export type { LoopbackHostMismatch, LoopbackHostPolicy } from './loopback.ts'

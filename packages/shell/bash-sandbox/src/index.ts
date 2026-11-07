@@ -100,7 +100,7 @@ export class SandboxBashExecutor extends LocalBashExecutor {
       const prepared = await this.confine(spec.command, { ...policy, mode }, signal)
       signal.throwIfAborted()
       confined = prepared
-      return prepared
+      return prepared.argv
     }, (process) => {
       const facts = confined as ConfinedArgv
       this.processFacts.set(process, {

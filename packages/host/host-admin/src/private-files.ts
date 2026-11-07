@@ -1,6 +1,6 @@
 /** Private-file policy is replaceable by an account-scoped Windows ACL implementation. */
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, rename, unlink } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { dirname, isAbsolute, join, parse, relative } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
@@ -16,6 +16,56 @@ export interface PrivateFiles {
   remove(name: string): Promise<void>
   /** Acquire exclusive ownership; abandoned locks require explicit operator recovery. */
   lock(): Promise<() => Promise<void>>
+}
+
+/** Ordinary platform file operations preserve existing administration files without ACL inspection. */
+export class LocalPrivateFiles implements PrivateFiles {
+  constructor(private readonly root: string) {}
+  async prepare(): Promise<void> {
+    await mkdir(this.root, { recursive: true })
+  }
+  async read(name: string, maxBytes: number): Promise<string | null> {
+    let bytes: Buffer
+    try { bytes = await readFile(join(this.root, name)) }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+    if (bytes.length > maxBytes) throw new Error('Private file exceeds limit')
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  }
+  async write(name: string, content: string): Promise<void> {
+    await this.prepare()
+    const temporary = join(this.root, `write-${randomBytes(16).toString('hex')}`)
+    const handle = await open(temporary, 'wx')
+    try {
+      try {
+        await handle.writeFile(content, 'utf8')
+        await handle.sync()
+      } finally { await handle.close() }
+      await rename(temporary, join(this.root, name))
+    } catch (error) { await unlink(temporary); throw error }
+  }
+  async remove(name: string): Promise<void> {
+    try { await unlink(join(this.root, name)) }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+  async lock(): Promise<() => Promise<void>> {
+    await this.prepare()
+    const path = join(this.root, 'owner.lock')
+    const handle = await open(path, 'wx')
+    try {
+      await handle.writeFile(JSON.stringify({ pid: process.pid }))
+      await handle.sync()
+    } catch (error) {
+      await handle.close()
+      await unlink(path)
+      throw error
+    }
+    return async () => { await handle.close(); await unlink(path) }
+  }
 }
 
 /** Linux policy checks the opened inode, not merely a pathname before opening. */

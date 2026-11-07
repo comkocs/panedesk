@@ -244,7 +244,7 @@ export class PwshLocalExecutor extends ShellExecutor {
    */
   protected async executeArgv(
     spec: ShellExecSpec,
-    argvOrPrepare: readonly string[] | ((signal: AbortSignal) => Promise<readonly string[] | Pick<SubprocessSpawnSpec, 'argv' | 'productSandbox'>>),
+    argvOrPrepare: readonly string[] | ((signal: AbortSignal) => Promise<readonly string[] | Pick<SubprocessSpawnSpec, 'argv'>>),
     onStarted?: (process: ShellExecution) => void,
   ): Promise<ShellExecution> {
     // Deadline wiring by expiry policy. Each arm supplies the spawn signal,
@@ -271,7 +271,6 @@ export class PwshLocalExecutor extends ShellExecutor {
     }
 
     let argv: readonly string[] = []
-    let productSandbox: true | undefined
     let preparationTimedOut = false
     if (typeof argvOrPrepare === 'function') {
       const signal = spawnSignal ?? new AbortController().signal
@@ -283,7 +282,7 @@ export class PwshLocalExecutor extends ShellExecutor {
           Promise.resolve().then(() => { signal.throwIfAborted(); return argvOrPrepare(signal) }),
           cancelled.promise,
         ])
-        if ('argv' in prepared) { argv = prepared.argv; productSandbox = prepared.productSandbox }
+        if ('argv' in prepared) argv = prepared.argv
         else argv = prepared
         signal.throwIfAborted()
       } catch (error) {
@@ -303,9 +302,7 @@ export class PwshLocalExecutor extends ShellExecutor {
     let syncSpawnError: { error: unknown } | undefined
     try {
       if (!preparationTimedOut) {
-        running = this.ctx.subprocess.spawn({ ...this.spawnSpec(spec, spec.stdoutMaxBytes, spawnSignal, argv),
-          ...productSandbox === true ? { productSandbox } : {},
-        })
+        running = this.ctx.subprocess.spawn(this.spawnSpec(spec, spec.stdoutMaxBytes, spawnSignal, argv))
       }
     } catch (error) {
       syncSpawnError = { error }

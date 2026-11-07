@@ -40,7 +40,6 @@ const collection = z.object({
 }).strict()
 /** Ordinary or terminal process requested by a trusted SSH client. */
 export const spawnSchema = z.object({
-  productSandbox: z.boolean().optional(),
   argv: z.array(z.string().refine(value => !value.includes('\0'))).min(1),
   cwd: remotePath,
   env: environmentSchema.optional(), graceMs: z.number().int().positive().max(2_147_483_647),

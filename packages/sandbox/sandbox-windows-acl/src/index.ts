@@ -62,11 +62,6 @@ import * as abi from './win32-abi.ts'
  */
 export function assertWindowsStateTrusted(_directory: string, _workspace: string, _temporarySids: readonly string[] = []): void {}
 
-/** Owner-label cleanup is retired. Resolves without changing directory labels.
- * @param _path - ignored.
- */
-export async function cleanupOwnerReadProtection(_path: string): Promise<void> {}
-
 /** Former refusal for an untrusted Windows state directory. Nothing throws it. */
 export class UnsafeWindowsStateError extends Error {
   /** Directory the former check named. */

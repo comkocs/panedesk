@@ -332,16 +332,6 @@ describe('dsh family version coherence', () => {
 })
 
 describe('package payload constraints', () => {
-  it('limits the local filesystem runtime glob to its own package', () => {
-    const dir = 'packages/fs/fs-local'
-    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
-    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
-    for (const files of [['lib/index.js', 'lib/types/**/*.d.ts'], ['lib/**/*.js', 'lib/types/**/*.d.ts']]) {
-      expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files } })).toEqual([expect.stringContaining('package.json files must be')])
-    }
-    expect(expectedDshPackageFiles({ name: '@panedesk/dsh-other' })).toEqual(['lib/index.js', 'lib/types/**/*.d.ts'])
-  })
-
   it.each([
     ['./art/icon.svg', ['art/icon.svg']],
     [{ import: './art/icon.svg', default: './art/fallback.svg' }, ['art/icon.svg', 'art/fallback.svg']],

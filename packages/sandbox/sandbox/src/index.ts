@@ -103,8 +103,6 @@ export interface RunnerFailureRule {
 export interface ConfinedArgv {
   /** The wrapped argv (runner, profile, separator, then the caller's argv). */
   argv: string[]
-  /** Accepted and ignored. Confinement does not carry an extra product-sandbox fact. */
-  productSandbox?: true
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
   /** Accepted and ignored. Host inputs are not reported as protected. */
