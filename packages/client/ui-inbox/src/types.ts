@@ -18,6 +18,6 @@ declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'inbox/invalid-session': Record<string, never>
     'inbox/unauthorized': Record<string, never>
-    'inbox/unavailable': { reason?: { code: 'home-permissions'; path: string } }
+    'inbox/unavailable': Record<string, never>
   }
 }
