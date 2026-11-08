@@ -100,6 +100,7 @@ export class SettingsController extends TypertRemoteService {
     return {
       writable: settings.writable,
       hasDocument: true,
+      documentPath: settings.documentPath,
       namespaces: settings.describe({ redactSecrets: true }).map(namespaceView),
     }
   }

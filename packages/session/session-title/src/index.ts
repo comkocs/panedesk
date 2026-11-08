@@ -355,6 +355,14 @@ export function foldSessionTitle(events: readonly SessionEvent[]): SessionTitleS
   })
 }
 
+/** Live opening-name preferences supplied by the owning settings plugin. */
+export interface OpeningNamePreferences {
+  /** @returns whether new top-level titles use opening names and dates. */
+  enabled(): boolean
+  /** @returns the saved sample and anchors, if any. */
+  pattern(): OpeningNamePattern | undefined
+}
+
 /** Log-backed title fold plus asynchronous fallback generation. */
 export class SessionTitleService extends Service {
   static inject = ['sessions', 'sessionProjections']
@@ -372,6 +380,7 @@ export class SessionTitleService extends Service {
 
   private readonly config: ResolvedConfig
   private readonly openingName: Volatile<OpeningNamePattern | undefined> | undefined
+  private openingPreferences: OpeningNamePreferences | undefined
   private readonly ownerFiber: Fiber
   private registration: ProviderRegistration | undefined
   private readonly work = new Map<Session, SessionTitleWorkState>()
@@ -575,13 +584,35 @@ export class SessionTitleService extends Service {
     return dispose
   }
 
+  /**
+   * Attach live opening-name preferences for the settings plugin's lifetime.
+   * @param preferences - current enablement and saved pattern readers.
+   * @returns disposer restoring the title service's own configuration.
+   */
+  configureOpeningName(preferences: OpeningNamePreferences): () => void {
+    return this.ctx.effect(() => {
+      this.openingPreferences = preferences
+      return () => { this.openingPreferences = undefined }
+    })
+  }
+
+  private openingEnabled(): boolean {
+    return this.openingPreferences?.enabled() ?? true
+  }
+
+  private dateSuffix(session: Session): string {
+    return this.openingEnabled() && isOpeningSession(session) ? openingDateSuffix(session) : ''
+  }
+
   /** Schedule fallback creation and any provider cadence for one eligible event. */
   private onUserMessage(session: Session, event: Extract<SessionEvent, { type: 'user/message' }>): void {
     if (!this.serviceActive()) return
     if (event.data.source.kind !== 'user') return
     const current = this.get(session)
     if (isPinnedTitle(current)) return
-    const pattern = this.openingName?.get()
+    const pattern = this.openingEnabled()
+      ? this.openingPreferences === undefined ? this.openingName?.get() : this.openingPreferences.pattern()
+      : undefined
     if (isOpeningSession(session) && current === undefined && pattern !== undefined) {
       // Empty or attachment-only first messages must not move selection to a later prompt.
       // oxlint-disable-next-line typescript/no-deprecated -- Match only the first human event, including non-text input.
@@ -594,7 +625,7 @@ export class SessionTitleService extends Service {
           if (title.length > 0) {
             this.supersede(this.stateFor(session), 'opening name pinned the title')
             session.append('session/title', {
-              title: title + openingDateSuffix(session),
+              title: title + this.dateSuffix(session),
               messageSeqs: [event.seq],
               source: { kind: 'provider', provider: OPENING_NAME_PROVIDER },
             })
@@ -742,7 +773,7 @@ export class SessionTitleService extends Service {
       this.assertCurrent(session, work)
       const accepted = this.validateResult(result, messages)
       session.append('session/title', {
-        title: accepted.title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
+        title: accepted.title + this.dateSuffix(session),
         messageSeqs: [...accepted.messageSeqs],
         source: {
           kind: 'provider',
@@ -925,7 +956,7 @@ export class SessionTitleService extends Service {
     const title = fallbackSessionTitle(first.text, this.config.fallbackMaxWords, this.config.fallbackMaxBytes)
     if (title.length === 0) return
     session.append('session/title', {
-      title: title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
+      title: title + this.dateSuffix(session),
       messageSeqs: [first.seq],
       source: { kind: 'fallback' },
     })
@@ -954,7 +985,7 @@ export class SessionTitleService extends Service {
       const accepted = this.get(session)
       if (accepted !== undefined) return accepted
       session.append('session/title', {
-        title: title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
+        title: title + this.dateSuffix(session),
         messageSeqs: [first.seq],
         source: { kind: 'fallback' },
       })

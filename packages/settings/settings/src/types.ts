@@ -59,6 +59,8 @@ export interface SettingsDescribeValue {
   writable: boolean
   /** Whether the configuration editor owns a local document, without exposing its Host path. */
   hasDocument: boolean
+  /** Absolute profile patch path used by the settings editor. */
+  documentPath?: string
   /** One view per profile plugin entry. */
   namespaces: SettingsNamespaceView[]
 }

@@ -1,6 +1,48 @@
 {
   "divergences": [
     {
+      "id": "panedesk-feature-preferences-and-registry-picker",
+      "description": "Keep opening-name settings visible and provide a desktop external-registry file picker",
+      "origin": "Panedesk feature settings",
+      "reason": "Own global opening-name preferences in the always-mounted settings plugin, default naming to on and external registry reads to off, expose the actual profile patch path for inline open actions, and select registry files through window-owned Desktop IPC without a Web picker.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/src/directory-picker.ts",
+          "apps/desktop/src/ipc.ts",
+          "apps/desktop/src/preload-app.ts",
+          "packages/api/settings-controller/README.md",
+          "packages/api/settings-controller/README.zh.md",
+          "packages/api/settings-controller/src/index.ts",
+          "packages/client/ui-settings-general/README.md",
+          "packages/client/ui-settings-general/README.zh.md",
+          "packages/client/ui-settings-general/src/client/OpeningNameRow.tsx",
+          "packages/client/ui-settings-general/src/client/PanedeskSection.tsx",
+          "packages/client/ui-settings-general/src/client/index.ts",
+          "packages/client/ui-settings-general/src/client/locales.ts",
+          "packages/client/ui-settings-general/src/index.ts",
+          "packages/client/ui-settings-general/tsconfig.host.json",
+          "packages/client/ui-settings/README.md",
+          "packages/client/ui-settings/README.zh.md",
+          "packages/client/ui-settings/src/client/settings-mirror.ts",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-subagent-tree/src/client/index.ts",
+          "packages/client/ui-subagent-tree/src/client/locales.ts",
+          "packages/client/ui-subagent-tree/src/client/settings.tsx",
+          "packages/client/ui-subagent-tree/src/index.ts",
+          "packages/session/session-title/README.md",
+          "packages/session/session-title/README.zh.md",
+          "packages/session/session-title/src/index.ts",
+          "packages/settings/settings/README.md",
+          "packages/settings/settings/README.zh.md",
+          "packages/settings/settings/src/types.ts"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",

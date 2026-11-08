@@ -1,51 +1,96 @@
 /** Host-backed external registry path editor for Panedesk feature settings. */
 import { useState } from 'react'
-import { Button, Input } from '@panedesk/dsh-client-ui-primitives'
-import type { ConfigForm } from '@panedesk/dsh-client-ui-settings/client'
+import { Button, Input, Switch } from '@panedesk/dsh-client-ui-primitives'
+import type { ConfigForm, SettingsDescribeFace } from '@panedesk/dsh-client-ui-settings/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 
 /** Editable fields projected from the tree Host configuration. */
 export interface RegistrySettings {
   externalRegistryFile: string
+  externalRegistryEnabled: boolean
 }
 
-/** Shared configuration snapshot and revision-aware writer. */
+/** Shared configuration snapshot, native actions, and revision-aware writer. */
 export interface RegistrySettingsFace {
-  hooks: { registry: ConfigForm<RegistrySettings> }
+  hooks: { registry: ConfigForm<RegistrySettings>; document: SettingsDescribeFace }
   save(path: string): Promise<boolean>
+  setEnabled(enabled: boolean): Promise<boolean>
+  chooseFile: (() => Promise<string | null>) | undefined
+  openPath(path: string, action: 'open' | 'reveal'): Promise<boolean>
 }
 
 /**
- * Edit the host path without reading local browser files.
- * @param props - accepted configuration, writer, and localized copy.
- * @returns one Panedesk feature settings row with explicit save feedback.
+ * Edit a global Host registry path; native file selection saves and enables it.
+ * @param props - accepted configuration, native actions, writer, and localized copy.
+ * @returns one Panedesk feature settings row with explicit action feedback.
  */
-export function RegistrySettingsRow({ useRegistry, save, t }:
+export function RegistrySettingsRow({ useRegistry, useDocument, save, setEnabled, chooseFile, openPath, t }:
   PropsRuntime<'settings.panedesk.item'> & PropsLocale<'subagentTree'> & InjectFace<RegistrySettingsFace>) {
   const form = useRegistry(value => value)
+  const documentPath = useDocument(value => value.view?.documentPath)
   const [draft, setDraft] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<'registrySaved' | 'registrySaveFailed' | null>(null)
-  const submit = async (): Promise<void> => {
+  const [notice, setNotice] = useState<'registrySaved' | 'registrySaveFailed' | 'registryActionFailed' | null>(null)
+  const path = draft ?? form.value?.externalRegistryFile ?? ''
+  const writable = !busy && form.status === 'ready' && form.writable
+  const run = async (action: () => Promise<boolean | null>, failure: 'registrySaveFailed' | 'registryActionFailed'): Promise<void> => {
     setBusy(true)
     setNotice(null)
     try {
-      const accepted = await save(draft ?? form.value?.externalRegistryFile ?? '')
-      setNotice(accepted ? 'registrySaved' : 'registrySaveFailed')
-      if (accepted) setDraft(null)
-    } catch (_saveFailed) {
-      setNotice('registrySaveFailed')
+      const accepted = await action()
+      if (accepted !== null) setNotice(accepted ? 'registrySaved' : failure)
+    } catch (_actionFailed) {
+      setNotice(failure)
     } finally {
       setBusy(false)
     }
   }
+  const persist = async (next: string): Promise<boolean> => {
+    const accepted = await save(next)
+    if (accepted) setDraft(current => current === next ? null : current)
+    return accepted
+  }
   return <div>
-    <label>{t('registryFile')}<Input value={draft ?? form.value?.externalRegistryFile ?? ''}
-      disabled={busy || form.status !== 'ready' || !form.writable}
-      onChange={event => { setDraft(event.target.value); setNotice(null) }} /></label>
+    <h3>{t('registryFile')}</h3>
     <p>{t('registryHint')}</p>
-    <Button disabled={busy || draft === null || form.status !== 'ready' || !form.writable}
-      onClick={() => { void submit() }}>{t('registrySave')}</Button>
-    {notice && <p role={notice === 'registrySaveFailed' ? 'alert' : 'status'}>{t(notice)}</p>}
+    <p>{t('registryScope')}</p>
+    <Switch checked={form.value?.externalRegistryEnabled ?? false} disabled={!writable || path === ''}
+      label={t('registryEnabled')} onChange={next => { void run(() => setEnabled(next), 'registrySaveFailed') }} />
+    <label>{t('registryPath')}<Input value={path} disabled={!writable}
+      onChange={event => {
+        const next = event.target.value
+        setDraft(next)
+        setNotice(null)
+        void persist(next).then(accepted => { if (!accepted) setNotice('registrySaveFailed') })
+          .catch(() => { setNotice('registrySaveFailed') })
+      }} /></label>
+    <div>
+      {chooseFile && <Button disabled={!writable} onClick={() => {
+        void run(async () => {
+          const selected = await chooseFile()
+          if (selected === null) return null
+          setDraft(selected)
+          return persist(selected)
+        }, 'registryActionFailed')
+      }}>{t('registryChoose')}</Button>}
+      <Button disabled={busy || path === ''} onClick={() => {
+        void run(() => openPath(path, 'open'), 'registryActionFailed')
+      }}>{t('registryOpenFile')}</Button>
+      <Button disabled={busy || path === ''} onClick={() => {
+        void run(() => openPath(path, 'reveal'), 'registryActionFailed')
+      }}>{t('registryOpenDirectory')}</Button>
+    </div>
+    {path !== '' && <p>{t('registryDirectory', { path: path.replace(/[\\/][^\\/]*$/u, '') })}</p>}
+    {documentPath && <div>
+      <p>{t('registryConfig', { path: documentPath })}</p>
+      <p>{t('registryDirectory', { path: documentPath.replace(/[\\/][^\\/]*$/u, '') })}</p>
+      <Button disabled={busy} onClick={() => {
+        void run(() => openPath(documentPath, 'open'), 'registryActionFailed')
+      }}>{t('registryOpenFile')}</Button>
+      <Button disabled={busy} onClick={() => {
+        void run(() => openPath(documentPath, 'reveal'), 'registryActionFailed')
+      }}>{t('registryOpenDirectory')}</Button>
+    </div>}
+    {notice && <p role={notice === 'registrySaved' ? 'status' : 'alert'}>{t(notice)}</p>}
   </div>
 }

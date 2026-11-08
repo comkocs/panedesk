@@ -27,6 +27,8 @@ export interface Config {
   refreshIntervalMs: number
   /** Host-readable external JSONL registry; empty disables file reads. */
   externalRegistryFile: Volatile<string>
+  /** Enable external registry reads while retaining the configured path. */
+  externalRegistryEnabled: Volatile<boolean>
 }
 
 declare module '@panedesk/cordis' {
@@ -41,6 +43,7 @@ export default class SubagentTreeService extends TypertRemoteService {
     enabled: Schema.boolean().default(true),
     refreshIntervalMs: Schema.number().min(1000).max(2147483647).step(1).default(5000),
     externalRegistryFile: Schema.string().default('').volatile(),
+    externalRegistryEnabled: Schema.boolean().default(false).volatile(),
   })
 
   private readonly lifetime = new AbortController()
@@ -106,7 +109,7 @@ export default class SubagentTreeService extends TypertRemoteService {
     const path = this.config.externalRegistryFile.get()
     let text = ''
     let externalRegistryUnreadable = false
-    if (path !== '') {
+    if (this.config.externalRegistryEnabled.get() && path !== '') {
       try {
         text = await readFile(path, 'utf8')
       } catch (_unreadableRegistry) {
