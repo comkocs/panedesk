@@ -7809,6 +7809,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-job-controller':
+        specifier: workspace:*
+        version: link:../../api/job-controller
       '@panedesk/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../../api/session-controller

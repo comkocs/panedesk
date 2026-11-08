@@ -14732,8 +14732,6 @@
           "packages/ptc-runtime/ptc-runtime-node/README.i18n.yaml",
           "packages/ptc-runtime/ptc-runtime-node/README.md",
           "packages/ptc-runtime/ptc-runtime-node/README.zh.md",
-          "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts",
-          "packages/ptc-runtime/ptc-runtime-node/tests/persistent.spec.ts",
           "packages/ptc-runtime/ptc-runtime-node/tests/persistent-sandbox.spec.ts",
           "packages/sandbox/sandbox-local/src/profiles.ts",
           "packages/sandbox/sandbox-local/tests/local.spec.ts",
@@ -14759,10 +14757,8 @@
           "packages/bundle/headless/README.i18n.yaml",
           "packages/bundle/headless/README.md",
           "packages/bundle/headless/README.zh.md",
-          "packages/bundle/headless/package.json",
           "packages/bundle/headless/src/index.ts",
           "packages/bundle/headless/tests/headless.spec.ts",
-          "packages/bundle/headless/tsconfig.json",
           "packages/fs/tool-fs/tests/headless-approval.spec.ts",
           "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
           "packages/sandbox/sandbox-windows-acl/src/index.ts",
@@ -15104,7 +15100,7 @@
       "id": "panedesk-opening-session-names",
       "description": "Add Panedesk features in General Settings and date-stamped opening session names",
       "origin": "Panedesk product settings",
-      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
+      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -15383,6 +15379,23 @@
           "packages/client/ui-primitives/README.md",
           "packages/client/ui-primitives/README.zh.md",
           "packages/client/ui-primitives/README.i18n.yaml"
+        ]
+      }
+    },
+    {
+      "id": "agent-map-panel",
+      "description": "Add a compact composer agent map with background shell tasks",
+      "origin": "Panedesk agent visibility",
+      "reason": "Show the current session between upper and lower descendant buses, reuse task previews, and expose read-only background shell commands and recent output from the composer.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent/src/client/AgentMap.tsx",
+          "packages/client/ui-subagent/src/client/AgentMap.module.css",
+          "packages/client/ui-subagent/src/client/index.ts",
+          "packages/client/ui-subagent/src/client/locales.ts",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md"
         ]
       }
     }
