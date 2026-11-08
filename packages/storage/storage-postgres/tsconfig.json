@@ -6,7 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../storage" },
-    { "path": "../../credentials/credentials" },
+    { "path": "../../database/db-connections" },
     { "path": "../../session/session-ledger" },
     { "path": "../../util/home-paths" },
     { "path": "../../util/atomic-write" }

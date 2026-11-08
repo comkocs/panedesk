@@ -1,4 +1,4 @@
-/** Owner-only settings API for the storage backend; passwords have no read method. */
+/** Owner-only storage selection API; connection credentials remain with database connections. */
 import type { Context } from '@panedesk/cordis'
 import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type {} from '@panedesk/dsh-storage-postgres'

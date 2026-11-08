@@ -1,21 +1,21 @@
 /** PostgreSQL storage backend with one live handle per declared unit. */
-import { Pool, type PoolConfig } from 'pg'
+import type { OpenDatabaseConnection } from '@panedesk/dsh-db-connections'
 import { StorageError, UNIT_NAME_RE, type KvFacet, type KvUnitDescriptor, type StorageBackend } from '@panedesk/dsh-storage'
 import { initializeSchema } from './schema.ts'
 import { PostgresKvUnit } from './unit.ts'
 
 export class PostgresStorageBackend implements StorageBackend {
-  readonly pool: Pool
+  readonly client: OpenDatabaseConnection['client']
   readonly kv: KvFacet = { open: descriptor => this.openUnit(descriptor) }
   private readonly units = new Map<string, Promise<PostgresKvUnit>>()
   private closing: Promise<void> | undefined
 
-  constructor(config: PoolConfig, onError: (error: Error) => void) {
-    this.pool = new Pool(config)
-    this.pool.on('error', onError)
+  constructor(private readonly connection: OpenDatabaseConnection, onError: (error: Error) => void) {
+    this.client = connection.client
+    this.client.on('error', onError)
   }
 
-  async initialize(): Promise<void> { await initializeSchema(this.pool) }
+  async initialize(): Promise<void> { await initializeSchema(this.client) }
 
   private async openUnit(descriptor: KvUnitDescriptor): Promise<PostgresKvUnit> {
     if (this.closing) throw new StorageError('closed', 'postgres backend is closed')
@@ -28,17 +28,17 @@ export class PostgresStorageBackend implements StorageBackend {
   }
 
   private async materialize(descriptor: KvUnitDescriptor): Promise<PostgresKvUnit> {
-    await this.pool.query('INSERT INTO panedesk_storage_units (name, version) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING', [descriptor.name, descriptor.version])
-    const result = await this.pool.query<{ version: number }>('SELECT version FROM panedesk_storage_units WHERE name = $1', [descriptor.name])
+    await this.client.query('INSERT INTO panedesk.storage_units (name, version) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING', [descriptor.name, descriptor.version])
+    const result = await this.client.query<{ version: number }>('SELECT version FROM panedesk.storage_units WHERE name = $1', [descriptor.name])
     if (result.rows[0]?.version !== descriptor.version) throw new StorageError('version-mismatch', `Incompatible stored version for unit '${descriptor.name}'`)
-    return new PostgresKvUnit(this.pool, descriptor, () => this.units.delete(descriptor.name))
+    return new PostgresKvUnit(this.client, descriptor, () => this.units.delete(descriptor.name))
   }
 
   close(): Promise<void> {
     this.closing ??= (async () => {
       const units = await Promise.allSettled([...this.units.values()])
       await Promise.all(units.flatMap(unit => unit.status === 'fulfilled' ? [unit.value.close()] : []))
-      await this.pool.end()
+      await this.connection.close()
     })()
     return this.closing
   }

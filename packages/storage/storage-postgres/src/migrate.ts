@@ -3,7 +3,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { UNIT_NAME_RE, type KvUnitDescriptor } from '@panedesk/dsh-storage'
-import type { Pool } from 'pg'
+import type { Client } from 'pg'
 
 const wholeUnit = z.object({
   unit: z.object({ name: z.string().regex(UNIT_NAME_RE), version: z.number().int().nonnegative() }),
@@ -12,7 +12,7 @@ const wholeUnit = z.object({
 const record = z.object({ version: z.number().int().nonnegative(), record: z.unknown() })
 
 /** Copy all discovered local units in one transaction, without deleting or rewriting local files. */
-export async function migrateLocal(pool: Pool, root: string, descriptors: ReadonlyMap<string, KvUnitDescriptor>): Promise<number> {
+export async function migrateLocal(client: Client, root: string, descriptors: ReadonlyMap<string, KvUnitDescriptor>): Promise<number> {
   const entries = await readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') return []
     throw error
@@ -48,21 +48,20 @@ export async function migrateLocal(pool: Pool, root: string, descriptors: Readon
     }
     if (documents && version !== undefined) units.set(entry.name, { version, global, tables })
   }
-  const client = await pool.connect()
   let count = 0
   try {
     await client.query('BEGIN')
     for (const [name, unit] of units) {
-      await client.query('INSERT INTO panedesk_storage_units (name, version) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, unit.version])
-      const current = await client.query<{ version: number }>('SELECT version FROM panedesk_storage_units WHERE name = $1 FOR UPDATE', [name])
+      await client.query('INSERT INTO panedesk.storage_units (name, version) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, unit.version])
+      const current = await client.query<{ version: number }>('SELECT version FROM panedesk.storage_units WHERE name = $1 FOR UPDATE', [name])
       if (current.rows[0]?.version !== unit.version) throw new Error(`Incompatible PostgreSQL version for unit '${name}'`)
       if (unit.global !== null) {
-        const written = await client.query('UPDATE panedesk_storage_units SET global_value = $2 WHERE name = $1 AND global_value IS NULL', [name, JSON.stringify(unit.global)])
+        const written = await client.query('UPDATE panedesk.storage_units SET global_value = $2 WHERE name = $1 AND global_value IS NULL', [name, JSON.stringify(unit.global)])
         count += written.rowCount ?? 0
       }
       for (const [table, records] of Object.entries(unit.tables)) {
         for (const [key, value] of Object.entries(records)) {
-          const written = await client.query('INSERT INTO panedesk_storage_records (unit, table_name, key, value) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [name, table, key, JSON.stringify(value)])
+          const written = await client.query('INSERT INTO panedesk.storage_records (unit, table_name, key, value) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [name, table, key, JSON.stringify(value)])
           count += written.rowCount ?? 0
         }
       }
@@ -72,5 +71,5 @@ export async function migrateLocal(pool: Pool, root: string, descriptors: Readon
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
-  } finally { client.release() }
+  }
 }

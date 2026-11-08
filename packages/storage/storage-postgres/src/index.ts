@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { Context, Service } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import { z } from 'zod'
-import { credentialRef } from '@panedesk/dsh-credentials'
+import type {} from '@panedesk/dsh-db-connections'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 import { storageBackendServiceKey, type KvUnitDescriptor, type StorageBackend } from '@panedesk/dsh-storage'
@@ -15,12 +15,10 @@ import type { ConnectionResult, StorageSettings, StorageSettingsInput, StorageSt
 export { PostgresStorageBackend } from './backend.ts'
 export type * from './types.ts'
 
-const passwordRef = credentialRef('PANEDESK_POSTGRES_PASSWORD')
 const settingsSchema = z.object({
-  backend: z.enum(['local', 'postgres']), host: z.string(), port: z.number().int().min(1).max(65535),
-  database: z.string(), user: z.string(), ssl: z.boolean(),
+  backend: z.enum(['local', 'postgres']), connectionId: z.string(),
 }).strict()
-const defaults: StorageSettings = { backend: 'local', host: '', port: 5432, database: '', user: '', ssl: false }
+const defaults: StorageSettings = { backend: 'local', connectionId: '' }
 
 export interface Config { configPath: string; localRoot: string }
 
@@ -30,7 +28,7 @@ declare module '@panedesk/cordis' {
 
 /** Configuration changes are persisted now and selected only on the next process startup. */
 export default class PostgresStorage extends Service {
-  static inject = ['storage', 'storage.backend.json', 'credentials']
+  static inject = ['storage', 'storage.backend.json', 'databaseConnections']
   static Config = Schema.object({
     configPath: Schema.string().default(join(resolveDshHome(), 'storage.json')),
     localRoot: Schema.string().default(join(resolveDshHome(), 'storages')),
@@ -63,21 +61,16 @@ export default class PostgresStorage extends Service {
     }
   }
 
-  private async connect(settings: StorageSettings, password?: string): Promise<PostgresStorageBackend> {
-    if (!settings.host.trim() || !settings.database.trim() || !settings.user.trim()) throw new Error('Host, database and username are required')
-    const secret = password ?? (await this.ctx.credentials.resolve(passwordRef))?.value ?? ''
-    const backend = new PostgresStorageBackend({
-      host: settings.host, port: settings.port, database: settings.database, user: settings.user,
-      password: secret, ssl: settings.ssl ? { rejectUnauthorized: true } : false,
-      connectionTimeoutMillis: 5000, query_timeout: 10000, statement_timeout: 10000,
-    }, error => { this.error = this.message(error, secret) })
+  private async connect(settings: StorageSettings): Promise<PostgresStorageBackend> {
+    if (settings.backend !== 'postgres') throw new Error('Select a saved database connection first')
+    const connection = await this.ctx.databaseConnections.open(settings.connectionId)
+    const backend = new PostgresStorageBackend(connection, error => { this.error = this.message(error) })
     try { await backend.initialize(); return backend }
-    catch (error) { await backend.close(); throw new Error(this.message(error, secret)) }
+    catch (error) { await backend.close(); throw error }
   }
 
-  private message(error: unknown, password?: string): string {
-    const message = (error instanceof Error ? error.message : String(error)).replace(/[\r\n]+/g, ' ')
-    return password ? message.replaceAll(password, '[redacted]') : message
+  private message(error: unknown): string {
+    return (error instanceof Error ? error.message : String(error)).replace(/[\r\n]+/g, ' ')
   }
 
   private async initialize(): Promise<void> {
@@ -108,32 +101,32 @@ export default class PostgresStorage extends Service {
     try { settings = await this.readSettings() }
     catch (error) { this.error = this.message(error) }
     return { settings, active: this.active, error: this.error, configPath: this.configPath,
-      hasPassword: (await this.ctx.credentials.describe(passwordRef)).configured, restartRequired: this.restartRequired }
+      connections: (await this.ctx.databaseConnections.listConnections()).map(({ id, name }) => ({ id, name })),
+      restartRequired: this.restartRequired }
   }
 
-  /** Persist validated non-secret fields and use the existing credential provider for the password. */
+  /** Persist the selected saved connection without copying configuration or credentials. */
   async save(input: StorageSettingsInput): Promise<StorageStatus> {
     await this.ready
     const settings = settingsSchema.parse(input.settings)
+    if (settings.backend === 'postgres') await this.ctx.databaseConnections.getConfig(settings.connectionId)
     await mkdir(dirname(this.configPath), { recursive: true, mode: 0o700 })
     await withFileLock(this.configPath, async () => {
-      if (input.password !== undefined) {
-        if (input.password) await this.ctx.credentials.set(passwordRef, input.password)
-        else await this.ctx.credentials.unset(passwordRef)
-      }
       await writeFileAtomic(this.configPath, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 })
       this.restartRequired = true
     })
     return this.status()
   }
 
-  /** Check the unsaved form with a short-lived connection, including table creation permissions. */
+  /** Probe the selected connection with SELECT 1 only, without creating storage tables. */
   async testConnection(input: StorageSettingsInput): Promise<ConnectionResult> {
     try {
-      const backend = await this.connect(settingsSchema.parse(input.settings), input.password)
-      await backend.close()
+      const settings = settingsSchema.parse(input.settings)
+      if (settings.backend !== 'postgres') throw new Error('Select a saved database connection first')
+      const connection = await this.ctx.databaseConnections.open(settings.connectionId)
+      try { await connection.client.query('SELECT 1') } finally { await connection.close() }
       return { connected: true, error: null }
-    } catch (error) { return { connected: false, error: this.message(error, input.password) } }
+    } catch (error) { return { connected: false, error: this.message(error) } }
   }
 
   /** Copy local storage units without replacing existing remote keys; restart to reload imported data. */
@@ -141,19 +134,19 @@ export default class PostgresStorage extends Service {
     await this.ready
     const backend = await this.connect(await this.readSettings())
     try {
-      const count = await migrateLocal(backend.pool, this.config.localRoot, this.descriptors)
+      const count = await migrateLocal(backend.client, this.config.localRoot, this.descriptors)
       this.restartRequired = true
       return count
     } finally { await backend.close() }
   }
 
   private async writeLedger(events: readonly LedgerEvent[]): Promise<void> {
-    const pool = this.backend!.pool
+    const pool = this.backend!.client
     for (const event of events) {
       const id = JSON.stringify([event.nodeId, event.eventId])
       const value = JSON.stringify(event)
-      const result = await pool.query<{ value: string }>(`INSERT INTO panedesk_ledger (id, value) VALUES ($1, $2)
-        ON CONFLICT (id) DO UPDATE SET value = panedesk_ledger.value RETURNING value`, [id, value])
+      const result = await pool.query<{ value: string }>(`INSERT INTO panedesk.ledger (id, value) VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE SET value = ledger.value RETURNING value`, [id, value])
       if (result.rows[0]?.value !== value) throw new Error('Conflicting PostgreSQL ledger event')
     }
   }
@@ -171,7 +164,7 @@ export default class PostgresStorage extends Service {
     const facts = await local?.facts()
     // Reconcile retained local facts before reading, covering restarts and interrupted mirror writes.
     if (facts) await this.writeLedger(facts.events)
-    const rows = await this.backend.pool.query<{ value: string }>('SELECT value FROM panedesk_ledger ORDER BY id')
+    const rows = await this.backend.client.query<{ value: string }>('SELECT value FROM panedesk.ledger ORDER BY id')
     return foldLedger(rows.rows.map(row => validateLedgerEvent(JSON.parse(row.value))), {
       asOf: Date.now(), observationMaxAgeMs: 10000, complete: facts?.complete ?? false,
       ...local ? { localNodeId: await local.nodeId() } : {},

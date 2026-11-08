@@ -4,15 +4,15 @@
 
 ## 配置
 
-打开**设置 → Panedesk → 数据存储**，填写主机、端口（缺省 5432）、库名、用户名、密码与 SSL 开关。保存后可选择复制本机已有数据，随后重启。「测试连接」检查未保存的表单和建表权限，不切换当前后端。数据库需要预先存在，所用账号需要建表和读写权限。开启 SSL 时会校验证书。
+打开**设置 → Panedesk → 数据存储**，选择本机（缺省）或一个已存连接名。连接在『数据库连接』页添加，SSL、凭据和可选 SSH 隧道统一在该页管理。保存后可选择复制本机已有数据，随后重启。「测试连接」只执行 `SELECT 1`，不建表、不切换后端。数据库需要预先存在；启用存储时，所用账号需要创建 `panedesk` schema 及其表的权限。
 
-非秘密连接项写入 `$PANEDESK_HOME/storage.json`（缺省 `~/.panedesk/storage.json`）。密码与模型 API Key 一样，通过 `credentials.set` 写入 `PANEDESK_POSTGRES_PASSWORD` 凭据引用，由当前凭据提供方保存，通常位于 `$PANEDESK_HOME/private/.credentials.yaml`。设置读取接口不返回密码。插件的 `configPath` 与 `localRoot` 可分别覆盖配置文件和本机数据根目录。
+仅后端选项与已存连接 id 写入 `$PANEDESK_HOME/storage.json`（缺省 `~/.panedesk/storage.json`）。连接配置、开连接和可选 SSH 隧道统一由数据库连接服务提供，本后端不读取或保存密码。插件的 `configPath` 与 `localRoot` 可分别覆盖配置文件和本机数据根目录。
 
-页面显示配置文件的绝对路径。文件尚不存在时，请先保存再打开。启动连接失败会显示单行原因，本次进程所有存储单元继续使用本机数据。已经启用的 PostgreSQL 在运行中故障时，操作明确失败，不会静默将新写入转向另一份数据。后端或密码修改均需重启生效。
+页面显示配置文件的绝对路径。文件尚不存在时，请先保存再打开。启动连接失败会显示单行原因，本次进程所有存储单元继续使用本机数据。已经启用的 PostgreSQL 在运行中故障时，操作明确失败，不会静默将新写入转向另一份数据。后端或所选连接修改均需重启生效。
 
 ## 存储与迁移
 
-KV 接口支持任意已声明的 storage-domain 单元：带版本的打开、完整快照、记录写入和删除、全局单值写入及等待在途操作完成的关闭。通过 `CREATE TABLE IF NOT EXISTS` 自动建立 `panedesk_storage_units`、`panedesk_storage_records` 和 `panedesk_ledger`。JSON 值以不透明文本保存；名称、记录键和值均通过 SQL 参数传递。单元版本不兼容时拒绝打开，不改写已有数据。
+KV 接口支持任意已声明的 storage-domain 单元：带版本的打开、完整快照、记录写入和删除、全局单值写入及等待在途操作完成的关闭。先通过 `CREATE SCHEMA IF NOT EXISTS` 建立独立的 `panedesk` schema，再通过 `CREATE TABLE IF NOT EXISTS` 建立 `panedesk.storage_units`、`panedesk.storage_records` 和 `panedesk.ledger`；不读取或修改该 schema 之外的已有表。JSON 值以不透明文本保存；名称、记录键和值均通过 SQL 参数传递。单元版本不兼容时拒绝打开，不改写已有数据。
 
 「把本机现有数据迁过去」读取整文件和逐记录两种 JSON 布局，在一个 PostgreSQL 事务中复制，并返回新写入的记录和全局单值条数。数据库已有键和全局值优先，重复复制不会覆盖共享数据；本机文件不删除、不改写。无效本机文档或不兼容版本会中止复制。先保存目标连接，暂停其他本机写入以获得稳定来源，复制后重启。该按钮不改变后端选项。
 

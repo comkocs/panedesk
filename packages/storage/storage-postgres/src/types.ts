@@ -1,11 +1,7 @@
 /** Password-free connection settings persisted on this host. */
 export interface StorageSettings {
   backend: 'local' | 'postgres'
-  host: string
-  port: number
-  database: string
-  user: string
-  ssl: boolean
+  connectionId: string
 }
 
 /** Settings-page state; credentials never cross the read API. */
@@ -14,14 +10,13 @@ export interface StorageStatus {
   active: 'local' | 'postgres'
   error: string | null
   configPath: string
-  hasPassword: boolean
+  connections: { id: string; name: string }[]
   restartRequired: boolean
 }
 
-/** Explicit credential update; omission retains the stored password. */
+/** Saved database connection selection. */
 export interface StorageSettingsInput {
   settings: StorageSettings
-  password?: string
 }
 
 /** Connection check result, with a single-line driver error on failure. */

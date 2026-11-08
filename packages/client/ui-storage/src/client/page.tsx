@@ -1,6 +1,6 @@
-/** Host-scoped connection form; password drafts are never persisted by the browser. */
+/** Host-scoped storage selection from saved database connections. */
 import { useState } from 'react'
-import { Button, Input, Switch } from '@panedesk/dsh-client-ui-primitives'
+import { Button } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { StorageSettings } from '@panedesk/dsh-storage-postgres/types'
 import type { StorageActions } from './index.ts'
@@ -12,7 +12,6 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
   const [revision, setRevision] = useState(0)
   const resource = useResource<'data-storage'>(`dsh-resource://data-storage/current?revision=${revision}`)
   const [draft, setDraft] = useState<StorageSettings | null>(null)
-  const [password, setPassword] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const status = resource.value
@@ -23,16 +22,19 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
     catch (error) { setMessage(error instanceof Error ? error.message : t('error')) }
     finally { setBusy(false) }
   }
-  const change = <K extends keyof StorageSettings>(key: K, value: StorageSettings[K]) => {
-    if (settings) setDraft({ ...settings, [key]: value })
-  }
-  const input = () => ({ settings: settings!, ...password === undefined ? {} : { password } })
+  const input = () => ({ settings: settings! })
   return <section className={css.page}>
     <h2>{t('title')}</h2><p>{t('intro')}</p>
     <h3>{t('backend')}</h3>
-    <div className={css.controls}>{(['local', 'postgres'] as const).map(backend =>
-      <Button key={backend} disabled={busy || !settings} variant={settings?.backend === backend ? 'primary' : 'outline'}
-        aria-pressed={settings?.backend === backend} onClick={() => change('backend', backend)}>{t(backend)}</Button>)}</div>
+    <div className={css.controls}>
+      <Button disabled={busy || !settings} variant={settings?.backend === 'local' ? 'primary' : 'outline'}
+        aria-pressed={settings?.backend === 'local'} onClick={() => setDraft({ backend: 'local', connectionId: '' })}>{t('local')}</Button>
+      {status?.connections.map(connection => <Button key={connection.id} disabled={busy || !settings}
+        variant={settings?.backend === 'postgres' && settings.connectionId === connection.id ? 'primary' : 'outline'}
+        aria-pressed={settings?.backend === 'postgres' && settings.connectionId === connection.id}
+        onClick={() => setDraft({ backend: 'postgres', connectionId: connection.id })}>{connection.name}</Button>)}
+    </div>
+    <p>{t('connectionsHint')}</p>
     <p>{t('defaults')}</p><p>{t('restart')}</p>
     {status && <p>{t('active')}: {t(status.active)}</p>}
     {status?.error && <p role="alert">{status.active === 'local' && status.settings.backend === 'postgres' ? t('fallback') : t('failed')} {status.error}</p>}
@@ -42,23 +44,13 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
       <Button disabled={busy || !status} onClick={() => { void perform(async () => { if (!await open(status!.configPath, true)) throw new Error(t('error')) }) }}>{t('openFolder')}</Button>
     </div>
     <h3>{t('scope')}</h3><p>{t('scopeHint')}</p>
-    <div className={css.fields}>
-      {(['host', 'database', 'user'] as const).map(key => <label key={key}>{t(key)}<Input disabled={busy || !settings}
-        value={settings?.[key] ?? ''} onChange={event => change(key, event.currentTarget.value)} /></label>)}
-      <label>{t('port')}<Input type="number" min={1} max={65535} step={1} disabled={busy || !settings}
-        value={settings?.port ?? 5432} onChange={event => change('port', event.currentTarget.valueAsNumber)} /></label>
-      <label>{t('password')}<Input type="password" autoComplete="new-password" disabled={busy || !settings}
-        value={password ?? ''} onChange={event => setPassword(event.currentTarget.value)} /></label>
-      <Switch label={t('ssl')} checked={settings?.ssl ?? false} disabled={busy || !settings} onChange={value => change('ssl', value)} />
-    </div>
-    <p>{t('passwordHint')} {status && t(status.hasPassword ? 'passwordSaved' : 'passwordEmpty')}</p>
     <div className={css.controls}>
       <Button disabled={busy || !settings} onClick={() => { void perform(async () => {
         const result = await save(input())
         if (!result.ok) throw new Error(result.error.message)
-        setPassword(undefined); setDraft(null); setRevision(value => value + 1); setMessage(t('saved'))
+        setDraft(null); setRevision(value => value + 1); setMessage(t('saved'))
       }) }}>{t('save')}</Button>
-      <Button disabled={busy || !settings} onClick={() => { void perform(async () => {
+      <Button disabled={busy || settings?.backend !== 'postgres'} onClick={() => { void perform(async () => {
         const result = await test(input())
         if (!result.ok) throw new Error(result.error.message)
         setMessage(result.value.connected ? t('connected') : `${t('failed')}: ${result.value.error}`)
@@ -66,7 +58,7 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
       <Button disabled={busy} onClick={() => { setRevision(value => value + 1) }}>{t('refresh')}</Button>
     </div>
     <p>{t('migrationHint')}</p>
-    <Button disabled={busy || !status || draft !== null || password !== undefined} onClick={() => { void perform(async () => {
+    <Button disabled={busy || status?.settings.backend !== 'postgres' || draft !== null} onClick={() => { void perform(async () => {
       const result = await migrate()
       if (!result.ok) throw new Error(result.error.message)
       setMessage(t('copied', { count: result.value })); setRevision(value => value + 1)
