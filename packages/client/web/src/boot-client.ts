@@ -80,7 +80,11 @@ export function assertEntriesActive(ctx: Context, modules: Pick<ClientModuleLoad
       const missing = Object.keys(entry.fiber.inject).filter(service => ctx.get(service) === undefined)
       failures.push(`${name}: pending (waiting for service${missing.length === 1 ? '' : 's'}: ${missing.join(', ') || 'unknown'})`)
     } else {
-      failures.push(`${name}: ${state}`)
+      // Cordis retains the apply error privately; keep this audit synchronous.
+      const reason: unknown = state === 'failed' ? entry.fiber['_error'] : undefined
+      const message = reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : ''
+      const firstLine = message.split(/\r?\n/, 1)[0]
+      failures.push(`${name}: ${state}${firstLine ? `: ${firstLine}` : ''}`)
     }
   }
   if (failures.length > 0) {
