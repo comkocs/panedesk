@@ -970,6 +970,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SessionSearchRequest: 'session-query.md',
   SessionTitleObservation: 'session-query.md',
   SessionTitleObservationResult: 'session-query.md',
+  OpeningNamePreferences: 'session-title.md',
   SessionTitleProvider: 'session-title.md',
   SessionTitleSnapshot: 'session-title.md',
   SkillCatalogSnapshot: 'skills.md',
@@ -1240,6 +1241,13 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  StorageStatus: 'storage selection and runtime status are owned by packages/storage/storage-postgres/README.md',
+  StorageSettingsInput: 'saved storage selection input is owned by packages/storage/storage-postgres/README.md',
+  ConnectionResult: 'storage connection probe result is owned by packages/storage/storage-postgres/README.md',
+  DatabaseConnection: 'saved database metadata is owned by packages/database/db-connections/README.md',
+  ConnectionInput: 'database settings input is owned by packages/database/db-connections/README.md',
+  ConnectionTest: 'database connection probe result is owned by packages/database/db-connections/README.md',
+  OpenDatabaseConnection: 'database client and SSH lifetime are owned by packages/database/db-connections/README.md',
   CacheRoute: 'cache route configuration is owned by docs/config-catalog.md',
   SessionCacheView: 'authorized cache evidence fields are owned by packages/llm/llm-cache/src/view-types.ts',
   SessionCacheViewRequest: 'cache read session identity is owned by packages/llm/llm-cache/src/view-types.ts',
