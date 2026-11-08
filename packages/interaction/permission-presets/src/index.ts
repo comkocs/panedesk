@@ -442,6 +442,7 @@ export class PermissionPresetService extends TypertRemoteService {
    * @param session - Session being prepared or restored.
    * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
    * @param signal - Optional creation cancellation; aborted preparation appends no permission facts.
+   * @returns nothing, or a promise when admission work is asynchronous.
    */
   initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void> {
     signal?.throwIfAborted()

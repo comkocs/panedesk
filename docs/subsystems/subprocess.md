@@ -104,8 +104,6 @@ The seam applies no defaults: every disposition, limit, and directory is explici
  * request/spec split is the owning template).
  */
 interface SubprocessSpawnSpec {
-  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
-  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
   /** Working directory for the child. */
@@ -143,16 +141,9 @@ interface SubprocessSpawnSpec {
 A spawn returns a live handle synchronously while target and managed-range identities remain provider-private. Collect-mode readers take whole-stream byte offsets and never consume, so independent readers cannot steal one another's deltas; piped streams belong to the caller. `terminate()` starts the provider's documented procedure, and `waitForExit()` observes the same provider-managed range; staged providers may use `graceMs`, while immediate providers do not delay. Consumers can build their own teardown ladders over those two operations (the ACP backend's stdin-EOF-first `disposeAcpChild` is the template).
 
 ```ts type-equiv
-/**
- * A live subprocess and its provider-managed process range. Collected output
- * remains readable after exit; piped streams belong to the caller.
- *
- * Termination and {@link SubprocessHandle.waitForExit} use the same managed
- * range. Each provider documents the range it can observe and its signalling
- * and observation limits.
- */
+/** A live subprocess and its provider-managed process range. */
 interface SubprocessHandle {
-  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  /** Observation only. Omission means unavailable. Termination still uses terminate(). */
   readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
@@ -286,11 +277,9 @@ Implementations must honor these semantics:
 - spawnTerminal owns terminal allocation, text transport, foreground groups, signalling, and whole-session quiescence behind one awaited termination method; readiness and persistent-shell policy stay in the PTY consumer. Its output stream ends after queued terminal output when the top-level process exits.
 
 ```ts cordis-catalog
-/**
- * Observe one process incarnation without granting termination authority.
- * Providers without OS creation evidence return only the PID, never a verified live identity.
- * @param pid - process identity to inspect in this execution world.
- * @returns creation evidence, or a PID-only unavailable observation.
+/** PID-only observation. Nothing is refused.
+ * @param pid - process id to report.
+ * @returns the pid alone.
  */
 readProcessIdentity(pid: number): SubprocessIdentity
 

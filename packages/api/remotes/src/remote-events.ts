@@ -54,6 +54,5 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'settings/document-updated', mode: 'emit' },
   { event: 'schedule/changed', mode: 'emit' },
   { event: 'seat/diagnostics-changed', mode: 'emit' },
-  { event: 'seat/memory-write-denied', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'user-questions/request', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]

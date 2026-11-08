@@ -18,7 +18,7 @@
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 同意所声明的用途，未声明用途时仅授权单次操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非授予访问。`purpose: { type: 'workspace-write', workspace }` 标识请求持久同意的规范化目录；[沙箱策略消费方](../../packages/sandbox/sandbox-policy/README.zh.md#windows-workspace-records)拥有持久化与撤销。
+`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 同意所声明的用途，未声明用途时仅授权单次操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非授予访问。`purpose: { type: 'workspace-write', workspace }` 标识请求中的规范化目录。沙箱策略不再保存持久工作区记录。
 
 ```ts type-equiv
 /**
@@ -140,15 +140,6 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  *   append commit point.
  */
 async request( req: ApprovalRequest, authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>
-
-/**
- * Ask an authenticated owner about a host input, including between model turns.
- * Passive inbox notices retain the refusal and decision without starting a model request.
- * @param agent Session whose workspace contains the protected input.
- * @param purpose Exact path identity and content digest awaiting consent.
- * @returns Only allowed-once authorizes this candidate; unattended sessions never prompt.
- */
-async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>
 
 /**
  * Read the session override without applying the configured default.

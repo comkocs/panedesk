@@ -31,7 +31,7 @@ Mount the tools after a `ctx.subprocess` backend; no host `rg` install is needed
 
 ### Minimal composition
 
-Load the subprocess and sandbox-policy services before the tools. Restricted calls require a sandbox provider and pass the calling Session's current policy to `confine` before spawning ripgrep; missing or failed confinement prevents launch. Both `glob` and `grep` carry registered owner directories into the provider's read-denial profile; they do not pass through `ctx.fs`. Explicit Linux `productSandbox: true` results are preserved in subprocess requests for pre-exec source registration. Explicit `danger-full-access` runs without confinement. The spill backend is optional and makes capped results fully recoverable.
+Load the subprocess and sandbox-policy services before the tools. Restricted calls require a sandbox provider and pass the calling Session's current policy to `confine` before spawning ripgrep; missing or failed confinement prevents launch. Both `glob` and `grep` carry registered owner directories into the provider's read-denial profile; they do not pass through `ctx.fs`. Confinement results are not forwarded as a product-registration marker. Explicit `danger-full-access` runs without confinement. The spill backend is optional and makes capped results fully recoverable.
 
 ```yaml
 - name: '@panedesk/dsh-sandbox-policy'

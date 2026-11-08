@@ -27,7 +27,6 @@ export function replacementResult(data: T.EngineReplacementData): T.ReplaceSeatR
 /** Retain one queue identity per caller operation without acquiring resources.
  * @param journal - node writer.
  * @param request - old Session and stable operation.
- * @param commit - Optional audited commit; omission preserves ordinary journal admission.
  * @returns committed transaction or refusal.
  */
 export async function queueReplacement(journal: EngineJournal, request: T.ReplaceSeatRequest,

@@ -16,7 +16,6 @@
 | `dsh --profile sdk-minimal` | 以独立极简 agent（智能体）配置树为 SDK 客户端提供服务。 |
 | `dsh web` | 启动 Web profile。 |
 | `dsh plugin --profile <name> <pnpm args>` | 通过在 profile 目录中转发给 pnpm 来管理该 profile 的插件。 |
-| `panedesk cleanup-owner-labels --stopped <directory>` | 卸载前离线撤销 Windows 所有者标签；见[清理步骤](../../packages/sandbox/sandbox-windows-acl/README.zh.md#owner-label-removal-before-uninstall)。 |
 
 运行命令时所在的目录将作为默认 workspace 根目录。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` profile 在首次使用时会从随附模板自动初始化。使用 `--from-default-profile` 可以基于这些模板之一，在非内置名称处创建或重置其他 profile；通过 `dsh plugin` 则可以初始化一个以 base 为基础的 profile。`desktop` 名称保留给 Electron 持有的 profile，因此 CLI（命令行界面）会拒绝针对它的启动和配置 dump 请求。npm CLI 也会拒绝其插件管理请求；[Desktop 内置命令](../desktop/README.zh.md#bundled-command-runtime)可以使用该安装的运行时管理已初始化的 Desktop profile。
 
@@ -24,7 +23,7 @@
 
 在 POSIX 上，CLI 在加载 profile 或凭据前以 `--disable-sigusr1` 重执行，保留 PID、标准流、参数与环境。所有 profile 都禁用由信号触发的 Inspector 激活；受信任的显式 `--inspect` 启动仍可使用。IPC 启动器必须在 Node 命令行传入 `--disable-sigusr1`；CLI 只读 `process.execArgv`，不认 `NODE_OPTIONS`。未受保护的 IPC 调用会在加载 profile 前报错，而不是替换进程并丢失通道。不支持进程替换的运行时也必须以此标志启动，否则启动会安全拒绝。Windows 没有 SIGUSR1；此标志不能证明 Windows 进程访问隔离。
 
-初始受保护输入复核拒绝 Web 启动时，不挂载任何 profile 插件。仅回环可达、不提供 API 的页面在指定的 `--port`（缺省 3080）显示中英拒因；详细输入路径仅留在 stderr。页面返回 HTTP 503，不授予工作区访问权，并保持拒绝态，直到 SIGINT 或 SIGTERM 将其关闭并以退出码 1 结束。远程绑定或 TLS 选项不会将此诊断页面暴露到远端。其他 profile 保持非零退出行为。
+Web 启动被拒绝时，不挂载任何 profile 插件。其他 profile 保持非零退出行为。
 
 ## 应用参数
 
@@ -66,7 +65,7 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 
 构建后的 headless 入口验收使用隔离项目目录，owner home 位于该工作区之外，因此不会将仓库检出目录及其链接依赖当作任务输入。
 
-headless 凭据验收在提供方的目标位置 `private/.credentials.yaml` 检查恢复的旧版凭据，并要求内容保持不变。其 stderr 断言仅放行措辞精确匹配的双语启动复核横幅与进度行。
+headless 凭据验收在提供方的目标位置 `private/.credentials.yaml` 检查恢复的旧版凭据，并要求内容保持不变。
 
 生产运行需要已构建的包与前端产物。请在仓库根目录单独运行 `pnpm run build`，然后使用 `pnpm dsh <args...>` 运行 TypeScript 入口并转发所有参数；模块解析约定以[源码执行参考](reference/README.zh.md#source-execution)为准。
 

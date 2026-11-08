@@ -109,7 +109,7 @@ Host 负责策略、截止时间、绑定查找和进程清理。子进程负责
 
 ### 启动与控制
 
-两种执行模式均将 Linux 隔离结果显式给出的 `productSandbox: true` 保留到子进程请求，供 exec 前登记来源；full-access 调用不带该字段。
+两种执行模式都不随子进程请求转发产品登记标记；full-access 调用不执行隔离。
 
 Host 擦除可擦除类型，在配置的执行世界中解析可执行文件与 bootstrap，通过 `ctx.sandbox` 等待 argv 限制准备完成，再通过 `ctx.subprocess` 启动。限制准备完成后会再次检查取消状态，因此提供方在取消后返回也无法启动程序。接管继承的控制通道后，子进程在 OS 环境中只保留可执行文件搜索路径、Windows 系统路径和临时路径，并将程序可见的 `process.env` 替换为空字典。Windows ACL 初始化接收父进程各自的 `TEMP` 和 `TMP` 值以使用共享授权锁，然后在启动程序前将二者替换为私有目录。这些原生路径使嵌套进程创建和原生临时文件 API 仍可正常工作。Host 仅在子进程启动时保留 `ELECTRON_RUN_AS_NODE`，使桌面端可执行文件运行 Node bootstrap；bootstrap 在求值模型代码前删除该选择变量。堆上限通过 Node argv 或为打包可执行文件由提供方构造的 `NODE_OPTIONS` 值传递；环境中的加载器和调试器标志会被丢弃。
 

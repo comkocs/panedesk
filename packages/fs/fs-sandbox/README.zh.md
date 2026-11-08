@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-fs-sandbox` 按各会话的沙箱模式限制模型对文件的写入与编辑，同时在受限读取中排除已登记的所有者身份材料。`read-only` 拒绝所有变更；`workspace-write` 只允许目标位于会话工作区或平台临时根目录内；`danger-full-access` 不限制变更。当会话需要将文件变更限制在工作区内时，使用它代替 `fs-local`，并加载 `ctx.sandboxPolicy`。被拒绝的操作返回 `FS_SANDBOX_DENIED`，文件系统工具会显示当前模式和同轮次升级提示。
+`dsh-fs-sandbox` 按各会话的沙箱模式限制模型对文件的写入与编辑。`read-only` 拒绝所有变更；`workspace-write` 只允许目标位于会话工作区或平台临时根目录内；`danger-full-access` 不限制变更。当会话需要将文件变更限制在工作区内时，使用它代替 `fs-local`，并加载 `ctx.sandboxPolicy`。被拒绝的操作返回 `FS_SANDBOX_DENIED`，文件系统工具会显示当前模式和同轮次升级提示。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当模型的文件写入与编辑必须受会话沙箱模式约束、而普通读取保持可用、所有者身份目录不可访问时，挂载此后端以替代 `fs-local`。围栏按调用生效：工具层把调用会话的模式与工作区根目录解析为与 bash runner 收到的相同策略，因此文件系统与 shell 两个能力族绝不会约束到不同根目录。
+当模型的文件写入与编辑必须受会话沙箱模式约束、而普通读取保持可用时，挂载此后端以替代 `fs-local`。围栏按调用生效：工具层把调用会话的模式与工作区根目录解析为与 bash runner 收到的相同策略，因此文件系统与 shell 两个能力族绝不会约束到不同根目录。
 
 ### 最小组合
 
@@ -45,11 +45,11 @@ kind: "package-reference"
 
 有效模式来自调用会话的覆盖值或升级授权，两者都未生效时才回退到部署默认值。`read-only` 以结构化 `FS_SANDBOX_DENIED` 拒绝所有变更。`workspace-write` 只允许目标规范化后位于工作区根目录或平台临时区域（`/tmp`、`os.tmpdir()`）之下的变更——与 Seatbelt profile 授权的可写集合相同。`danger-full-access` 不加围栏直接委托。
 
-`workspace-write` 还拒绝包含[受保护宿主输入](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)或位于其中的目标，即使目标位于已授权工作区内。执行变更前，它将传入策略与当前宿主的保护路径合并，并经最近的现存祖先规范化缺失路径，包括符号链接前缀。这些拒绝保留 `sandboxDenial: 'protected-host-path'` 及具体原因，而不是通用提权提示。
+`workspace-write` 还拒绝包含调用策略 `protectedPaths` 或当前沙箱策略解析结果中的路径、或位于其中的目标，即使目标位于已授权工作区内。执行变更前，它合并这两份清单，并经最近的现存祖先规范化缺失路径，包括符号链接前缀。这些拒绝保留 `sandboxDenial: 'protected-host-path'` 及具体原因，而不是通用提权提示。
 
 ### 可观察的成功与失败
 
-受限的文本、字节、区间、流式及元数据读取以 `FS_SANDBOX_DENIED` 拒绝已登记的所有者身份材料；目录列表过滤这些条目。检查合并传入策略与当前提供方清单，并比较规范路径和文件身份，包括硬链接别名。普通文件保留本地读取行为。显式 `danger-full-access` 绕过这些读取检查；监听不提供独立的读取保护。被拒绝的变更返回携带有效模式的 `FS_SANDBOX_DENIED` 错误；经工具，模型会看到 `[sandbox: file access denied under <mode> mode]` 及唯一一次获批更宽权限的重试提示，与 bash 的拒绝完全相同。获得批准升级的会话可以在该次调用中以严格更宽的模式重试同一操作。
+读取保持本地文件系统行为。被拒绝的变更返回携带有效模式的 `FS_SANDBOX_DENIED` 错误；经工具，模型会看到 `[sandbox: file access denied under <mode> mode]` 及唯一一次获批更宽权限的重试提示，与 bash 的拒绝完全相同。获得批准升级的会话可以在该次调用中以严格更宽的模式重试同一操作。
 
 -----
 
@@ -63,7 +63,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-内容授权使用[本地后端已打开文件的身份](../fs-local/README.zh.md#opened-file-reads)，而非先检查路径再重新打开。读取任何字节前，它将句柄的最终路径及设备/inode 与既有所有者清单比较，包括硬链接别名。替换最终名称或祖先目录不能重定向已授权的读取。编辑预读与覆盖差异基础使用相同检查。Linux 变更选择一个既有可写根，并使用本地后端的目录相对操作；不可信代码的内核隔离仍由 `ctx.shell` 负责。
+读取使用本地后端。Linux 变更选择一个既有可写根，并使用本地后端的目录相对操作；不可信代码的内核隔离仍由 `ctx.shell` 负责。
 
 ### 源码地图
 

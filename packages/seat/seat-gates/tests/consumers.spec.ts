@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { defineTool } from '@panedesk/dsh-tools'
 import type { GateContext, SeatGateService, SeatService, SeatEngineService } from '@panedesk/dsh-seat'
 import { harness } from '../../tool-seat/tests/harness.ts'
-import type {} from '../src/events.ts'
 import { installConsumers } from '../src/consumers.ts'
 import { installLifecycle } from '../src/lifecycle.ts'
 import { builtinCriterion } from '../src/policies.ts'
@@ -71,8 +70,6 @@ describe('executor policy consumers', () => {
     const registry = new GateRegistry(journal.engine, [definition], Date.now)
     registry.register(builtinCriterion(ctx, config, 'memory'))
     installConsumers(ctx, config, { evaluate: (context: GateContext) => registry.evaluate(context) } as SeatGateService)
-    const notice = vi.fn()
-    ctx.on('seat/memory-write-denied', notice)
     const run = vi.fn(async () => 'written')
     ctx.effect(() => ctx.tools.register(defineTool({ name: 'write', description: 'Write a file.',
       parameters: { path: { type: 'string', required: true } },
@@ -83,26 +80,19 @@ describe('executor policy consumers', () => {
       output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] }, execute: editor })))
     try {
       expect((await execute('write', { path: join(memory, 'note.md') })).isError).toBe(false)
-      expect(notice).not.toHaveBeenCalled()
       for (const path of [join(home, 'outside.md'), join(home, 'memory-sibling/note.md')]) {
         expect((await execute('write', { path })).isError).toBe(false)
       }
-      expect(notice).not.toHaveBeenCalled()
       const denied = await execute('write', { path: join(home, 'other-memory/note.md') })
       expect(denied.isError).toBe(true)
       expect(JSON.stringify(denied.content)).toContain('memory-seat-mismatch')
       expect(run).toHaveBeenCalledTimes(3)
-      expect(notice).toHaveBeenCalledOnce()
-      expect(notice).toHaveBeenLastCalledWith(agent.session.id, expect.objectContaining({
-        code: 'memory-seat-mismatch', effectState: 'none', retryable: false,
-      }))
       for (const command of ['create', 'str_replace', 'insert']) {
         expect((await execute('str_replace_editor', { command, path: join(home, 'other-memory/note.md') })).isError).toBe(true)
       }
       expect(editor).not.toHaveBeenCalled()
       expect((await execute('str_replace_editor', { command: 'view', path: join(home, 'other-memory/note.md') })).isError).toBe(false)
       expect(editor).toHaveBeenCalledOnce()
-      expect(notice).toHaveBeenCalledTimes(4)
     } finally { await ctx.fiber.dispose() }
   })
   it('records one clock message per turn and audits external memory changes as unknown on flush', async () => {

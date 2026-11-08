@@ -55,10 +55,10 @@ interface SandboxExecutionPolicy {
   mode: SandboxMode
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
-  /** Current host executable-input roots, excluded from confined writes; absent means no registered host inputs. */
+  /** Accepted and ignored. Host-input path lists no longer exclude writes. */
   protectedPaths?: readonly string[]
-  /** Owner identity files and directories excluded from confined reads; absent means no registered material. */
-  unreadablePaths?: readonly string[]
+  /** Accepted and ignored. Workspace writes are not held for extra authorization. */
+  requiresWorkspaceAuthorization?: true
   /**
    * Opaque identity of the calling session (the branded `dsh-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
@@ -67,8 +67,6 @@ interface SandboxExecutionPolicy {
    * for agentless calls, which fall back to per-call backend state.
    */
   sessionId?: SessionId
-  /** Workspace access derives from a durable record and must be rechecked before native grants. */
-  requiresWorkspaceAuthorization?: true
 }
 ```
 
@@ -128,36 +126,18 @@ interface RunnerFailureRule {
 `ConfinedArgv` is what the consumer spawns. Besides the replacement argv, it carries the backend's enforcement fact and two orthogonal stderr classifiers. `denialSignatures` identify the confined command being blocked while the sandbox works correctly. `runnerFailureRules` identify the sandbox runner refusing or failing before it executes the command; consumers check these first and surface a sandbox infrastructure failure, never an ordinary task failure.
 
 ```ts type-equiv
-/** Native enforcement or required host validation for one protected input. */
-type ProtectedInputEnforcement = {
-  /** Absolute input spelling supplied by the host. */
-  path: string
-} & ({
-  /** The native profile prevents changes to this input. */
-  enforcement: 'native'
-} | {
-  /** The host must reject unapproved input before loading it. */
-  enforcement: 'host-fallback'
-  /** Why native enforcement cannot preserve the input name. */
-  reason: 'unrepresentable' | 'link-name'
-})
-```
-
-```ts type-equiv
 /**
  * A {@link SandboxProvider.confine} result: the argv to spawn in place of
  * the caller's own, plus the enforcement completeness the selected backend
  * achieves for it.
  */
 interface ConfinedArgv {
-  /** Forward to local subprocess requests so trusted bootstraps register actual product confinement. */
-  productSandbox?: true
   /** The wrapped argv (runner, profile, separator, then the caller's argv). */
   argv: string[]
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
-  /** Per-input native protection or required host validation; omitted by providers without input records. */
-  protectedInputs?: readonly ProtectedInputEnforcement[]
+  /** Accepted and ignored. Host inputs are not reported as protected. */
+  protectedInputs?: readonly never[]
   /**
    * The selected backend's denial DIALECT: the case-insensitive stderr
    * substrings a file effect denied by THIS backend produces (EROFS text
@@ -213,35 +193,6 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
-
-/**
- * Inspect enforcement without spawning a command or materializing write grants.
- * Providers without this operation cannot supply a read-only status report.
- * @param policy Resolved file policy to inspect.
- * @returns Backend completeness and protected-input inventory; rejects unavailable coverage.
- */
-inspect?(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'>
-
-/**
- * Inspect a persistent workspace capability without granting access.
- * @param workspaceRoot - Absolute native workspace directory.
- * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
- */
-hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
-
-/**
- * Materialize an approved workspace capability without starting a process.
- * @param policy - Current policy with its authorization source and session identity.
- * @param signal - Cancellation checked before native mutation.
- * @returns After the provider has materialized the approved capability.
- */
-materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
-
-/**
- * Revoke a persistent workspace capability and invalidate provider caches.
- * @param workspaceRoot - Absolute native workspace directory.
- */
-revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)
@@ -260,25 +211,9 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
  * configured root is the fallback for agentless calls and sessions without a
  * cwd.
  * @param request - optional session and approved mode override.
- * @returns The per-call mode, absolute workspace root, and current protected host inputs when present.
+ * @returns the fully resolved per-call mode and absolute workspace root.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
-
-/**
- * Request persistent workspace consent before a potentially writing operation.
- * Explicit modes and non-Windows defaults never prompt. Missing, unattended,
- * rejected, withdrawn, or unavailable answerers leave the policy read-only.
- * @param request - Calling agent, tool identity, and cancellation lifetime.
- * @returns The freshly resolved policy after consent, or the unchanged standing policy.
- */
-async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>
-
-/**
- * Explain owner-managed workspace access after a Windows default read-only denial.
- * @param mode - The settled operation's mode, not a fresh policy resolution.
- * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
- */
-writeDenialHint(mode: SandboxMode): string | undefined
 
 /**
  * Read the session override without applying the deployment default.
@@ -288,7 +223,7 @@ writeDenialHint(mode: SandboxMode): string | undefined
 overrideOf(session: Session): SandboxMode | undefined
 ```
 
-Types: [Agent](core.md) · [Session](session.md) · [ToolCallId](core.md)
+Types: [Session](session.md)
 
 Source: [`packages/sandbox/sandbox-policy/src/index.ts`](../../packages/sandbox/sandbox-policy/src/index.ts)
 <!-- END GENERATED cordis-surface -->

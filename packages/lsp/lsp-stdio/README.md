@@ -75,7 +75,7 @@ A successful navigation returns normalized locations, and hover returns normaliz
 
 ### Security boundary
 
-This provider resolves the calling Session's policy before launch; host calls without a Session use deployment policy. Only explicit `danger-full-access` bypasses confinement. Explicit Linux `productSandbox: true` results are preserved in subprocess requests for pre-exec source registration. A pooled process is reused only for the same Session object and complete resolved policy; a change disposes it before replacement. It rejects query sources that are missing, non-regular, non-UTF-8, oversized, or canonically outside the workspace before server startup. Result locations may point outside the workspace, but an external path can never become a query source. Mount filesystem and subprocess providers for the same execution world — a split-world composition is invalid.
+This provider resolves the calling Session's policy before launch; host calls without a Session use deployment policy. Only explicit `danger-full-access` bypasses confinement. Subprocess requests do not carry a product-registration marker. A pooled process is reused only for the same Session object and complete resolved policy; a change disposes it before replacement. It rejects query sources that are missing, non-regular, non-UTF-8, oversized, or canonically outside the workspace before server startup. Result locations may point outside the workspace, but an external path can never become a query source. Mount filesystem and subprocess providers for the same execution world — a split-world composition is invalid.
 
 -----
 

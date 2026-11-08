@@ -500,6 +500,14 @@ Source: [`packages/core/agent-loop/src/index.ts`](../../packages/core/agent-loop
 Registry of YAML-declared presets and the revisions live Agents retain.
 
 ```ts cordis-catalog
+/** Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset.
+ * A project definition overrides the user definition of the same name. A model no configured
+ * provider advertises is listed broken with the cause; a tool name with no Panedesk tool is
+ * recorded on the preset and left out of the allowlist. Files are read once, never watched or written.
+ * @param sources - home and workspace roots; omitted roots use the process home and cwd.
+ */
+async importClaudeAgents(sources: ClaudeAgentSources): Promise<void>
+
 /** Register and eagerly load a definition; activation failure remains visible in the roster.
  * @param definition Parsed configuration supplied by the declaring plugin.
  * @returns Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.

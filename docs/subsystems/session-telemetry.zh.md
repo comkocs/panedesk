@@ -405,7 +405,7 @@ Source: [`packages/session/session-telemetry/src/index.ts`](../../packages/sessi
 No write, export, transcript, model, or caller-supplied identity capability is exposed.
 
 ```ts cordis-catalog
-/** Read one deduplicated ledger snapshot after authenticating the invocation owner.
+/** Read one deduplicated ledger snapshot from the installed query provider.
  * @param request - Fixed time range, bucket, grouping and optional attribution filters.
  * @returns Five-tab projection plus the deployment's refresh cadence.
  */

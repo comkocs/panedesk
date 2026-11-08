@@ -44,9 +44,9 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 `createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。未显式提供执行器时，已配置传输仅在接收策略、授权事务、本地席位及 `nodeAuthorizedLocalAdmission` 服务全部安装后组合它们。缺少服务时拒绝接收，接收端不再转发。后备装配通过 `ctx.get` 读取可选的 `routedMessageReceiver` 与 `nodeMessageAuthority` 服务；消息能力缺失时保持原有拒绝。
 
-可选 `nodeMessageEvidence` 向经过认证的配对节点提供独立留存的消息授权。传输为接收策略发布 `nodeMessageEvidenceRemote`，仅接受精确的 `messages.sendSeat` 或 `messages.onlineSeats` 证据查询；调用方不能选择其他端点或方向。新增的 `message-delegation-evidence` 控制帧使用既有方向凭据、完整帧限制和关联请求号。控制入口具有与消息执行分离的预留容量，未组合工作链时也如此；已接纳的派发在传输存储关闭前排空。旧帧仍可读取；只有双方均支持该证据帧后才能启用此宿主策略，旧对端会安全拒绝查询。
+传输不再发布 `nodeMessageEvidence` 或 `nodeMessageEvidenceRemote`。远端消息使用上文宿主持有的精确载荷授权，不再另设证据查询或 `message-delegation-evidence` 控制帧。
 
-Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 必须覆盖证据落盘耗时（一次部署实测约 1.2 秒）及其余回调工作耗时。
+席位引擎的 `callbackTimeoutMs` 覆盖其余回调工作。它不再等待消息证据落盘。
 
 <a id="persistence-and-disconnection"></a>
 ## 持久化与断链

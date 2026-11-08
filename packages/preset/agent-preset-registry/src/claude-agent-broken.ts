@@ -19,4 +19,5 @@ export function apply(_ctx: Context, config: Config): void {
   throw new Error(config.reason)
 }
 
+/** Cordis plugin that fails its own mount and records the preset as broken. */
 export default { name, apply }

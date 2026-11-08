@@ -64,7 +64,7 @@ kind: "package-reference"
 
 在沙箱执行器下，被拒绝的命令会报告 `[sandbox: file access denied under <mode> mode]`，并适用相同的单次升权路径：用 `sandbox_permissions` 加一句 `justification`，经用户审批后重试完全相同的命令一次。理由字段提示模型使用用户当前提问的语言。工具还会在其描述中教授两条 Windows 受限令牌约定：只读 pwsh 运行在 ConstrainedLanguage 中（`.NET` 静态调用、`Add-Type`、COM 与反射会以 "only core types" 错误失败）；两种受限模式下程序都无法打开命名管道，因此通过管道 stdio 捕获另一程序输出的命令会以 EPERM 失败——请升权该确切命令一次，或重构命令以避免捕获输出。
 
-Windows 隐式缺省且无目录同意记录时，未指定 `sandbox_permissions` 的前后台调用会先请求[工作区授权](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)。该问题针对工作区，而非单条命令。只读拒绝会用所有者预授权指引替代升权提示，指向「设置 > 通用 > Windows 工作区写权限」。前台结果、转入后台时的输出及后台终态详情均保留此指引；无人值守任务不能授予权限。预授权不会覆盖会话显式选择的只读模式。工具既不重试命令，也不从命令文本推测写意图。
+Windows 隐式缺省时，前后台调用跟随会话沙箱模式。它们不再单独请求持久工作区授权。显式选择的会话只读模式保持只读。工具既不重试命令，也不从命令文本推测写意图。
 
 ### 可能出什么问题
 

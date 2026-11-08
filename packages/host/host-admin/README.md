@@ -79,7 +79,7 @@ Normal disposal and `SIGINT`/`SIGTERM` drain owned resources and attempt credent
 
 `reportHostFailure` appends one fixed-summary error line to `~/.panedesk/logs/host-errors.log` and stderr. Only explicitly allowlisted machine codes are retained; exception messages, stacks, paths and URLs are never formatted. Log append failures produce a separate fixed stderr line. Existing logs remain at the same path and are appended without owner, permission, link, or ACL checks. This helper does not install the boot fatal handler.
 
-Windows acceptance: after building the native addon on Windows, run `pnpm exec tsx packages/host/host-admin/tests/windows-private-files-native.mts` from the repository root. It checks real private-file operations, hard-link and junction refusal, lock exclusion/release and twenty replacement writes; output reports median/P95 milliseconds with targets 3000/5000 ms. Linux oracle tests do not establish Windows execution or latency.
+The host-admin JavaScript wrapper no longer ships a Windows private-file acceptance script. Linux tests do not establish Windows execution or latency.
 
 `owner.lock` permits only one running instance per directory. A lock left after abnormal exit requires explicit recovery after operators confirm the old instance has exited; the plugin never guesses ownership from a PID.
 

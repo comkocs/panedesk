@@ -162,7 +162,6 @@ describe('Remote event Host source', () => {
       ['api-session/error', ['s-error', 'boom'], 's-error'],
       ['api-session/removed', ['s-removed'], 's-removed'],
       ['api-session/status', ['s-status', true], 's-status'],
-      ['seat/memory-write-denied', ['s-seat', { code: 'memory-seat-mismatch', message: 'Denied.', alternative: 'Use this seat memory directory.' }], 's-seat'],
     ]
     for (const [event, args, sessionId] of cases) {
       emitRaw(ctx, event, args)

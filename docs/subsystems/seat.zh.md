@@ -69,10 +69,10 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 Administration is optional and never starts a second engine to answer a query.
 
 ```ts cordis-catalog
-/** Dispatch a fixed method after transport authentication and epoch validation.
+/** Dispatch a fixed method with the transport's permitted methods.
  * @param request - Bounded validated request without caller-defined authority.
  * @param authority - Authenticated operator role narrowed to permitted methods.
- * @returns Provider evidence; approval records authorization before engine admission.
+ * @returns Provider evidence from the running engine or installed capability.
  */
 dispatch(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
 ```
@@ -83,13 +83,13 @@ Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin
 
 ### `ctx.hostAdminExecutor` — `HostAdminExecutor`
 
-Local executors own authorization facts and must durably record approval before admission.
+Local executors delegate business operations to the running engine and installed providers.
 
 ```ts cordis-catalog
 /** Invoke only a locally authenticated capability, never another router.
  * @param request - Validated fixed-method request.
  * @param authority - Transport-derived narrowed authority.
- * @returns Provider evidence after required authorization persistence.
+ * @returns Provider evidence for the requested business operation.
  */
 execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
 ```
@@ -109,19 +109,17 @@ Optional local source owner; absence never starts another engine or delivery pat
  */
 list(params: { limit?: number }): Promise<{ items: SourceOperatorItem[] }>
 
-/** Delegate abandonment to the source owner after exact-operation authorization.
+/** Delegate abandonment to the source owner.
  * @param params - Operation identity, original key and bounded reason.
- * @param grant - Original local-operator grant, including audit attribution.
- * @returns Provider result after its audit and release decisions.
+ * @returns Provider result after its release decisions.
  */
-abandon(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+abandon(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>
 
 /** Delegate directed resend when the source owner supplies this capability.
  * @param params - Operation identity, original key and bounded reason.
- * @param grant - Original local-operator grant, including audit attribution.
  * @returns Provider result after its admission and generation decisions.
  */
-resend?(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+resend?(params: SourceOperatorWriteParams): Promise<SourceOperatorResult>
 ```
 
 Source: [`packages/host/host-admin/src/source-operator.ts`](../../packages/host/host-admin/src/source-operator.ts)
@@ -248,39 +246,6 @@ status(): Promise<Seat.SeatNodeStatus>
 ```
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
-
-<a id="ctxnodemessageevidence--nodemessageevidence"></a>
-
-### `ctx.nodeMessageEvidence` — `NodeMessageEvidence`
-
-Host-owned evidence is queried independently of the execution request's claimed authority.
-
-```ts cordis-catalog
-/** Read retained evidence for the exact request and authenticated peer.
- * @param request - Exact decoded message request.
- * @param peer - Transport-authenticated requester.
- * @returns Independently retained evidence or null.
- */
-query(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<unknown>
-```
-
-Source: [`packages/seat/node-link/src/message-evidence.ts`](../../packages/seat/node-link/src/message-evidence.ts)
-
-<a id="ctxnodemessageevidenceremote--nodemessageevidenceremote"></a>
-
-### `ctx.nodeMessageEvidenceRemote` — `NodeMessageEvidenceRemote`
-
-Paired transport captures direction and credentials; callers cannot select an endpoint.
-
-```ts cordis-catalog
-/** Query the paired owner without accepting caller-selected transport credentials.
- * @param request - Exact request received from this paired peer.
- * @returns Independent peer evidence or null.
- */
-query(request: NodePreparedRequest): Promise<unknown>
-```
-
-Source: [`packages/seat/node-link/src/message-evidence.ts`](../../packages/seat/node-link/src/message-evidence.ts)
 
 <a id="ctxnoderouter--noderouterservice"></a>
 
@@ -648,9 +613,9 @@ Engine owns the journal, queues, resources and outbox; local providers depend on
  */
 abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>
 
-/** Commit frozen admission and its live grant together; never route again.
+/** Commit frozen admission; never route again.
  * @param request - Frozen source input, route and expected local definition revision.
- * @param authority - Independently verified process-local authority with the exact grant.
+ * @param authority - Process-local caller identity.
  * @returns Durable acceptance or refusal without source-side execution resources.
  */
 acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>
@@ -1170,7 +1135,7 @@ Source: [`packages/client/ui-seat-profiles/src/index.ts`](../../packages/client/
 
 ### `ctx.seatProfilesLocal` — `SeatProfileAccess`
 
-Owner-only capabilities; every call checks live invocation authority.
+Local catalog editing and import capabilities.
 
 ```ts cordis-catalog
 /** Read catalog definitions and complete deletion impact.
@@ -1617,25 +1582,6 @@ Invalidates owner diagnostics after runtime supervision changes; carries no priv
 ```
 
 Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)
-
-<a id="seatmemory-write-denied--emit"></a>
-
-#### `seat/memory-write-denied` — emit
-
-Notify observers after a bound-seat memory write is denied.
-
-```ts cordis-catalog
-/** Notify observers after a bound-seat memory write is denied.
- * @mode emit
- * @param sessionId - Tool executor's authenticated Session.
- * @param failure - Coded refusal and actionable alternative, without tool arguments.
- */
-'seat/memory-write-denied'(sessionId: SessionId, failure: SeatFailure): void
-```
-
-Types: [SessionId](core.zh.md)
-
-Source: [`packages/seat/seat-gates/src/events.ts`](../../packages/seat/seat-gates/src/events.ts)
 
 <a id="seatready--parallel"></a>
 

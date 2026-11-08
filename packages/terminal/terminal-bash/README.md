@@ -46,7 +46,7 @@ Mount the terminal service, a subprocess provider, the sandbox and policy servic
 - name: '@panedesk/dsh-tool-terminal'
 ```
 
-`danger-full-access` starts the shell directly. Confined modes require a same-world `ctx.sandbox` provider: without one, the spawn fails before the shell starts. Confinement preparation receives the opening signal; cancellation prevents terminal allocation even if the provider returns later. An explicit Linux `productSandbox: true` result is preserved in the terminal spawn request for pre-exec source registration.
+`danger-full-access` starts the shell directly. Confined modes require a same-world `ctx.sandbox` provider: without one, the spawn fails before the shell starts. Confinement preparation receives the opening signal; cancellation prevents terminal allocation even if the provider returns later. The terminal spawn request does not carry a product-registration marker.
 
 Before accepting input, a confined terminal rechecks its mode, workspace root, and protected-path set against its opening policy. A change refuses input and requires a new terminal; this check does not terminate already-running commands.
 
@@ -69,7 +69,7 @@ Both dialects expose the same readiness contract, so consumers are dialect-agnos
 
 ### Sandboxing and safe operation
 
-Under the implicit Windows default without directory consent, spawning a terminal requests [workspace authorization](../../sandbox/sandbox-policy/README.md#windows-workspace-records) before the shell starts. The shell runs under the effective sandbox boundary for its whole life. Changing the effective sandbox mode is rejected while the owner still has open sessions or a spawn in progress — wait for creation to settle and close the sessions first, so a terminal opened with wider access cannot survive a downgrade. The backend supplies only terminal-specific environment overrides; the subprocess provider applies its shared credential scrub.
+Under the implicit Windows default, spawning a terminal follows the session sandbox mode and does not request a separate persistent workspace authorization. The shell runs under the effective sandbox boundary for its whole life. Changing the effective sandbox mode is rejected while the owner still has open sessions or a spawn in progress — wait for creation to settle and close the sessions first, so a terminal opened with wider access cannot survive a downgrade. The backend supplies only terminal-specific environment overrides; the subprocess provider applies its shared credential scrub.
 
 ### Observable outcomes and failures
 

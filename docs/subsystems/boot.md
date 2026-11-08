@@ -34,11 +34,7 @@ The [boot package group](../../packages/boot/README.md) owns launcher-provided p
 
 <a id="profile-input-paths"></a>
 
-`ProfileContext.overlayPaths` optionally records absolute command-line patch paths whose parsed contents are frozen at launch. `bundleInputPaths` records bundle manifests and patches read by the process, retaining earlier inputs across recompositions. The launcher supplies overlay paths; `readBundlePatches()` extends the bundle set. The [sandbox policy](../../packages/sandbox/sandbox-policy/README.md#protected-host-inputs) consumes these paths without treating unrelated project manifests as host inputs.
-
-A registered product-home root captures all unlisted inputs. The shared protected-root helpers define diagnostic regular files through `isHomeDiagnosticFile()` and exactly four mutable authoritative trees through `authoritativeHomeTrees()`: `ledger/`, `sessions/`, `storages/session_projcache/sessions/`, and `messages/`. Capture and review omit these trees' bytes and additions from content comparisons without content-change warnings; their parents and unlisted siblings remain protected inputs. On Linux and macOS, each pass checks existing tree roots are real directories, entries belong to the current user, regular files and directories are not group/other-writable, and symbolic and hard links remain within the same tree. Only directories, regular files, and confined symbolic links are accepted; absent roots may be created by the host. Structural failures reject capture or review with bilingual recovery instructions, without requesting content approval. Windows performs no structural check for these trees and relies only on sandbox write exclusions. This read selection does not change those exclusions. Owner-installed MCP servers and providers outside confinement can still change authoritative content. Process-local capture caches reuse only individually unchanged, mature entries; a changed directory invalidates its listing rather than unrelated files. `ProtectedInputReviewError` carries bilingual recovery instructions to admission consumers.
-
-Startup readers retain an isolated reviewer only within the current host lifetime. Stable reviews use small request-bound messages; changed authority and failed reviews discard checked state. [App-boot](../../packages/boot/app-boot/README.md#profiles) owns import, supervision, publication, and disposal semantics. No checked-state cache survives host restart.
+`ProfileContext.overlayPaths` optionally records absolute command-line patch paths whose parsed contents are frozen at launch. `bundleInputPaths` records bundle manifests and patches read by the process, retaining earlier inputs across recompositions. The launcher supplies overlay paths; `readBundlePatches()` extends the bundle set. [App-boot](../../packages/boot/app-boot/README.md#profiles) owns import, supervision, publication, and disposal semantics.
 
 ## Profile reconciliation
 
@@ -342,7 +338,7 @@ Source: [`packages/client/ui-plugin-manager/src/index.ts`](../../packages/client
 
 Current profile facts; scheduling and mutation belong to their callers.
 
-Source: [`packages/boot/app-boot/src/profile-context-types.ts`](../../packages/boot/app-boot/src/profile-context-types.ts)
+Source: [`packages/boot/app-boot/src/profile-context.ts`](../../packages/boot/app-boot/src/profile-context.ts)
 
 <a id="app-boot-events"></a>
 

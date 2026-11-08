@@ -26,4 +26,5 @@ export function apply(ctx: Context, config: Config): void {
   }), 'claude-agent.instructions()')
 }
 
+/** Cordis plugin that publishes one Claude agent instruction section. */
 export default { name, inject, apply }

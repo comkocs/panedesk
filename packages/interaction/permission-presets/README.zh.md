@@ -63,9 +63,7 @@ kind: "package-reference"
 
 仅限所有者调用的 `workspaceWriteAccess`、`authorizeWorkspaceWrite` 和 `revokeWorkspaceWrite` Remote 方法通过 sandbox-policy 管理规范化工作区记录，并通过挂载的沙盒提供方管理原生 ACE。读取涵盖本机活会话、冷历史会话目录和 effect 管理的 `registerWorkspaceDirectories` 贡献，不恢复智能体。没有记录的精确产品写权限 ACE 标为 `legacy`。中断的撤销标为 `revocation-pending`，即使没有授权记录、历史条目或残留 ACE 也会列出，供所有者重试。已有记录的目录删除后仍会列出，可不调用原生 ACL 完成撤销；sandbox-policy 会拒绝路径身份已改变的情况。已不存在的旧 ACE 候选目录会跳过；元数据不可读或 ACL 检查失败会拒绝清单读取，而不是返回空列表。不支持的平台不能修改 Windows 授权。
 
-存在 profile 上下文时，授予工作区写权会在发布任何预设或权限事实前异步捕获已登记的受保护宿主输入。`set()` 与 `initialize()` 返回捕获完成结果时，调用方须等待；Auto 准入仍同步执行。本服务通过 `session/preparing` 负责权限准备；智能体创建事务在持久化与两道创建公告之前等待准备完成。捕获失败或取消会拒绝创建，不追加权限事实、不公告会话、不留下新的存储会话。取消会等待所拥有的捕获工作收敛，并在提交权限事实前再次检查；成功捕获的共享工作区基线不会撤销。会话捕获使用会话工作目录；未记录目录时使用沙箱策略的工作区根。可信配置副本与插件身份保存在该可写根之外，或在 Linux 和 macOS 上保存在根下受保护的第一级状态目录中，跨重启保持；捕获失败会拒绝授权。Full access 不获得这层保护。输入覆盖与加载限制见 [app-boot](../../boot/app-boot/README.zh.md#profiles)。
-
-设置重授在捕获前开始新的工作区代次；撤销取得工作区记录锁时使旧工作失效。迟到的捕获不能发布同意或覆盖新授权。已发出且没有执行完成证明的可写 argv 会阻止立即重授，即使原生撤销成功也不例外。
+`set()` 与 `initialize()` 发布预设和权限事实，不采集宿主输入。Auto 准入仍同步执行。本服务通过 `session/preparing` 负责权限准备；智能体创建事务在持久化与两道创建公告之前等待准备完成。启动器提供的 profile 事实见 [app-boot](../../boot/app-boot/README.zh.md#profiles)。
 
 ### 会话默认值
 

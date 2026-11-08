@@ -1206,13 +1206,11 @@ stream(options: GenerateOptions): AsyncIterable<StreamChunk>
 
 /**
  * Send the shortest generation that proves one model answers: one output
- * token, no tools, no session. The credential stays inside the adapter that
- * already serves the route; this method never logs or returns it.
+ * token, no tools, no session.
  * @param provider - registered provider route.
  * @param model - model id, including one the catalog does not list.
  * @param signal - caller cancellation.
- * @returns success, or the adapter's own failure with the message kept and
- *   the credential-shaped text removed.
+ * @returns success, or the adapter's own failure.
  */
 async probeModel( provider: string, model: string, signal?: AbortSignal, ): Promise<LlmModelProbeResult>
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-fs-sandbox` confines model file writes and edits according to each session's sandbox mode while excluding registered owner identity material from restricted reads. In `read-only`, it rejects every mutation; in `workspace-write`, it permits targets only inside the session workspace or a platform temporary root; in `danger-full-access`, it does not restrict mutations. Use it instead of `fs-local` with `ctx.sandboxPolicy` when sessions need workspace-confined file changes. Denied operations return `FS_SANDBOX_DENIED`, which filesystem tools present with the active mode and a same-turn escalation hint.
+`dsh-fs-sandbox` confines model file writes and edits according to each session's sandbox mode. In `read-only`, it rejects every mutation; in `workspace-write`, it permits targets only inside the session workspace or a platform temporary root; in `danger-full-access`, it does not restrict mutations. Use it instead of `fs-local` with `ctx.sandboxPolicy` when sessions need workspace-confined file changes. Denied operations return `FS_SANDBOX_DENIED`, which filesystem tools present with the active mode and a same-turn escalation hint.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this backend instead of `fs-local` when the model's file writes and edits must be confined by the session's sandbox mode, while ordinary reads stay available and owner identity directories remain inaccessible. The fence applies per call: the tool layer resolves the calling session's mode and workspace root into the same policy the bash runner receives, so the filesystem and shell families never confine to different roots.
+Mount this backend instead of `fs-local` when the model's file writes and edits must be confined by the session's sandbox mode, while ordinary reads stay available. The fence applies per call: the tool layer resolves the calling session's mode and workspace root into the same policy the bash runner receives, so the filesystem and shell families never confine to different roots.
 
 ### Minimal composition
 
@@ -45,11 +45,11 @@ The backend's config is unchanged from the local backend's (`cwd` resolution def
 
 The effective mode comes from the calling session's override or escalation grant, falling back to the deployment default when neither is in force. `read-only` denies every mutation with the structured `FS_SANDBOX_DENIED`. `workspace-write` allows a mutation only when the target canonicalizes under the workspace root or a platform temp area (`/tmp`, `os.tmpdir()`) — the same writable set the Seatbelt profile grants. `danger-full-access` delegates unfenced.
 
-`workspace-write` also rejects targets that contain, or lie within, a [protected host input](../../sandbox/sandbox-policy/README.md#protected-host-inputs), including targets inside an authorized workspace. It combines the supplied policy with the current host's protected paths immediately before mutation and canonicalizes missing paths through their nearest existing ancestor, including symlink prefixes. These denials retain `sandboxDenial: 'protected-host-path'` and the specific reason instead of the generic escalation hint.
+`workspace-write` also rejects targets that contain, or lie within, a path listed in the call policy's `protectedPaths` or the current sandbox-policy resolution, including targets inside an authorized workspace. It combines those lists immediately before mutation and canonicalizes missing paths through their nearest existing ancestor, including symlink prefixes. These denials retain `sandboxDenial: 'protected-host-path'` and the specific reason instead of the generic escalation hint.
 
 ### Observable success and failures
 
-Restricted text, byte, range, stream, and metadata reads reject registered owner identity material with `FS_SANDBOX_DENIED`; listings omit those entries. Checks combine the supplied policy with the live provider inventory and compare canonical paths and file identity, including hard-link aliases. Ordinary files retain local read behavior. Explicit `danger-full-access` bypasses these read checks; watches do not add an independent read barrier. A denied mutation returns an `FS_SANDBOX_DENIED` error carrying the effective mode; through the tools the model sees `[sandbox: file access denied under <mode> mode]` plus the one-approved-wider retry hint, identical to bash's denials. A session with an approved escalation may retry the same operation at a strictly wider mode for that one call.
+Reads keep local filesystem behavior. A denied mutation returns an `FS_SANDBOX_DENIED` error carrying the effective mode; through the tools the model sees `[sandbox: file access denied under <mode> mode]` plus the one-approved-wider retry hint, identical to bash's denials. A session with an approved escalation may retry the same operation at a strictly wider mode for that one call.
 
 -----
 
@@ -63,7 +63,7 @@ This section explains the design decisions behind the sandbox backend and points
 
 ### Design concept
 
-Content authorization uses the [local backend's opened-file identity](../fs-local/README.md#opened-file-reads), not a path check followed by reopening. It compares the handle's final name and device/inode against the existing owner inventory, including hard-link aliases, before reading any bytes. Replacing the final name or an ancestor cannot redirect an authorized read. Edit pre-reads and overwrite diff bases use the same check. Linux mutations select an existing writable root and use the local backend's directory-relative operations; kernel isolation of untrusted code stays `ctx.shell`'s job.
+Reads use the local backend. Linux mutations select an existing writable root and use the local backend's directory-relative operations; kernel isolation of untrusted code stays `ctx.shell`'s job.
 
 ### Source map
 

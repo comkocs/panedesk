@@ -16,7 +16,6 @@ The `dsh` command is the sole supported Node application launcher: profiles are 
 | `dsh --profile sdk-minimal` | Serve SDK clients with the standalone minimal agent tree. |
 | `dsh web` | Boot the Web profile. |
 | `dsh plugin --profile <name> <pnpm args>` | Manage a profile's plugins by forwarding to pnpm in the profile directory. |
-| `panedesk cleanup-owner-labels --stopped <directory>` | Offline Windows owner-label withdrawal before uninstalling; see the [cleanup procedure](../../packages/sandbox/sandbox-windows-acl/README.md#owner-label-removal-before-uninstall). |
 
 The invoking directory is the default workspace root. The `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` profiles auto-initialize on first use from shipped templates. Create or reset another profile at a non-shipped name with `--from-default-profile`, or initialize a base-backed profile through `dsh plugin`. The `desktop` name is reserved for the Electron-owned profile, so the CLI rejects boot and config-dump requests for it. The npm CLI also rejects its plugin-management requests; the [Desktop-installed command](../desktop/README.md#bundled-command-runtime) can manage the initialized Desktop profile using that installation’s runtime.
 
@@ -24,7 +23,7 @@ On Windows, a booted profile with sandbox policy prints its configured default m
 
 On POSIX, the CLI re-executes with `--disable-sigusr1` before loading a profile or credentials, preserving its PID, standard streams, arguments, and environment. Signal-triggered Inspector activation is disabled for every profile; explicit trusted `--inspect` startup remains available. IPC launchers must pass `--disable-sigusr1` on the Node command line; `NODE_OPTIONS` is not recognized because the CLI reads `process.execArgv` only. An unprotected IPC invocation fails before profile loading instead of replacing the process and losing its channel. A runtime without process replacement must also be launched with this flag or startup fails closed. Windows has no SIGUSR1; this flag does not establish Windows process-access isolation.
 
-If the initial protected-input review refuses a Web launch, no profile plugins mount. A loopback-only, API-free page at the requested `--port` (3080 by default) displays an English and Chinese refusal; detailed input paths remain on stderr. This page returns HTTP 503, grants no workspace access, and stays in the refused state until SIGINT or SIGTERM closes it with exit code 1. A remote bind or TLS option does not expose this diagnostic page remotely. Other profiles retain their nonzero-exit behavior.
+A refused Web launch mounts no profile plugins. Other profiles retain their nonzero-exit behavior.
 
 ## App arguments
 
@@ -66,7 +65,7 @@ Plugin commands can import `requestRunningHost` and `RunningHostOptions` from `p
 
 The built headless entry acceptance uses an isolated project directory with its owner home outside that workspace, so the checkout and its linked dependencies are not treated as task inputs.
 
-The headless credential acceptance checks restored legacy credentials at the provider's `private/.credentials.yaml` destination and requires their contents to remain unchanged. Its stderr assertions allow only the exact bilingual startup-review banner and progress lines.
+The headless credential acceptance checks restored legacy credentials at the provider's `private/.credentials.yaml` destination and requires their contents to remain unchanged.
 
 Production runs require built package and frontend artifacts. From the repository root, run `pnpm run build` separately, then use `pnpm dsh <args...>` to run the TypeScript entry and forward every argument; the [source-execution reference](reference/README.md#source-execution) owns the module-resolution contract.
 

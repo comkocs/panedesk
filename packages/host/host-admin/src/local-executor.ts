@@ -11,7 +11,7 @@ import type { HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdmin
  * @param request - Authenticated and validated request.
  * @param authority - Exact transport-owned operator identity.
  * @param nodeId - Configured local node.
- * @param limit - Pending scan page bound.
+ * @param _limit - Pending scan page bound retained by the host signature.
  * @param current - Whether this administration lifecycle still owns its credential.
  * @returns Provider response, or null when required capabilities are absent.
  */

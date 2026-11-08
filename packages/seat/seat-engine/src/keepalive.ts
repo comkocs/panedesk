@@ -64,7 +64,6 @@ export class KeepAliveScheduler {
    * @param evidenceAt - last observed cache refresh, or unavailable.
    * @param dueAt - automatic deadline, absent for manual requests.
    * @param now - observation clock.
-   * @param commit - Optional audited attempt commit; omission retains legacy admission.
    * @returns terminal evidence; an interrupted attempt is uncertain and never replayed.
    */
   async renew(sessionId: SessionId, operationId: T.SeatOperationId, source: 'auto' | 'manual',
