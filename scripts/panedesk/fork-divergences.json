@@ -1956,13 +1956,14 @@
     },
     {
       "id": "provider-model-recognition-and-short-probes",
-      "description": "Provider model recognition and one-token probes.",
+      "description": "Provider model recognition, custom-first API setup with generated IDs, and one-token probes.",
       "origin": "Provider settings and adapter integration",
-      "reason": "Upstreamable: expose advertised creation times, select the newest three models or retain server order, preserve existing settings metadata, and probe an unlisted identifier once through its host adapter without changing normal catalog resolution or Session requests.",
+      "reason": "Upstreamable: expose advertised creation times, select the newest three models or retain server order, preserve existing settings metadata, and probe an unlisted identifier once through its host adapter without changing normal catalog resolution or Session requests. Open custom API setup first, generate unique configuration IDs from display names or endpoint hostnames without changing existing IDs, and discover models from the draft endpoint and key before saving the selected models under the new provider.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "packages/client/ui-settings-models/src/client/CustomProviderCard.tsx",
           "packages/client/ui-settings-models/src/client/RecognizeModels.tsx",
           "packages/client/ui-settings-models/src/client/recognize.ts",
           "packages/client/ui-settings-models/src/client/operations.ts",
