@@ -6,6 +6,9 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../typert/protocol" },
-    { "path": "../../session/ledger-query" }
+    { "path": "../../session/ledger-query" },
+    { "path": "../../boot/config-editor" },
+    { "path": "../../settings/settings" },
+    { "path": "../../util/home-paths" }
   ]
 }

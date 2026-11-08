@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Adds a read-only inbox to the existing Session header. Its entry and isolation-warning controls use the compact 28px size to preserve the header height. The initial home screen and Sessions using the `minimal` preset have no inbox entry or isolation-warning controls. The [message delivery provider](../../session/message-delivery-local/README.md) owns message states, metadata and isolated evidence; this plugin neither sends messages nor opens Sessions. See [Session persistence](../../../docs/subsystems/persistence.md).
+Retains the dormant Host observation adapter for explicit profile consumers. The archived Client entry contributes no header button, modal, resources or Remote mount. The [message delivery provider](../../session/message-delivery-local/README.md) owns message states, metadata and isolated evidence; this plugin neither sends messages nor opens Sessions. See [Session persistence](../../../docs/subsystems/persistence.md).
 
 ## Table of Contents
 
@@ -20,11 +20,9 @@ Adds a read-only inbox to the existing Session header. Its entry and isolation-w
 
 ## Configuration and use
 
-The Web bundle includes an inert `ui-inbox` row; a product profile enables it with `config: { enabled: true }`. `enabled` defaults to false, `pollIntervalMs` to 1000 and `pageSize` to 100. The Host exposes only an owner-authorized observation stream for an exact receiving Session. Missing query capabilities report unavailable; a disabled adapter returns an explicit disabled observation. No delegated identities or caller-supplied sender authority are accepted.
+The Web bundle does not compose this package. An explicit profile can mount its Host adapter with `config: { enabled: true }` without restoring the removed UI. `enabled` defaults to false, `pollIntervalMs` to 1000 and `pageSize` to 100. The Host exposes only an owner-authorized observation stream for an exact receiving Session. Missing query capabilities report unavailable; a disabled adapter returns an explicit disabled observation. No delegated identities or caller-supplied sender authority are accepted.
 
-The inbox shows sender seat when the existing owner-authorized binding query supplies it, otherwise human or unknown attribution, creation time, priority and the six existing message states. Rows sort by creation time then message identity. Only routing metadata is requested; message bodies, paths and credentials are excluded. A warning appears only when the requested mailbox has verified isolation evidence; opening it displays localized reasons. No quarantine state is added to the lifecycle enumeration.
-
-The panel distinguishes default, loading, empty, error, unauthorized, disabled, success and failed refresh observations. Partial results remain explicitly incomplete. Resources own subscription lifetimes; closing the modal does not create a separate polling loop. Plugin disposal removes the Remote mount and all UI, resource and locale contributions.
+The Host adapter returns sender attribution when the existing binding query supplies it, creation time, priority and existing message states. Only routing metadata is requested; message bodies, paths and credentials are excluded. Verified mailbox isolation evidence remains separate from lifecycle states. Partial results remain explicitly incomplete.
 
 ## Model Experience
 
@@ -50,4 +48,4 @@ The plugin neither changes request prefixes nor refreshes caches.
 
 ### Dev Note
 
-The browser reads only the standard resource seat. The Host filters existing delivery queries by receiving Session and uses existing owner authority for optional seat labels.
+The no-op Client entry preserves existing package manifests without retaining the retired button implementation. The Host adapter and underlying message delivery are unchanged.

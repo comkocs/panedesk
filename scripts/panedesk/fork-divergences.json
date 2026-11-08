@@ -2041,13 +2041,18 @@
     },
     {
       "id": "owner-readonly-ledger-statistics",
-      "reason": "Read-only statistics retain time selections, evidence-aware aggregates, unfinished child-session counts and five tabs without an owner gate.",
-      "description": "Read-only ledger statistics.",
+      "reason": "Read-only statistics use the former inbox header position with number cards, model token bars, daily trends and recorded subagent call timelines. Workspace metadata supplies project labels without treating internal attribution as projects. The global settings page exposes immediate-save enablement and refresh cadence plus absolute profile and journal paths. The inbox client observation UI and default bundle entry are removed; its dormant Host adapter and message delivery remain unchanged.",
+      "description": "Graphical session statistics and global profile configuration.",
       "origin": "Callback and statistics integration",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/client/ui-stats/**",
+          "packages/client/ui-inbox/src/client/**",
+          "packages/client/ui-inbox/README*",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "pnpm-lock.yaml",
           "packages/session/ledger-query/src/stats.ts",
           "packages/session/ledger-query/src/query.ts",
           "packages/session/ledger-query/tests/stats.spec.ts"

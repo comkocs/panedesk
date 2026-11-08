@@ -88,7 +88,6 @@
     "@panedesk/dsh-client-ui-directory-picker-native": "workspace:*",
     "@panedesk/dsh-client-ui-goal": "workspace:*",
     "@panedesk/dsh-client-ui-input-trigger": "workspace:*",
-    "@panedesk/dsh-client-ui-inbox": "workspace:*",
     "@panedesk/dsh-client-ui-jobs": "workspace:*",
     "@panedesk/dsh-client-ui-layout": "workspace:*",
     "@panedesk/dsh-client-ui-message-feedback": "workspace:*",
