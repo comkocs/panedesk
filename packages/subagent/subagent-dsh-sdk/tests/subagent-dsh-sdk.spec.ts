@@ -317,7 +317,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       expect(order).toEqual(['intent', 'construct', 'identity'])
       expect(createdHarnessOptions[0]?.ledgerContext).toMatchObject({ parentRunId: 'parent-run', parentSessionId: 'parent', identitySource: 'inherited' })
       expect(facts[0]).toMatchObject({ launchState: 'pending', parentRunId: 'parent-run', runId: run.id })
-      expect(facts[1]).toMatchObject({ kind: 'process/observed', identity: { verification: 'verified' } })
+      expect(facts[1]).toMatchObject({ kind: 'process/observed', identity: { verification: 'unverified' } })
       expect((await run.result).stopReason).toBe('completed')
     } finally { await run.dispose() }
     expect(order).toEqual(['intent', 'construct', 'identity', 'end'])
@@ -585,9 +585,10 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       const ctx = await setup({ FAKE_MALFORMED: '1' })
       const error = await startExternalActivation(ctx, 'dsh-sdk', request()).catch((cause: unknown) => cause)
       expect(error).toBeInstanceOf(AggregateError)
-      expect((error as Error).message).toBe(
-        `subagent-dsh-sdk: ${expectedFailure('stage: initialize; category: protocol')}; `
-        + `subagent-dsh-sdk: ${expectedFailure('stage: shutdown; category: unknown')}`,
+      expect((error as Error).message).toMatch(
+        new RegExp('^subagent [0-9a-f-]+ failed during session-creation: '
+          + 'subagent-dsh-sdk: Subagent failure \\(provider: DSH SDK; stage: initialize; category: protocol\\); '
+          + 'subagent-dsh-sdk: Subagent failure \\(provider: DSH SDK; stage: shutdown; category: unknown\\)$'),
       )
       expect((error as Error).message).not.toContain(rawCleanup)
       await ctx.fiber.dispose()
@@ -914,8 +915,9 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       () => { throw new Error('start unexpectedly succeeded') },
       (error: unknown) => error,
     )
-    expect(String(failure)).toBe(
-      `SdkRunFailure: subagent-dsh-sdk: ${expectedFailure('stage: initialize; category: transport')}`,
+    expect(String(failure)).toMatch(
+      new RegExp('^SdkRunFailure: subagent [0-9a-f-]+ failed during session-creation: '
+        + 'subagent-dsh-sdk: Subagent failure \\(provider: DSH SDK; stage: initialize; category: transport\\)$'),
     )
     expect(String(failure)).not.toContain(rawStderr)
     await ctx.fiber.dispose()

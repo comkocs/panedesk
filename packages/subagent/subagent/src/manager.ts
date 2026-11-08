@@ -564,7 +564,10 @@ export class SubagentManager {
       return { ...this.receipt(established), childId, messageId }
     } catch (error: unknown) {
       releaseHold()
-      if (error instanceof Error) error.message = `subagent ${childId} failed during session-creation: ${error.message}`
+      if (error instanceof Error && error.name !== 'AbortError'
+        && Object.getOwnPropertyDescriptor(error, 'message')?.writable !== false) {
+        error.message = `subagent ${childId} failed during session-creation: ${error.message}`
+      }
       throw error
     }
   }

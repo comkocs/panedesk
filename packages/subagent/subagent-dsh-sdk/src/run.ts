@@ -352,7 +352,9 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     request.signal.removeEventListener('abort', onAbort)
     if (error !== cancelledStartup) {
       const failure = sdkStartupFailure(spec, error)
-      failure.message = `subagent ${id} failed during session-creation: ${failure.message}`
+      if (Object.getOwnPropertyDescriptor(failure, 'message')?.writable !== false) {
+        failure.message = `subagent ${id} failed during session-creation: ${failure.message}`
+      }
       throw failure
     }
     try {

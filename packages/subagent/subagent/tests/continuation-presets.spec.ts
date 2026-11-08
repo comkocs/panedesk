@@ -139,10 +139,14 @@ describe('child preset start validation', () => {
     ctx.on('subagent/start', () => void published.push('subagent/start'))
     const spec = startSpec(parent, 'reviewing')
 
-    await expect(ctx.subagents.startActivation(spec)).rejects.toMatchObject({
-      code: 'PRESET_UNAVAILABLE',
-      message: 'selecting a child agent preset requires the agent-presets service',
-    })
+    const presetError = await ctx.subagents.startActivation(spec).then(
+      () => { throw new Error('start unexpectedly succeeded') },
+      (error: unknown) => error,
+    )
+    expect(presetError).toMatchObject({ code: 'PRESET_UNAVAILABLE' })
+    expect((presetError as { message: string }).message).toMatch(
+      /^subagent [0-9a-f-]+ failed during session-creation: selecting a child agent preset requires the agent-presets service$/,
+    )
     expect(ctx.agents.list().map(agent => agent.id)).toEqual([parent.id])
     expect(ctx.sessions.list()).toHaveLength(beforeSessions)
     expect(parent.session.snapshotEvents()).toEqual(beforeEvents)
