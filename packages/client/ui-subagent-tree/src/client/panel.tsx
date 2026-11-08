@@ -40,7 +40,7 @@ function stateKey(status: ResourceStatus, value: SubagentTreeData | undefined, c
   if (code === 'subagentTree/disabled') return 'disabled'
   if (status === 'failed') return value ? 'failed' : 'error'
   if (status === 'loading') return 'loading'
-  if (!value) return 'idle'
+  if (!value) return 'noSession'
   if (!value.complete) return 'partial'
   return value.root.children.length === 0 ? 'empty' : 'success'
 }

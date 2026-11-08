@@ -36,7 +36,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部——点击展开</summary>
 
-宿主半在核验调用方为已认证所有者后，只暴露一个 Remote：`subagentTree.read(request)`。树直接读去重后的 `sessionLedger` 快照（不改 `ledger-query`）：成员资格沿能到达请求会话的 `parentSessionId` 链，环退化为排除，账本行序即观测序。逐会话 token 列对带用量的调用结束求和；短档写仅在调用可证分档缓存写时存在，未分档写只保留总计；缓存命中 = 缓存读 ÷（未缓存输入 + 缓存读 + 已观测写），零分母为未知。状态在最新驻留有结束帧时为 `finished` 并带账本结束原因，否则有未配对 `wait/start` 时为 `waiting`，否则 `running`；存活来自进程观测。内置派遣在执行前写入关联父会话的运行开始记录，结算后保留结束记录，按预设类型派遣也走此路径。模型号与最近工具调用经 `sessionQuery.readSession` 折叠会话自身日志后缀，跳过 fork 继承前缀；请求头在首次助手响应前提供已观测路由，随后以响应报告的模型为准；`sessionQuery` 缺失标记模型不可用，日志不可读标记不可读——两者在线上均保持未知。
+宿主半在核验调用方为已认证所有者后，只暴露一个 Remote：`subagentTree.read(request)`。树直接读去重后的 `sessionLedger` 快照（不改 `ledger-query`）：成员资格沿能到达请求会话的 `parentSessionId` 链，环退化为排除，账本行序即观测序。逐会话 token 列对带用量的调用结束求和；短档写仅在调用可证分档缓存写时存在，未分档写只保留总计；缓存命中 = 缓存读 ÷（未缓存输入 + 缓存读 + 已观测写），零分母为未知。状态在最新驻留有结束帧时为 `finished` 并带账本结束原因，否则有未配对 `wait/start` 时为 `waiting`，否则仅在最新运行已开始且未结束时为 `running`，其余为 `idle`；存活来自进程观测。内置派遣在执行前写入关联父会话的运行开始记录，结算后保留结束记录，按预设类型派遣也走此路径。模型号与最近工具调用经 `sessionQuery.readSession` 折叠会话自身日志后缀，跳过 fork 继承前缀；请求头在首次助手响应前提供已观测路由，随后以响应报告的模型为准；`sessionQuery` 缺失标记模型不可用，日志不可读标记不可读——两者在线上均保持未知。
 
 </details>
 

@@ -44,7 +44,7 @@ export interface SubagentTokenColumns {
 }
 
 /** Coarse monitoring state of one node derived from ledger lifecycle and wait facts. */
-export type SubagentNodeStatus = 'running' | 'waiting' | 'finished'
+export type SubagentNodeStatus = 'running' | 'waiting' | 'finished' | 'idle'
 
 /** Process-liveness observation for one node; it never overrides lifecycle facts. */
 export type SubagentLiveness = 'confirmed' | 'unknown' | 'dead'

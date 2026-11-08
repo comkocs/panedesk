@@ -152,7 +152,9 @@ function factsOf(session: SessionAccumulator, asOf: number): SubagentSessionFact
   const denominator = session.inputTokens + session.cacheReadTokens + writeSide
   const cacheHitRate = denominator > 0 ? session.cacheReadTokens / denominator : null
   const finished = session.endReason !== undefined
-  const status: SubagentNodeStatus = finished ? 'finished' : session.waitOpens > session.waitCloses ? 'waiting' : 'running'
+  const status: SubagentNodeStatus = finished ? 'finished'
+    : session.waitOpens > session.waitCloses ? 'waiting'
+    : session.latestRunStartedAt !== null && session.latestRunEndedAt === null ? 'running' : 'idle'
   const elapsedMs = session.latestRunStartedAt === null
     ? null
     : (session.latestRunEndedAt ?? asOf) - session.latestRunStartedAt
