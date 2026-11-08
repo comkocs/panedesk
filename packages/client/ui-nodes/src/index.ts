@@ -28,7 +28,7 @@ declare module '@panedesk/cordis' {
 
 /** The browser cannot supply a principal, grant, host epoch or arbitrary administrative method. */
 export default class NodesService extends TypertRemoteService {
-  static Config: Schema<Config> = Schema.object({
+  static Config = Schema.object({
     enabled: Schema.boolean().default(false),
     refreshIntervalMs: Schema.number().min(1000).max(2147483647).step(1).default(10000).volatile(),
     pageSize: Schema.number().min(1).max(200).step(1).default(200),

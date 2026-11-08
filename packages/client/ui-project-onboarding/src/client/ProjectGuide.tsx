@@ -77,4 +77,3 @@ export function ProjectGuide(props: GuideProps) {
     {insertFailed && <p role="alert">{t('unavailable')}</p>}
   </Modal>
 }
-

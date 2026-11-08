@@ -51,7 +51,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       const result = await scope.remote.nodes.configure(change)
       if (!result.ok) throw result.error
     }, openPath: async (path, action) => {
-      const result = await scope.remote.session.openWorkspacePath({ path, action })
+      const result = await scope.remote.session.openWorkspacePath({ path, ...(action === 'reveal' ? { action } : {}) })
       if (!result.ok) throw result.error
     } }
     scope.effect(() => scope.resources.register<'nodes'>({
