@@ -885,16 +885,27 @@
       }
     },
     {
-      "id": "models-default-three-unknown",
-      "description": "Select only three newly recognized models by default.",
-      "origin": "Model recognition interaction repair",
-      "reason": "Default-check the three newest models that are not already configured.",
+      "id": "models-latest-family-and-provider-order",
+      "description": "Select one latest model per family, prioritize custom providers, and repair DeepSeek discovery.",
+      "origin": "Model recognition and provider ordering",
+      "reason": "Retain variant words in family ids, compare numeric versions and snapshot dates before creation times, and leave configured ids unchecked. Custom providers lead the list and official DeepSeek comes last. Recognition waits for a configured DeepSeek key and lists models at the API root instead of the Messages endpoint.",
       "match": {
-        "type": "test-assertion",
+        "type": "behavior",
         "paths": [
-          "packages/client/ui-settings-models/src/client/ModelListEditor.tsx"
-        ],
-        "test": "provider-form default selection of unconfigured recognized models"
+          "packages/client/ui-settings-models/src/client/recognize.ts",
+          "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "packages/client/ui-settings-models/src/client/RecognizeModels.tsx",
+          "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "packages/client/ui-settings-models/src/client/store.ts",
+          "packages/client/ui-settings-models/src/client/locales.ts",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-settings-models/README.i18n.yaml",
+          "packages/llm/llm-deepseek-api-key/src/index.ts",
+          "packages/llm/llm-deepseek-api-key/README.md",
+          "packages/llm/llm-deepseek-api-key/README.zh.md",
+          "packages/llm/llm-deepseek-api-key/README.i18n.yaml"
+        ]
       }
     },
     {

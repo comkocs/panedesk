@@ -29,7 +29,7 @@ Desktop product events use the optional [product analytics service](../product-a
 
 Saving credentials or a custom provider preserves the selected model. The user can select an available model from the composer.
 
-DeepSeek Account appears first and DeepSeek second in the provider list; third-party providers retain their directory order.
+Custom providers appear first in the provider list and the built-in DeepSeek API-key provider appears last; other providers, including DeepSeek Account, retain their relative directory order.
 
 Open the Models page from the Settings navigation to see every configured provider as a row. A whole-section provider whose key is not configured anywhere renders as its open setup card instead, but only in the first-run posture and only until the user closes that card. Each card kind owns its own open state, so closing one never discards a draft in another.
 
@@ -49,7 +49,7 @@ The editor uses redacted `CredentialInfo` to choose the saved-credential placeho
 
 ### Editing a provider
 
-**Recognize models** asks a registered discovery route, including DeepSeek, for its catalog and selects the latest two models per family; providers without discovery do not show the button. Other candidates remain selectable; **Add selected** persists additions without replacing existing model metadata. **Try once** accepts an unlisted identifier and asks the Host for a session-free generation capped at one output token. Failures retain a sanitized reason; credentials, authentication headers, and URL queries are not displayed.
+**Recognize models** asks a registered discovery route, including DeepSeek, for its catalog and selects the latest model per family; providers without discovery do not show the button. Families remove numeric versions and dates from model ids while retaining variant words. Numeric version segments and snapshot dates rank newest first, with creation time breaking version ties; a list with neither retains server order. **Fetch available models** uses the same selection and leaves configured ids unchecked without selecting older replacements. DeepSeek recognition waits for a configured API key and otherwise shows a setup hint without sending a request. Other candidates remain selectable; **Add selected** persists additions without replacing existing model metadata. **Try once** accepts an unlisted identifier and asks the Host for a session-free generation capped at one output token. Failures retain a sanitized reason; credentials, authentication headers, and URL queries are not displayed.
 
 A blank key field offers a saved credential when one is detected, with no status text below the input; otherwise it offers environment authentication. Redacted `credentials.describe` checks distinguish a detected environment reference, no detected variables, and an unconfirmed read. A missing-variable hint uses the warning color and names the first variable to configure. A detected environment reference uses green. Address configuration variables do not count as credentials. Hidden authentication references still participate in detection; a generic detected hint keeps their names hidden. Detection does not validate credentials, test a connection, or inspect provider-managed files such as AWS profiles and Google application-default credentials. A nonempty input shows no authentication status text. The page reads native variable names as well as named references, in batches of at most 64, and never reads their values into the Client.
 
