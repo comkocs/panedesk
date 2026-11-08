@@ -110,7 +110,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: Subagen
       </tr></thead>
       <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}>
         <td style={{ paddingLeft: `${8 + depth * 18}px` }}>
-          <StateDot state={node.status === 'running' ? 'ongoing' : node.status === 'waiting' ? 'warning' : node.endReason === 'error' ? 'error' : 'done'} />
+          <StateDot state={node.status === 'running' ? 'ongoing' : node.status === 'waiting' ? 'warning' : node.endReason === 'error' ? 'error' : 'idle'} />
           <span className={css.label}>{label}</span>
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
