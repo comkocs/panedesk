@@ -21,7 +21,7 @@
   "scripts": { "bundle": "tsdown", "watch": "tsdown --watch" },
   "license": "MIT",
   "peerDependencies": { "@panedesk/cordis": "workspace:~" },
-  "dependencies": { "@panedesk/dsh-typert-protocol": "workspace:*", "zod": "^4.4.3" },
+  "dependencies": { "@panedesk/dsh-seat-engine": "workspace:*", "@panedesk/dsh-typert-protocol": "workspace:*", "zod": "^4.4.3" },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/schemastery": "workspace:~",
@@ -36,7 +36,6 @@
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-util-crypto": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
-    "@panedesk/dsh-seat-engine": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
