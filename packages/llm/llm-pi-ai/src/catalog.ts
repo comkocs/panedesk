@@ -55,10 +55,8 @@ export const MODALITIES = Object.keys(MODALITY_GATE) as readonly PiAiModality[]
 
 /**
  * One entry's modality list, or `undefined` when it states no answer. Absent
- * and empty mean the same thing — `[]` describes a model that accepts nothing
- * and could serve no request — which is what makes an entry naming a catalog
- * model without declaring modalities keep the catalog's, since the config
- * schema materializes `[]` for an absent array.
+ * and empty inherit the route's default input types, since the config schema
+ * materializes `[]` for an absent array.
  * @param configured - the list a `models` or `modelOverrides` entry supplied.
  * @returns the declared modalities, or `undefined` to ask the next level.
  */
@@ -615,15 +613,9 @@ export interface PiAiModelProfile {
    */
   maxTokens?: number
   /**
-   * Request modalities this model accepts. Absent — or empty, which describes
-   * a model that accepts nothing and so states no answer either — keeps the
-   * installed catalog entry's modalities, then the route's `defaultInput`.
-   * Declaring images is what makes a hand-declared vision model usable, and
-   * declaring text alone corrects a catalog model whose gateway does not serve
-   * what the catalog records. This is a claim about the endpoint, not a check
-   * of it: nothing interrogates a gateway for what it accepts, so a model
-   * claiming images its endpoint refuses is refused by the provider instead,
-   * mid-turn.
+   * Advisory request modalities. Absent or empty inherits the route's
+   * `defaultInput`, which defaults to text and image. Explicit declarations
+   * remain metadata and never suppress images in provider requests.
    */
   input?: PiAiModality[]
   /**
@@ -950,7 +942,7 @@ export function resolveRouteModels(
       api,
       provider,
       baseUrl,
-      input: declaredInput(entry.input) ?? base?.input ?? [...request.defaultInput],
+      input: declaredInput(entry.input) ?? [...request.defaultInput],
       cost: base?.cost ?? NO_COST,
       contextWindow,
       maxTokens,

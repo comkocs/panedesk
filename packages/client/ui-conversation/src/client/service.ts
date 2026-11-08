@@ -343,6 +343,8 @@ export class ConversationController extends Service implements IConversation {
   }
 
   private beginFileUpload(sessionId: SessionId, attachment: ComposerFileAttachment): void {
+    const snapshot = this.requireSessions().binding(sessionId)?.session.getSnapshot()
+    const ownerId = snapshot?.subagent?.address.parentSessionId ?? sessionId
     this.fileUploadOperations.get(attachment.id)?.controller.abort()
     const controller = new AbortController()
     this.fileUploads.update((draft) => {
@@ -358,7 +360,7 @@ export class ConversationController extends Service implements IConversation {
         if (controller.signal.aborted
           || this.fileUploadOperations.get(attachment.id)?.controller !== controller) return
         const result = await this.ctx.fileUpload.upload(
-          sessionId,
+          ownerId,
           attachment.file,
           attachment.file.name === '' ? undefined : attachment.file.name,
           controller.signal,

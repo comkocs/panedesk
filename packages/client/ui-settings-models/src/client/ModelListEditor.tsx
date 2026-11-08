@@ -14,7 +14,7 @@
  * rows the user can still fill in by hand.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
@@ -74,7 +74,7 @@ export interface ModelListEditorProps {
    * reasoning control, leaving a catalog model's levels to the catalog.
    */
   reasoningLevels?: readonly string[] | undefined
-  /** Route input types for models absent from the installed catalog. */
+  /** Route input types for models without an explicit declaration. */
   defaultInput?: readonly string[] | undefined
   /** Whether the user layer currently owns the whole array; absent on a create. */
   overridden?: boolean
@@ -182,7 +182,6 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     return () => { current = false }
   }, [catalogProvider, operations, probe.settingsNs])
   const catalog = inheritedCatalog?.provider === catalogProvider ? inheritedCatalog?.models : undefined
-  const inputDefaults = useMemo(() => new Map(catalog?.map(model => [model.id, model.inputModalities])), [catalog])
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const [candidateQuery, setCandidateQuery] = useState('')
@@ -395,7 +394,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             model={model}
             position={index + 1}
             inputField="input"
-            inputFallback={inputDefaults.get(textOf(model, 'id')) ?? props.defaultInput}
+            inputFallback={props.defaultInput}
             inputLoading={catalogProvider !== undefined && catalog === undefined}
             reasoningLevels={props.reasoningLevels}
             expanded={expanded.has(index)}

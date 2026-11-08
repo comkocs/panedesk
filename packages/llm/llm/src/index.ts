@@ -38,7 +38,7 @@ import { HarnessError, INVALID_CREDENTIAL_CODE } from './error.ts'
 import { normalizeLlmFailure } from './adapter-failure.ts'
 import { normalizeApiKey } from './api-key.ts'
 import {
-  contentHasFile, contentHasImage, fileHandleText, projectFilesToText, projectImagesForTextModel, projectToolUpdates,
+  contentHasFile, fileHandleText, projectFilesToText, projectToolUpdates,
 } from './content.ts'
 import type { FileAttachmentRef, ImageAttachmentRef, ImageRequestTarget } from '@panedesk/dsh-attachment'
 
@@ -755,13 +755,13 @@ export class LlmRuntime extends TypertRemoteService {
         throw new LlmError(`adapter returned invalid or duplicate model metadata for provider "${provider}"`, 'INVALID_CATALOG')
       }
       seen.add(model.id)
-      const inputModalities = this.detachedModalities(model.inputModalities)
+      const inputModalities = this.detachedModalities(model.inputModalities) ?? ['text', 'image'] as const
       return {
         provider: model.provider,
         id: model.id,
         name: model.name,
         ...model.description === undefined ? {} : { description: model.description },
-        ...inputModalities === undefined ? {} : { inputModalities },
+        inputModalities,
       }
     })
   }
@@ -820,9 +820,7 @@ export class LlmRuntime extends TypertRemoteService {
         'INVALID_MODEL_CONTEXT',
       )
     }
-    // Capability metadata rides through: an explicit modality omission is
-    // negative capability downstream preflights act on (image admission).
-    const inputModalities = this.detachedModalities(resolved.inputModalities)
+    const inputModalities = this.detachedModalities(resolved.inputModalities) ?? ['text', 'image'] as const
     // Widened: adapters derive this mode from catalog config, so the value is checked as a string.
     const systemPromptUpdate: string | undefined = resolved.systemPromptUpdate
     if (systemPromptUpdate !== undefined && systemPromptUpdate !== 'in-history') {
@@ -852,7 +850,7 @@ export class LlmRuntime extends TypertRemoteService {
       id: model,
       name: resolved.name,
       ...resolved.description === undefined ? {} : { description: resolved.description },
-      ...inputModalities === undefined ? {} : { inputModalities },
+      inputModalities,
       ...context === undefined ? {} : { context: { contextWindow: context.contextWindow } },
       ...defaultMaxTokens === undefined ? {} : { defaultMaxTokens },
       ...resolved.systemPromptUpdate === undefined ? {} : { systemPromptUpdate: resolved.systemPromptUpdate },
@@ -1119,11 +1117,6 @@ export class LlmRuntime extends TypertRemoteService {
       let projectedMessages: readonly RequestMessage[] = resolvedOptions.messages
       if (projectedMessages.some(message => contentHasFile(message.content))) {
         projectedMessages = projectFilesToText(projectedMessages, ref => this.fileReadPath(ref))
-      }
-      if (modelInfo.inputModalities !== undefined
-        && !modelInfo.inputModalities.includes('image')
-        && projectedMessages.some(message => contentHasImage(message.content))) {
-        projectedMessages = projectImagesForTextModel(projectedMessages)
       }
       // Tool changes are logged on every route; the route's declared mode selects what it receives.
       const projectedTools = projectToolUpdates(projectedMessages, resolvedOptions.tools, modelInfo.toolUpdate, resolvedOptions.toolHistory)

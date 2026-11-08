@@ -67,17 +67,8 @@ export const DEFAULT_CONTEXT_WINDOW = 262_144
 /** Output capability assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_MAX_TOKENS = 32_768
 
-/**
- * Modalities assumed for a model neither configuration nor the catalog
- * declares. Text is the floor every supported protocol certainly carries, so
- * this is the absence of a declaration rather than a guess at the endpoint:
- * nothing can interrogate a gateway for its modalities, and the two wrong
- * answers do not cost the same. Under-claiming refuses the image before it is
- * attached, naming the model. Over-claiming admits one the provider then
- * rejects mid-turn, after the message is durable, leaving the session
- * repeating a request that cannot succeed.
- */
-export const DEFAULT_INPUT: readonly PiAiModality[] = ['text']
+/** Default advisory input types; endpoint support is determined by the provider. */
+export const DEFAULT_INPUT: readonly PiAiModality[] = ['text', 'image']
 
 export type {
   PiAiCompatProfile,
@@ -138,14 +129,9 @@ export interface PiAiProviderProfile {
    */
   defaultMaxTokens?: number
   /**
-   * Request modalities for a model this route lists that neither its entry's
-   * {@link PiAiModelProfile.input} nor the installed catalog declares (default
-   * `[text]`). A fallback like the capacities above, not an override: a
-   * catalog model keeps the modalities the catalog records for it, and this
-   * value never narrows one. A gateway serving vision models the catalog does
-   * not describe declares `[text, image]` once here instead of on every entry.
-   * Unlike an entry's list, this one may not be empty — nothing sits below it
-   * to answer instead.
+   * Advisory request modalities when an entry's {@link PiAiModelProfile.input}
+   * is absent or empty (default `[text, image]`). This list does not restrict
+   * image dispatch; the upstream provider determines support. It must not be empty.
    */
   defaultInput?: PiAiModality[]
   /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */

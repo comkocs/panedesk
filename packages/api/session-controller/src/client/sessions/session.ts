@@ -30,7 +30,6 @@ import type {
 } from '../contract/events.ts'
 import { Notifier } from './notifier.ts'
 import { isRemoteFailure } from '@panedesk/dsh-api-gateway/client'
-import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import type { RemoteFailure, RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { SessionRemotes } from './remotes.ts'
 import { ProjectionValueStore } from './projection-store.ts'
@@ -275,26 +274,14 @@ export class Session implements SessionFace {
         content,
         clientTimeZone,
       }, signal)
-    } else if (content.some(part => part.type === 'file')) {
-      result = {
-        ok: false,
-        error: new RemoteError(
-          'subagent/attachment-invalid',
-          'subagent continuation does not accept files',
-          { reason: 'SUBAGENT_FILE_UNSUPPORTED' },
-        ),
-      }
     } else {
-      // The preceding branch rejects file parts before the narrower subagent
-      // wire type is used; this array is not filtered or reordered.
-      const routedContent = content as Exclude<PromptContentPart, { readonly type: 'file' }>[]
       const routed = await this.remote.subagents.prompt({
         requestId: requestId ?? randomUUID() as SessionRequestId,
         parentSessionId: this.address.parentSessionId,
         childSessionId: this.address.childSessionId,
         mode: 'continuable',
         delivery: mode,
-        content: routedContent,
+        content,
         clientTimeZone: resolvedClientTimeZone(),
       }, signal)
       result = routed.ok ? { ok: true, value: { accepted: true } } : routed

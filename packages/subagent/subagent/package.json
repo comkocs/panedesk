@@ -61,6 +61,7 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/dsh-client-file-upload": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
@@ -82,6 +83,9 @@
     "@panedesk/dsh-working-directory": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-client-file-upload": {
+      "optional": true
+    },
     "@panedesk/dsh-session-ledger": {
       "optional": true
     },
@@ -119,6 +123,7 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/dsh-client-file-upload": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",

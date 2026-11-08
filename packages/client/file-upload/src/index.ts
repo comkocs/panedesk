@@ -95,15 +95,16 @@ export class FileUploads extends TypertRemoteService {
   }
 
   /**
-   * Persist one encoded upload and stage it under the Agent receiver selected by Typert.
-   * @param agent - receiving Agent resolved from the Remote Agent scope.
+   * Persist one encoded upload for an ordinary Session or a live child.
+   * @param sessionId - receiving Session identity.
    * @param request - canonical base64 bytes and optional display name.
    * @param signal - caller cancellation before storage begins.
    * @returns the staged receipt and durable file reference.
    */
   @Remote('upload')
-  upload(agent: Agent, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue> {
+  async upload(sessionId: SessionId, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue> {
     signal.throwIfAborted()
+    const agent = await this.resolveAgent(sessionId)
     return this.commit(agent, async () => this.ctx.attachments.admitEncodedFile({
       data: request.data,
       ...(request.name === undefined ? {} : { name: request.name }),
@@ -177,7 +178,6 @@ export class FileUploads extends TypertRemoteService {
   }
 
   private async commit(agent: Agent, save: () => Promise<FileAttachmentRef>): Promise<FileUploadValue> {
-    this.assertOrdinaryAgent(agent)
     let file: FileAttachmentRef
     try {
       file = await save()
@@ -217,16 +217,6 @@ export class FileUploads extends TypertRemoteService {
       throw new RemoteError('session/not-found', `session "${sessionId}" is not attached`, { sessionId })
     }
     return resolver(sessionId)
-  }
-
-  private assertOrdinaryAgent(agent: Agent): void {
-    if (agent.session.header.origin === 'subagent') {
-      throw new RemoteError(
-        'subagent/attachment-invalid' as never,
-        'subagent conversations do not accept file uploads',
-        { reason: 'SUBAGENT_FILE_UNSUPPORTED' } as never,
-      )
-    }
   }
 
   private observeSessionEvent(session: Session, event: SessionEvent): void {

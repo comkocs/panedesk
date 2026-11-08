@@ -9,8 +9,8 @@
  * @module dsh-llm-deepseek/request-pricing
  */
 
-import { offloadedImageText, requestImageHandleText, textOnlyImageText } from '@panedesk/dsh-llm'
-import type { ImageAttachmentAccessResolver, ImageBlock, LlmImageRequestPrice, LlmImageRequestPricing } from '@panedesk/dsh-llm'
+import { offloadedImageText, requestImageHandleText } from '@panedesk/dsh-llm'
+import type { ImageAttachmentAccessResolver, LlmImageRequestPricing } from '@panedesk/dsh-llm'
 import { longEdgeDimensions, requestImageDimensions } from '@panedesk/dsh-attachment'
 import type { ImageAttachmentRef, ImageRequestTarget } from '@panedesk/dsh-attachment'
 import { deepSeekImageTokens, deepSeekRequestImageDimensions } from './image-tokens.ts'
@@ -65,19 +65,9 @@ export function resolveRequestImageTarget(
 }
 
 /**
- * Price one occurrence a text-only route substitutes with deterministic text,
- * reproducing the `projectImagesForTextModel` substitution `LlmRuntime`
- * applies before dispatching to a route without the `image` modality.
- */
-function textOnlyPrice(block: ImageBlock): LlmImageRequestPrice {
-  return { visualTokens: 0, text: textOnlyImageText(block.attachment) }
-}
-
-/**
  * Build the request-image pricing for one DeepSeek route from a validated
- * connection snapshot. Uncatalogued and text-only models price every
- * occurrence as its deterministic text substitution; image-capable models
- * price an offloaded occurrence as its placeholder text and a retained one by
+ * connection snapshot. Every model prices an offloaded occurrence as its
+ * placeholder text and a retained one by
  * its projected request dimensions, with each occurrence's handle or
  * placeholder text built through the same access resolution the serializer
  * uses. Access paths resolve at pricing time, so a path that changes before
@@ -92,10 +82,7 @@ export function deepSeekImageRequestPricing(
   model: string,
   resolveAccess?: ImageAttachmentAccessResolver,
 ): LlmImageRequestPricing {
-  const catalogModel = connection.models.find(entry => entry.id === model)
-  if (catalogModel?.inputModalities?.includes('image') !== true) {
-    return { priceImages: images => images.map(textOnlyPrice) }
-  }
+  const catalogModel = connection.models.find(entry => entry.id === model) ?? { id: model }
   return {
     priceImages: images => images.map(({ attachment: ref, offloaded }) => {
       if (offloaded === true) {

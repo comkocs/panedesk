@@ -562,9 +562,6 @@ export class PiAiAdapter extends LlmAdapter {
 
     try {
       const containsImage = options.messages.some(message => contentHasImage(message.content))
-      if (containsImage && !model.input.includes('image')) {
-        throw new LlmError(`pi-ai model "${model.id}" does not support image input`, 'UNSUPPORTED_CONTENT')
-      }
       const attachments = containsImage ? this.config.resolveAttachments?.() : undefined
       if (containsImage && attachments === undefined) {
         throw new LlmError('pi-ai image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
@@ -583,7 +580,9 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
-      const events = snapshot.models.streamSimple(model, context, {
+      // pi-ai otherwise drops image blocks according to advisory catalog metadata.
+      const requestModel: Model<Api> = { ...model, input: ['text', 'image'] }
+      const events = snapshot.models.streamSimple(requestModel, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...cache.options,
         onResponse: (response) => { evidence.status = response.status },

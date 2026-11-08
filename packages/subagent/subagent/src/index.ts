@@ -32,7 +32,9 @@ import type { Volatile } from '@panedesk/cordis'
 import { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type {} from '@panedesk/dsh-working-directory'
-import type {} from '@panedesk/dsh-attachment'
+import type { AttachmentAdmissionPart } from '@panedesk/dsh-attachment'
+import type {} from '@panedesk/dsh-client-file-upload'
+import type { FileUploadReceiptId } from '@panedesk/dsh-client-file-upload/types'
 import { scopeTarget } from '@panedesk/dsh-scope'
 import type { Scoped } from '@panedesk/dsh-scope'
 import { assertObjectJsonSchema } from '@panedesk/dsh-tools'
@@ -465,8 +467,8 @@ export class SubagentRuntime extends TypertRemoteService {
    * message the child's inbox accepted; later execution is independent of this
    * call. Queue delivery targets a later turn; steer delivery targets the
    * nearest step and retains the Agent loop's best-effort fallback semantics.
-   * Image parts are admitted and persisted through the attachment store
-   * before delivery, and the child's model must accept image input.
+   * Image bytes and parent-scoped file receipts become durable attachment
+   * references before delivery, without model-capability preflight.
    * Cold resume at capacity rejects with `subagent/delivery-unavailable`.
    * @param request - durable address, delivery, minted identity, content, and optional browser zone.
    * @param signal - carrier cancellation, owning the call until inbox acceptance.
@@ -506,26 +508,39 @@ export class SubagentRuntime extends TypertRemoteService {
       ...(principal === undefined ? {} : { principal }),
     }
     try {
-      // Admission precedes delivery: image parts become durable references
-      // here, so the child inbox only ever accepts Host-persisted attachments.
+      const receiptIds = new Set<FileUploadReceiptId>()
+      const uploads = this.ctx.get('fileUploads')
+      const parts = request.content.map((part): AttachmentAdmissionPart => {
+        if (part.type !== 'file') return part
+        const attachment = uploads?.resolve(parent, part.receiptId)
+        if (attachment === undefined) {
+          throw new SubagentError('File was not uploaded for this session.', 'FILE_NOT_STAGED')
+        }
+        receiptIds.add(part.receiptId)
+        return { type: 'file', attachment }
+      })
       let content: ContentBlock[]
-      if (request.content.every((part): part is { readonly type: 'text'; readonly text: string } => part.type === 'text')) {
-        content = request.content.map(part => ({ type: 'text', text: part.text }))
+      if (parts.every((part): part is { readonly type: 'text'; readonly text: string } => part.type === 'text')) {
+        content = parts.map(part => ({ type: 'text', text: part.text }))
       } else {
         const attachments = this.ctx.get('attachments')
-        if (attachments === undefined) throw new Error('subagent image prompt requires an attachment store')
-        content = await attachments.admitPromptContent(request.content)
+        if (attachments === undefined) throw new Error('subagent attachment prompt requires an attachment store')
+        content = await attachments.admitPromptContent(parts)
       }
-      return {
-        messageId: await this[deliverSubagentPrompt](
-          parent,
-          childSessionId,
-          content,
-          source,
-          signal,
-          delivery,
-        ),
-      }
+      using binding = receiptIds.size === 0
+        ? undefined
+        : uploads?.bindPrompt(parent, [...receiptIds], request.requestId)
+      const messageId = await this[deliverSubagentPrompt](
+        parent,
+        childSessionId,
+        content,
+        source,
+        signal,
+        delivery,
+      )
+      binding?.commit()
+      if (receiptIds.size > 0) uploads?.retirePrompt(parent, request.requestId)
+      return { messageId }
     } catch (error: unknown) {
       return rejectPrompt(error, childSessionId, signal)
     }

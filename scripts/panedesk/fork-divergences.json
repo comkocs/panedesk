@@ -14947,6 +14947,44 @@
           ".github/workflows/windows-package.yml"
         ]
       }
+    },
+    {
+      "id": "advisory-model-inputs-and-continuation-files",
+      "description": "Default all model routes to text and image without attachment capability preflights",
+      "origin": "Attachment admission policy",
+      "reason": "Missing model input declarations resolve to text and image while explicit declarations remain advisory metadata. Prompt admission and request adapters retain images regardless of those declarations, including pi-ai SDK serialization. Generic files keep the shared saved-file handle representation. Continuable child composers expose paste, drop, and File intake; parent-scoped staged receipts support live and cold children with transactional delivery and without weakening ordinary Session ownership checks. Protocol placement, attachment format, and request size limits remain in force.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/api/session-controller/src/commands.ts",
+          "packages/api/session-controller/src/client/sessions/session.ts",
+          "packages/llm/llm/src/index.ts",
+          "packages/llm/llm/src/content.ts",
+          "packages/llm/llm/src/types.ts",
+          "packages/llm/llm-pi-ai/src/adapter.ts",
+          "packages/llm/llm-pi-ai/src/catalog.ts",
+          "packages/llm/llm-pi-ai/src/config.ts",
+          "packages/llm/llm-deepseek/src/config.ts",
+          "packages/llm/llm-deepseek/src/images.ts",
+          "packages/llm/llm-deepseek/src/model-info.ts",
+          "packages/llm/llm-deepseek/src/request-pricing.ts",
+          "packages/llm/llm-deepseek/src/types.ts",
+          "packages/subagent/subagent/src/index.ts",
+          "packages/subagent/subagent/src/control.ts",
+          "packages/subagent/subagent/src/control-types.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/package.json",
+          "packages/subagent/subagent/tsconfig.json",
+          "packages/client/file-upload/src/index.ts",
+          "packages/client/ui-conversation/src/client/service.ts",
+          "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+          "packages/client/ui-conversation/src/client/image-labels.ts",
+          "packages/client/ui-conversation/src/client/locales.ts",
+          "packages/client/ui-settings-models/src/client/ModelInputTypes.tsx",
+          "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "pnpm-lock.yaml"
+        ]
+      }
     }
   ]
 }

@@ -48,7 +48,7 @@ export function catalogModelInfo(provider: string, model: DeepSeekCatalogModel):
     id: model.id,
     name: model.name ?? model.id,
     ...model.description === undefined ? {} : { description: model.description },
-    inputModalities: model.inputModalities ?? ['text'],
+    inputModalities: model.inputModalities ?? ['text', 'image'],
   }
 }
 
@@ -67,11 +67,8 @@ export function modelInfo(
   const contextWindow = configured?.contextWindow
     ?? connection.defaultContextWindow
   return {
-    // An uncatalogued endpoint is safely treated as text-only. Declaring an
-    // unverified image capability would let the host persist input that the
-    // endpoint may reject on every later turn.
     ...configured === undefined
-      ? { provider, id: model, name: model, inputModalities: ['text' as const] }
+      ? { provider, id: model, name: model, inputModalities: ['text' as const, 'image' as const] }
       : catalogModelInfo(provider, configured),
     context: { contextWindow },
     defaultMaxTokens: configured?.maxTokens ?? connection.maxTokens,
