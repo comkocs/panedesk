@@ -52,6 +52,8 @@ kind: "package-reference"
 - **嵌入式 skill。** 插件可用 `ctx.skills.register(...)` 注册内存中的 skill；注册表会补入默认调用策略与 `runtime` 提供方标签。同层同名运行时注册采用先到先得，并记录警告。
 - **提供方注册。** 提供方用 `ctx.skills.registerProvider(...)` 贡献目录；注册是同步的，返回的 disposer（资源释放）会移除该提供方。`runtime` 是保留的提供方名称。
 
+`ctx.skills.directories(options)` 查询全局层和所选 scope 层中具备文件系统能力的提供方，返回其配置根目录。存在状态和去重前数量使缺失目录及被覆盖的 skill 仍然可见；检查失败会拒绝读取，不改变 skill 优先级。未实现可选 `directories` 方法的提供方不贡献文件系统根目录。
+
 每个 skill 上的调用策略决定哪些接口可以展示并加载它：`modelInvocable` 用于面向模型的工具与目录，`userInvocable` 用于面向用户的命令。注册表保留全部四种组合，因此一次发现结果可以同时服务两个接口，而不会混淆各自的目录。
 
 | 策略 | 模型 | 用户 |

@@ -295,9 +295,31 @@ export interface SkillCatalogPageEntry {
   readonly path: string
 }
 
-/** The three directories for one workspace, read without a session. */
+/** Global profile controls for one filesystem skill provider. */
+export interface SkillCatalogSettings {
+  readonly ns: string
+  /** Absolute profile patch path edited by the existing configuration service. */
+  readonly path: string
+  readonly value: {
+    readonly enabled: boolean
+    readonly includeDefaultRoots: boolean
+    readonly customSkillDirs: readonly string[]
+    readonly watch: boolean
+    readonly watchPollIntervalMs: number
+  }
+}
+
+/** Skills and configured scan roots for one workspace, read without a session. */
 export interface SkillCatalogPageValue {
   readonly entries: readonly SkillCatalogPageEntry[]
+  readonly directories: readonly {
+    readonly path: string
+    readonly source: string
+    readonly provider: string
+    readonly exists: boolean
+    readonly count: number
+  }[]
+  readonly settings: readonly SkillCatalogSettings[]
 }
 
 /** Session list request. */

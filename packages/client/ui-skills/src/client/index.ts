@@ -1,8 +1,6 @@
 /**
  * Skills settings section, browser half. It registers one Settings navigation
- * entry and lists the three skill directories through the host. The page does
- * not appear before a session starts because Settings itself is not the first
- * screen.
+ * entry for effective skills, scan directories, and global provider controls.
  */
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
@@ -63,10 +61,14 @@ function createSkillPageOperations(ctx: ClientContext): SkillPageOperations {
         if (response.error.code === 'remote-access/denied') return { kind: 'refused', reason: 'denied' }
         return { kind: 'refused', reason: 'failed', message: response.error.message }
       }
-      return { kind: 'listed', entries: response.value.entries, workspace: workspaceId !== undefined }
+      return { kind: 'listed', ...response.value, workspace: workspaceId !== undefined }
     },
-    open: async (path) => {
-      const response = await ctx.remote.session.openWorkspacePath({ path })
+    configure: async (ns, patch) => {
+      const response = await ctx.remote.skills.configure(ns, patch)
+      return response.ok ? undefined : response.error.message
+    },
+    open: async (path, action) => {
+      const response = await ctx.remote.session.openWorkspacePath({ path, ...(action === 'reveal' ? { action } : {}) })
       return response.ok ? undefined : response.error.message
     },
   }

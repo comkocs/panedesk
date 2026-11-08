@@ -28,6 +28,9 @@
       "path": "../../boot/app-boot"
     },
     {
+      "path": "../../boot/config-editor"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {

@@ -46,6 +46,7 @@
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-api-session-controller": "workspace:*",
     "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-api-workspace-controller": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",

@@ -4581,8 +4581,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote(\'catalog\') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>',
         description: 'List global and default-preset built-in, user, and project skills without creating a session.',
         parameters: [{ name: 'workspaceId', description: 'registered workspace identity; omission lists built-in and user skills only.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
-        returns: 'the three directories.',
+        returns: 'effective skills, scanned roots, and editable global filesystem-provider settings.',
         throws: ['RemoteError when no registry is mounted or discovery fails.'],
+      },
+      {
+        signature: '@Remote async configure(ns: string, patch: { enabled?: boolean includeDefaultRoots?: boolean customSkillDirs?: string[] watch?: boolean watchPollIntervalMs?: number }): Promise<void>',
+        description: 'Persist filesystem-provider settings through the profile\'s existing config editor.',
+        parameters: [{ name: 'ns', description: 'addressable filesystem-provider entry returned by catalog.' }, { name: 'patch', description: 'changed scanning or watcher fields; the plugin schema validates values before saving.' }],
+        returns: 'after persistence and normal Loader reconciliation.',
+        throws: ['RemoteError when configuration is unavailable or the entry cannot be edited.'],
       },
     ],
   },
@@ -4808,6 +4815,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Load and validate the winning candidate, passing its opaque discovery locator back to the provider. Cancellation is rechecked after selection, including cache hits, and raced against loading so an uncooperative provider cannot hang the caller.',
         parameters: [{ name: 'name', description: 'kebab-case skill name.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects workspace-sensitive skills, and `signal` cancels work.' }],
         returns: 'the full skill, including body content, or `undefined`.',
+      },
+      {
+        signature: 'async directories(options: SkillViewOptions = {}): Promise<SkillDirectory[]>',
+        description: 'Inspect filesystem roots from the global and selected provider layers.',
+        parameters: [{ name: 'options', description: 'scope and cwd selecting the same providers as the catalog.' }],
+        returns: 'each provider\'s roots, including missing directories and shadowed skills.',
       },
     ],
   },
@@ -11844,7 +11857,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillCatalogPageValue',
-    declaration: 'export interface SkillCatalogPageValue {\n    readonly entries: readonly SkillCatalogPageEntry[];\n}',
+    declaration: 'export interface SkillCatalogPageValue {\n    readonly entries: readonly SkillCatalogPageEntry[];\n    readonly directories: readonly {\n        readonly path: string;\n        readonly source: string;\n        readonly provider: string;\n        readonly exists: boolean;\n        readonly count: number;\n    }[];\n    readonly settings: readonly SkillCatalogSettings[];\n}',
+  },
+  {
+    name: 'SkillCatalogSettings',
+    declaration: 'export interface SkillCatalogSettings {\n    readonly ns: string;\n    readonly path: string;\n    readonly value: {\n        readonly enabled: boolean;\n        readonly includeDefaultRoots: boolean;\n        readonly customSkillDirs: readonly string[];\n        readonly watch: boolean;\n        readonly watchPollIntervalMs: number;\n    };\n}',
   },
   {
     name: 'SkillCatalogSnapshot',
@@ -11853,6 +11870,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillDefinition',
     declaration: 'export interface SkillDefinition extends SkillSummary {\n    readonly content: string;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
+  },
+  {
+    name: 'SkillDirectory',
+    declaration: 'export interface SkillDirectory {\n    readonly path: string;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly exists: boolean;\n    readonly count: number;\n}',
   },
   {
     name: 'SkillEntry',
@@ -11876,7 +11897,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillProvider',
-    declaration: 'export interface SkillProvider {\n    readonly name: string;\n    readonly list: (options: SkillLookupOptions) => Promise<readonly SkillCandidate[] | SkillProviderObservation>;\n    readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>;\n}',
+    declaration: 'export interface SkillProvider {\n    readonly name: string;\n    readonly directories?: (options: SkillLookupOptions) => Promise<readonly SkillDirectory[]>;\n    readonly list: (options: SkillLookupOptions) => Promise<readonly SkillCandidate[] | SkillProviderObservation>;\n    readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>;\n}',
   },
   {
     name: 'SkillProviderControl',
@@ -11896,7 +11917,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillSource',
-    declaration: 'export type SkillSource = \'project-dsh\' | \'project-agents\' | \'runtime\' | \'user-dsh\' | \'user-agents\' | \'custom\' | \'bundled\' | (string & {});',
+    declaration: 'export type SkillSource = \'project-dsh\' | \'project-agents\' | \'project-claude\' | \'runtime\' | \'user-dsh\' | \'user-agents\' | \'user-claude\' | \'custom\' | \'bundled\' | (string & {});',
   },
   {
     name: 'SkillSummary',

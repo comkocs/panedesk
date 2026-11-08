@@ -14,6 +14,8 @@ The registry is host+per-scope layered, the shape the [tools registry](tools.md)
 
 Within one layer, duplicate names resolve by rank, provider order, then local order; summaries sort by name. A rejected `list()` is logged and omitted from an incomplete observation, while an explicit incomplete observation contributes usable candidates without making the result cacheable; malformed candidates fail fast. Each provider factory receives a registration-scoped control whose `invalidate()` clears completed catalogs only while that exact registration remains active and whose signal aborts on failed registration or disposal. An in-flight discovery retries once when its provider generation changes; a second change returns the latest candidates incomplete and uncached. Provider and runtime mutations emit the unfiltered `skills/change` invalidation event; it carries no diff, so consumers refetch `snapshot()` with their own lookup options.
 
+`ctx.skills.directories(options)` aggregates optional provider-owned filesystem inspections across the global and selected scope layers without changing discovery precedence. Each `SkillDirectory` reports the full `path`, `source`, `provider`, `exists` flag, and valid skill `count` before same-name deduplication, including missing roots. The filesystem provider inspects its resolved project, user, custom, and configured bundled roots even when its scanning switch is off.
+
 An array returned by `SkillProvider.list()` is complete-discovery shorthand. `SkillProviderObservation` lets a provider expose candidates that remain directly loadable while reporting that the observation is not authoritative.
 
 ```ts type-equiv
@@ -31,6 +33,12 @@ interface SkillProviderObservation {
 interface SkillProvider {
   /** Unique provider name in the `ctx.skills` registry. */
   readonly name: string
+  /**
+   * Inspect configured filesystem roots without changing catalog precedence.
+   * @param options - workspace-sensitive lookup context.
+   * @returns roots with existence and pre-deduplication skill counts.
+   */
+  readonly directories?: (options: SkillLookupOptions) => Promise<readonly SkillDirectory[]>
   /**
    * List available skill candidates for the current lookup context. Provider
    * plugins register synchronously during `apply()`; remote initialization,
@@ -69,9 +77,11 @@ The shipped local provider scans roots in rank order:
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.panedesk/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
+| 210 | `project-claude` | `<projectRoot>/.claude/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
+| 510 | `user-claude` | `<userHome>/.claude/skills` |
 | 600 | `bundled` | `Config.bundledSkillDir` when configured |
 
 The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. When `ctx.fs` is available, the git-root walk probes `.git` through the filesystem service so remote or sandboxed workspaces do not fall back to the host filesystem boundary. The user DSH root skips its `.system` child. The local provider does not synthesize built-in system skills; deployments supply packaged skills through configured bundled roots or dedicated providers.
@@ -86,7 +96,7 @@ Skill names are kebab-case (`^[a-z0-9]+(?:-[a-z0-9]+)*$`). The local provider ac
 
 ```ts type-equiv
 /** Origin bucket for a skill contribution. The value is prompt-visible metadata, not precedence by itself. */
-type SkillSource = 'project-dsh' | 'project-agents' | 'runtime' | 'user-dsh' | 'user-agents' | 'custom' | 'bundled' | (string & {})
+type SkillSource = 'project-dsh' | 'project-agents' | 'project-claude' | 'runtime' | 'user-dsh' | 'user-agents' | 'user-claude' | 'custom' | 'bundled' | (string & {})
 ```
 
 ## Summaries, candidates, and complete definitions
@@ -264,10 +274,19 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
  * List global and default-preset built-in, user, and project skills without creating a session.
  * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
  * @param signal - caller lifetime carried by the Remote transport.
- * @returns the three directories.
+ * @returns effective skills, scanned roots, and editable global filesystem-provider settings.
  * @throws RemoteError when no registry is mounted or discovery fails.
  */
 @Remote('catalog') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>
+
+/**
+ * Persist filesystem-provider settings through the profile's existing config editor.
+ * @param ns - addressable filesystem-provider entry returned by catalog.
+ * @param patch - changed scanning or watcher fields; the plugin schema validates values before saving.
+ * @returns after persistence and normal Loader reconciliation.
+ * @throws RemoteError when configuration is unavailable or the entry cannot be edited.
+ */
+@Remote async configure(ns: string, patch: { enabled?: boolean includeDefaultRoots?: boolean customSkillDirs?: string[] watch?: boolean watchPollIntervalMs?: number }): Promise<void>
 ```
 
 Types: [WorkspaceId](workspace.md)
@@ -334,6 +353,13 @@ async snapshot(options: SkillViewOptions = {}): Promise<SkillCatalogSnapshot>
  * @returns the full skill, including body content, or `undefined`.
  */
 async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>
+
+/**
+ * Inspect filesystem roots from the global and selected provider layers.
+ * @param options - scope and cwd selecting the same providers as the catalog.
+ * @returns each provider's roots, including missing directories and shadowed skills.
+ */
+async directories(options: SkillViewOptions = {}): Promise<SkillDirectory[]>
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)

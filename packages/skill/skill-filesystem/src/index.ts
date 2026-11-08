@@ -12,6 +12,7 @@
 import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { unwatchFile, watchFile, type Stats } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { homedir } from 'node:os'
 import type { Context } from '@panedesk/cordis'
 import chokidar from 'chokidar'
 import z from '@panedesk/schemastery'
@@ -24,6 +25,7 @@ import {
   isSkillName,
   type SkillCandidate,
   type SkillDefinition,
+  type SkillDirectory,
   type SkillInvocationPolicy,
   type SkillLookupOptions,
   type SkillViewOptions,
@@ -38,9 +40,11 @@ import type { SkillCatalogGroup } from './catalog-groups.ts'
 
 const PROJECT_DSH_RANK = 100
 const PROJECT_AGENTS_RANK = 200
+const PROJECT_CLAUDE_RANK = 210
 const CUSTOM_RANK = 300
 const USER_DSH_RANK = 400
 const USER_AGENTS_RANK = 500
+const USER_CLAUDE_RANK = 510
 const DEFAULT_WATCH_STABILITY_THRESHOLD_MS = 200
 const DEFAULT_WATCH_POLL_INTERVAL_MS = 100
 const DEFAULT_WATCH_MAX_PROJECTS = 128
@@ -97,6 +101,8 @@ export const inject = ['skills']
 
 /** Local filesystem skill provider configuration. */
 export interface Config {
+  /** Whether this provider scans and exposes skills; defaults to true. */
+  enabled?: boolean
   /** Unique provider name. Defaults to `filesystem`. */
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
@@ -124,6 +130,7 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = z.object({
+  enabled: z.boolean().default(true),
   providerName: z.string().min(1).default('filesystem'),
   includeDefaultRoots: z.boolean().default(true),
   dshHome: z.string(),
@@ -132,7 +139,7 @@ export const Config: Schema<Config> = z.object({
   watch: z.boolean().default(true),
   watchUsePolling: z.boolean().default(false),
   watchStabilityThresholdMs: z.number().default(DEFAULT_WATCH_STABILITY_THRESHOLD_MS),
-  watchPollIntervalMs: z.number().default(DEFAULT_WATCH_POLL_INTERVAL_MS),
+  watchPollIntervalMs: z.number().min(1).step(1).default(DEFAULT_WATCH_POLL_INTERVAL_MS),
   watchMaxProjects: z.number().default(DEFAULT_WATCH_MAX_PROJECTS),
   watchFollowSymlinks: z.boolean().default(true),
   bundledSkillDir: z.string(),
@@ -199,6 +206,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 /** Provider that maps local project/user skill roots into `ctx.skills`. */
 export class FileSystemSkillProvider implements SkillProvider {
   readonly name: string
+  private readonly enabled: boolean
   private readonly includeDefaultRoots: boolean
   private readonly dshHome: string
   private readonly agentsHome: string
@@ -213,6 +221,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     config: Config = {},
   ) {
     this.name = config.providerName ?? 'filesystem'
+    this.enabled = config.enabled ?? true
     this.includeDefaultRoots = config.includeDefaultRoots ?? true
     this.dshHome = resolveDshHome(config.dshHome)
     this.agentsHome = resolveAgentsHome(config.agentsHome)
@@ -234,6 +243,7 @@ export class FileSystemSkillProvider implements SkillProvider {
    *   failure returns readable candidates as an incomplete observation.
    */
   async list(options: SkillLookupOptions): Promise<SkillCandidate[] | SkillProviderObservation> {
+    if (!this.enabled) return []
     const roots = await this.roots(options.cwd)
     let complete = true
     try {
@@ -292,6 +302,29 @@ export class FileSystemSkillProvider implements SkillProvider {
     return this.disposal
   }
 
+  /**
+   * Inspect the exact roots used by discovery without starting watchers.
+   * @param options - cwd selecting the project roots.
+   * @returns existence and valid skill counts before precedence, including missing roots.
+   */
+  async directories(options: SkillLookupOptions): Promise<SkillDirectory[]> {
+    const directories: SkillDirectory[] = []
+    for (const root of await this.roots(options.cwd)) {
+      options.signal?.throwIfAborted()
+      const fs = root.trustedHost === true ? undefined : optionalFileSystem(this.ctx)
+      let exists: boolean
+      try {
+        exists = fs === undefined ? (await stat(root.path)).isDirectory() : await fs.stat(await fs.resolve(root.path)) !== undefined
+      } catch (error) {
+        if (!isAbsentSkillPathError(error)) throw error
+        exists = false
+      }
+      const count = exists ? (await discoverRoot(root, this.ctx, this.name)).length : 0
+      directories.push({ path: root.path, source: root.source, provider: this.name, exists, count })
+    }
+    return directories
+  }
+
   private async roots(cwd: string | undefined): Promise<SkillRoot[]> {
     const roots: SkillRoot[] = []
     if (this.includeDefaultRoots && cwd !== undefined) {
@@ -299,6 +332,7 @@ export class FileSystemSkillProvider implements SkillProvider {
       roots.push(
         { path: join(projectRoot, '.panedesk/skills'), source: 'project-dsh', rank: PROJECT_DSH_RANK, projectRoot },
         { path: join(projectRoot, '.agents/skills'), source: 'project-agents', rank: PROJECT_AGENTS_RANK, projectRoot },
+        { path: join(projectRoot, '.claude/skills'), source: 'project-claude', rank: PROJECT_CLAUDE_RANK, projectRoot },
       )
     }
     roots.push(...this.customSkillDirs.map(path => ({ path, source: 'custom' as const, rank: CUSTOM_RANK })))
@@ -306,6 +340,7 @@ export class FileSystemSkillProvider implements SkillProvider {
       roots.push(
         { path: join(this.dshHome, 'skills'), source: 'user-dsh', rank: USER_DSH_RANK, skipSystem: true },
         { path: join(this.agentsHome, 'skills'), source: 'user-agents', rank: USER_AGENTS_RANK },
+        { path: join(homedir(), '.claude/skills'), source: 'user-claude', rank: USER_CLAUDE_RANK },
       )
     }
     if (this.bundledSkillDir !== undefined) {

@@ -14,6 +14,8 @@
 
 在单层内，重名项依次按 rank、提供方顺序和本地顺序确定优先级；摘要按名称排序。提供方的 `list()` 被拒绝时，系统会记录日志，并从不完整观测中省略该提供方的结果；显式的不完整观测会提供可用候选项，但不会使结果变得可缓存；格式错误的候选项快速失败。每个提供方工厂都会接收一项注册作用域内的控制能力；仅当该精确注册仍处于活动状态时，其 `invalidate()` 才会清除已完成目录；注册失败或 dispose（资源释放）时，其信号会中止。若提供方代次在发现进行期间发生变化，该发现会重试一次；若再次变化，则返回最新候选项，并将结果标为不完整且不予缓存。提供方和运行时变更会发出不带过滤条件的 `skills/change` 失效事件；该事件不携带 diff，因此消费方会使用自身的查找选项重新获取 `snapshot()`。
 
+`ctx.skills.directories(options)` 汇总全局层和所选 scope 层中提供方的可选文件系统检查，不改变发现优先级。每个 `SkillDirectory` 返回完整 `path`、`source`、`provider`、`exists` 标记和同名去重前的有效技能 `count`，包含缺失的根目录。文件系统提供方检查已解析的项目、用户、自定义及已配置的 bundled 根目录，即使其扫描开关已关闭。
+
 `SkillProvider.list()` 返回的数组是完整发现的简写形式。`SkillProviderObservation` 允许提供方公开仍可直接加载的候选项，同时报告该观测不具权威性。
 
 ```ts type-equiv
@@ -31,6 +33,12 @@ interface SkillProviderObservation {
 interface SkillProvider {
   /** Unique provider name in the `ctx.skills` registry. */
   readonly name: string
+  /**
+   * Inspect configured filesystem roots without changing catalog precedence.
+   * @param options - workspace-sensitive lookup context.
+   * @returns roots with existence and pre-deduplication skill counts.
+   */
+  readonly directories?: (options: SkillLookupOptions) => Promise<readonly SkillDirectory[]>
   /**
    * List available skill candidates for the current lookup context. Provider
    * plugins register synchronously during `apply()`; remote initialization,
@@ -69,9 +77,11 @@ interface SkillProviderControl {
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.panedesk/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
+| 210 | `project-claude` | `<projectRoot>/.claude/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
+| 510 | `user-claude` | `<userHome>/.claude/skills` |
 | 600 | `bundled` | 配置了 `Config.bundledSkillDir` 时使用该目录 |
 
 项目根目录为包含 `.git` 的最近祖先目录；找不到时使用当前 cwd。当 `ctx.fs` 可用时，git-root 向上查找通过文件系统服务探测 `.git`，使远程或沙箱工作区不会回退到宿主文件系统边界。用户 DSH 根目录会跳过其 `.system` 子目录。本地提供方不会合成内置系统 skill；部署方通过已配置的 bundled 根目录或专用提供方提供随包 skill。
@@ -86,7 +96,7 @@ skill 名称为 kebab-case（`^[a-z0-9]+(?:-[a-z0-9]+)*$`）。本地提供方�
 
 ```ts type-equiv
 /** Origin bucket for a skill contribution. The value is prompt-visible metadata, not precedence by itself. */
-type SkillSource = 'project-dsh' | 'project-agents' | 'runtime' | 'user-dsh' | 'user-agents' | 'custom' | 'bundled' | (string & {})
+type SkillSource = 'project-dsh' | 'project-agents' | 'project-claude' | 'runtime' | 'user-dsh' | 'user-agents' | 'user-claude' | 'custom' | 'bundled' | (string & {})
 ```
 
 ## 摘要、候选项与完整定义
@@ -264,10 +274,19 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
  * List global and default-preset built-in, user, and project skills without creating a session.
  * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
  * @param signal - caller lifetime carried by the Remote transport.
- * @returns the three directories.
+ * @returns effective skills, scanned roots, and editable global filesystem-provider settings.
  * @throws RemoteError when no registry is mounted or discovery fails.
  */
 @Remote('catalog') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>
+
+/**
+ * Persist filesystem-provider settings through the profile's existing config editor.
+ * @param ns - addressable filesystem-provider entry returned by catalog.
+ * @param patch - changed scanning or watcher fields; the plugin schema validates values before saving.
+ * @returns after persistence and normal Loader reconciliation.
+ * @throws RemoteError when configuration is unavailable or the entry cannot be edited.
+ */
+@Remote async configure(ns: string, patch: { enabled?: boolean includeDefaultRoots?: boolean customSkillDirs?: string[] watch?: boolean watchPollIntervalMs?: number }): Promise<void>
 ```
 
 Types: [WorkspaceId](workspace.zh.md)
@@ -334,6 +353,13 @@ async snapshot(options: SkillViewOptions = {}): Promise<SkillCatalogSnapshot>
  * @returns the full skill, including body content, or `undefined`.
  */
 async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>
+
+/**
+ * Inspect filesystem roots from the global and selected provider layers.
+ * @param options - scope and cwd selecting the same providers as the catalog.
+ * @returns each provider's roots, including missing directories and shadowed skills.
+ */
+async directories(options: SkillViewOptions = {}): Promise<SkillDirectory[]>
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)

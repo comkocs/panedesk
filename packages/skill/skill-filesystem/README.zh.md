@@ -43,19 +43,23 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 ### 根目录与优先级
 
-默认根按该提供方的 rank 顺序扫描：
+默认根包含 Claude Code 的项目目录和用户目录；`<userHome>` 来自 `os.homedir()`，独立于可配置的 Harness 与 agent home。各根按该提供方的 rank 顺序扫描：
 
 | Rank | 来源 | 路径 |
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.panedesk/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
+| 210 | `project-claude` | `<projectRoot>/.claude/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
+| 510 | `user-claude` | `<userHome>/.claude/skills` |
 
 项目根目录是包含 `.git` 的最近祖先目录；如果不存在，则使用当前 cwd。用户 DSH 根目录会跳过其 `.system` 子目录。`includeDefaultRoots: false` 会省略项目根、用户根以及 `$DSH_BUNDLED_SKILL_DIR` 默认值，使隔离提供方只看到自身配置的根；`bundledSkillDir` 会按 rank 600 添加一个随包提供的根目录。
 
 `listSkillCatalog(ctx, cwd?, scope?)` 无需 Agent 或 Session 即可读取可用目录，返回名称、说明、来源路径和 `builtin` / `user` / `project` 分组。同名技能只列实际生效的最高优先级来源，省略被覆盖来源。自定义根不属于这三组。不传 `cwd` 时省略项目根；传入项目目录的调用方负责授权。可选 `scope` 包含其 preset 或 agent 提供方层；省略时只读全局提供方。该辅助函数通过 `ctx.get('skills')` 读取注册表，因此将其作为可选服务的调用方无需声明 `skills` 注入；注册表缺失时请求失败，不返回空目录。
+
+`FileSystemSkillProvider.directories(options)` 检查与发现过程相同的已解析根目录，包含自定义目录和已配置的 bundled 目录，不启动 watcher。它返回每个完整路径、来源、提供方、是否存在和同名优先级去重前的有效 skill 数量。关闭的提供方仍保留此只读检查能力。
 
 ### 挂载与配置
 
@@ -68,6 +72,7 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `enabled` | `true` | 扫描并公开本提供方的 skill；关闭后保留目录检查和配置能力 |
 | `providerName` | `filesystem` | 注册到 `ctx.skills` 的唯一提供方名称 |
 | `includeDefaultRoots` | `true` | 在 `customSkillDirs` 周围包含项目根与用户根 |
 | `dshHome` | `$PANEDESK_HOME` 或 `~/.panedesk` | Harness 配置根目录；扫描其 `skills` 子目录 |

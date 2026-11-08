@@ -1,6 +1,46 @@
 {
   "divergences": [
     {
+      "id": "claude-skill-roots-and-scan-settings",
+      "description": "Discover Claude Code skills and expose session-free scan directories and global controls.",
+      "origin": "Panedesk skill compatibility and settings integration",
+      "reason": "Upstreamable: reuse filesystem discovery and existing rank comparison for project and user Claude Code roots, inspect provider-owned roots before deduplication, retain registered-workspace selection, and persist scan controls through the existing profile editor and host path actions.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/skill/skill/src/index.ts",
+          "packages/skill/skill/README.md",
+          "packages/skill/skill/README.zh.md",
+          "packages/skill/skill-filesystem/src/index.ts",
+          "packages/skill/skill-filesystem/src/catalog-groups.ts",
+          "packages/skill/skill-filesystem/README.md",
+          "packages/skill/skill-filesystem/README.zh.md",
+          "packages/api/session-controller/src/skill-catalog.ts",
+          "packages/api/session-controller/src/types.ts",
+          "packages/api/session-controller/package.json",
+          "packages/api/session-controller/tsconfig.host.json",
+          "packages/api/session-controller/README.md",
+          "packages/api/session-controller/README.zh.md",
+          "packages/client/ui-skills/src/client/SkillsSection.tsx",
+          "packages/client/ui-skills/src/client/SkillsSection.module.css",
+          "packages/client/ui-skills/src/client/catalog.ts",
+          "packages/client/ui-skills/src/client/index.ts",
+          "packages/client/ui-skills/src/client/locales.ts",
+          "packages/client/ui-skills/package.json",
+          "packages/client/ui-skills/tsconfig.json",
+          "packages/client/ui-skills/README.md",
+          "packages/client/ui-skills/README.zh.md",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/skills.md",
+          "docs/subsystems/skills.zh.md",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "scripts/gen-cordis-catalog.ts",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",
