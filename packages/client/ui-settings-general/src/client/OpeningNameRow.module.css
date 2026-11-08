@@ -1,11 +1,3 @@
-.heading {
-  margin: 24px 0 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 600;
-}
-
 .row {
   display: flex;
   flex-direction: column;

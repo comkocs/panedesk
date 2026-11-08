@@ -68,7 +68,7 @@ export const DEFAULT_CONTEXT_WINDOW = 262_144
 export const DEFAULT_MAX_TOKENS = 32_768
 
 /** Default advisory input types; endpoint support is determined by the provider. */
-export const DEFAULT_INPUT: readonly PiAiModality[] = ['text', 'image']
+export const DEFAULT_INPUT: readonly PiAiModality[] = ['text', 'image', 'file', 'audio']
 
 export type {
   PiAiCompatProfile,
@@ -130,7 +130,7 @@ export interface PiAiProviderProfile {
   defaultMaxTokens?: number
   /**
    * Advisory request modalities when an entry's {@link PiAiModelProfile.input}
-   * is absent or empty (default `[text, image]`). This list does not restrict
+   * is absent or empty (default `[text, image, file, audio]`). This list does not restrict
    * image dispatch; the upstream provider determines support. It must not be empty.
    */
   defaultInput?: PiAiModality[]
@@ -196,6 +196,8 @@ export interface ResolvedPiAiProviderProfile
   catalogError?: string
   /** Per-model failures reported before attempting a request. */
   modelErrors: ReadonlyMap<string, string>
+  /** Full advisory input types, separate from third-party model descriptors. */
+  inputModalities: ReadonlyMap<string, readonly PiAiModality[]>
   /**
    * Per-request output caps this profile explicitly configured, by model id.
    * The seam materializes one only into a request that names no cap of its
@@ -432,8 +434,7 @@ export function resolveProfiles(
     if (!Number.isSafeInteger(requestImageMaxBytes) || requestImageMaxBytes <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" requestImageMaxBytes must be a positive safe integer`)
     }
-    // Detached from the configuration object because pi-ai types `Model.input`
-    // mutable. The schema's explicit default covers an absent key, so an empty
+    // Detached advisory metadata. The schema's explicit default covers an absent key, so an empty
     // list here is always one someone typed — and unlike an entry's, nothing
     // below it can answer instead — so it is refused rather than read as "no
     // answer".
@@ -488,6 +489,7 @@ export function resolveProfiles(
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
       modelErrors: catalog?.modelErrors ?? new Map(),
+      inputModalities: catalog?.inputModalities ?? new Map(),
       ...piProvider === undefined ? {} : { piProvider },
       ...catalogError === undefined ? {} : { catalogError },
     })

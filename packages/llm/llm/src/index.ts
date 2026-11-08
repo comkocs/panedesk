@@ -755,7 +755,7 @@ export class LlmRuntime extends TypertRemoteService {
         throw new LlmError(`adapter returned invalid or duplicate model metadata for provider "${provider}"`, 'INVALID_CATALOG')
       }
       seen.add(model.id)
-      const inputModalities = this.detachedModalities(model.inputModalities) ?? ['text', 'image'] as const
+      const inputModalities = this.detachedModalities(model.inputModalities) ?? ['text', 'image', 'file', 'audio'] as const
       return {
         provider: model.provider,
         id: model.id,
@@ -820,7 +820,7 @@ export class LlmRuntime extends TypertRemoteService {
         'INVALID_MODEL_CONTEXT',
       )
     }
-    const inputModalities = this.detachedModalities(resolved.inputModalities) ?? ['text', 'image'] as const
+    const inputModalities = this.detachedModalities(resolved.inputModalities) ?? ['text', 'image', 'file', 'audio'] as const
     // Widened: adapters derive this mode from catalog config, so the value is checked as a string.
     const systemPromptUpdate: string | undefined = resolved.systemPromptUpdate
     if (systemPromptUpdate !== undefined && systemPromptUpdate !== 'in-history') {

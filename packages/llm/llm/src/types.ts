@@ -233,6 +233,8 @@ export interface LlmProviderInfo {
 export interface ModelModalityMap {
   text: 'text'
   image: 'image'
+  file: 'file'
+  audio: 'audio'
 }
 
 /** Any declared provider model modality. */
@@ -374,7 +376,7 @@ export interface LlmModelInfo {
   name: string
   /** Optional user-facing distinction from otherwise similar models. */
   description?: string
-  /** Advisory request modalities; omission resolves to text and image without restricting dispatch. */
+  /** Advisory request modalities; omission resolves to text, image, file, and audio without restricting dispatch. */
   inputModalities?: readonly ModelModality[]
 }
 

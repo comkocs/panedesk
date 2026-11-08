@@ -3,7 +3,7 @@ import { APP_IDENTITY, attributionHeaders, LlmError } from '@panedesk/dsh-llm'
 import type { ModelModality } from '@panedesk/dsh-llm'
 import { timeoutOf } from '@panedesk/dsh-timeout'
 
-const LISTED_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModality[]
+const LISTED_MODALITIES = ['text', 'image', 'file', 'audio'] as const satisfies readonly ModelModality[]
 
 /** Code of a listing deadline's timeout reason; {@link requestModelListing} reports it as `TIMEOUT`. */
 export const LISTING_TIMEOUT = 'MODEL_LISTING_TIMEOUT'
@@ -16,7 +16,7 @@ export type ClientRequirement =
 
 /** Capabilities a usable listing entry declares, in catalog vocabulary. */
 export interface ListedFacts {
-  /** Accepted request modalities this build sends. */
+  /** Advisory input types reported by the listing. */
   readonly inputModalities: readonly ModelModality[]
   /** Combined request and response context, when declared. */
   readonly contextWindow?: number
@@ -57,7 +57,7 @@ function fieldsOf(value: unknown): Fields | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Fields : undefined
 }
 
-/** Listed modalities this build sends, in listing order without repeats; `undefined` when the value is not an array. */
+/** Known modality metadata, in listing order without repeats; `undefined` when the value is not an array. */
 function knownModalities(value: unknown): ModelModality[] | undefined {
   if (!Array.isArray(value)) return undefined
   const listed: readonly unknown[] = value
@@ -90,7 +90,7 @@ function capabilitiesOf(entry: Fields): ListedCapabilities {
   if (messages === undefined) return { usable: false, reason: 'declares no api_capabilities.anthropic_messages' }
   const outputs = entry.output_modalities === undefined ? ['text'] : knownModalities(entry.output_modalities)
   if (outputs?.includes('text') !== true) return { usable: false, reason: 'declares no text output' }
-  const inputs = entry.input_modalities === undefined ? ['text' as const] : knownModalities(entry.input_modalities)
+  const inputs = entry.input_modalities === undefined ? [...LISTED_MODALITIES] : knownModalities(entry.input_modalities)
   if (inputs === undefined || inputs.length === 0) return { usable: false, reason: 'declares no input modality DeepSeek Harness supports' }
   const contextWindow = capacity(entry.context_window)
   const maxOutputTokens = capacity(entry.max_output_tokens)

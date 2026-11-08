@@ -1,4 +1,4 @@
-/** Host-backed external registry path editor for General settings. */
+/** Host-backed external registry path editor for Panedesk feature settings. */
 import { useState } from 'react'
 import { Button, Input } from '@panedesk/dsh-client-ui-primitives'
 import type { ConfigForm } from '@panedesk/dsh-client-ui-settings/client'
@@ -18,10 +18,10 @@ export interface RegistrySettingsFace {
 /**
  * Edit the host path without reading local browser files.
  * @param props - accepted configuration, writer, and localized copy.
- * @returns one General settings row with explicit save feedback.
+ * @returns one Panedesk feature settings row with explicit save feedback.
  */
 export function RegistrySettingsRow({ useRegistry, save, t }:
-  PropsRuntime<'settings.general.item'> & PropsLocale<'subagentTree'> & InjectFace<RegistrySettingsFace>) {
+  PropsRuntime<'settings.panedesk.item'> & PropsLocale<'subagentTree'> & InjectFace<RegistrySettingsFace>) {
   const form = useRegistry(value => value)
   const [draft, setDraft] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

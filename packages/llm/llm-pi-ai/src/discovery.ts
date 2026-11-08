@@ -302,7 +302,7 @@ export async function discoverModels(
         name: model.name,
         contextWindow: model.contextWindow,
         maxTokens: model.maxTokens,
-        inputModalities: [...model.input],
+        // The SDK's wire types do not declare harness file/audio metadata.
       }))
     }
   }

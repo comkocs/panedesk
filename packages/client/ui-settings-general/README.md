@@ -45,15 +45,15 @@ The optional `settingsNavigation.openSection(id)` service opens the existing she
 
 The current release version appears after the core preferences in General Settings in Web and Desktop, using the build’s `DSH_CLIENT_VERSION` metadata and the active language. Partial builds without version metadata omit the row.
 
-**Panedesk features** is the `panedesk-features` heading at order `9000` in `settings.general.item`. Its first row, `opening-auto-name` at order `9010`, edits the Host `session-title.openingName` configuration through the shared configuration form. Paste an opening prompt, select a nonempty name without whitespace in the multiline field, review the immediate name-and-date preview, and save. The sample, selected text, and derived left/right anchors persist in the active profile’s `cordis.patch.yml`; clearing the selection restores the inherited configuration, whose default is unset. Writes are revision-fenced and failures retain the draft. The row appears only when the Host serves the title configuration. [Session titles](../../session/session-title/README.md#choosing-a-title-source) owns matching, automatic updates, creation dates, and manual-name priority.
-
 The Coding Tools switch controls the shared `ui-settings.enabled` preference described by [ui-settings](../ui-settings/README.md#use-this-package). It is available in both Web and desktop, follows accepted changes immediately, and disables duplicate input while a write settles. A failed write displays localized retry guidance.
 
-The General section holds the built-in Coding Tools, Current version, and Panedesk features rows alongside rows registered into `settings.general.item` by feature packages. Each registrant owns its row copy and behavior. The Appearance row, for example, lives in ui-theme.
+The General section holds the built-in Coding Tools and Current version rows alongside rows registered into `settings.general.item` by feature packages. Each registrant owns its row copy and behavior. The Appearance row, for example, lives in ui-theme.
 
 ### Panedesk features
 
-The first Panedesk section is `panedesk-features`, labeled **Panedesk features**. It declares and renders the root-scoped `settings.panedesk.item` list for feature-owned rows; the page contributes no built-in rows.
+The first Panedesk section is `panedesk-features`, labeled **Panedesk features**. It declares and renders the root-scoped `settings.panedesk.item` list for feature-owned rows. The opening-name editor is registered at order `10`; the external subagent registry file row follows at order `20`.
+
+The `opening-auto-name` row in `settings.panedesk.item` edits the Host `session-title.openingName` configuration through the shared configuration form. Paste an opening prompt, select a nonempty name without whitespace in the multiline field, review the immediate name-and-date preview, and save. The sample, selected text, and derived left/right anchors persist in the active profile’s `cordis.patch.yml`; clearing the selection restores the inherited configuration, whose default is unset. Writes are revision-fenced and failures retain the draft. The row appears only when the Host serves the title configuration. [Session titles](../../session/session-title/README.md#choosing-a-title-source) owns matching, automatic updates, creation dates, and manual-name priority.
 
 ### Opening the configuration file
 
@@ -73,7 +73,7 @@ The shell declares settings.launcher for an account-owned sidebar menu and retai
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The shell owns the chrome and the projections; it contributes the Coding Tools, Current version, and Panedesk features rows, while feature registrants own their additional content and copy.
+The shell owns the chrome and the projections; it contributes the Coding Tools and Current version rows in General and the opening-name editor in Panedesk features, while feature registrants own their additional content and copy.
 
 ### Ledger projections
 

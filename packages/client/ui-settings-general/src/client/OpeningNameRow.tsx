@@ -1,4 +1,4 @@
-/** General Settings sample selection, staged writes, and opening-title preview. */
+/** Panedesk feature settings sample selection, staged writes, and opening-title preview. */
 import { useState } from 'react'
 import { Button } from '@panedesk/dsh-client-ui-primitives'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
@@ -13,16 +13,7 @@ export interface OpeningNameRowInjected {
   save(pattern: OpeningNamePattern | undefined, revision: number): Promise<boolean>
 }
 
-type RowProps = PropsRuntime<'settings.general.item'> & PropsLocale<'settings'> & InjectFace<OpeningNameRowInjected>
-
-/**
- * Render the shared heading before Panedesk-owned General rows.
- * @param props - localized settings copy.
- * @returns the feature-group heading.
- */
-export function PanedeskFeaturesHeading({ t }: PropsRuntime<'settings.general.item'> & PropsLocale<'settings'>) {
-  return <h3 className={css.heading}>{t('panedesk.features')}</h3>
-}
+type RowProps = PropsRuntime<'settings.panedesk.item'> & PropsLocale<'settings'> & InjectFace<OpeningNameRowInjected>
 
 /** Derive anchors from the nearest left separator/whitespace and the next right whitespace. */
 function selectedPattern(sample: string, a: number, b: number): OpeningNamePattern {

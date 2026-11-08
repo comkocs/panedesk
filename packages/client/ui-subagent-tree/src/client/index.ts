@@ -90,9 +90,9 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     scope.inject(['configForms'], settings => {
       const namespace = 'ui-subagent-tree'
       const form = settings.configForms.get<RegistrySettings>(namespace)
-      settings.effect(() => settings.configForms.whileServed([namespace], () => settings.slots.inject('settings.general.item', () =>
+      settings.effect(() => settings.configForms.whileServed([namespace], () => settings.slots.inject('settings.panedesk.item', () =>
         settings.slots.register({
-          name: 'settings.general.item', id: 'external-subagent-registry', order: 9020, locale: 'subagentTree',
+          name: 'settings.panedesk.item', id: 'external-subagent-registry', order: 20, locale: 'subagentTree',
           inject: (): RegistrySettingsFace => ({ hooks: { registry: form }, save: path => form.set('externalRegistryFile', path) }),
         }, RegistrySettingsRow))))
     })

@@ -461,7 +461,7 @@ export class PiAiAdapter extends LlmAdapter {
         provider,
         id: model.id,
         name: model.name,
-        inputModalities: [...model.input],
+        inputModalities: [...profile.inputModalities.get(model.id)!],
       }))
     })
   }
@@ -488,7 +488,7 @@ export class PiAiAdapter extends LlmAdapter {
       provider,
       id: model,
       name: resolvedModel.name,
-      inputModalities: [...resolvedModel.input],
+      inputModalities: [...profile.inputModalities.get(model)!],
       context: { contextWindow: resolvedModel.contextWindow },
       ...configuredMaxTokens === undefined ? {} : { defaultMaxTokens: configuredMaxTokens },
       ...reasoningInfo(resolvedModel, defaultLevel),

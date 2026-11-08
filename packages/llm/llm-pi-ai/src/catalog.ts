@@ -37,21 +37,21 @@ import type {
  */
 const NO_COST: ModelCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
-/** One request modality a pi-ai model may accept. */
-export type PiAiModality = Model<Api>['input'][number]
+/** One advisory input type a provider profile may declare. */
+export type PiAiModality = Model<Api>['input'][number] | 'file' | 'audio'
 
 /**
  * Every pi-ai request modality. The `Record` key type is a drift gate: a pi-ai
  * upgrade that adds or removes a modality fails compilation here naming the
  * drifted key, instead of silently narrowing what a profile may declare.
  */
-const MODALITY_GATE: Record<PiAiModality, true> = {
+const MODALITY_GATE: Record<Model<Api>['input'][number], true> = {
   text: true,
   image: true,
 }
 
 /** Every request modality a profile may declare. */
-export const MODALITIES = Object.keys(MODALITY_GATE) as readonly PiAiModality[]
+export const MODALITIES = [...Object.keys(MODALITY_GATE), 'file', 'audio'] as readonly PiAiModality[]
 
 /**
  * One entry's modality list, or `undefined` when it states no answer. Absent
@@ -60,7 +60,7 @@ export const MODALITIES = Object.keys(MODALITY_GATE) as readonly PiAiModality[]
  * @param configured - the list a `models` or `modelOverrides` entry supplied.
  * @returns the declared modalities, or `undefined` to ask the next level.
  */
-function declaredInput(configured: readonly PiAiModality[] | undefined): Model<Api>['input'] | undefined {
+function declaredInput(configured: readonly PiAiModality[] | undefined): PiAiModality[] | undefined {
   return configured === undefined || configured.length === 0 ? undefined : [...configured]
 }
 
@@ -614,7 +614,7 @@ export interface PiAiModelProfile {
   maxTokens?: number
   /**
    * Advisory request modalities. Absent or empty inherits the route's
-   * `defaultInput`, which defaults to text and image. Explicit declarations
+   * `defaultInput`, which defaults to text, image, file, and audio. Explicit declarations
    * remain metadata and never suppress images in provider requests.
    */
   input?: PiAiModality[]
@@ -658,7 +658,7 @@ export interface RouteCatalogRequest {
   /** Output capability for a model neither the entry nor the catalog sizes. */
   defaultMaxTokens: number
   /** Modalities for a model neither the entry nor the catalog declares. */
-  defaultInput: Model<Api>['input']
+  defaultInput: readonly PiAiModality[]
 }
 
 /** An expected configuration failure that stored-catalog reads may retain for repair. */
@@ -822,6 +822,8 @@ function resolveModelCompat(
 export interface RouteCatalog {
   /** The materialized models in configuration order. */
   models: readonly Model<Api>[]
+  /** Complete advisory input metadata, kept outside pi-ai model descriptors. */
+  inputModalities: ReadonlyMap<string, readonly PiAiModality[]>
   /** Models that cannot be resolved, retained as diagnostics during stored-config reads. */
   modelErrors: ReadonlyMap<string, string>
   /**
@@ -900,6 +902,7 @@ export function resolveRouteModels(
   assertOfferedCompatFields(provider, 'route', request.compat)
   const seen = new Set<string>()
   const configuredMaxTokens = new Map<string, number>()
+  const inputModalities = new Map<string, readonly PiAiModality[]>()
   const resolveEntry = (entry: PiAiModelProfile): Model<Api> => {
     assertOfferedCompatFields(provider, `model "${entry.id}"`, entry.compat)
     if (entry.id.length === 0) invalid(provider, 'has a model with an empty id')
@@ -930,6 +933,8 @@ export function resolveRouteModels(
     // Only a value the profile named is a deployment choice; the catalog's is
     // the model's capability and stays out of request defaults.
     if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, entry.maxTokens)
+    const input = declaredInput(entry.input) ?? [...request.defaultInput]
+    inputModalities.set(entry.id, input)
     return {
       // The installed entry lays the floor, and the fields below override it.
       // Enumerating instead would silently drop every `Model` field this
@@ -942,7 +947,7 @@ export function resolveRouteModels(
       api,
       provider,
       baseUrl,
-      input: declaredInput(entry.input) ?? [...request.defaultInput],
+      input: input.filter((modality): modality is Model<Api>['input'][number] => modality === 'text' || modality === 'image'),
       cost: base?.cost ?? NO_COST,
       contextWindow,
       maxTokens,
@@ -974,5 +979,5 @@ export function resolveRouteModels(
     invalid(provider, `sets compat "${field}", but no model on the route speaks a protocol that takes it;`
       + ` it exists on ${takers.join(', ')}`)
   }
-  return { models: serviceableModels, configuredMaxTokens, modelErrors }
+  return { models: serviceableModels, inputModalities, configuredMaxTokens, modelErrors }
 }

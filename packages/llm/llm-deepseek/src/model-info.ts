@@ -48,7 +48,7 @@ export function catalogModelInfo(provider: string, model: DeepSeekCatalogModel):
     id: model.id,
     name: model.name ?? model.id,
     ...model.description === undefined ? {} : { description: model.description },
-    inputModalities: model.inputModalities ?? ['text', 'image'],
+    inputModalities: model.inputModalities ?? ['text', 'image', 'file', 'audio'],
   }
 }
 
@@ -68,7 +68,7 @@ export function modelInfo(
     ?? connection.defaultContextWindow
   return {
     ...configured === undefined
-      ? { provider, id: model, name: model, inputModalities: ['text' as const, 'image' as const] }
+      ? { provider, id: model, name: model, inputModalities: ['text', 'image', 'file', 'audio'] as const }
       : catalogModelInfo(provider, configured),
     context: { contextWindow },
     defaultMaxTokens: configured?.maxTokens ?? connection.maxTokens,
