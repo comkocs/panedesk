@@ -15628,12 +15628,12 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
-      '@panedesk/dsh-session-persistence-jsonl':
-        specifier: workspace:*
-        version: link:../session-persistence-jsonl
       '@panedesk/dsh-session-persistence':
         specifier: workspace:*
         version: link:../session-persistence
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../session-persistence-jsonl
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../session-projection
