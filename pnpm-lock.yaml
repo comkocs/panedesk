@@ -6292,6 +6292,9 @@ importers:
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../../seat/seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../../seat/seat-engine
       '@panedesk/dsh-util-crypto':
         specifier: workspace:*
         version: link:../../util/crypto
