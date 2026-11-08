@@ -15631,9 +15631,15 @@ importers:
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../session-persistence-jsonl
+      '@panedesk/dsh-session-persistence':
+        specifier: workspace:*
+        version: link:../session-persistence
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../session-projection
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
 
   packages/session/session-title-first-prompt-llm:
     dependencies:

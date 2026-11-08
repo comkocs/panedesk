@@ -5,6 +5,7 @@ import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ConfigFormSnapshot, SettingsDescribeFace } from '@panedesk/dsh-client-ui-settings/client'
 import type { OpeningNamePattern } from '@panedesk/dsh-session-title/types'
+import { extractOpeningFolder } from '@panedesk/dsh-session-title/client'
 import css from './OpeningNameRow.module.css'
 
 /** Global preferences owned by the always-mounted settings shell. */
@@ -62,8 +63,11 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
   const valid = selected.length > 0 && !/\s/u.test(selected)
   const writable = snapshot.status === 'ready' && snapshot.writable && !busy
   const date = new Date()
+  const folder = extractOpeningFolder(sample)
+  const suffix = ` ${date.getMonth() + 1}-${date.getDate()}`
+  const folderPreview = (folder ?? t('openingName.untitled')) + suffix
   const preview = enabled
-    ? `${valid ? selected : t('openingName.automatic')} ${date.getMonth() + 1}-${date.getDate()}`
+    ? valid ? selected + suffix : folderPreview
     : t('openingName.automatic')
   const stage = (next: OpeningNamePattern): void => {
     if (snapshot.revision === undefined) return
@@ -111,6 +115,7 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
         }
       }} />
     <p className={css.description} aria-live="polite">{t('openingName.preview', { title: preview })}</p>
+    <p className={css.description}>{t('openingName.folderPreview', { title: folderPreview })}</p>
     {selected.length > 0 && !valid && <p role="alert">{t('openingName.invalid')}</p>}
     {failed && <p role="alert">{t('openingName.error')}</p>}
     <div className={css.actions}>

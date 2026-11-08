@@ -2,6 +2,25 @@
 import type { OpeningNamePattern } from './types.ts'
 
 /**
+ * Read the first path's directory name without accessing the filesystem.
+ * @param message - opening text containing a quoted or whitespace-delimited path.
+ * @returns the containing directory for a file-like last segment, otherwise the last segment.
+ */
+export function extractOpeningFolder(message: string): string | undefined {
+  const tokens = message.match(/"[^"\n]+"|'[^'\n]+'|`[^`\n]+`|[^\s"'`，。；！？<>]+/gu) ?? []
+  for (const token of tokens) {
+    const path = token.replace(/^["'`]|["'`]$/gu, '').replaceAll('\\', '/')
+    if (!path.includes('/') || /^[a-z][a-z\d+.-]*:\/\//iu.test(path)) continue
+    const parts = path.replace(/[,.!?;:）)\]】]+$/u, '').split('/').filter(Boolean)
+    const last = parts.pop()
+    if (last === undefined) continue
+    const folder = /\.[^.]+$/u.test(last) ? parts.pop() : last
+    if (folder !== undefined && folder !== '.' && folder !== '..' && !/^[a-z]:$/iu.test(folder)) return folder
+  }
+  return undefined
+}
+
+/**
  * Find the first nonempty, whitespace-free value between the saved anchors.
  * @param message - the first human message, unchanged.
  * @param pattern - sample and anchors selected in General Settings.

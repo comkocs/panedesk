@@ -44,9 +44,11 @@ type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.session.row.hover'
 >['renderSlot']
 
-/** Row display title: blank rows show the localized New Session label. */
+/** Persisted titles win; top-level unnamed placeholders carry a display-only creation date. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : (node.title || t('session.untitled'))
+  return node.title || (node.placeholderSuffix === undefined
+    ? t(node.blank ? 'session.new' : 'session.untitled')
+    : t('session.untitled') + node.placeholderSuffix)
 }
 
 /* Overflow this small hides no meaningful tail; scrolling for it reads as an

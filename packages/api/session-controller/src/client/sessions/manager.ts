@@ -796,7 +796,7 @@ export class SessionManager {
       const prev = this.entryCache.get(entry.sessionId)
       if (
         prev !== undefined && prev.updatedAt === entry.updatedAt && prev.running === entry.running
-        && prev.blank === entry.blank
+        && prev.blank === entry.blank && prev.createdAt === entry.createdAt
         && prev.parentSessionId === entry.parentSessionId && prev.cwd === entry.cwd
         && prev.origin === entry.origin && prev.title === entry.title && prev.depth === entry.depth
         && prev.formatStatus === entry.formatStatus
@@ -841,6 +841,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
           running: mutation.summary.running,
           ...(mutation.summary.formatStatus === undefined ? {} : { formatStatus: mutation.summary.formatStatus }),
         } : {}),
+        ...(mutation.summary.createdAt === undefined ? {} : { createdAt: mutation.summary.createdAt }),
         ...(existing.cwd === undefined && mutation.summary.cwd !== undefined ? { cwd: mutation.summary.cwd } : {}),
         ...(existing.parentSessionId === undefined && mutation.summary.parentSessionId !== undefined
           ? { parentSessionId: mutation.summary.parentSessionId } : {}),
@@ -850,7 +851,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       if (filled.cwd === existing.cwd && filled.parentSessionId === existing.parentSessionId
         && filled.origin === existing.origin && filled.blank === existing.blank
         && filled.agentAvailable === existing.agentAvailable && filled.running === existing.running
-        && filled.formatStatus === existing.formatStatus
+        && filled.formatStatus === existing.formatStatus && filled.createdAt === existing.createdAt
       ) return [...summaries]
       return summaries.map(summary => summary.sessionId === mutation.summary.sessionId ? filled : summary)
     }

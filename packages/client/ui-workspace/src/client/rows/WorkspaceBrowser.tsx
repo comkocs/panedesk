@@ -687,11 +687,12 @@ function SessionTree({
 
 /** The flat "In one list" body: every session is one draggable top-level row. */
 function FlatList({
-  list, sessionIds, rowState, onLeaveArchivedOnly, useSessionStatus, open, onSessionRenameRequest,
+  list, workspaces, sessionIds, rowState, onLeaveArchivedOnly, useSessionStatus, open, onSessionRenameRequest,
   usePanelInfo, setSessionOrder, workspaceReady, animationResetKey,
   revealSessionId, onSessionRevealed, renderSlot, t,
 }: Pick<
   SessionTreeProps,
+  | 'workspaces'
   | 'useSessionStatus'
   | 'open'
   | 'onSessionRenameRequest'
@@ -712,8 +713,8 @@ function FlatList({
   const panelActive = usePanelInfo(info => info.activePanelId !== null)
   const statuses = useSessionStatus(s => s)
   const rows = useMemo(
-    () => deriveFlat(list, sessionIds, rowState, statuses),
-    [list, sessionIds, rowState, statuses],
+    () => deriveFlat(list, sessionIds, rowState, statuses, workspaces),
+    [list, sessionIds, rowState, statuses, workspaces],
   )
   const [drag, setDrag] = useState<DragState | null>(null)
   const dropCommitted = useRef(false)
@@ -1420,6 +1421,7 @@ export function WorkspaceBrowser({
           : groupBy === 'flat'
             ? (
               <FlatList
+                workspaces={workspaces}
                 usePanelInfo={usePanelInfo}
                 list={list}
                 sessionIds={orderedFlatSessionIds}
