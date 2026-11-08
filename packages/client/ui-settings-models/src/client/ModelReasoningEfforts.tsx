@@ -11,8 +11,8 @@ import styles from './ModelsSection.module.css'
 /** Declared levels in stored order, each with the value stored for it, whatever a hand edit left there. */
 type Entries = readonly (readonly [string, unknown])[]
 
-/** Levels a model offers when the switch is turned on, where the schema lists them: Off plus the common OpenAI-compatible trio. */
-const INITIAL_LEVELS: readonly string[] = ['off', 'low', 'medium', 'high']
+/** Levels used when enabling reasoning on a model with no inferred support. */
+const INITIAL_LEVELS: readonly string[] = ['low', 'medium', 'high']
 
 /** The wire value a level sends unless its row says otherwise; `null` is the Off entry that sends nothing. */
 function defaultValue(level: string): string | null {
@@ -46,14 +46,13 @@ function readEfforts(model: DeepSeekModelDraft): Entries | undefined {
 /**
  * Replace a row's declared levels, preserving every other field.
  * @param model - model row as drafted.
- * @param entries - the levels to write in row order, or `undefined` to remove the field.
+ * @param entries - the levels to write in row order, or `undefined` to explicitly disable reasoning.
  * @returns the replacement row.
  */
 function withEfforts(model: DeepSeekModelDraft, entries: Entries | undefined): DeepSeekModelDraft {
   const next = { ...model }
   if (entries === undefined) {
-    // Absent is how a hand-declared model says it does not reason.
-    Reflect.deleteProperty(next, 'reasoningEfforts')
+    next['reasoningEfforts'] = false
     return next
   }
   next['reasoningEfforts'] = Object.fromEntries(entries)

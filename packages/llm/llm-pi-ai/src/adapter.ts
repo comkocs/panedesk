@@ -309,13 +309,17 @@ function profileOptions(
  * asked it for something it cannot.
  * @param model - the resolved model descriptor.
  * @param effort - the profile's configured level, if any.
- * @returns the level when this model supports it, otherwise undefined.
+ * @returns the supported configured level, otherwise undefined; absent configuration prefers high, then the highest level.
  */
 function describableReasoningLevel(
   model: Model<Api>,
   effort: ReasoningEffortIdType | ModelThinkingLevel | undefined,
 ): ModelThinkingLevel | undefined {
-  if (effort === undefined) return undefined
+  if (effort === undefined) {
+    if (!model.reasoning) return undefined
+    const levels = getSupportedThinkingLevels(model)
+    return levels.includes('high') ? 'high' : levels.at(-1)
+  }
   return getSupportedThinkingLevels(model).some(level => level === effort)
     ? effort as ModelThinkingLevel
     : undefined
@@ -326,7 +330,7 @@ function resolveReasoningLevel(
   model: Model<Api>,
   effort: ReasoningEffortIdType | ModelThinkingLevel | undefined,
 ): ModelThinkingLevel | undefined {
-  if (effort === undefined) return undefined
+  if (effort === undefined) return describableReasoningLevel(model, undefined)
   const supported = getSupportedThinkingLevels(model)
   if (supported.some(level => level === effort)) return effort as ModelThinkingLevel
   throw new LlmError(
@@ -338,8 +342,8 @@ function resolveReasoningLevel(
 /**
  * Selectable reasoning efforts for one model, or nothing at all.
  *
- * A model that carries no reasoning metadata — every hand-declared one, and
- * every catalog model pi-ai marks as non-reasoning — is reported by pi-ai as
+ * A model that carries no reasoning metadata — an unrecognized custom model or
+ * a catalog model pi-ai marks as non-reasoning — is reported by pi-ai as
  * supporting the single level `off`. Passing that through would offer a control
  * that cannot do what it says: `off` is translated to *omitting* the reasoning
  * option, which for such a model is byte-for-byte the same request as naming no

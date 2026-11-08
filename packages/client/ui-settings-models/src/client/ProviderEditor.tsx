@@ -529,6 +529,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                   {...catalogProps}
                   catalogProvider={props.declared === true ? undefined : props.provider}
                   reasoningLevels={reasoningLevels}
+                  reasoningCompat={schema.getPath(draft, ['compat', 'supportsReasoningEffort'])}
                   defaultInput={Array.isArray(defaultInput) ? defaultInput : undefined}
                   probe={probe}
                   probeBlocked={keyFailure}

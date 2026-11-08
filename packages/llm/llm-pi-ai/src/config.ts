@@ -298,7 +298,7 @@ const modelFields = {
   input: z.array(z.union(MODALITIES)),
   // The union, not a bare dict: schemastery materializes an absent dict as
   // `{}`, and absent must stay distinguishable — it means "inherit the
-  // installed catalog's capability", while `false` disables reasoning.
+  // installed catalog's capability or infer custom-model levels", while `false` disables reasoning.
   reasoningEfforts: z.union([z.const(false), reasoningEfforts]),
   compat: compatProfile,
 }

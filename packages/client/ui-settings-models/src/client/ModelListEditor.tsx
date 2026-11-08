@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
+import { inferReasoningEfforts } from '@panedesk/dsh-llm-pi-ai/src/reasoning.ts'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
 import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
 import { defaultRecognizedSelection } from './recognize.ts'
@@ -74,6 +75,8 @@ export interface ModelListEditorProps {
    * reasoning control, leaving a catalog model's levels to the catalog.
    */
   reasoningLevels?: readonly string[] | undefined
+  /** Route-level effort-parameter support, when explicitly configured. */
+  reasoningCompat?: unknown
   /** Route input types for models without an explicit declaration. */
   defaultInput?: readonly string[] | undefined
   /** Whether the user layer currently owns the whole array; absent on a create. */
@@ -182,6 +185,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     return () => { current = false }
   }, [catalogProvider, operations, probe.settingsNs])
   const catalog = inheritedCatalog?.provider === catalogProvider ? inheritedCatalog?.models : undefined
+  const reasoningModel = (model: ModelDraft): ModelDraft => {
+    if (model['reasoningEfforts'] !== undefined || catalogProvider !== undefined) return model
+    const compat = model['compat']
+    const support = typeof compat === 'object' && compat !== null && 'supportsReasoningEffort' in compat
+      ? compat.supportsReasoningEffort : props.reasoningCompat
+    return { ...model, reasoningEfforts: inferReasoningEfforts({
+      id: textOf(model, 'id'),
+      name: textOf(model, 'name'),
+      api: probe.api,
+      supportsReasoningEffort: typeof support === 'boolean' ? support : undefined,
+    }) }
+  }
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const [candidateQuery, setCandidateQuery] = useState('')
@@ -386,6 +401,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           <ModelRow
             key={index}
             model={model}
+            reasoningModel={reasoningModel(model)}
             position={index + 1}
             inputField="input"
             inputFallback={props.defaultInput}

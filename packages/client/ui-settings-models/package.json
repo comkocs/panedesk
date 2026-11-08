@@ -47,6 +47,7 @@
   "devDependencies": {
     "@panedesk/dsh-host-webserver": "workspace:*",
     "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-llm-pi-ai": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",

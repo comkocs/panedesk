@@ -43,6 +43,9 @@
     },
     {
       "path": "../../util/values"
+    },
+    {
+      "path": "../../llm/llm-pi-ai"
     }
   ]
 }
