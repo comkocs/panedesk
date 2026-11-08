@@ -46,10 +46,10 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 |---|---|---|
 | `provider` | required | Provider name on `ctx.subagents` (e.g. `spawn`, `fork`, `acp`) |
 | `toolName` | `subagent` | Model-facing tool name; distinct for every loaded instance |
-| `modelSelectionSettings` | `false` | Sample the Host's exact-route authorization preference for each top-level Session; a standing preset observes matching Sessions, while direct Agent setup passes its Session explicitly; requires provider `agentOptions` support |
+| `modelSelectionSettings` | ignored | Retired compatibility field; every Session can select configured models |
 | `agentOptions` | — | Configured child `provider`, `model`, adapter-owned `reasoningEffort`, and positive `maxTokens` defaults; requires provider `agentOptions` support and overlays any provider-owned route defaults |
 | `agentPreset` | — | Default independent child preset id; requires in-process spawn |
-| `allowedAgentPresets` | — | Non-empty preset-id allowlist exposed as the model's optional `agent_preset` enum; must include `agentPreset` when both are set |
+| `allowedAgentPresets` | ignored | Retired compatibility field; `agent_preset` offers every usable registered preset |
 | `maxDepth` | Host setting (`1`) | Absolute delegation-depth cap (`0` forbids delegation); `'provider-managed'` sends no cap to an out-of-process provider |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-tool-subagent) is the exhaustive source for every accepted field and its JSDoc.
@@ -65,17 +65,17 @@ Every backend’s completion notice carries its final answer. Local Spawn and Fo
 <a id="selecting-a-child-preset"></a>
 ### Selecting a child preset
 
-Set `agentPreset` to give every child an independent preset by default. Set `allowedAgentPresets` to let the model choose an id through `agent_preset`; without this allowlist, the model cannot override the configured choice. Only in-process spawn supports these options; fork and external backends reject them.
+Set `agentPreset` to choose an independent child preset by default. The optional `agent_preset` argument offers all usable registered presets, including imported `.claude/agents` types, without an allowlist switch. Independent preset composition requires in-process spawn; fork and external backends reject explicit preset selection.
 
-The configured default and allowlist must name declared presets. A tool inside a preset checks these ids and reads their descriptions during Agent initialization; a Host-mounted tool performs this check when it loads. This check does not activate candidate presets. Activation failures reject the selected preset when the child is composed. Without either selection field, the tool does not require the preset service. An omitted model choice uses the configured `agentPreset`, or joins the parent's current preset revision when no default is configured. Any explicit id mounts the currently available revision, even when it matches the parent's id.
+The configured default must name a usable preset. Preset descriptions are read during Agent initialization, independently of backend registration order, and choices are validated again at delegation. Omission uses the configured default or inherits the parent composition. Explicit selection mounts the current revision. Imported model preferences resolve at dispatch; missing model names inherit the parent route and the start result reports the actual provider/model. An explicit `model` overrides the imported preference.
 
 Compose persona and tools in the [preset plugin list](../../preset/agent-preset-registry/README.md). Tool configuration containing `persona` or `toolFilter` fails at load with a migration error. Local children use the shared [preset restoration rules](../subagent/README.md#restoring-child-composition).
 
 ### Selecting a child LLM
 
-Set `modelSelectionSettings: true` to sample the Host's `subagent-model-selection` preference when each fresh top-level Session is composed. A restored Session without a recorded policy remains disabled, including an explicitly empty restore. When enabled, the non-empty exact provider/model route list is recorded in the Session, inherited by child Sessions, and unchanged by later settings edits. The tool then exposes optional `provider`, `model`, and `reasoning_effort` fields and registers the shared `list_subagent_models` tool. This mode requires a backend that advertises `agentOptions`; both in-process backends and DSH SDK support it, while ACP, Codex, and Claude Code reject it rather than ignore it.
+Every new and restored Session exposes optional `model`, `provider`, and `reasoning_effort`, plus `list_subagent_models`. Neither settings nor historical Session policy gates selection. Discovery lists every configured provider/model route, or filters by provider and inspects a model’s reasoning efforts. Backends without `agentOptions` reject a selected route at dispatch.
 
-A call supplies `provider` and `model` together, or supplies only an effort when configured, parent, or provider-owned defaults provide the route. Static `provider.agentRouteDefaults`, when present, form the provider/model baseline; tool configuration and model fields overlay it before route-aware effort merging and exact-route preflight. Providers without these defaults use compatible values from the parent's latest logged request, then the parent's creation options before its first request, while retaining the configured `maxTokens`. Changing the route without an explicit effort clears the inherited route-owned effort, so the selected model resolves its default. The live LLM adapter validates the effective route before child creation. Catalog membership remains advisory, so a model can use an unlisted id when its adapter accepts it.
+A model name is matched exactly against `llm.listModels` for all registered providers. One match selects that provider; multiple matches fail with provider/model candidates, and no match fails with the available models. Supply `provider` to disambiguate. Provider-only requests fail. Explicit selection overlays configured and provider defaults; a changed route without an effort clears route-owned reasoning defaults. Omitted values otherwise inherit compatible parent values. The existing LLM adapter validates and sends the selected route using its configured protocol.
 
 -----
 
@@ -89,7 +89,7 @@ This section explains how the tool mirrors provider lifecycle and settles runs; 
 
 ### Design concept
 
-One instance is one provider plus one tool name. The plugin mirrors provider lifecycle: it registers the tool when the named provider appears and disposes it when the provider leaves, so sibling load order and HMR replacement cannot strand a dangling tool. Direct Agent setup passes its unpublished Session explicitly and awaits installation before publication. A standing preset with model or preset selection receives each matching Agent through `agent/created`, validates preset references, selects any model policy from its Session, and awaits installation through its Context; installation failure rejects creation. A numeric `maxDepth` or configured LLM selection the provider cannot enforce fails the mount instead of the first delegation. At most one instance in a tool scope may own model selection because `list_subagent_models` has a global name.
+One instance follows its backend’s registration lifetime. Direct Agent setup installs immediately; standing preset compositions install in each matching Agent scope and validate live preset choices, without reading a Session model-selection policy. Discovery is shared where already visible. Depth and configured child options retain backend capability checks.
 
 ### Activation ownership
 
@@ -110,8 +110,8 @@ The tool's description derives from `provider.inheritsParentContext`: a fresh ch
 | [`src/index.ts`](src/index.ts) | Tool registration, provider lifecycle mirroring, activation requests |
 | [`src/preset-selection.ts`](src/preset-selection.ts) | Configured preset validation, model allowlist, and description guidance |
 | [`src/model-selection.ts`](src/model-selection.ts) | Request/config merge and live LLM route preflight |
-| [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | Host-owned opt-in setting sampled for new Sessions |
-| [`src/model-selection-state.ts`](src/model-selection-state.ts) | Session event that records and inherits the sampled decision |
+| [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | Retired settings service retained for existing deployment configuration |
+| [`src/model-selection-state.ts`](src/model-selection-state.ts) | Historical Session policy projection, retained for reading old logs but not used for selection |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` runtime discovery tool |
 
 </details>
@@ -138,11 +138,11 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-The generated default [`subagent` schema](../../../docs/tool-catalog.md#panedeskdsh-tool-subagent) appears under the configured tool name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus route guidance; the backend must support `agentOptions`. `allowedAgentPresets` adds the `agent_preset` enum and guidance from the presets' display descriptions. Context inheritance and continuation support determine the task and follow-up descriptions. A tool restriction removes both the schema and its `tool:<toolName>` guidance section.
+The tool always exposes `agent_preset`, `model`, `provider`, and `reasoning_effort`, in new and restored Sessions alike. Usable preset ids and descriptions are advertised when the registry is available. Context inheritance and continuation support determine task and follow-up descriptions. A tool restriction removes the schema and its guidance.
 
 #### Token effect
 
-Fixed schema cost per parent request; LLM selection adds three parameters, while preset selection adds one enum parameter and preset descriptions. Each tool instance adds one schema and one short system-prompt section.
+Fixed schema cost per parent request includes three model-selection parameters and one preset parameter with available preset descriptions. Each tool instance adds one schema and one short system-prompt section.
 
 #### KV Cache effect
 
@@ -152,11 +152,11 @@ Prefix-stable while provider instances and their configuration are unchanged. Ad
 
 #### What the model sees
 
-A settings-controlled instance whose Session carries a policy exposes the child LLM selection fields and `list_subagent_models`. Calls reject while the optional `ctx.llm` service is unavailable. Discovery returns only registered providers and advertised models in the exact route policy; an unauthorized provider is rejected before its adapter catalog is called, and an exact lookup must be allowed before it resolves the model's reasoning efforts and default. Execution independently enforces the same policy.
+`list_subagent_models` lists the full live configured catalog. Optional provider/model arguments narrow discovery or inspect reasoning efforts. Explicit model selection requires a unique configured route; missing or ambiguous names produce actionable errors. The optional `ctx.llm` service must be available for model lookup.
 
 #### Token effect
 
-One fixed discovery schema is present in enabled compositions. Directory contents enter the transcript only when the model calls the tool.
+One discovery schema is shared by visible delegation compositions. Catalog contents enter the transcript only when requested.
 
 #### KV Cache effect
 
@@ -206,7 +206,7 @@ Depth changes do not alter the system prompt or tool schemas. Updated runtime co
 
 #### What the model sees
 
-The call retains the task description and prompt. Success returns `started subagent <childId>`; startup rejection returns an error. Child execution details are delivered separately from this acknowledgement.
+The call retains the task description and prompt. Local startup returns `started subagent <childId>; model <provider>/<model>` after its first request establishes the actual route; startup rejection returns an error. Child execution details are delivered separately.
 
 #### Token effect
 
@@ -238,8 +238,8 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define what this tool does not return or enforce; they are current package constraints.
 
 - **This tool does not wait for results** — use the completion notice or child messages. Programmatic result waiting belongs to the subagent service.
-- **Shipped fork tools cannot select a child LLM route** — they inherit the parent's provider and model to keep the copied conversation prefix eligible for KV Cache reuse. Re-enable selection only when route changes preserve reuse or expose a bounded recomputation cost.
-- **Depth limits are fixed per instance** — independently named tools can set different caps. LLM selection requires an enabled per-Session preference and a provider that advertises `agentOptions`; both in-process providers and DSH SDK advertise it, while ACP, Codex, and Claude Code reject it rather than ignore it.
+- **Fork route changes can prevent prefix reuse** — selection is available, but another model/provider may recompute the inherited conversation.
+- **Backend capabilities still apply** — independent presets require spawn; model overrides require `agentOptions`. Explicit runtime execution policies remain enforced for controlled presets.
 
 <a id="dev-note"></a>
 ### Dev Note

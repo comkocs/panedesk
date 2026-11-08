@@ -1,4 +1,4 @@
-/** Deployment-owned preset choices for one delegation tool. */
+/** Live registry preset choices for one delegation tool. */
 import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-agent-preset-registry'
 import type { SubagentProvider } from '@panedesk/dsh-subagent'
@@ -7,7 +7,7 @@ import type { SubagentProvider } from '@panedesk/dsh-subagent'
 export interface PresetSelectionConfig {
   /** Default independent preset; omission inherits the parent when the model makes no selection. */
   agentPreset?: string
-  /** Non-empty allowlist exposing agent_preset to the model; omission offers all usable registered presets. */
+  /** Retired allowlist accepted for existing compositions; all usable presets are offered. */
   allowedAgentPresets?: string[] | undefined
 }
 
@@ -16,30 +16,21 @@ export interface PresetSelectionRequest {
   readonly agent_preset?: unknown
 }
 
-/** Validates configured references and resolves model input against the allowlist. */
+/** Validates configured references and resolves model input against the registry. */
 export class SubagentPresetSelection {
   private descriptions: string[] = []
   private registeredChoices: string[] | undefined
 
-  constructor(private readonly config: PresetSelectionConfig) {
-    const { agentPreset, allowedAgentPresets } = config
-    if (allowedAgentPresets === undefined) return
-    if (new Set(allowedAgentPresets).size !== allowedAgentPresets.length) {
-      throw new Error('tool-subagent: allowedAgentPresets contains duplicate preset ids')
-    }
-    if (agentPreset !== undefined && !allowedAgentPresets.includes(agentPreset)) {
-      throw new Error('tool-subagent: agentPreset must be included in allowedAgentPresets')
-    }
-  }
+  constructor(private readonly config: PresetSelectionConfig) {}
 
   /** Whether this tool requires the preset service and an independently composing provider. */
   get configured(): boolean {
-    return this.config.agentPreset !== undefined || this.config.allowedAgentPresets !== undefined
+    return this.config.agentPreset !== undefined
   }
 
   /** Preset ids advertised in the model parameter. */
   get choices(): readonly string[] | undefined {
-    return this.config.allowedAgentPresets ?? this.registeredChoices
+    return this.registeredChoices
   }
 
   /** Model-visible selection guidance and configured preset descriptions. */
@@ -58,24 +49,12 @@ export class SubagentPresetSelection {
   async validate(ctx: Context): Promise<void> {
     const presets = ctx.get('agentPresets')
     if (presets === undefined) throw new Error('tool-subagent: agent preset selection requires the agent-presets service')
-    if (!this.configured) {
-      const available = (await presets.list()).filter(preset => preset.broken === undefined)
-      this.registeredChoices = available.map(preset => preset.id)
-      this.descriptions = available.map(preset => `${preset.id}: ${preset.description ?? preset.name ?? 'No description provided.'}`)
-      return
+    const available = (await presets.list()).filter(preset => preset.broken === undefined)
+    this.registeredChoices = available.map(preset => preset.id)
+    this.descriptions = available.map(preset => `${preset.id}: ${preset.description ?? preset.name ?? 'No description provided.'}`)
+    if (this.config.agentPreset !== undefined && !this.registeredChoices.includes(this.config.agentPreset)) {
+      throw new Error(`tool-subagent: unavailable default preset "${this.config.agentPreset}"`)
     }
-    const ids = new Set([
-      ...this.config.agentPreset === undefined ? [] : [this.config.agentPreset],
-      ...this.config.allowedAgentPresets ?? [],
-    ])
-    const descriptions: string[] = []
-    for (const id of ids) {
-      const preset = await presets.readDocument(id)
-      if (this.choices?.includes(id) && preset.description !== undefined) {
-        descriptions.push(`${id}: ${preset.description}`)
-      }
-    }
-    this.descriptions = descriptions
   }
 
   /**
