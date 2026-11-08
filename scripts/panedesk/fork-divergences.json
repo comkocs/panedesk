@@ -4253,6 +4253,30 @@
       }
     },
     {
+      "id": "live-subagent-model-and-type-selection",
+      "description": "Offer configured models and imported agent types in new and restored sessions.",
+      "origin": "Panedesk built-in subagent delegation",
+      "reason": "Resolve model names against live provider catalogs at dispatch, retain imported types without a matching provider, and remove the obsolete model-selection settings card. Suitable for upstream contribution.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/subagent/tool-subagent/src/index.ts",
+          "packages/subagent/tool-subagent/src/model-selection.ts",
+          "packages/subagent/tool-subagent/src/list-models.ts",
+          "packages/subagent/tool-subagent/src/preset-selection.ts",
+          "packages/preset/agent-preset-registry/src/claude-agents.ts",
+          "packages/preset/agent-preset-registry/src/claude-agent-instructions.ts",
+          "packages/preset/agent-preset-registry/src/definition.ts",
+          "packages/preset/agent-preset-registry/src/index.ts",
+          "packages/preset/agent-preset-registry/src/preset.ts",
+          "packages/client/ui-settings-subagent/src/client/index.ts",
+          "packages/client/ui-settings-subagent/src/client/SubagentCard.tsx",
+          "packages/client/ui-settings-subagent/src/client/locales.ts",
+          "packages/bundle/web-app/presets/cordis.patch.yml"
+        ]
+      }
+    },
+    {
       "id": "enforced-subagent-definition",
       "description": "Enforce subagent route and tool policies at runtime.",
       "origin": "Cache controls and session ledger",

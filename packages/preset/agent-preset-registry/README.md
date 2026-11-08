@@ -43,7 +43,7 @@ Choose an Agent’s tools, prompt sections and skills through declarative preset
 |---|---|---|
 | `default` | required | Preset ID used when none is requested |
 
-The Web definitions come from the `dsh-web-app` bundle. Definitions are ordinary plugin rows; the registry neither scans directories nor accepts preset paths. The `selectedDefault` volatile field of the `agent-preset-registry` entry retains the user default, which new sessions resolve over the deployment `default`. A profile patch may still carry the retired `modeSelectionEnabled` field; the registry declares no such field and neither reads nor rewrites it.
+Web declarations come from the `dsh-web-app` bundle. The registry also reads `~/.claude/agents/*.md` and workspace `.claude/agents/*.md` once at startup; project definitions override user definitions of the same name. Import retains instructions, mapped tool restrictions, and model/effort preferences without resolving a provider. Delegation resolves model preferences from the live catalog, falls back to the parent route when absent, and honors explicit model overrides. Missing providers at startup do not mark these types broken. The `selectedDefault` volatile field overrides the deployment default for new sessions.
 
 The registry writes no declarations. The `read` Remote renders one declaration’s child list back as entry-list YAML (`!!js` conditions included) so a client can show what a preset composes; nothing accepts YAML back. A new preset or an override of a shipped one is a bundle patch: an `insert` of a `@panedesk/dsh-agent-preset` row, or a patch keyed by that row’s id, installed into the profile with `plugin_manager`; Creator mode authors such bundles in conversation.
 

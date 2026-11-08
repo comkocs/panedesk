@@ -43,7 +43,7 @@ kind: "package-reference"
 |---|---|---|
 | `default` | 必填 | 未显式指定时使用的 preset ID |
 
-Web 内置定义来自 `dsh-web-app` bundle。定义使用普通插件行；注册表不扫描目录，也不接受 preset 路径。`agent-preset-registry` 条目的 volatile 字段 `selectedDefault` 保留用户默认值，新会话优先使用它而不是部署 `default`。profile patch 仍可能带有已废弃的 `modeSelectionEnabled` 字段；注册表未声明该字段，既不读取也不重写它。
+Web 声明来自 `dsh-web-app` bundle。注册表还在启动时读取一次 `~/.claude/agents/*.md` 与工作区 `.claude/agents/*.md`，项目同名定义覆盖用户定义。导入保留指令、映射后的工具限制和模型／强度偏好，不解析提供方。派遣时从实时目录解析模型偏好，无命中则使用父级路由，显式模型覆盖优先。启动时缺少提供方不会让这些类型变成 broken。`selectedDefault` volatile 字段为新会话覆盖部署默认值。
 
 注册表不写入任何声明。`read` Remote 把一条声明的子插件列表按 entry-list YAML 方言（含 `!!js` 条件）渲染回来，供客户端展示 preset 的组成；没有任何接口接受 YAML 写回。新建 preset 或覆盖内置 preset 都是 bundle 补丁：插入一行 `@panedesk/dsh-agent-preset`，或按该行 id 写覆盖补丁，再用 `plugin_manager` 安装到 profile；创造模式在对话中编写这类 bundle。
 

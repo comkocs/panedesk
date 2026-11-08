@@ -1,17 +1,13 @@
 /** Claude Code agent definitions (`~/.claude/agents`, `<workspace>/.claude/agents`) read as presets. */
-import { createHash } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { load } from 'js-yaml'
 import type { Context } from '@panedesk/cordis'
-import type { PresetDefinition, PresetExecutionPolicy } from './definition.ts'
+import type { PresetDefinition } from './definition.ts'
 
 /** Instruction plugin, addressed by its source file so the Loader can import it. */
 const INSTRUCTION_PLUGIN = new URL('./claude-agent-instructions.ts', import.meta.url).href
-
-/** Row that fails its mount with a message carried in config; used for a model no provider advertises. */
-const BROKEN_PLUGIN = new URL('./claude-agent-broken.ts', import.meta.url).href
 
 /** Claude Code tool name to the Panedesk tool a running agent can call. */
 const CLAUDE_TOOL_NAMES: Readonly<Record<string, string>> = {
@@ -87,22 +83,6 @@ async function readAgentDir(dir: string): Promise<ClaudeAgentFile[]> {
   return files.filter((file): file is ClaudeAgentFile => file !== undefined)
 }
 
-/**
- * Provider route whose advertised catalog contains `model`, in registration order.
- * @param ctx - runtime whose `llm` service lists configured providers.
- * @param model - model id from the agent definition.
- * @returns the provider id, or undefined when no configured provider advertises it.
- */
-async function providerForModel(ctx: Context, model: string): Promise<string | undefined> {
-  const llm = ctx.get('llm')
-  if (llm === undefined || model === '') return undefined
-  for (const provider of llm.listProviders()) {
-    const models = await llm.listModels(provider.id)
-    if (models.some(row => row.id === model)) return provider.id
-  }
-  return undefined
-}
-
 /** Panedesk tool names for the listed Claude Code tools, plus the names that map to nothing. */
 function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: string[] } {
   const allowed: string[] = []
@@ -115,46 +95,29 @@ function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: stri
   return { allowed, unmapped }
 }
 
-/** Stable identity for one definition's instruction text, recorded on the execution policy. */
-function rulesDigest(body: string): string {
-  return createHash('sha256').update(body).digest('hex')
-}
-
 /**
  * Read both definition trees. A project file overrides a user file of the same `name`.
- * @param ctx - runtime used to route each definition's model to a configured provider.
+ * @param _ctx - owning runtime; model lookup is deferred until delegation.
  * @param sources - home and workspace roots; omitted roots fall back to the process home and cwd.
  * @returns one preset per distinct name, project copy winning.
  */
-export async function claudeAgentPresets(ctx: Context, sources: ClaudeAgentSources = {}): Promise<ClaudeAgentPreset[]> {
+export async function claudeAgentPresets(_ctx: Context, sources: ClaudeAgentSources = {}): Promise<ClaudeAgentPreset[]> {
   const home = sources.home ?? homedir()
   const workspace = sources.workspace ?? process.cwd()
   const byName = new Map<string, ClaudeAgentFile>()
   for (const file of await readAgentDir(join(home, '.claude', 'agents'))) byName.set(file.name, file)
   for (const file of await readAgentDir(join(workspace, '.claude', 'agents'))) byName.set(file.name, file)
-  return Promise.all([...byName.values()].map(async (file): Promise<ClaudeAgentPreset> => {
+  return [...byName.values()].map((file): ClaudeAgentPreset => {
     const { allowed, unmapped } = mapTools(file.tools)
-    const provider = await providerForModel(ctx, file.model)
-    if (provider === undefined) {
-      const reason = `No configured provider advertises model "${file.model}"`
-      return {
-        id: file.name, unmappedTools: unmapped,
-        definition: { id: file.name, plugins: [{ name: BROKEN_PLUGIN, config: { reason } }] },
-      }
-    }
-    const policy: PresetExecutionPolicy = {
-      provider, model: file.model, reasoningEffort: file.effort, allowedTools: allowed,
-      rulesId: `claude-agent:${file.name}`, version: '1', digest: rulesDigest(file.body),
-    }
     return {
       id: file.name,
       unmappedTools: unmapped,
       definition: {
         id: file.name,
         ...file.description === '' ? {} : { description: file.description },
-        executionPolicy: policy,
-        plugins: [{ name: INSTRUCTION_PLUGIN, config: { text: file.body } }],
+        ...file.model === '' ? {} : { model: file.model, reasoningEffort: file.effort },
+        plugins: [{ name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed } }],
       },
     }
-  }))
+  })
 }

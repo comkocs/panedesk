@@ -8,6 +8,10 @@ export interface AgentPreset {
   readonly description?: string
   readonly order?: number
   readonly broken?: string
+  /** Preferred child model resolved against the live catalog at delegation. */
+  readonly model?: string
+  /** Preferred effort for the definition's model, not for an explicit override. */
+  readonly reasoningEffort?: string
   /** Locally resolved execution policy; absent for an uncontrolled preset. */
   readonly executionPolicy?: PresetExecutionPolicy
   /** Lowercase SHA-256 of policy JSON with recursively sorted object keys, no whitespace, and unchanged array order. */

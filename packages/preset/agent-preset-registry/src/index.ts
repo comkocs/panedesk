@@ -34,9 +34,13 @@ declare module '@panedesk/cordis' {
   }
 }
 
-function policyMetadata(definition: PresetDefinition): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> {
+function policyMetadata(definition: PresetDefinition): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> {
   const policy = definition.executionPolicy
-  return policy === undefined ? {} : executionPolicyMetadata(policy)
+  return {
+    ...definition.model === undefined ? {} : { model: definition.model },
+    ...definition.reasoningEffort === undefined ? {} : { reasoningEffort: definition.reasoningEffort },
+    ...policy === undefined ? {} : executionPolicyMetadata(policy),
+  }
 }
 
 /** Validate and detach a policy read from configuration or durable ledger evidence.
@@ -66,7 +70,7 @@ interface Generation {
   scope: Scope
   key: ScopeKey
   mount: PresetMount
-  policy: Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'>
+  policy: Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'>
   users: number
   retired: boolean
 }
@@ -111,8 +115,8 @@ export class AgentPresetRegistry extends TypertRemoteService {
   }
 
   /** Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset.
-   * A project definition overrides the user definition of the same name. A model no configured
-   * provider advertises is listed broken with the cause; a tool name with no Panedesk tool is
+   * A project definition overrides the user definition of the same name. Model preferences are
+   * resolved at delegation, not during import; a tool name with no Panedesk tool is
    * recorded on the preset and left out of the allowlist. Files are read once, never watched or written.
    * @param sources - home and workspace roots; omitted roots use the process home and cwd.
    */
@@ -377,7 +381,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
    * @param ctx Agent context.
    * @returns Frozen policy metadata, or undefined when no preset is bound.
    */
-  composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> | undefined {
+  composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> | undefined {
     return this.generationFor(ctx)?.policy
   }
 

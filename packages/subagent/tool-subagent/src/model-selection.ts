@@ -1,9 +1,33 @@
 /** Child LLM route selection for the subagent tool. */
 
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
-import type { LlmRuntime } from '@panedesk/dsh-llm'
+import type { LlmRuntime, LlmModelInfo } from '@panedesk/dsh-llm'
 import type { AgentOptions } from '@panedesk/dsh-agent'
 import z from '@panedesk/schemastery'
+
+/**
+ * Read all models from the currently configured providers.
+ * @param llm - Live LLM runtime.
+ * @returns Advertised models with their provider ids.
+ */
+export async function configuredModels(llm: LlmRuntime): Promise<LlmModelInfo[]> {
+  return (await Promise.all(llm.listProviders().map(provider => llm.listModels(provider.id)))).flat()
+}
+
+/**
+ * Resolve an exact model name, rejecting missing or ambiguous routes.
+ * @param models - Live configured catalog.
+ * @param model - Exact requested model id.
+ * @param provider - Optional provider that disambiguates the model.
+ * @returns The unique configured provider/model pair.
+ */
+export function resolveModelRoute(models: readonly LlmModelInfo[], model: string, provider?: string): AllowedModelRoute {
+  const matches = models.filter(candidate => candidate.id === model && (provider === undefined || candidate.provider === provider))
+  if (matches.length === 1) return { provider: matches[0]!.provider, model }
+  const routes = (rows: readonly LlmModelInfo[]): string => rows.map(row => `${row.provider}/${row.id}`).join(', ') || '(none)'
+  if (matches.length > 1) throw new Error(`Model "${model}" matches multiple providers; specify provider: ${routes(matches)}`)
+  throw new Error(`Model "${provider === undefined ? '' : `${provider}/`}${model}" is not configured; available models: ${routes(models)}`)
+}
 
 /** One exact child LLM route authorized by a user setting. */
 export interface AllowedModelRoute {

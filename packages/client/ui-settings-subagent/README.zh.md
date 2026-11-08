@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端插件页上的子智能体设置页：subagent 命名空间的委派深度与并行容量，以及 subagent-model-selection 里 Agent 可选的模型，同一页一次保存。"
+description: "插件页中的子智能体委派深度与并行容量设置。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在侧栏打开**插件**，在官方分组里选择**子智能体**，即可设置委派可以多深、多宽，以及 Agent 可以为子智能体选择哪些模型。页面把 Host 的两个命名空间 `subagent` 与 `subagent-model-selection` 收在一次保存之下；Host 服务其中任一命名空间时页面就存在，并只显示被服务的部分。
+打开**插件**并选择**子智能体**，可配置委派深度和并行容量。模型选择始终使用已配置目录，没有权限开关或独立白名单。
 
 ## 目录
 
@@ -27,9 +27,9 @@ kind: "package-reference"
 
 **运行限制**把**最大递归深度**和**子智能体并行数量上限**并排放置，窄屏时上下堆叠；每个标签旁的信息按钮展开它的规则——深度是一张两行示例表，容量是计数口径——填了不在范围内的整数会阻止保存并在字段下说明。深度让位于工具自己的上限；容量统计同一主 Agent 下所有层级存活的子智能体，主 Agent 不计入。
 
-**模型选择**把权限开关和精确的适配器路由一起暂存。开启时至少要选一条路由；关闭会保留已选路由以备后用。Host 已存储但没有适配器公布的路由留在**已保存但当前不可用**分组里并且仍可移除；加载失败的提供方会被报告而不隐藏其他提供方，加载失败时提供**重试**。
 
-一次**保存**通过各自的命名空间写入两个部分，每次写入都以其草稿读取时的修订号作栅栏。两次写入相互独立：Host 拒绝的部分保留草稿并报告失败，另一部分照常落地；被更新的 Host 修订号超越的模型草稿会以冲突形式报告并要求放弃，而不是覆盖较新的路由。离开页面即丢弃所有草稿。
+
+**保存**通过 `subagent` 命名空间写入限制，以草稿读取时的修订号约束写入。失败的写入保持可见供修正；离开页面会丢弃草稿。
 
 -----
 
@@ -39,7 +39,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-宿主半侧是一个空的 `apply`，只为让本包占一条 Loader 行，客户端模块系统据此送出浏览器半侧。浏览器半侧通过 `ctx.configForms.get` 分别绑定两个命名空间：`SubagentLimitsCardController` 用 `ui-primitives` 的共享 `SettingsFormModel` 暂存运行限制，字段规格只接受不低于各自下限的安全整数；`SubagentModelSelectionCardController` 自己维护草稿，因为它的两个字段要作为一次带修订栅栏的 `mutate` 保存，它把已存储的路由与 `remote.session.modelCatalog()` 合并，在 `llm/adapters-updated` 与 `settings/document-updated` 时重读目录，连接重置时丢弃草稿。`subagentCardFace` 把两者合成 `SubagentCard` 在共享 `SettingsForm` 里渲染的一个 face，保存时校验两部分并写入有改动的那些。页面通过 `ctx.configForms.whileServed` 监视两个命名空间，注册进插件页的 `plugins.item` slot。
+Host 入口提供浏览器插件。`SubagentLimitsCardController` 通过 `ctx.configForms.get` 绑定 `subagent`，在共享 `SettingsFormModel` 中暂存限制。`SubagentCard` 渲染框架绑定的快照和保存／放弃操作。`ctx.configForms.whileServed` 仅在该命名空间被服务时注册插件页条目。
 
 </details>
 
@@ -51,7 +51,7 @@ kind: "package-reference"
 - [ui-plugin-manager](../ui-plugin-manager/README.zh.md)——插件页以及本页注册进去的 `plugins.item` slot。
 - [ui-settings](../ui-settings/README.zh.md)——本页依赖的设置 scope 与"命名空间被服务期间"的监视。
 - [ui-primitives](../ui-primitives/README.zh.md)——运行限制部分渲染的设置表单模型与字段。
-- [tool-subagent](../../subagent/tool-subagent/README.zh.md)——注册这两个命名空间的委派工具。
+- [tool-subagent](../../subagent/tool-subagent/README.zh.md)——委派与实时模型选择。
 
 -----
 
@@ -68,7 +68,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **目录只在三种信号下重读**——适配器变化、文档提交和重连；在这三者之外开始公布模型的提供方，要等下一次信号或点击**重试**才会出现。
+- 工具单独配置的深度上限优先于此处显示的 Host 默认值。
 
 <a id="dev-note"></a>
 ### 开发备注

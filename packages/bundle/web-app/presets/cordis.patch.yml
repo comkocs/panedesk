@@ -94,7 +94,6 @@
                 config:
                   provider: spawn
                   toolName: subagent
-                  modelSelectionSettings: true
               - id: tool-subagent-fork
                 name: '@panedesk/dsh-tool-subagent'
                 config:

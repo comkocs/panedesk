@@ -19,6 +19,10 @@ export interface PresetDefinition {
   readonly name?: string
   readonly description?: string
   readonly order?: number
+  /** Preferred child model id; delegation resolves its provider from the live catalog. */
+  readonly model?: string
+  /** Preferred effort when the definition's model is selected. */
+  readonly reasoningEffort?: string
   /** Optional enforced execution definition; omission retains the existing uncontrolled preset behavior. */
   readonly executionPolicy?: PresetExecutionPolicy
   readonly plugins: readonly (Omit<EntryOptions, 'id' | 'disabled'> & { id?: string; disabled?: EntryOptions['disabled'] | JsExpr })[]

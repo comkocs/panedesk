@@ -14,12 +14,6 @@ export type SubagentSettingsLocaleKey =
   | 'subagentCapacityHelpLabel' | 'subagentCapacityHelp'
   | 'subagentDepthInvalid'
   | 'subagentCapacityInvalid'
-  | 'subagentModelSelectionTitle'
-  | 'subagentModelSelectionToggle' | 'subagentModelSelectionChoose' | 'subagentModelSelectionAllowed'
-  | 'subagentModelSelectionLoading' | 'subagentModelSelectionLoadFailed' | 'subagentModelSelectionRetry'
-  | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
-  | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
-  | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
 
 /** English copy. */
 export const en: Record<SubagentSettingsLocaleKey, string> = {
@@ -31,7 +25,7 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   saving: 'Saving…',
   saveFailed: 'The deployment did not accept these values; they were left for you to correct.',
   subagentTitle: 'Subagent',
-  subagentDescription: 'Set Subagent recursion depth, count, and models.',
+  subagentDescription: 'Set Subagent recursion depth and count.',
   subagentLimitsTitle: 'Limits',
   subagentMaxDepth: 'Maximum recursion depth',
   subagentDepthHelpLabel: 'About maximum recursion depth',
@@ -44,20 +38,6 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   subagentCapacityHelp: 'Total live Subagents under the same main Agent, across all recursion levels. The main Agent is excluded. New start requests are rejected when the limit is reached.',
   subagentDepthInvalid: 'Enter a whole number of 0 or more.',
   subagentCapacityInvalid: 'Enter a whole number of 1 or more.',
-  subagentModelSelectionTitle: 'Model selection',
-  subagentModelSelectionToggle: 'Allow agents to choose models for Subagents',
-  subagentModelSelectionChoose: 'When enabled, agents can choose a provider, model, and reasoning effort for each Subagent from the authorized models below. Applies only to new sessions.',
-  subagentModelSelectionAllowed: 'Models agents may choose',
-  subagentModelSelectionLoading: 'Loading models…',
-  subagentModelSelectionLoadFailed: 'Models could not be loaded.',
-  subagentModelSelectionRetry: 'Retry',
-  subagentModelSelectionPartial: 'Some model providers could not be loaded; saved choices remain removable.',
-  subagentModelSelectionUnavailable: 'Currently unavailable',
-  subagentModelSelectionUnavailableGroup: 'Saved but currently unavailable',
-  subagentModelSelectionEmpty: 'No model provider currently advertises a model.',
-  subagentModelSelectionRequired: 'Select at least one model before saving.',
-  subagentModelSelectionConflict: 'Settings changed elsewhere. Discard your draft and try again.',
-  subagentModelSelectionOff: 'Subagents use configured defaults or inherit the parent agent\'s model. Saved model choices are retained.',
 }
 
 /** Simplified Chinese copy. */
@@ -70,7 +50,7 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   saving: '保存中…',
   saveFailed: '本部署没有接受这些值，已保留供你修改。',
   subagentTitle: '子智能体',
-  subagentDescription: '设置子智能体的递归层级、数量和模型。',
+  subagentDescription: '设置子智能体的递归层级和数量。',
   subagentLimitsTitle: '运行限制',
   subagentMaxDepth: '最大递归深度',
   subagentDepthHelpLabel: '最大递归深度说明',
@@ -83,20 +63,6 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   subagentCapacityHelp: '同一主 Agent 下，所有递归层级同时存活的子智能体总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。',
   subagentDepthInvalid: '请输入不小于 0 的整数。',
   subagentCapacityInvalid: '请输入不小于 1 的整数。',
-  subagentModelSelectionTitle: '模型选择',
-  subagentModelSelectionToggle: '允许 Agent 为子智能体选择模型',
-  subagentModelSelectionChoose: '开启后，Agent 可以从下方授权模型中，为每个子智能体选择提供方、模型和推理强度。仅影响新会话。',
-  subagentModelSelectionAllowed: 'Agent 可选择的模型',
-  subagentModelSelectionLoading: '正在加载模型…',
-  subagentModelSelectionLoadFailed: '无法加载模型。',
-  subagentModelSelectionRetry: '重试',
-  subagentModelSelectionPartial: '部分模型提供方暂时无法加载；已保存的选择仍可移除。',
-  subagentModelSelectionUnavailable: '当前不可用',
-  subagentModelSelectionUnavailableGroup: '已保存但当前不可用',
-  subagentModelSelectionEmpty: '当前没有模型提供方公布模型。',
-  subagentModelSelectionRequired: '保存前请至少选择一个模型。',
-  subagentModelSelectionConflict: '设置已在其他位置更新。请放弃修改后重试。',
-  subagentModelSelectionOff: '关闭后，子智能体使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。',
 }
 
 /**
