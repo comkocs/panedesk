@@ -4,8 +4,8 @@
  * catalog.
  *
  * This is a create, not an edit, which is why it is its own form rather than
- * the provider editor with extra fields: the route id is being *chosen* here,
- * and the settings address does not exist until it is. It renders as the
+ * the provider editor with extra fields: the route id is generated from the
+ * display name or endpoint hostname, and its settings address is new. It renders as the
  * custom-API panel of the section's add card; the card's mode switch names it
  * when both modes are offered, and with the custom mode alone the card shows
  * this form directly. One `settings.mutate` sets the whole profile at
@@ -44,15 +44,16 @@ import styles from './ModelsSection.module.css'
 /** The settings namespace a hand-declared provider is written into. */
 const NS = 'llm-pi-ai'
 
-/**
- * A route id usable as a settings key AND as the stem of a credential name.
- * The leading letter is the second half of that: `deriveKeyRef` uppercases the
- * id and replaces every non-alphanumeric run with `_`, and a credential
- * reference is a POSIX shell identifier, which cannot start with a digit. A
- * digit-leading id passes every check this card makes and then fails at the
- * credential seam with a raw regular expression the user cannot act on.
- */
-const ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
+/** Keep generated ids usable as credential stems and distinct from existing routes. */
+function generatedRoute(name: string, baseURL: string, taken: readonly string[]): string {
+  const source = name.trim() || (isHttpUrl(baseURL) ? new URL(baseURL).hostname : '')
+  const slug = source.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'provider'
+  // Credential references are shell identifiers, so their stem must start with a letter.
+  const stem = /^[a-z]/.test(slug) ? slug : `provider-${slug}`
+  let route = stem
+  for (let suffix = 2; taken.includes(route); suffix += 1) route = `${stem}-${String(suffix)}`
+  return route
+}
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -101,7 +102,6 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const { taken, protocols, reasoningLevels, operations, t, onBusyChange } = props
   // The write is checked against the revision on which this draft was opened.
   const [openedAt] = useState(() => props.revision)
-  const [route, setRoute] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
   const [protocol, setProtocol] = useState(protocols[0] ?? '')
@@ -121,14 +121,14 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
    * the fields that describe the provider are settled and the retry path is
    * the credential alone.
    */
-  const [committed, setCommitted] = useState(false)
+  const [committedRoute, setCommittedRoute] = useState<string | undefined>(undefined)
+  const committed = committedRoute !== undefined
   const disabled = props.readOnly || busy
   /** Everything but the key stops being editable once the provider exists. */
   const profileDisabled = disabled || committed
 
-  const routeInvalid = route.length > 0 && !ROUTE_PATTERN.test(route)
-  const routeTaken = taken.includes(route)
   const normalizedBaseURL = baseURL.trim()
+  const route = committedRoute ?? generatedRoute(displayName, normalizedBaseURL, taken)
   const baseUrlInvalid = baseURL.length > 0 && !isHttpUrl(normalizedBaseURL)
   // Rows are checked by the same per-row validator the editor cards use, so a
   // bad row is named by its position here too. Capacities have route-level
@@ -141,8 +141,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   // string, which the create path reads as "no key supplied" — a route may
   // legitimately authenticate through the provider's own ambient discovery.
   const keyValue = keyDraft.trim()
-  const ready = route.length > 0 && !routeInvalid && !routeTaken
-    && normalizedBaseURL.length > 0 && !baseUrlInvalid && modelFailure === undefined
+  const ready = normalizedBaseURL.length > 0 && !baseUrlInvalid && modelFailure === undefined
     && keyFailure === undefined
   // The one blocked gate worth a line under the form. A satisfied card says
   // nothing at all rather than printing an empty paragraph.
@@ -151,10 +150,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
     // blocked only by the key stays silent here rather than answering with the
     // next unmet gate — which is satisfied, and reads as a second, false fault.
     || keyFailure !== undefined
-    // Same for the route id, and it must be tested rather than assumed: the
-    // fallback arm below reads "no models yet", so an unmet route gate would
-    // fall through to it and contradict the filled-in list right above.
-    || route.length === 0 || routeInvalid || routeTaken || baseUrlInvalid
+    || baseUrlInvalid
     ? undefined
     : normalizedBaseURL.length === 0
       ? t('customNeedsBaseUrl')
@@ -193,7 +189,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       // not re-run this mutate: the revision it holds is the one this write
       // just superseded, so the Host would answer `settings-conflict` and the
       // key could never be stored from this card at all.
-      setCommitted(true)
+      setCommittedRoute(route)
     }
     if (storesKey) {
       const stored = await operations.storeCredential(keyRef, keyValue)
@@ -222,29 +218,12 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   return (
     <div className={styles['editor']}>
       <div className={styles['field']}>
-        <span className={styles['fieldLabel']}>{t('customRoute')}</span>
-        <input
-          className={styles['input']}
-          type="text"
-          value={route}
-          placeholder="acme-gateway"
-          aria-label={t('customRoute')}
-          disabled={profileDisabled}
-          onChange={(event) => { setRoute(event.target.value) }}
-        />
-      </div>
-      {/* A rejected id reads as a fault, not as guidance — the same split the
-          key field below already makes between its failure and its hint. */}
-      {routeInvalid || routeTaken
-        ? <p className={styles['error']}>{t(routeInvalid ? 'customRouteInvalid' : 'customRouteTaken')}</p>
-        : <p className={styles['advancedHint']}>{t('customRouteHint')}</p>}
-      <div className={styles['field']}>
         <span className={styles['fieldLabel']}>{t('customDisplayName')}</span>
         <input
           className={styles['input']}
           type="text"
           value={displayName}
-          placeholder={route.length === 0 ? t('customDisplayName') : route}
+          placeholder={t('customDisplayName')}
           aria-label={t('customDisplayName')}
           disabled={profileDisabled}
           onChange={(event) => { setDisplayName(event.target.value) }}
@@ -326,8 +305,6 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         onBusyChange={setListBusy}
       />
       {failure !== undefined ? <p className={styles['error']}>{failure}</p> : null}
-      {/* Only the gates with something to say render; the route-id gate has its
-          own field-level hint, so its blocked state would print an empty line. */}
       {hint === undefined ? null : <p className={styles['advancedHint']}>{hint}</p>}
       <EditorFooter
         t={t}

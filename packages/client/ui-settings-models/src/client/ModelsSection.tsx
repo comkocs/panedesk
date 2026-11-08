@@ -291,7 +291,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   if (state.status === 'error' && hasReadySnapshot) setHasReadySnapshot(false)
   const [editing, setEditing] = useState<EditorTarget | undefined>(undefined)
   const [addOpen, setAddOpen] = useState(injected.initialAddOpen)
-  const [addMode, setAddMode] = useState<AddMode>('catalog')
+  const [addMode, setAddMode] = useState<AddMode>('custom')
   /** The modes shown since the add card opened; each keeps its panel mounted. */
   const [visited, setVisited] = useState<ReadonlySet<AddMode>>(() => new Set())
   /** Whether each add panel has a write or an interrogation in flight. */
@@ -645,16 +645,16 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       disabled={switchLocked}
                       options={[
                         {
-                          value: 'catalog',
-                          label: t('addCatalog'),
-                          disabled: !catalogEnabled,
-                          ...catalogEnabled ? {} : { title: t('addCatalogExhausted') },
-                        },
-                        {
                           value: 'custom',
                           label: t('addCustom'),
                           disabled: !customEnabled,
                           ...customEnabled ? {} : { title: t('addCustomUnavailable') },
+                        },
+                        {
+                          value: 'catalog',
+                          label: t('addCatalog'),
+                          disabled: !catalogEnabled,
+                          ...catalogEnabled ? {} : { title: t('addCatalogExhausted') },
                         },
                       ]}
                       onChange={(next) => {
@@ -674,6 +674,31 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   {t(mode === 'catalog' ? 'addCatalogHint' : 'addCustomHint')}
                 </p>
               </div>
+              {mounted('custom') && piAi !== undefined
+                ? (
+                  <div
+                    id={`${addId}-custom-panel`}
+                    {...bothOffered ? { role: 'tabpanel', 'aria-labelledby': `${addId}-custom` } : {}}
+                    hidden={mode !== 'custom'}
+                    className={styles['addPanel']}
+                  >
+                    <CustomProviderCard
+                      taken={state.rows.map(row => row.entry.provider)}
+                      protocols={protocols}
+                      reasoningLevels={reasoningLevels}
+                      revision={piAi.revision}
+                      operations={operations}
+                      t={t}
+                      readOnly={!state.writable}
+                      onClose={(changed) => {
+                        closeAdd()
+                        if (changed) void controller.load()
+                      }}
+                      onBusyChange={setCustomBusy}
+                    />
+                  </div>
+                )
+                : null}
               {mounted('catalog') && draft !== undefined
                 ? (
                   <div
@@ -729,31 +754,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   </div>
                 )
                 : null}
-              {mounted('custom') && piAi !== undefined
-                ? (
-                  <div
-                    id={`${addId}-custom-panel`}
-                    {...bothOffered ? { role: 'tabpanel', 'aria-labelledby': `${addId}-custom` } : {}}
-                    hidden={mode !== 'custom'}
-                    className={styles['addPanel']}
-                  >
-                    <CustomProviderCard
-                      taken={state.rows.map(row => row.entry.provider)}
-                      protocols={protocols}
-                      reasoningLevels={reasoningLevels}
-                      revision={piAi.revision}
-                      operations={operations}
-                      t={t}
-                      readOnly={!state.writable}
-                      onClose={(changed) => {
-                        closeAdd()
-                        if (changed) void controller.load()
-                      }}
-                      onBusyChange={setCustomBusy}
-                    />
-                  </div>
-                )
-                : null}
             </div>
           )
           : catalogOffered || customOffered
@@ -768,7 +768,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   onClick={() => {
                     if (controller.store.getSnapshot().status !== 'ready') return
                     const first = addable[0]
-                    const initial: AddMode = catalogEnabled ? 'catalog' : 'custom'
+                    const initial: AddMode = customEnabled ? 'custom' : 'catalog'
                     setSavedTarget(undefined)
                     setEditing(first === undefined ? undefined : targetOf(first.row))
                     setAddMode(initial)
