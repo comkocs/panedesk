@@ -14933,6 +14933,20 @@
       }
     },
     {
+      "id": "panedesk-opening-session-names",
+      "description": "Add Panedesk features in General Settings and date-stamped opening session names",
+      "origin": "Panedesk product settings",
+      "reason": "Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-general/**",
+          "packages/session/session-title/**",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "desktop-package-without-post-pack-smoke",
       "description": "Package desktop installers without pre-pack or post-pack runtime smoke checks, except after signing",
       "origin": "Desktop packaging",

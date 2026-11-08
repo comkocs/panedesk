@@ -13,6 +13,14 @@ export {}
 import type { Branded } from '@panedesk/dsh-brand'
 import type { OptionalSessionSeq, SessionSeq } from '@panedesk/dsh-session/types'
 
+/** Saved opening-message sample and path-tolerant anchors; absence selects automatic titles. */
+export interface OpeningNamePattern {
+  readonly sample: string
+  readonly left: string
+  readonly right: string
+  readonly selected: string
+}
+
 /** Identifies one session-title provider registration. */
 export type SessionTitleProviderId = Branded<'SessionTitleProviderId'>
 

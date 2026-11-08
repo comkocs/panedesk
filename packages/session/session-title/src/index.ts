@@ -3,7 +3,8 @@
  * @module @panedesk/dsh-session-title
  */
 
-import { Context, FiberState, Service, type Fiber } from '@panedesk/cordis'
+import { Context, FiberState, Service, type Fiber, type Volatile } from '@panedesk/cordis'
+import { extractOpeningName } from './opening-name.ts'
 import z from '@panedesk/schemastery'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
@@ -29,6 +30,7 @@ export type {
 } from './types.ts'
 import { fallbackSessionTitle, normalizeSessionTitle } from './normalize.ts'
 import type {
+  OpeningNamePattern,
   SessionTitleEventData,
   SessionTitleModelIdentity,
   SessionTitleSnapshot,
@@ -58,8 +60,10 @@ export interface Config {
   readonly fallbackMaxWords: number
   /** Maximum UTF-8 bytes in the built-in fallback. */
   readonly fallbackMaxBytes: number
-  /** Maximum UTF-8 bytes in any accepted title. */
+  /** Maximum UTF-8 bytes in the title name, excluding the automatic creation-date suffix. */
   readonly maxTitleBytes: number
+  /** Saved opening-message anchors; absent means existing automatic titles plus the opening date. */
+  readonly openingName?: Volatile<OpeningNamePattern | undefined>
 }
 
 declare module '@panedesk/cordis' {
@@ -97,6 +101,32 @@ export type SessionTitleAutomaticMode = 'first-prompt' | 'all-prompts'
  */
 const FIRST_PROMPT_RETITLE_START = 3
 const FIRST_PROMPT_RETITLE_INTERVAL = 12
+const OPENING_NAME_PROVIDER = SessionTitleProviderId('panedesk-opening-name')
+
+/** Child and fork titles keep their existing behavior. */
+function isOpeningSession(session: Session): boolean {
+  return session.header.parentSession === undefined && session.header.origin !== 'subagent'
+}
+
+/** Manual names and matched opening names survive automatic revisions and reloads. */
+function isPinnedTitle(title: SessionTitleSnapshot | undefined): boolean {
+  return title?.source.kind === 'user'
+    || (title?.source.kind === 'provider' && title.source.provider === OPENING_NAME_PROVIDER)
+}
+
+/** Always derive the suffix from creation, never from a later title revision. */
+function openingDateSuffix(session: Session): string {
+  const date = new Date(session.header.createdAt)
+  return ` ${date.getMonth() + 1}-${date.getDate()}`
+}
+
+/** Keep the date out of the provider's title comparison and model input. */
+function providerTitle(session: Session, title: SessionTitleSnapshot): SessionTitleSnapshot {
+  const suffix = openingDateSuffix(session)
+  return isOpeningSession(session) && title.title.endsWith(suffix)
+    ? { ...title, title: title.title.slice(0, -suffix.length) }
+    : title
+}
 
 /** Whether a `first-prompt` provider retitles after this many completed rounds. */
 function firstPromptRetitleRound(completedRounds: number): boolean {
@@ -332,9 +362,16 @@ export class SessionTitleService extends Service {
     fallbackMaxWords: z.number().step(1).min(1).required(),
     fallbackMaxBytes: z.number().step(1).min(1).required(),
     maxTitleBytes: z.number().step(1).min(1).required(),
+    openingName: z.object({
+      sample: z.string().required(),
+      left: z.string().required(),
+      right: z.string().required(),
+      selected: z.string().required(),
+    }).volatile(),
   })
 
   private readonly config: ResolvedConfig
+  private readonly openingName: Volatile<OpeningNamePattern | undefined> | undefined
   private readonly ownerFiber: Fiber
   private registration: ProviderRegistration | undefined
   private readonly work = new Map<Session, SessionTitleWorkState>()
@@ -355,7 +392,12 @@ export class SessionTitleService extends Service {
     if (value.fallbackMaxBytes > value.maxTitleBytes) {
       throw new Error('session-title: fallbackMaxBytes must not exceed maxTitleBytes')
     }
-    this.config = deepFreeze({ ...value })
+    this.openingName = value.openingName
+    this.config = deepFreeze({
+      fallbackMaxWords: value.fallbackMaxWords,
+      fallbackMaxBytes: value.fallbackMaxBytes,
+      maxTitleBytes: value.maxTitleBytes,
+    })
 
     ctx.effect(() => async () => {
       this.lifetime.abort(new Error('session-title service disposed'))
@@ -478,7 +520,7 @@ export class SessionTitleService extends Service {
       // re-derive and append the fallback over it when one is derivable.
       const current = this.get(session)
       const first = input.first
-      if (current?.source.kind === 'user' && first !== null) {
+      if (isPinnedTitle(current) && first !== null) {
         this.appendFallback(session, first)
         signal?.throwIfAborted()
         return this.get(session)
@@ -536,9 +578,32 @@ export class SessionTitleService extends Service {
   /** Schedule fallback creation and any provider cadence for one eligible event. */
   private onUserMessage(session: Session, event: Extract<SessionEvent, { type: 'user/message' }>): void {
     if (!this.serviceActive()) return
-    if (event.data.source.kind !== 'user' || sessionTitleUserMessageOf(event) === undefined) return
-    // A user rename pins the title: no automatic revision may override it.
-    if (this.get(session)?.source.kind === 'user') return
+    if (event.data.source.kind !== 'user') return
+    const current = this.get(session)
+    if (isPinnedTitle(current)) return
+    const pattern = this.openingName?.get()
+    if (isOpeningSession(session) && current === undefined && pattern !== undefined) {
+      // Empty or attachment-only first messages must not move selection to a later prompt.
+      // oxlint-disable-next-line typescript/no-deprecated -- Match only the first human event, including non-text input.
+      const first = session.snapshotEvents().find(item => item.type === 'user/message' && item.data.source.kind === 'user')
+      if (first?.seq === event.seq) {
+        const text = event.data.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+        const matched = extractOpeningName(text, pattern)
+        if (matched !== undefined) {
+          const title = normalizeSessionTitle(matched, this.config.maxTitleBytes)
+          if (title.length > 0) {
+            this.supersede(this.stateFor(session), 'opening name pinned the title')
+            session.append('session/title', {
+              title: title + openingDateSuffix(session),
+              messageSeqs: [event.seq],
+              source: { kind: 'provider', provider: OPENING_NAME_PROVIDER },
+            })
+            return
+          }
+        }
+      }
+    }
+    if (sessionTitleUserMessageOf(event) === undefined) return
     const registration = this.registration
     if (registration !== undefined && !registration.closing) {
       const count = this.titleInputOf(session).count
@@ -576,7 +641,7 @@ export class SessionTitleService extends Service {
     if (registration === undefined || registration.closing) return
     if (registration.provider.automatic !== 'first-prompt') return
     if (session.header.parentSession !== undefined) return
-    if (this.get(session)?.source.kind === 'user') return
+    if (isPinnedTitle(this.get(session))) return
     const round = state.completedRounds
     if (!firstPromptRetitleRound(round) || state.scheduledRetitleRound === round) return
     state.scheduledRetitleRound = round
@@ -668,7 +733,7 @@ export class SessionTitleService extends Service {
         session,
         messages,
         ...route === undefined ? {} : { route },
-        ...currentTitle === undefined ? {} : { currentTitle },
+        ...currentTitle === undefined ? {} : { currentTitle: providerTitle(session, currentTitle) },
         ...work.retitleRound === undefined ? {} : { retitleRound: work.retitleRound },
         signal: work.signal,
       })
@@ -677,7 +742,7 @@ export class SessionTitleService extends Service {
       this.assertCurrent(session, work)
       const accepted = this.validateResult(result, messages)
       session.append('session/title', {
-        title: accepted.title,
+        title: accepted.title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
         messageSeqs: [...accepted.messageSeqs],
         source: {
           kind: 'provider',
@@ -860,7 +925,7 @@ export class SessionTitleService extends Service {
     const title = fallbackSessionTitle(first.text, this.config.fallbackMaxWords, this.config.fallbackMaxBytes)
     if (title.length === 0) return
     session.append('session/title', {
-      title,
+      title: title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
       messageSeqs: [first.seq],
       source: { kind: 'fallback' },
     })
@@ -889,7 +954,7 @@ export class SessionTitleService extends Service {
       const accepted = this.get(session)
       if (accepted !== undefined) return accepted
       session.append('session/title', {
-        title,
+        title: title + (isOpeningSession(session) ? openingDateSuffix(session) : ''),
         messageSeqs: [first.seq],
         source: { kind: 'fallback' },
       })

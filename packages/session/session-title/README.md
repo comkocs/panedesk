@@ -31,6 +31,10 @@ Mount the service to give sessions titles that clients can display and that neve
 
 Titles come from three sources, newest wins. The built-in fallback derives from the first eligible human message's leading words within the configured caps; a registered provider generates a title over eligible messages; an explicit `rename()` accepts a user-supplied title. Only text blocks from human `user/message` events are eligible, and empty or non-text prompts wait for later eligible input. A user-sourced latest title pins the session — later user messages schedule no automatic revision, and an explicit `refresh()` remains the deliberate unpin.
 
+For user-opened top-level sessions (no parent and no subagent origin), automatic titles append the Host-local creation date as `name M-D`, without zero padding. Every revision derives the same suffix from `header.createdAt`; the provider receives the undecorated current title so its existing comparison and recent-conversation cadence remain unchanged. Child and fork behavior is unchanged. Manual names are neither decorated nor automatically replaced.
+
+The optional volatile `openingName` configuration stores a sample, selected text, and left/right anchors from [General Settings](../../client/ui-settings-general/README.md#the-general-section). Only the first human message is matched, including empty or attachment-only first input. Matching treats `/` as `\\` and ignores case while retaining the original extracted text. The left anchor starts at the nearest preceding separator, or after the nearest whitespace; the right anchor ends at the next whitespace. Right-anchor occurrences are examined left to right; the last left anchor before each occurrence delimits a nonempty, whitespace-free candidate. An empty right anchor uses whitespace or the end; an empty left anchor scans backward to whitespace or a separator. A match writes a `panedesk-opening-name` provider title and pins it across reloads; no selection or no match keeps ordinary automatic generation. Changes to the setting do not rename existing sessions. Explicit `refresh()` remains the deliberate unpin.
+
 ### Minimal configuration
 
 All limits are required; the library supplies no defaults. Mount the service with the three bounds:
@@ -48,7 +52,8 @@ All limits are required; the library supplies no defaults. Mount the service wit
 |---|---|---|
 | `fallbackMaxWords` | required | Maximum whitespace-delimited words in the deterministic fallback |
 | `fallbackMaxBytes` | required | Maximum UTF-8 bytes in the fallback; must not exceed `maxTitleBytes` |
-| `maxTitleBytes` | required | Maximum UTF-8 bytes accepted from any source |
+| `maxTitleBytes` | required | Maximum UTF-8 bytes in a name from any source, before the automatic creation-date suffix |
+| `openingName` | unset | Volatile object containing `sample`, `selected`, `left`, and `right` strings; empty anchors are supported |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-session-title) is the exhaustive source for every accepted field and its JSDoc.
 
