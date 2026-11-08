@@ -6,6 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../typert/protocol" },
     { "path": "../../api/gateway/tsconfig.client.json" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../../session/ledger-query" },
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../resources" },

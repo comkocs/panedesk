@@ -1,5 +1,5 @@
 ---
-description: "Owner-authorized read-only statistics from the public session ledger."
+description: "Graphical read-only session statistics and profile configuration."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Provides five read-only statistics tabs for the [session telemetry subsystem](../../../docs/subsystems/session-telemetry.md): project overview, historical statistics, model usage, model throughput and ledger details. The [ledger query service](../../session/ledger-query/README.md) owns aggregation and unknown-evidence semantics.
+Shows session counts, subagents, token usage and recorded call timelines for the [session telemetry subsystem](../../../docs/subsystems/session-telemetry.md). The [ledger query service](../../session/ledger-query/README.md) owns aggregation and missing-measurement semantics.
 
 ## Table of Contents
 
@@ -21,13 +21,13 @@ Provides five read-only statistics tabs for the [session telemetry subsystem](..
 <a id="configuration-and-use"></a>
 ## Configuration and use
 
-The Web bundle loads both Host and Client. `enabled` defaults to true; setting it false refuses reads. `refreshIntervalMs` defaults to 10000 and accepts integers from 1000 through 2147483647. Only authenticated owner invocations can call `stats.read(request)`; callers cannot supply an identity. Missing services, cancellation and disabled access fail explicitly. No write, export, transcript or model operation is exposed.
+The Web bundle loads Host and Client. `enabled` defaults to true; false refuses statistics reads without stopping session recording. `refreshIntervalMs` defaults to 10000 and accepts integers from 1000 through 2147483647. Both fields are volatile profile settings, saved immediately through the existing configuration forms. Reads expose neither transcript bodies nor model operations.
 
-Settings contains a secondary Statistics summary and an “Open in main area” action. A session-only tools menu uses a compact 28px trigger to preserve the existing header height, opens the same `main` panel and precedes More actions in the header utilities, leaving More actions next to the sidebar control. The session tools menu is absent for the `minimal` preset; the Settings entry remains available. There is no initial-screen or sidebar panel-list contribution. Closing or unloading the plugin removes its entries and cancels resource polling.
+A compact icon at `conversation.session.header.actions`, order 30, opens the chart modal directly, including for the minimal preset. There is no separate main-area panel, tools submenu, home-screen entry or sidebar contribution. Closing the modal releases its statistics resource; unloading removes all registrations.
 
-All tabs share time range, grouping and Beijing hour/day buckets. Seat selection narrows a project; model selection narrows all five tabs and remains visible and clearable after changing tabs. Pause reads one snapshot, resume restores polling, and refresh requests a new read. Layout and reduced-motion controls affect presentation only. Missing or incomplete evidence remains visible rather than becoming zero. Default, loading, empty, error, unauthorized, disabled, success and failed-refresh states have English and Chinese copy; failed refresh never claims an update succeeded.
+Settings → Panedesk → Statistics explains the feature, enablement default, global scope and refresh interval. It shows the active profile configuration file and the local journal directory as absolute Host paths, with native opening buttons. `stats.locations()` remains readable while statistics are disabled. Unknown storage providers show no invented path. The local journal reads JSONL records below each node's `events` and `imports` directories; statistics does not modify them.
 
-Ledger details use previous/next controls with 100 calls per page and the query service's stable cursor order. Later pages retain the first observation instant and stop automatic polling; changing filters or refreshing returns to page one. Paging never narrows aggregate cards. Loading disables navigation; read failures retain the standard retry and access states rather than presenting a failed page as successful.
+Charts share one fixed-range snapshot. Existing workspace membership, session directories and parent relationships associate sessions with projects; unmatched sessions remain unlinked. Project and session selectors narrow number cards, model token bars and Beijing-aligned daily bars. The relationship section starts at the current or selected session and shows its recorded descendants, models, call intervals and measured call duration. Missing measurements remain unknown; incomplete scans and failed refreshes are labeled. Pause retains a snapshot and refresh retries explicitly.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -36,7 +36,7 @@ Ledger details use previous/next controls with 100 calls per page and the query 
 
 #### What the model sees
 
-`stats.read(request)` registers no tools, prompts or Session messages. Statistics remain user-visible observations.
+Statistics registers no tools, prompts or Session messages. Configuration changes affect statistics reads only.
 
 #### Token effect
 
@@ -50,10 +50,10 @@ The plugin neither changes model request prefixes nor refreshes caches.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Projects use ledger seats, not workspace directories; running sessions are ledger lifecycle evidence, not process-liveness observations.
-- Reference prices are not actual payments or subscription charges. Missing prices, usage, duration or remote-alias evidence remain unknown.
-- Reads cover the available public ledger snapshot. Incomplete scans are labeled; the plugin cannot repair missing producer evidence.
-- Selection and layout are local to the mounted panel. The UI has no mutation or export workflow.
+- Projects require existing workspace or session metadata; internal ledger attribution is not treated as a project.
+- Costs are reference estimates, not actual payments or subscription charges. Missing prices, tokens or duration remain unknown.
+- Timeline bars describe model calls, not full subagent lifetimes. Unfinished calls extend to the snapshot observation time without claiming a known duration; sessions without calls have no timing bar.
+- Filtering uses all call details from the selected snapshot. Large ranges can be expensive; selection is local to the open modal and there is no export workflow.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -61,6 +61,6 @@ The plugin neither changes model request prefixes nor refreshes caches.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+Charts use React and CSS with existing theme aliases. No charting dependency or separate statistics data service is required.
 
 </details>
