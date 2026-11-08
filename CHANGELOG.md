@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.0
+
+### Added
+
+- The subagent tool can start a child on any model configured in Panedesk by model name, or by an agent type from `.claude/agents`, in new and existing sessions alike.
+- Settings has a Panedesk features page. New sessions can be named from a chosen part of the opening message plus the local date (for example `UI Controls 11-8`); otherwise the automatic title gets the session's start date.
+- The subagent tree can list subagents recorded in an external JSONL registry file set on the Panedesk features page; shell commands receive `CLAUDE_CODE_SESSION_ID`.
+- Messages sent while the agent is running wait below the conversation and are delivered after the current tool step in the same turn; a queued message can be withdrawn or sent immediately.
+
+### Changed
+
+- The sidebar and running status show the Panedesk mark instead of the upstream whale.
+- The sidebar's More menu is replaced by a Settings button; Feedback and Sign in are removed.
+- Settings navigation shows General, Models, Panedesk and DSH; upstream pages are grouped under DSH and Panedesk pages under Panedesk. Clicking outside Settings no longer closes it.
+- All models accept text, images and files by default; attachments are no longer blocked before sending, and model input types list text, image, file and audio.
+- Adding a model API opens the custom API form first, and custom providers no longer ask for a Provider ID.
+
+### Removed
+
+- The subagent model selection setting, now unnecessary.
+
 ## 1.3.0
 
 ### Removed

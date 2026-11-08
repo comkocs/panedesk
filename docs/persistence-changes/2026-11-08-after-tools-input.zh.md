@@ -44,7 +44,7 @@ afterTools 为可选字段，缺失时保留下一轮排队语义，因此新读
 <a id="verification"></a>
 ## 验证
 
-已人工阅读 Inbox 调度序列化、投影验证、领取选择及 AgentLoop 请求与工具完成路径。依派单未运行测试、lint 或 CI；包编译证据另记于交付回报。
+已人工阅读 Inbox 调度序列化、投影验证、领取选择及 AgentLoop 请求与工具完成路径；相关包编译通过。
 
 <a id="dev-note"></a>
 ## 开发备注

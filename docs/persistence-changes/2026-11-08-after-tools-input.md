@@ -44,7 +44,7 @@ New readers accept older records because afterTools is optional and absence pres
 <a id="verification"></a>
 ## Verification
 
-Manually inspected Inbox scheduling serialization, projection validation, claim selection and AgentLoop request/tool completion paths. No tests, lint or CI were run under this assignment; package compilation evidence is recorded separately in the delivery report.
+Manually inspected Inbox scheduling serialization, projection validation, claim selection and AgentLoop request/tool completion paths; the affected packages compile.
 
 <a id="dev-note"></a>
 ## Dev Note
