@@ -18,7 +18,7 @@ Every request receives a fresh `ApprovalRequestId`. The brand pairs the `approva
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` is closed and fail-closed. `allowed-once` consents to the declared purpose, or one action when no purpose is declared; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than granting access. `purpose: { type: 'workspace-write', workspace }` identifies the canonical directory for persistent consent; the [sandbox policy consumer](../../packages/sandbox/sandbox-policy/README.md#windows-workspace-records) owns persistence and revocation.
+`ApprovalOutcome` is closed and fail-closed. `allowed-once` consents to the declared purpose, or one action when no purpose is declared; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than granting access. `purpose: { type: 'workspace-write', workspace }` identifies the canonical directory named by the request. Persistent workspace records are not kept by the sandbox policy.
 
 ```ts type-equiv
 /**
@@ -140,15 +140,6 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  *   append commit point.
  */
 async request( req: ApprovalRequest, authorization?: { check(): Error | void; begin?(): void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>
-
-/**
- * Ask an authenticated owner about a host input, including between model turns.
- * Passive inbox notices retain the refusal and decision without starting a model request.
- * @param agent Session whose workspace contains the protected input.
- * @param purpose Exact path identity and content digest awaiting consent.
- * @returns Only allowed-once authorizes this candidate; unattended sessions never prompt.
- */
-async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>
 
 /**
  * Read the session override without applying the configured default.

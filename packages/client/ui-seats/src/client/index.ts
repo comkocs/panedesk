@@ -111,9 +111,6 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
         }
       },
     }), 'ui-seats: resource')
-    ctx.effect(() => ctx.remote.$on('seat/memory-write-denied', (sessionId, failure) => {
-      notify(t('memoryDenied', { code: failure.code, reason: `${failure.message} ${failure.alternative}` }), sessionId)
-    }), 'ui-seats: memory refusal')
     const openWindow = (id: SessionId): void => { ctx.uiWorkspace.openSession(id) }
     const closeWindow: SeatsInjected['closeWindow'] = async (sessionId, stateVersion) => {
       const result = await ctx.remote.seatUi.close({ sessionId, expectedStateVersion: stateVersion,

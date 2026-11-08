@@ -3721,7 +3721,7 @@
       "kind": "event",
       "event": "approval/asked",
       "surface": false,
-      "digest": "bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d",
+      "digest": "3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381",
       "schema": {
         "root": 0,
         "nodes": [
@@ -3735,22 +3735,22 @@
               },
               {
                 "name": "ignorable",
-                "type": 8,
+                "type": 5,
                 "optional": true
               },
               {
                 "name": "seq",
-                "type": 9,
+                "type": 6,
                 "optional": false
               },
               {
                 "name": "time",
-                "type": 9,
+                "type": 6,
                 "optional": false
               },
               {
                 "name": "type",
-                "type": 10,
+                "type": 7,
                 "optional": false
               }
             ],
@@ -3792,48 +3792,11 @@
             "type": "string"
           },
           {
-            "kind": "union",
-            "types": [
-              4,
-              6
-            ]
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "current",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "path",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "previous",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "type",
-                "type": 5,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "literal",
-            "value": "protected-input"
-          },
-          {
             "kind": "object",
             "properties": [
               {
                 "name": "type",
-                "type": 7,
+                "type": 4,
                 "optional": false
               },
               {
@@ -23901,13 +23864,6 @@
       ]
     },
     {
-      "digest": "017033450a7aea1469b60abdf3e7ca05a15e054f0af5e60588b8346b8d8025c3",
-      "names": [],
-      "sources": [
-        "packages/interaction/user-approval/src/types.ts:45"
-      ]
-    },
-    {
       "digest": "0203243b72fc867afc81aff5f4cf2167e564ed342534eb612fc92f295cf07789",
       "names": [],
       "sources": []
@@ -23959,7 +23915,7 @@
         "packages/interaction/user-approval/src/index.ts#ApprovalPolicy"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/index.ts:72"
+        "packages/interaction/user-approval/src/index.ts:70"
       ]
     },
     {
@@ -24140,7 +24096,7 @@
       "digest": "11f70b595aa76897fc4e25a352bfa718c659f44b799e5aa14e84e5a38fe72912",
       "names": [],
       "sources": [
-        "packages/interaction/user-approval/src/index.ts:44"
+        "packages/interaction/user-approval/src/index.ts:42"
       ]
     },
     {
@@ -24584,10 +24540,12 @@
     {
       "digest": "2c5476afbf05ee2303c6327348e52aedd060da73b9185ccbef42adae7bab2043",
       "names": [
+        "packages/interaction/user-approval/src/types.ts#ApprovalPurpose",
         "packages/interaction/user-approval/src/types.ts#WorkspaceWriteApproval"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/types.ts:67"
+        "packages/interaction/user-approval/src/types.ts:67",
+        "packages/interaction/user-approval/src/types.ts:75"
       ]
     },
     {
@@ -24690,15 +24648,6 @@
       ],
       "sources": [
         "packages/llm/llm/src/call-config.ts:56"
-      ]
-    },
-    {
-      "digest": "32a8550767c818517d211599e5a3a509848f3467ca65d84afd064d4642c305a3",
-      "names": [
-        "packages/interaction/user-approval/src/types.ts#ProtectedInputApproval"
-      ],
-      "sources": [
-        "packages/interaction/user-approval/src/types.ts:75"
       ]
     },
     {
@@ -24847,6 +24796,11 @@
     },
     {
       "digest": "3c2535ca0a2062f172f15344f8040755002b5ac506cf94fc4ebaa822b15feb8c",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381",
       "names": [],
       "sources": []
     },
@@ -25464,6 +25418,13 @@
       "sources": []
     },
     {
+      "digest": "622e055ecf8925d84ad1a3c0885791cbd446ce4c9e2cbe771f6a2b318d1ef0a9",
+      "names": [],
+      "sources": [
+        "packages/interaction/user-approval/src/types.ts:45"
+      ]
+    },
+    {
       "digest": "62458c1f6c5e65dcf46c1d1b45997b87a2ee8dc73ae8423314baed38f21ec166",
       "names": [],
       "sources": []
@@ -25964,11 +25925,6 @@
       ]
     },
     {
-      "digest": "8011e4084a33e92fcc7813c4f0324d8bf798809c835ea5ccdb67306746439391",
-      "names": [],
-      "sources": []
-    },
-    {
       "digest": "8064c03c87c357fd1575cb9395ce86e6dcbe2d275bf7717864a02cddf01827d5",
       "names": [
         "packages/llm/llm/src/types.ts#ContentBlock"
@@ -26158,7 +26114,7 @@
       "digest": "8a9c990773f798eac10ca8878e6bcc531ee080bc589cac956730e462cc6a09ad",
       "names": [],
       "sources": [
-        "packages/interaction/permission-presets/src/index.ts:68"
+        "packages/interaction/permission-presets/src/index.ts:59"
       ]
     },
     {
@@ -27076,11 +27032,6 @@
       "sources": []
     },
     {
-      "digest": "bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d",
-      "names": [],
-      "sources": []
-    },
-    {
       "digest": "bf16d2e98a7f13894ded2cffe5ce857bf473954a0e3c0ed9bc7739e2e1c7b78a",
       "names": [],
       "sources": []
@@ -27646,11 +27597,6 @@
       "sources": []
     },
     {
-      "digest": "e848b23ba8a8ab806a54d435b01b716ad15505daba320ac5da088f98a9e2fb00",
-      "names": [],
-      "sources": []
-    },
-    {
       "digest": "e8de0f457fed5b9ff94dc4950b59ef75fd8ba8af665cc7899485924a62653367",
       "names": [],
       "sources": []
@@ -27943,7 +27889,7 @@
         "packages/sandbox/sandbox/src/index.ts#SandboxMode"
       ],
       "sources": [
-        "packages/sandbox/sandbox/src/index.ts:31"
+        "packages/sandbox/sandbox/src/index.ts:30"
       ]
     },
     {

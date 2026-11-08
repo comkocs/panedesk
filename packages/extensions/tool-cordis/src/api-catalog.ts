@@ -6683,14 +6683,6 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
-    name: 'seat/memory-write-denied',
-    mode: 'emit',
-    signature: '\'seat/memory-write-denied\'(sessionId: SessionId, failure: SeatFailure): void',
-    summary: 'Notify observers after a bound-seat memory write is denied.',
-    description: 'Notify observers after a bound-seat memory write is denied.',
-    parameters: [{ name: 'sessionId', description: 'Tool executor\'s authenticated Session.' }, { name: 'failure', description: 'Coded refusal and actionable alternative, without tool arguments.' }],
-  },
-  {
     name: 'seat/ready',
     mode: 'parallel',
     signature: '\'seat/ready\'(status: import(\'./types.ts\').SeatNodeStatus): void',

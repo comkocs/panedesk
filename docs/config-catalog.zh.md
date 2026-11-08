@@ -644,7 +644,7 @@ export interface ProjectSelection {
 
 ## `@panedesk/dsh-client-ui-seat-approvals`
 
-- `source`: [`packages/client/ui-seat-approvals/src/index.ts:11`](../packages/client/ui-seat-approvals/src/index.ts)
+- `source`: [`packages/client/ui-seat-approvals/src/index.ts:10`](../packages/client/ui-seat-approvals/src/index.ts)
 
 ```ts config-catalog
 /** Explicit activation and bounded observation of the existing engine. */
@@ -1560,7 +1560,7 @@ export interface Config {
 
 ## `@panedesk/dsh-fs-local`
 
-- `source`: [`packages/fs/fs-local/src/index.ts:45`](../packages/fs/fs-local/src/index.ts)
+- `source`: [`packages/fs/fs-local/src/index.ts:59`](../packages/fs/fs-local/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the local filesystem backend. */
@@ -1619,7 +1619,7 @@ export interface Config {
 ## `@panedesk/dsh-headless`
 
 - `inject`: `agentDefaultModel` · `agents` · `sessions`
-- `source`: [`packages/bundle/headless/src/index.ts:47`](../packages/bundle/headless/src/index.ts)
+- `source`: [`packages/bundle/headless/src/index.ts:46`](../packages/bundle/headless/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the task and run options resolved from this app's injected provider service. */
@@ -1630,8 +1630,6 @@ export interface Config {
   sessionId?: string
   /** Whether stdout carries the machine-readable event stream instead of final text. */
   json?: boolean
-  /** Inspect confinement without reading a task or requesting a model. */
-  sandboxStatus?: 'en' | 'zh'
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-headless -->
@@ -1642,7 +1640,7 @@ export interface Config {
 ## `@panedesk/dsh-hmr`
 
 - `refs`: `ChokidarOptions` (`chokidar`)
-- `source`: [`packages/boot/hmr/src/index.ts:58`](../packages/boot/hmr/src/index.ts)
+- `source`: [`packages/boot/hmr/src/index.ts:56`](../packages/boot/hmr/src/index.ts)
 
 ```ts config-catalog
 /** Module roots and watcher timing, with Chokidar deployment options. */
@@ -1731,7 +1729,7 @@ export interface Config {
 
 ## `@panedesk/dsh-host-admin`
 
-- `source`: [`packages/host/host-admin/src/index.ts:166`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/host/host-admin/src/index.ts:160`](../packages/host/host-admin/src/index.ts)
 
 ```ts config-catalog
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
@@ -2829,7 +2827,7 @@ export interface Config {
 
 - `inject`: `shell` · `approval` · `sessions` · `sessionProjections`
 - `refs`: [`ApprovalPolicy`](subsystems/approval.zh.md) · [`SandboxMode`](subsystems/sandbox.zh.md) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/interaction/permission-presets/src/index.ts:168`](../packages/interaction/permission-presets/src/index.ts)
+- `source`: [`packages/interaction/permission-presets/src/index.ts:159`](../packages/interaction/permission-presets/src/index.ts)
 
 ```ts config-catalog
 /** The {@link PermissionPresetService} config: preset table and composition default. */
@@ -3131,7 +3129,7 @@ export interface Config {
 
 ## `@panedesk/dsh-sandbox-local`
 
-- `source`: [`packages/sandbox/sandbox-local/src/index.ts:51`](../packages/sandbox/sandbox-local/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-local/src/index.ts:45`](../packages/sandbox/sandbox-local/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -3167,17 +3165,18 @@ export interface Config {
 
 - `inject`: `sessionProjections`
 - `refs`: [`SandboxMode`](subsystems/sandbox.zh.md)
-- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:86`](../packages/sandbox/sandbox-policy/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:80`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 ```ts config-catalog
 /**
- * Plugin config: the deployment's sandbox default. Without an explicit mode
- * or environment choice, Windows is read-only and Linux/macOS are workspace-writable. The
+ * Plugin config: the deployment's sandbox default. All optional — `Config`
+ * supplies the defaults (`mode: 'read-only'` is the fail-safe default; a
+ * deployment that wants a workspace-writable agent opts in explicitly). The
  * runner choice is NOT here (it is the `ctx.sandbox` provider's config), nor
  * is any per-family knob: this is the one shared policy home.
  */
 export interface Config {
-  /** Explicit file-sandbox mode; otherwise the environment or platform default applies. */
+  /** File-sandbox mode a session starts from (default: `read-only`). */
   mode?: SandboxMode
   /**
    * Absolute fallback root for agentless calls and sessions without a cwd (default:
@@ -3280,7 +3279,7 @@ export interface Config {
 ## `@panedesk/dsh-seat-engine`
 
 - `refs`: [`ScheduleRecord`](subsystems/schedule.zh.md) · [`SeatEngineConfig`](../packages/seat/seat/src/index.ts) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-engine/src/index.ts:32`](../packages/seat/seat-engine/src/index.ts)
+- `source`: [`packages/seat/seat-engine/src/index.ts:34`](../packages/seat/seat-engine/src/index.ts)
 
 ```ts config-catalog
 /** Deployment policy has no implicit budget or capacity defaults. */
@@ -3829,7 +3828,7 @@ export interface Config {
 ## `@panedesk/dsh-skill-filesystem`
 
 - `inject`: `skills`
-- `source`: [`packages/skill/skill-filesystem/src/index.ts:100`](../packages/skill/skill-filesystem/src/index.ts)
+- `source`: [`packages/skill/skill-filesystem/src/index.ts:99`](../packages/skill/skill-filesystem/src/index.ts)
 
 ```ts config-catalog
 /** Local filesystem skill provider configuration. */
@@ -3953,7 +3952,7 @@ export interface Config {
 
 ## `@panedesk/dsh-ssh`
 
-- `source`: [`packages/ssh/ssh/src/index.ts:35`](../packages/ssh/ssh/src/index.ts)
+- `source`: [`packages/ssh/ssh/src/index.ts:33`](../packages/ssh/ssh/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-owned SSH identity and installed helper; no model argument selects these values. */
@@ -4815,7 +4814,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.zh.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:50`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:51`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */
@@ -4855,7 +4854,7 @@ export interface Config extends PresetSelectionConfig {
 export interface PresetSelectionConfig {
   /** Default independent preset; omission inherits the parent when the model makes no selection. */
   agentPreset?: string
-  /** Non-empty allowlist exposing agent_preset to the model; omission disables model selection. */
+  /** Non-empty allowlist exposing agent_preset to the model; omission offers all usable registered presets. */
   allowedAgentPresets?: string[] | undefined
 }
 ```
@@ -4965,7 +4964,7 @@ export interface Config {
 ## `@panedesk/dsh-tool-workspace-dependencies`
 
 - `inject`: `tools`
-- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:17`](../packages/skill/tool-workspace-dependencies/src/index.ts)
+- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:16`](../packages/skill/tool-workspace-dependencies/src/index.ts)
 
 ```ts config-catalog
 /** Payload location and optional installation directory. */
@@ -5041,7 +5040,7 @@ export interface Config {
 
 ## `@panedesk/dsh-user-approval`
 
-- `source`: [`packages/interaction/user-approval/src/index.ts:142`](../packages/interaction/user-approval/src/index.ts)
+- `source`: [`packages/interaction/user-approval/src/index.ts:140`](../packages/interaction/user-approval/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */

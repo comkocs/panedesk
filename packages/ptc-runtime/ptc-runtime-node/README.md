@@ -109,7 +109,7 @@ The host owns policy, deadlines, binding lookup and process cleanup. The child o
 
 ### Launch and control
 
-Both execution modes preserve an explicit Linux `productSandbox: true` confinement result in subprocess requests for pre-exec source registration; full-access calls omit it.
+Neither execution mode forwards a product-registration marker with the subprocess request; full-access calls omit confinement.
 
 For per-call execution, the host strips erasable types, resolves the executable and bootstrap in the configured execution world, awaits argv confinement through `ctx.sandbox`, then spawns through `ctx.subprocess`. Cancellation is checked again after confinement, so a provider returning after cancellation cannot start the program. After adopting the inherited control channel, the child retains only executable-search, Windows system, and temporary paths in its OS environment and replaces the program-visible `process.env` with an empty dictionary. Windows ACL setup receives the parent's distinct `TEMP` and `TMP` values for shared grant locks, then replaces both with its private directory before starting the program. These native paths keep nested process creation and native temporary-file APIs functional. The host preserves `ELECTRON_RUN_AS_NODE` only for child startup so the Desktop executable runs the Node bootstrap; the bootstrap removes the selector before evaluating model code. The heap limit uses Node argv or a provider-created `NODE_OPTIONS` value for packaged executables; ambient loader and inspector flags are discarded.
 

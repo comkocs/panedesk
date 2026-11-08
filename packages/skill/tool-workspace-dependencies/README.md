@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents can locate bundled Python, Node.js, and pnpm without discovering system interpreters. The tool returns absolute paths and distribution versions without changing `PATH` or package-manager settings. Deployment configuration selects first-use installation under the Harness home or in-place use; model arguments cannot change those paths. With a confined sandbox policy mounted, every call checks that the installation target and recovery directory do not overlap protected host inputs. This application-owned installation grants no general filesystem write access.
+Agents can locate bundled Python, Node.js, and pnpm without discovering system interpreters. The tool returns absolute paths and distribution versions without changing `PATH` or package-manager settings. Deployment configuration selects first-use installation under the Harness home or in-place use; model arguments cannot change those paths. This application-owned installation grants no general filesystem write access.
 
 ## Table of Contents
 

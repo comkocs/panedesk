@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Mount this executor when a composition needs Bash command execution on POSIX without confinement. It registers as `ctx.shell`, and the model-facing `bash` tool works over it immediately: an agent calls the tool, and the command runs as a fresh `bash -c` process with the budgets below.
 
-Prepared execution can supply either argv alone or `{ argv, productSandbox }`. The latter preserves the confinement provider's Linux identity fact in the subprocess request; ordinary local commands do not acquire it.
+Prepared execution supplies argv. Subprocess requests do not carry a product-registration marker.
 
 ### Minimal configuration
 

@@ -67,7 +67,7 @@ The program is the body of an async Python function. Top-level await and return 
 
 单向信任：宿主把每条入站帧都视为敌意（模型代码可以在 fd 3 上伪造任何内容）并逐字段重建后才读取；Python 侧信任宿主回复。bootstrap（`py/bootstrap.py`）把程序作为 async 函数体执行，因此顶层 `await` 与 `return` 都可用；binding 调用经 fd 3 以 JSON-lines 往返，回复在 pump 中限速，以免大量大回复钉住宿主的 fd-3 可写缓冲。
 
-运行时要求 `subprocess`、`sandbox` 与 `sandboxPolicy` 提供方。已发布的 bootstrap 与 protocol 源码以 UTF-8 JSON 通过可信二进制 stdin 传入解释器。可信解释器入口先将受管 fd-7 控制通道映射到 fd 3，再执行沙箱 runner，同时恢复标准流阻塞模式并移除私有传输标记。模型程序与 binding 保留 fd-3 协议，宿主环境仅传入 TMPDIR。正向 `productSandbox` 事实传到提供方，使有能力的 Linux 宿主在模型执行前登记进程。终止与退出观察使用同一个提供方受管范围；结果分类等待 stdout、stderr 与控制通道排空，并保留既有四流关闭截止。经过时间截止包含沙箱准备。所配置解释器的加载期版本探测在约束之外运行，不执行模型代码。
+运行时要求 `subprocess`、`sandbox` 与 `sandboxPolicy` 提供方。已发布的 bootstrap 与 protocol 源码以 UTF-8 JSON 通过可信二进制 stdin 传入解释器。可信解释器入口先将受管 fd-7 控制通道映射到 fd 3，再执行沙箱 runner，同时恢复标准流阻塞模式并移除私有传输标记。模型程序与 binding 保留 fd-3 协议，宿主环境仅传入 TMPDIR。子进程请求不携带产品登记标记。终止与退出观察使用同一个提供方受管范围；结果分类等待 stdout、stderr 与控制通道排空，并保留既有四流关闭截止。经过时间截止包含沙箱准备。所配置解释器的加载期版本探测在约束之外运行，不执行模型代码。
 
 ### wire 契约
 

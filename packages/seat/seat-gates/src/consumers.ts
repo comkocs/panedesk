@@ -7,7 +7,6 @@ import type {} from '@panedesk/dsh-working-directory'
 import type { Config } from './index.ts'
 import { literalWriteTargets } from './memory.ts'
 import { buildCheckpoint } from './checkpoint.ts'
-import type {} from './events.ts'
 
 /** Connect tool denial and precommit checkpoint contributions to their actual executors.
  * @param ctx - reversible consumer scope.

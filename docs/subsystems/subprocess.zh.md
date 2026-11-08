@@ -104,8 +104,6 @@ interface SubprocessStdio {
  * request/spec split is the owning template).
  */
 interface SubprocessSpawnSpec {
-  /** Explicit local confinement fact supplied by the sandbox provider, never inferred from argv. */
-  productSandbox?: true
   /** Executable and arguments; `argv[0]` is the program. Never shell-interpreted here. */
   argv: readonly string[]
   /** Working directory for the child. */
@@ -143,16 +141,9 @@ interface SubprocessSpawnSpec {
 spawn 会同步返回活动句柄，目标与受管范围标识则保留在 provider 内部。收集模式的读取器接受全流字节偏移量且从不消费，因此独立读取器不会抢走彼此的增量；管道化的流归调用方所有。`terminate()` 启动 provider 记录的终止过程，`waitForExit()` 观察同一个 provider-managed range；分阶段 provider 可以使用 `graceMs`，立即终止的 provider 不会等待。消费方可以在这两项操作上构建自己的分级清理流程；ACP 后端先关闭 stdin 的 `disposeAcpChild` 是参考实现。
 
 ```ts type-equiv
-/**
- * A live subprocess and its provider-managed process range. Collected output
- * remains readable after exit; piped streams belong to the caller.
- *
- * Termination and {@link SubprocessHandle.waitForExit} use the same managed
- * range. Each provider documents the range it can observe and its signalling
- * and observation limits.
- */
+/** A live subprocess and its provider-managed process range. */
 interface SubprocessHandle {
-  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  /** Observation only. Omission means unavailable. Termination still uses terminate(). */
   readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
@@ -286,11 +277,9 @@ Implementations must honor these semantics:
 - spawnTerminal owns terminal allocation, text transport, foreground groups, signalling, and whole-session quiescence behind one awaited termination method; readiness and persistent-shell policy stay in the PTY consumer. Its output stream ends after queued terminal output when the top-level process exits.
 
 ```ts cordis-catalog
-/**
- * Observe one process incarnation without granting termination authority.
- * Providers without OS creation evidence return only the PID, never a verified live identity.
- * @param pid - process identity to inspect in this execution world.
- * @returns creation evidence, or a PID-only unavailable observation.
+/** PID-only observation. Nothing is refused.
+ * @param pid - process id to report.
+ * @returns the pid alone.
  */
 readProcessIdentity(pid: number): SubprocessIdentity
 

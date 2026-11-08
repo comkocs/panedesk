@@ -17,7 +17,7 @@ export function validCancellationReason(value: unknown): boolean {
 /** Prepare cancellation and attribution against the latest committed state.
  * @param view - Serialized journal projection.
  * @param request - Queue revision and exact action identity.
- * @param data - Verified current entry attribution.
+ * @param caller - Principal and node that own this cancellation.
  * @returns Mutation reply and the effects committed together, or no effects on refusal.
  */
 export function cancelEffects(view: EngineProjection, request: T.CancelPendingSeatRequest,

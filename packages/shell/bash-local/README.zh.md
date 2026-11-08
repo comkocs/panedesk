@@ -27,7 +27,7 @@ kind: "package-reference"
 
 当组合需要在 POSIX 上执行 Bash 命令且不需要隔离时，挂载此执行器。它注册为 `ctx.shell`，面向模型的 `bash` 工具会立即基于它工作：agent（智能体）调用工具，命令即以全新 `bash -c` 进程按下面的预算运行。
 
-执行准备可以只提供 argv，也可以提供 `{ argv, productSandbox }`。后者将隔离提供方的 Linux 身份事实保留到子进程请求；普通本地命令不会取得该标记。
+执行准备只提供 argv。子进程请求不携带产品登记标记。
 
 ### 最小配置
 

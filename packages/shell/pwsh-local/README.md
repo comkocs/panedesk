@@ -31,7 +31,7 @@ Mount this executor when a composition needs PowerShell command execution — ty
 
 It is the Windows counterpart of `dsh-bash-local`: choose it where `pwsh` is the platform shell, so a composition can swap the POSIX rows for the pwsh rows and keep the same semantics. The executor resolves the `pwsh` executable from an explicit `pwshPath`, well-known Windows install locations, PATH entries, or Windows PowerShell 5.1 as a last resort. For unconfined execution it is the default; compose `dsh-pwsh-sandbox` when commands need the sandbox capability.
 
-Prepared execution can supply either argv alone or `{ argv, productSandbox }`. The latter preserves the confinement provider's Linux identity fact in the subprocess request; ordinary local commands do not acquire it.
+Prepared execution supplies argv. Subprocess requests do not carry a product-registration marker.
 
 ### Minimal configuration
 

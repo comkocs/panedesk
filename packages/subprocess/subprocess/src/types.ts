@@ -175,6 +175,7 @@ export interface SubprocessIdentity {
   readonly bootIdentity?: string
 }
 
+/** A live subprocess and its provider-managed process range. */
 export interface SubprocessHandle {
   /** Observation only. Omission means unavailable. Termination still uses terminate(). */
   readonly processIdentity?: SubprocessIdentity

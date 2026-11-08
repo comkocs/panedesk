@@ -100,29 +100,12 @@ Owns the deployment's configured permission presets, the fixed Auto integration 
 @Remote('catalog') catalog(): PermissionCatalog
 
 /**
- * List durable Windows workspace grants without materializing native permissions.
- * @returns The authenticated owner's authorization inventory.
- */
-@Remote('workspaceWriteAccess') async workspaceWriteAccess(): Promise<WorkspaceWriteView>
-
-/**
- * Record explicit settings consent; an executor materializes the ACE only when needed.
- * @param workspace - Existing absolute directory selected by the owner.
- */
-@Remote('authorizeWorkspaceWrite') async authorizeWorkspaceWrite(workspace: string): Promise<void>
-
-/**
- * Revoke the directory's native write capability and its durable authorization.
- * @param workspace - Exact recorded directory identity (possibly deleted), or an existing legacy directory.
- */
-@Remote('revokeWorkspaceWrite') async revokeWorkspaceWrite(workspace: string): Promise<void>
-
-/**
- * Include a provider's cold-readable directory inventory in legacy ACL discovery.
- * @param directories - Metadata reader that never activates sessions or grants access.
+ * Former Windows workspace inventory contribution. The authorization ledger is gone;
+ * the reader is not stored and no grant is recorded or revoked.
+ * @param _directories - ignored.
  * @returns Disposer for this contribution.
  */
-registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>
+registerWorkspaceDirectories(_directories: () => Promise<readonly string[]>): () => Promise<void>
 
 /**
  * Publish the fixed current-session Auto preset for the calling
@@ -165,9 +148,8 @@ optionOf(name: string): PresetOption
  * setter. Selecting the effective preset again appends nothing.
  * @param session - the session the switch belongs to.
  * @param name - the preset to switch to; unknown names throw.
- * @returns Capture completion when protected workspace inputs must be recorded; callers must await it before using the permission.
  */
-set(session: Session, name: string): void | Promise<void>
+set(session: Session, name: string): void
 
 /**
  * Fill every missing permission fact before a session is published. A
@@ -180,7 +162,7 @@ set(session: Session, name: string): void | Promise<void>
  * @param session - Session being prepared or restored.
  * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
  * @param signal - Optional creation cancellation; aborted preparation appends no permission facts.
- * @returns Capture completion when required; permission facts are published only after it succeeds.
+ * @returns Completion of permission initialization, synchronously or asynchronously.
  */
 initialize(session: Session, approvalOverride?: ApprovalPolicy, signal?: AbortSignal): void | Promise<void>
 ```
@@ -206,22 +188,6 @@ The selectable process catalog changed. Payload-free by design: consumers subscr
  * @mode emit
  */
 'permission-presets/catalog-changed'(): void
-```
-
-Source: [`packages/interaction/permission-presets/src/types.ts`](../../packages/interaction/permission-presets/src/types.ts)
-
-<a id="permission-presetsworkspace-write-changed--emit"></a>
-
-#### `permission-presets/workspace-write-changed` — emit
-
-Workspace consent or revocation changed; owners re-read the inventory.
-
-```ts cordis-catalog
-/**
- * Workspace consent or revocation changed; owners re-read the inventory.
- * @mode emit
- */
-'permission-presets/workspace-write-changed'(): void
 ```
 
 Source: [`packages/interaction/permission-presets/src/types.ts`](../../packages/interaction/permission-presets/src/types.ts)

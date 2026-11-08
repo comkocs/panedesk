@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. The local store exposes its dedicated parent directory to the filesystem and process sandbox providers for owner-material isolation. File permissions alone do not isolate same-user processes; unconfined tools and host plugins remain trusted.
+`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. The file is private to the OS user. File permissions do not isolate same-user processes; unconfined tools and host plugins remain trusted.
 
 ## Table of Contents
 
@@ -112,7 +112,7 @@ A key's value can be any text, multi-line values included — no quoting tricks 
 
 ### Who can read the file
 
-Only your OS user can read the file: the product creates it with owner-only permissions, and on POSIX it refuses to load a file that any other user can read — the error tells you to run `chmod 600`. Windows has no mode to inspect, so the check is skipped there rather than faked. The default parent directory is created with POSIX mode 0700 and the file with mode 0600. A configured `path` protects its entire parent directory, not just the current file inode; choose a dedicated directory disjoint from the workspace. Sandboxed file tools reject owner-material paths and matching file identities. Process confinement consumes the same directory inventory; full-access tools remain outside this read restriction.
+Only your OS user can read the file: the product creates it with owner-only permissions, and on POSIX it refuses to load a file that any other user can read — the error tells you to run `chmod 600`. Windows has no mode to inspect, so the check is skipped there rather than faked. The default parent directory is created with POSIX mode 0700 and the file with mode 0600. A configured `path` should use a dedicated directory disjoint from the workspace. Sandbox file denial does not add a separate owner-material inventory.
 
 Startup reads the existing `<harness home>/private/.credentials.yaml` directly; `set` and `unset` keep writing that same document. It does not copy, compare, or remove `<harness home>/.credentials.yaml`. To use a document at another location, configure `path` explicitly.
 

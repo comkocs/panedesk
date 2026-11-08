@@ -60,7 +60,7 @@ HMR 的 profile 监听和 Plugin Manager 执行的 profile 重新组合，还会
 
 `watchConfig()` 注册会被等待的配置处理器，仅监听目标路径及必要的父目录；同级文件（包括临时写锁）在创建原生 watcher 前即被排除。`configurationPaths()` 从注册起到监听器关闭期间向沙盒策略提供活动输入，包括起初不存在的路径；注销会移除该注册。`runExclusive()` 将配置变更、Loader 更新与自动重载串行化，并拒绝嵌套事务。包安装和删除在该队列之外执行。HMR 不获取包操作写锁；manifest 通知仅在有序的 `dsh.profile.bundles` 列表变化时触发重载。profile 与 home patch 变化也会触发重新组合。配置事务期间收到的文件事件在事务结束后处理。 Include 刷新和 profile 重载都通过普通的 Loader 条目更新到达插件；仅 volatile 变化由 Loader 就地提交。
 
-App-boot 负责 profile 解析和 patch 优先级规则。HMR 读取启动器提供的纯数据 `profileContext`，在初始化时注册 profile manifest 和两份用户 patch 的监听，并等待应用就绪后处理更改。启动输入复核在等待就绪的事务队列之外串行执行；排队事务和已就绪的重载在修改输入前等待已接纳的启动复核。就绪后，复核重新使用事务队列。HMR 同时进入各 reader 的复核队列，与首次写准入串行执行，每次请求仍保留独立扫描与属主决定。销毁 HMR 时会关闭监听器、取消等待启动的重载，并终止及等待 profile 所持的复核子进程，不丢弃持久批准记录。配置监听器在当前事务上下文之外启动，使后续通知可以进入队列。
+App-boot 负责 profile 解析和 patch 优先级规则。HMR 读取启动器提供的纯数据 `profileContext`，在初始化时注册 profile manifest 和两份用户 patch 的监听，并等待应用就绪后处理更改。销毁 HMR 时会关闭监听器并取消等待启动的重载。配置监听器在当前事务上下文之外启动，使后续通知可以进入队列。重载前不再复核宿主输入。
 
 `reconcileProfile()` 由 HMR 的 profile 监听和 Plugin Manager 共用；调用方持有 `runExclusive()`。Config Editor 通过 app-boot 重新组合，不替换模块。app-boot 在缓存或运行中条目发生变化前准备新一代组合并执行预检。
 
