@@ -160,6 +160,131 @@ type DomainChanged = DomainChangedPut | DomainChangedDeleted
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxdatabaseconnections--databaseconnections"></a>
+
+### `ctx.databaseConnections` — `DatabaseConnections`
+
+Shared Host interface for storage adapters and model tools; Remote methods require the owner.
+
+```ts cordis-catalog
+/** List non-secret configurations for Host consumers.
+ * @returns Saved connection metadata without credentials.
+ */
+async listConnections(): Promise<DatabaseConnection[]>
+
+/** Resolve non-secret configuration by stable id; missing ids fail explicitly.
+ * @param id - Saved connection id.
+ * @returns Matching non-secret configuration.
+ */
+async getConfig(id: string): Promise<DatabaseConnection>
+
+/** Open a dedicated client and optional SSH forward by id. No connection is opened at boot.
+ * @param id - Saved connection id.
+ * @param signal - Optional cancellation for the connection lifetime.
+ * @returns Caller-owned client and close operation.
+ */
+async open(id: string, signal?: AbortSignal): Promise<OpenDatabaseConnection>
+
+/** Close every currently open handle for an id, including its SSH forwards.
+ * @param id - Saved connection id whose handles are released.
+ */
+async close(id: string): Promise<void>
+
+/** Owner settings read, with no password or key content in the response.
+ * @returns Catalog path and saved non-secret configurations.
+ */
+@Remote async inspect(): Promise<{ filename: string; connections: DatabaseConnection[] }>
+
+/** Save one connection; omitted secrets retain stored values and empty strings clear them.
+ * @param input - Connection metadata and optional credential updates.
+ * @returns Persisted non-secret configuration.
+ */
+@Remote async save(input: ConnectionInput): Promise<DatabaseConnection>
+
+/** Delete metadata first, then remove the credential and release open connections.
+ * @param id - Saved connection to remove.
+ */
+@Remote async remove(id: string): Promise<void>
+
+/** Probe an unsaved form without persisting its secrets; the short-lived client is always closed.
+ * @param input - Connection settings and optional draft credentials.
+ * @returns Whether SELECT 1 succeeded and any connection error.
+ */
+@Remote async test(input: ConnectionInput): Promise<ConnectionTest>
+
+/** Browse Host filenames for private-key selection; no file contents are returned or copied.
+ * @param path - Absolute directory to browse, or empty for the home directory.
+ * @returns Directory path, parent and file entries.
+ */
+@Remote async browseKeys(path: string): Promise<{ path: string; parent: string; entries: { name: string; path: string; directory: boolean }[] }>
+```
+
+Source: [`packages/database/db-connections/src/index.ts`](../../packages/database/db-connections/src/index.ts)
+
+<a id="ctxdatastorage--datastorageservice"></a>
+
+### `ctx.dataStorage` — `DataStorageService`
+
+Owner-authenticated access to storage selection and local-data copying.
+
+```ts cordis-catalog
+/** Read non-secret configuration and the startup-selected backend.
+ * @returns Saved selection, available connections and active backend.
+ */
+@Remote read(): Promise<StorageStatus>
+
+/** Save the form; backend selection takes effect after restart.
+ * @param input - Selected local backend or saved connection id.
+ * @returns Persisted selection and restart status.
+ */
+@Remote save(input: StorageSettingsInput): Promise<StorageStatus>
+
+/** Check the supplied form without changing the active backend or saving it.
+ * @param input - Saved connection selection to probe.
+ * @returns Whether SELECT 1 succeeded and any connection error.
+ */
+@Remote test(input: StorageSettingsInput): Promise<ConnectionResult>
+
+/** Copy existing local units, retaining local files and existing remote keys.
+ * @returns Number of newly copied rows.
+ */
+@Remote migrate(): Promise<number>
+```
+
+Source: [`packages/client/ui-storage/src/index.ts`](../../packages/client/ui-storage/src/index.ts)
+
+<a id="ctxpostgresstorage--postgresstorage"></a>
+
+### `ctx.postgresStorage` — `PostgresStorage`
+
+Configuration changes are persisted now and selected only on the next process startup.
+
+```ts cordis-catalog
+/** Return settings and connection status without returning the stored credential.
+ * @returns Saved selection, connection names and startup status.
+ */
+async status(): Promise<StorageStatus>
+
+/** Persist the selected saved connection without copying configuration or credentials.
+ * @param input - Selected local backend or saved connection id.
+ * @returns Saved selection and restart status.
+ */
+async save(input: StorageSettingsInput): Promise<StorageStatus>
+
+/** Probe the selected connection with SELECT 1 only, without creating storage tables.
+ * @param input - Saved connection selection to probe.
+ * @returns Whether SELECT 1 succeeded and any connection error.
+ */
+async testConnection(input: StorageSettingsInput): Promise<ConnectionResult>
+
+/** Copy local storage units without replacing existing remote keys; restart to reload imported data.
+ * @returns Number of newly copied rows.
+ */
+async migrate(): Promise<number>
+```
+
+Source: [`packages/storage/storage-postgres/src/index.ts`](../../packages/storage/storage-postgres/src/index.ts)
+
 <a id="ctxstorage--storage"></a>
 
 ### `ctx.storage` — `Storage`
@@ -232,6 +357,26 @@ async closeAll(): Promise<void>
 ```
 
 Source: [`packages/storage/storage-domain/src/index.ts`](../../packages/storage/storage-domain/src/index.ts)
+
+<a id="database-connections-events"></a>
+
+### `database-connections/*` events
+
+<a id="database-connectionschanged--emit"></a>
+
+#### `database-connections/changed` — emit
+
+Published after a catalog mutation commits.
+
+```ts cordis-catalog
+/**
+ * Published after a catalog mutation commits.
+ * @mode emit
+ */
+'database-connections/changed'(): void
+```
+
+Source: [`packages/database/db-connections/src/index.ts`](../../packages/database/db-connections/src/index.ts)
 
 <a id="domain-events"></a>
 

@@ -959,6 +959,96 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'databaseConnections',
+    summary: 'Shared Host interface for storage adapters and model tools; Remote methods require the owner.',
+    description: 'Shared Host interface for storage adapters and model tools; Remote methods require the owner.',
+    methods: [
+      {
+        signature: 'async listConnections(): Promise<DatabaseConnection[]>',
+        description: 'List non-secret configurations for Host consumers.',
+        parameters: [],
+        returns: 'Saved connection metadata without credentials.',
+      },
+      {
+        signature: 'async getConfig(id: string): Promise<DatabaseConnection>',
+        description: 'Resolve non-secret configuration by stable id; missing ids fail explicitly.',
+        parameters: [{ name: 'id', description: 'Saved connection id.' }],
+        returns: 'Matching non-secret configuration.',
+      },
+      {
+        signature: 'async open(id: string, signal?: AbortSignal): Promise<OpenDatabaseConnection>',
+        description: 'Open a dedicated client and optional SSH forward by id. No connection is opened at boot.',
+        parameters: [{ name: 'id', description: 'Saved connection id.' }, { name: 'signal', description: 'Optional cancellation for the connection lifetime.' }],
+        returns: 'Caller-owned client and close operation.',
+      },
+      {
+        signature: 'async close(id: string): Promise<void>',
+        description: 'Close every currently open handle for an id, including its SSH forwards.',
+        parameters: [{ name: 'id', description: 'Saved connection id whose handles are released.' }],
+      },
+      {
+        signature: '@Remote async inspect(): Promise<{ filename: string; connections: DatabaseConnection[] }>',
+        description: 'Owner settings read, with no password or key content in the response.',
+        parameters: [],
+        returns: 'Catalog path and saved non-secret configurations.',
+      },
+      {
+        signature: '@Remote async save(input: ConnectionInput): Promise<DatabaseConnection>',
+        description: 'Save one connection; omitted secrets retain stored values and empty strings clear them.',
+        parameters: [{ name: 'input', description: 'Connection metadata and optional credential updates.' }],
+        returns: 'Persisted non-secret configuration.',
+      },
+      {
+        signature: '@Remote async remove(id: string): Promise<void>',
+        description: 'Delete metadata first, then remove the credential and release open connections.',
+        parameters: [{ name: 'id', description: 'Saved connection to remove.' }],
+      },
+      {
+        signature: '@Remote async test(input: ConnectionInput): Promise<ConnectionTest>',
+        description: 'Probe an unsaved form without persisting its secrets; the short-lived client is always closed.',
+        parameters: [{ name: 'input', description: 'Connection settings and optional draft credentials.' }],
+        returns: 'Whether SELECT 1 succeeded and any connection error.',
+      },
+      {
+        signature: '@Remote async browseKeys(path: string): Promise<{ path: string; parent: string; entries: { name: string; path: string; directory: boolean }[] }>',
+        description: 'Browse Host filenames for private-key selection; no file contents are returned or copied.',
+        parameters: [{ name: 'path', description: 'Absolute directory to browse, or empty for the home directory.' }],
+        returns: 'Directory path, parent and file entries.',
+      },
+    ],
+  },
+  {
+    key: 'dataStorage',
+    summary: 'Owner-authenticated access to storage selection and local-data copying.',
+    description: 'Owner-authenticated access to storage selection and local-data copying.',
+    methods: [
+      {
+        signature: '@Remote read(): Promise<StorageStatus>',
+        description: 'Read non-secret configuration and the startup-selected backend.',
+        parameters: [],
+        returns: 'Saved selection, available connections and active backend.',
+      },
+      {
+        signature: '@Remote save(input: StorageSettingsInput): Promise<StorageStatus>',
+        description: 'Save the form; backend selection takes effect after restart.',
+        parameters: [{ name: 'input', description: 'Selected local backend or saved connection id.' }],
+        returns: 'Persisted selection and restart status.',
+      },
+      {
+        signature: '@Remote test(input: StorageSettingsInput): Promise<ConnectionResult>',
+        description: 'Check the supplied form without changing the active backend or saving it.',
+        parameters: [{ name: 'input', description: 'Saved connection selection to probe.' }],
+        returns: 'Whether SELECT 1 succeeded and any connection error.',
+      },
+      {
+        signature: '@Remote migrate(): Promise<number>',
+        description: 'Copy existing local units, retaining local files and existing remote keys.',
+        parameters: [],
+        returns: 'Number of newly copied rows.',
+      },
+    ],
+  },
+  {
     key: 'deepseekAccount',
     summary: 'Account operations; only Host consumers can obtain a request credential.',
     description: 'Account operations; only Host consumers can obtain a request credential.',
@@ -2093,10 +2183,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The browser cannot supply a principal, grant, host epoch or arbitrary administrative method.',
     methods: [
       {
-        signature: '@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number }>',
-        description: 'Read installed node and live callback providers without starting an engine or sending work.',
+        signature: '@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number; enabled: boolean; configured: boolean; configurationPath: string; configurationDirectory: string }>',
+        description: 'Read installed providers and profile paths without activating a transport.',
         parameters: [],
-        returns: 'Current provider observations and the configured polling interval.',
+        returns: 'Current observations, global configuration location and polling preferences.',
+      },
+      {
+        signature: '@Remote async configure(change: { enabled: boolean } | { refreshIntervalMs: number }): Promise<void>',
+        description: 'Persist a node preference through the profile editor and its normal Loader lifecycle.',
+        parameters: [{ name: 'change', description: 'One transport toggle or browser refresh interval.' }],
+        returns: 'After persistence and any transport teardown or startup have completed.',
       },
       {
         signature: '@Remote act(action: NodeAction): Promise<NodeActionResult>',
@@ -2422,6 +2518,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
         returns: 'the first registry with a successful response, or null when disabled or neither responds successfully; results are cached.',
         throws: ['rejects when the service has been unloaded.'],
+      },
+    ],
+  },
+  {
+    key: 'postgresStorage',
+    summary: 'Configuration changes are persisted now and selected only on the next process startup.',
+    description: 'Configuration changes are persisted now and selected only on the next process startup.',
+    methods: [
+      {
+        signature: 'async status(): Promise<StorageStatus>',
+        description: 'Return settings and connection status without returning the stored credential.',
+        parameters: [],
+        returns: 'Saved selection, connection names and startup status.',
+      },
+      {
+        signature: 'async save(input: StorageSettingsInput): Promise<StorageStatus>',
+        description: 'Persist the selected saved connection without copying configuration or credentials.',
+        parameters: [{ name: 'input', description: 'Selected local backend or saved connection id.' }],
+        returns: 'Saved selection and restart status.',
+      },
+      {
+        signature: 'async testConnection(input: StorageSettingsInput): Promise<ConnectionResult>',
+        description: 'Probe the selected connection with SELECT 1 only, without creating storage tables.',
+        parameters: [{ name: 'input', description: 'Saved connection selection to probe.' }],
+        returns: 'Whether SELECT 1 succeeded and any connection error.',
+      },
+      {
+        signature: 'async migrate(): Promise<number>',
+        description: 'Copy local storage units without replacing existing remote keys; restart to reload imported data.',
+        parameters: [],
+        returns: 'Number of newly copied rows.',
       },
     ],
   },
@@ -4169,6 +4296,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Revisioned snapshot bounded by watermarks.',
       },
       {
+        signature: 'facts(): Promise<{ events: readonly LedgerEvent[]; complete: boolean }>',
+        description: 'Read committed body-free facts for a secondary storage mirror; unsupported providers return no facts.',
+        parameters: [],
+        returns: 'Retained facts and whether their history is complete.',
+      },
+      {
         signature: 'abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult',
         description: 'Price observed usage with decimal fixed-point arithmetic.',
         parameters: [{ name: 'request', description: 'Frozen price, timestamp, tiers, and usage.' }],
@@ -4634,14 +4767,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'rename(session: Session, title: string): SessionTitleSnapshot',
-        description: 'Accept an explicit user title. Appends a `session/title` event with the `user` source, which pins the title: in-flight automatic generation is superseded and later user messages schedule none (an explicit SessionTitleService.refresh remains the deliberate unpin).',
+        description: 'Accept an explicit user title. Appends a `session/title` event with the `user` source, which pins the title: in-flight automatic generation is superseded and later user messages schedule none (an explicit SessionTitleService.refresh can unpin only outside opening-name mode).',
         parameters: [{ name: 'session', description: 'exact live session to rename.' }, { name: 'title', description: 'raw user input; normalized before acceptance.' }],
         returns: 'the accepted title snapshot.',
         throws: ['{SessionTitleInvalidError} when the title normalizes to empty.', '{Error} when the session is not live or the service is disposed.'],
       },
       {
         signature: 'async refresh(session: Session, signal?: AbortSignal): Promise<SessionTitleSnapshot | undefined>',
-        description: 'Explicitly retry the registered provider, or materialize the built-in fallback when no provider is registered.',
+        description: 'Explicitly retry the registered provider, or materialize the built-in fallback when no provider is registered. Opening-name mode preserves pinned titles.',
         parameters: [{ name: 'session', description: 'exact live session to refresh.' }, { name: 'signal', description: 'optional caller cancellation.' }],
         returns: 'latest accepted title, or `undefined` when no eligible text exists.',
       },
@@ -4650,6 +4783,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Register the sole optional title provider. Disposal aborts its pending and active work; a replacement may register once disposal has started, and the closing provider\'s late results never commit.',
         parameters: [{ name: 'provider', description: 'provider identity, cadence, and generation function.' }],
         returns: 'exact Cordis effect disposer, which settles after active calls quiesce.',
+      },
+      {
+        signature: 'configureOpeningName(preferences: OpeningNamePreferences): () => void',
+        description: 'Attach live opening-name preferences for the settings plugin\'s lifetime.',
+        parameters: [{ name: 'preferences', description: 'current enablement and saved pattern readers.' }],
+        returns: 'disposer restoring the title service\'s own configuration.',
       },
     ],
   },
@@ -4974,10 +5113,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'No write, export, transcript, model, or caller-supplied identity capability is exposed.',
     methods: [
       {
+        signature: '@Remote locations(): { configFile: string | null; configDirectory: string | null; dataDirectory: string | null }',
+        description: 'Describe storage and configuration without reading usage, including while disabled.',
+        parameters: [],
+        returns: 'Absolute profile and local journal paths, or null for an unknown provider.',
+      },
+      {
         signature: '@Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>',
         description: 'Read one deduplicated ledger snapshot from the installed query provider.',
         parameters: [{ name: 'request', description: 'Fixed time range, bucket, grouping and optional attribution filters.' }],
-        returns: 'Five-tab projection plus the deployment\'s refresh cadence.',
+        returns: 'Coverage-aware projection plus the deployment\'s current refresh cadence.',
       },
     ],
   },
@@ -6472,6 +6617,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'ref', description: 'the reference whose stored value changed.' }],
   },
   {
+    name: 'database-connections/changed',
+    mode: 'emit',
+    signature: '\'database-connections/changed\'(): void',
+    summary: 'Published after a catalog mutation commits.',
+    description: 'Published after a catalog mutation commits.',
+    parameters: [],
+  },
+  {
     name: 'deepseek-account/model-sign-in-required',
     mode: 'emit',
     signature: '\'deepseek-account/model-sign-in-required\'(): void',
@@ -7632,12 +7785,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ConnectionIndexResponse {\n    writeHead(status: number, headers?: Readonly<Record<string, string>>): unknown;\n    end(body?: string): unknown;\n}',
   },
   {
+    name: 'ConnectionInput',
+    declaration: 'export interface ConnectionInput extends Omit<DatabaseConnection, \'id\'> {\n    id?: string;\n    password?: string;\n    passphrase?: string;\n}',
+  },
+  {
     name: 'ConnectionRequestBodyMode',
     declaration: 'export type ConnectionRequestBodyMode = \'buffered\' | \'streaming\';',
   },
   {
     name: 'ConnectionRequestRejection',
     declaration: 'export type ConnectionRequestRejection = 401 | 403 | undefined;',
+  },
+  {
+    name: 'ConnectionResult',
+    declaration: 'export interface ConnectionResult {\n    connected: boolean;\n    error: string | null;\n}',
   },
   {
     name: 'ConnectionRpcAttachment',
@@ -7662,6 +7823,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionRpcResult',
     declaration: 'export type ConnectionRpcResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: ConnectionRpcFailure;\n};',
+  },
+  {
+    name: 'ConnectionTest',
+    declaration: 'export interface ConnectionTest {\n    ok: boolean;\n    error?: string;\n}',
   },
   {
     name: 'ConnectionTrustRequest',
@@ -7834,6 +7999,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DailyScheduleRecord',
     declaration: 'export interface DailyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'daily\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'DatabaseConnection',
+    declaration: 'export interface DatabaseConnection {\n    id: string;\n    name: string;\n    host: string;\n    port: number;\n    user: string;\n    database: string;\n    ssl: boolean;\n    modelEnabled: boolean;\n    ssh: {\n        enabled: boolean;\n        host: string;\n        port: number;\n        user: string;\n        privateKeyPath: string;\n    };\n}',
   },
   {
     name: 'DeepSeekLlmApiExtensionMap',
@@ -9708,6 +9877,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OpenConfigurationStage = \'workspace\' | \'model\' | \'permission\' | \'subscriptions\' | \'title\' | \'binding\' | \'opening\';',
   },
   {
+    name: 'OpenDatabaseConnection',
+    declaration: 'export interface OpenDatabaseConnection {\n    client: pg.Client;\n    close(): Promise<void>;\n}',
+  },
+  {
     name: 'OpenedSeatWindow',
     declaration: 'export interface OpenedSeatWindow {\n    sessionId: SessionId;\n    seat: SeatName;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    title: string;\n    budget: SeatBudgetLimits;\n    phase: OpenPhase;\n    stateVersion: number;\n    callbackIds: readonly CallbackId[];\n}',
   },
@@ -9730,6 +9903,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OpeningContextSnapshot',
     declaration: 'export interface OpeningContextSnapshot {\n    reference: OpeningContextReference;\n    text: string;\n    digest: SeatDigest;\n    revision: string;\n    taskIds: readonly SeatTaskId[];\n    scopeEvidence: readonly TaskScopeEvidence[];\n}',
+  },
+  {
+    name: 'OpeningNamePattern',
+    declaration: 'export interface OpeningNamePattern {\n    readonly sample: string;\n    readonly left: string;\n    readonly right: string;\n    readonly selected: string;\n}',
+  },
+  {
+    name: 'OpeningNamePreferences',
+    declaration: 'export interface OpeningNamePreferences {\n    enabled(): boolean;\n    pattern(): OpeningNamePattern | undefined;\n}',
   },
   {
     name: 'OpeningProviderId',
@@ -11657,7 +11838,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionSummary',
-    declaration: 'export interface SessionSummary {\n    readonly agentAvailable: boolean;\n    readonly formatStatus?: \'current\' | \'migration-required\';\n    readonly sessionId: SessionId;\n    readonly updatedAt: number;\n    readonly running: boolean;\n    readonly blank: boolean;\n    readonly parentSessionId?: SessionId;\n    readonly origin?: \'subagent\';\n    readonly cwd?: string;\n    readonly projections?: SessionProjectionHints;\n}',
+    declaration: 'export interface SessionSummary {\n    readonly agentAvailable: boolean;\n    readonly formatStatus?: \'current\' | \'migration-required\';\n    readonly sessionId: SessionId;\n    readonly createdAt?: number;\n    readonly updatedAt: number;\n    readonly running: boolean;\n    readonly blank: boolean;\n    readonly parentSessionId?: SessionId;\n    readonly origin?: \'subagent\';\n    readonly cwd?: string;\n    readonly projections?: SessionProjectionHints;\n}',
   },
   {
     name: 'SessionSurface',
@@ -11761,7 +11942,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsDescribeValue',
-    declaration: 'export interface SettingsDescribeValue {\n    writable: boolean;\n    hasDocument: boolean;\n    namespaces: SettingsNamespaceView[];\n}',
+    declaration: 'export interface SettingsDescribeValue {\n    writable: boolean;\n    hasDocument: boolean;\n    documentPath?: string;\n    namespaces: SettingsNamespaceView[];\n}',
   },
   {
     name: 'SettingsDescriptor',
@@ -12088,6 +12269,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface StorageForms {\n}',
   },
   {
+    name: 'StorageSettings',
+    declaration: 'export interface StorageSettings {\n    backend: \'local\' | \'postgres\';\n    connectionId: string;\n}',
+  },
+  {
+    name: 'StorageSettingsInput',
+    declaration: 'export interface StorageSettingsInput {\n    settings: StorageSettings;\n}',
+  },
+  {
+    name: 'StorageStatus',
+    declaration: 'export interface StorageStatus {\n    settings: StorageSettings;\n    active: \'local\' | \'postgres\';\n    error: string | null;\n    configPath: string;\n    connections: {\n        id: string;\n        name: string;\n    }[];\n    restartRequired: boolean;\n}',
+  },
+  {
     name: 'StoredImageAttachment',
     declaration: 'export interface StoredImageAttachment {\n    ref: ImageAttachmentRef;\n    data: Uint8Array;\n}',
   },
@@ -12157,7 +12350,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentNodeStatus',
-    declaration: 'export type SubagentNodeStatus = \'running\' | \'waiting\' | \'finished\';',
+    declaration: 'export type SubagentNodeStatus = \'running\' | \'waiting\' | \'finished\' | \'idle\';',
   },
   {
     name: 'SubagentPromptReceipt',

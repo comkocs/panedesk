@@ -224,6 +224,14 @@ flowchart LR
   pkg_storage_json["storage-json"]
   pkg_storage_sqlite["storage-sqlite"]
   pkg_storage_domain["storage-domain"]
+  pkg_db_connections["db-connections"]
+  svc_databaseConnections["ctx.databaseConnections<br/>Saved database connections"]
+  pkg_storage_postgres["storage-postgres"]
+  pkg_tool_sql["tool-sql"]
+  pkg_client_ui_database_connections["client-ui-database-connections"]
+  svc_postgresStorage["ctx.postgresStorage<br/>Saved-connection PostgreSQL storage"]
+  pkg_client_ui_storage["client-ui-storage"]
+  svc_dataStorage["ctx.dataStorage<br/>Owner-authorized storage settings"]
   svc_storageDomain["ctx.storageDomain<br/>Domain data facility"]
   pkg_workspace["workspace"]
   svc_messageFeedback["ctx.messageFeedback<br/>Lifecycle-bound message feedback"]
@@ -411,6 +419,7 @@ flowchart LR
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_seat_profiles --> svc_seatProfiles
   pkg_client_ui_stats --> svc_stats
+  pkg_client_ui_storage --> svc_dataStorage
   pkg_client_ui_subagent_tree --> svc_subagentTree
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
@@ -423,6 +432,7 @@ flowchart LR
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
   pkg_credentials_local --> svc_credentials
+  pkg_db_connections --> svc_databaseConnections
   pkg_deepseek_account --> svc_deepseekAccount
   pkg_deepseek_account_platform --> svc_deepseekAccount
   pkg_deepseek_llm_api_extensions --> svc_deepseekLlmApiExtensions
@@ -579,6 +589,7 @@ flowchart LR
   pkg_storage --> svc_storage
   pkg_storage_domain --> svc_storageDomain
   pkg_storage_json --> svc_storage
+  pkg_storage_postgres --> svc_postgresStorage
   pkg_storage_sqlite --> svc_storage
   pkg_subagent --> svc_subagentAdmission
   pkg_subagent --> svc_subagentDispatch
@@ -647,6 +658,9 @@ flowchart LR
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
   svc_credentials --> pkg_llm_pi_ai
+  svc_databaseConnections --> pkg_client_ui_database_connections
+  svc_databaseConnections --> pkg_storage_postgres
+  svc_databaseConnections --> pkg_tool_sql
   svc_deepseekAccount --> pkg_api_account_controller
   svc_deepseekAccount --> pkg_llm_deepseek
   svc_deepseekLlmApiExtensions --> pkg_llm_deepseek
@@ -692,6 +706,7 @@ flowchart LR
   svc_pluginMarket --> pkg_client_ui_plugin_market
   svc_pluginMarket --> pkg_plugin_market
   svc_pluginRegistryProbe --> pkg_client_ui_plugin_manager
+  svc_postgresStorage --> pkg_client_ui_storage
   svc_profileContext --> pkg_plugin_manager
   svc_ptcRuntime --> pkg_tools
   svc_ptcRuntime --> pkg_workflow_ptc
@@ -947,6 +962,9 @@ flowchart LR
 | `ctx.stats` | `service` | [`client-ui-stats`](../packages/client/ui-stats) | - | - | - | Exposes a read-only Remote projection to the statistics Client; no model, transcript, export, or mutation capability. |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | The seam captures, redacts, and hands session records to one backend; nothing else consumes the service — its output leaves the process. |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | Backends register side by side under names; data forms (domain first) mount on the hub and translate typed operations into opaque KV-unit primitives. |
+| `ctx.databaseConnections` | `service` | [`db-connections`](../packages/database/db-connections) | - | [`storage-postgres`](../packages/storage/storage-postgres), [`tool-sql`](../packages/database/tool-sql), [`client-ui-database-connections`](../packages/client/ui-database-connections) | - | Owns connection metadata, credential references and caller-owned PostgreSQL clients with optional SSH forwarding. |
+| `ctx.postgresStorage` | `service` | [`storage-postgres`](../packages/storage/storage-postgres) | - | [`client-ui-storage`](../packages/client/ui-storage) | - | Selects local or PostgreSQL storage at startup and owns isolated tables, explicit local copying and the ledger mirror. |
+| `ctx.dataStorage` | `service` | [`client-ui-storage`](../packages/client/ui-storage) | - | - | - | Exposes saved-connection selection, SELECT 1 probes and explicit local-data copying to the settings Client. |
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace) | - | Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state. |
 | `ctx.messageFeedback` | `core` | [`message-feedback`](../packages/feedback/message-feedback) | - | - | - | Owns per-assistant-message feedback in the canonical Session log, target validation, per-item compare-and-set, and the Host unary Remote contract. Feedback stays outside model history; log export follows the consumer policy. |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | - | - | Records one Session-level remark with its category as a log-only feedback/record event on a live Session through the Host unary Remote contract; the /feedback command shares the same producer. |

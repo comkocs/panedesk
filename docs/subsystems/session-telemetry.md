@@ -328,6 +328,11 @@ abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>
  */
 abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
 
+/** Read committed body-free facts for a secondary storage mirror; unsupported providers return no facts.
+ * @returns Retained facts and whether their history is complete.
+ */
+facts(): Promise<{ events: readonly LedgerEvent[]; complete: boolean }>
+
 /** Price observed usage with decimal fixed-point arithmetic.
  * @param request - Frozen price, timestamp, tiers, and usage.
  * @returns Reference amount or explicit coverage gap.
@@ -405,9 +410,14 @@ Source: [`packages/session/session-telemetry/src/index.ts`](../../packages/sessi
 No write, export, transcript, model, or caller-supplied identity capability is exposed.
 
 ```ts cordis-catalog
+/** Describe storage and configuration without reading usage, including while disabled.
+ * @returns Absolute profile and local journal paths, or null for an unknown provider.
+ */
+@Remote locations(): { configFile: string | null; configDirectory: string | null; dataDirectory: string | null }
+
 /** Read one deduplicated ledger snapshot from the installed query provider.
  * @param request - Fixed time range, bucket, grouping and optional attribution filters.
- * @returns Five-tab projection plus the deployment's refresh cadence.
+ * @returns Coverage-aware projection plus the deployment's current refresh cadence.
  */
 @Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>
 ```

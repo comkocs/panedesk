@@ -1000,6 +1000,23 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-credentials-local -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-db-connections -->
+<a id="panedeskdsh-db-connections"></a>
+
+## `@panedesk/dsh-db-connections`
+
+- `inject`: `credentials`
+- `source`: [`packages/database/db-connections/src/index.ts:42`](../packages/database/db-connections/src/index.ts)
+
+```ts config-catalog
+/** Location of the non-secret connection catalog. */
+export interface Config {
+  /** Path to the non-secret saved connection catalog. */
+  filename: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-db-connections -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-deepseek-account-platform -->
 <a id="panedeskdsh-deepseek-account-platform"></a>
 
@@ -2587,7 +2604,7 @@ export interface LspLocalServerConfig {
 - `source`: [`packages/mcp/mcp-client/src/index.ts:104`](../packages/mcp/mcp-client/src/index.ts)
 
 ```ts config-catalog
-/** Configuration for one stdio or Streamable HTTP MCP server. */
+/** Configuration for one stdio, Streamable HTTP, or legacy SSE MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig
 
 /** Config for connecting to an MCP server via a spawned child process over stdio. */
@@ -2618,10 +2635,10 @@ export interface StdioConfig {
   reconnect?: ReconnectConfig
 }
 
-/** Config for connecting to an MCP server over Streamable HTTP (SSE). */
+/** Config for connecting to an MCP server over Streamable HTTP or legacy SSE. */
 export interface StreamableHttpConfig {
-  /** Selects Streamable HTTP transport. */
-  transport: 'streamable-http'
+  /** Selects Streamable HTTP or legacy SSE transport. */
+  transport: 'streamable-http' | 'sse'
   /**
    * Stable local namespace for this server's model-facing tool names
    * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
@@ -4070,6 +4087,24 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-storage-json -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-storage-postgres -->
+<a id="panedeskdsh-storage-postgres"></a>
+
+## `@panedesk/dsh-storage-postgres`
+
+- `inject`: `storage` · `storage.backend.json` · `databaseConnections`
+- `source`: [`packages/storage/storage-postgres/src/index.ts:23`](../packages/storage/storage-postgres/src/index.ts)
+
+```ts config-catalog
+export interface Config {
+  /** Path to the saved storage backend and connection selection. */
+  configPath: string
+  /** Local JSON storage directory used by explicit data migration. */
+  localRoot: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-storage-postgres -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-storage-sqlite -->
 <a id="panedeskdsh-storage-sqlite"></a>
 
@@ -4818,6 +4853,25 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-tool-skill -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-tool-sql -->
+<a id="panedeskdsh-tool-sql"></a>
+
+## `@panedesk/dsh-tool-sql`
+
+- `inject`: `tools` · `databaseConnections`
+- `source`: [`packages/database/tool-sql/src/index.ts:12`](../packages/database/tool-sql/src/index.ts)
+
+```ts config-catalog
+/** Output retention only; SQL authority is entirely the database account's permissions. */
+export interface Config {
+  /** Maximum result rows retained in the model-visible response. */
+  maxRows: number
+  /** Maximum response characters, including the result summary. */
+  maxCharacters: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-tool-sql -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-tool-str-replace-editor -->
 <a id="panedeskdsh-tool-str-replace-editor"></a>
 
@@ -5408,6 +5462,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-client-ui-commands` | — | [`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts) |
 | `@panedesk/dsh-client-ui-conversation` | — | [`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts) |
 | `@panedesk/dsh-client-ui-cordis` | — | [`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts) |
+| `@panedesk/dsh-client-ui-database-connections` | — | [`packages/client/ui-database-connections/src/index.ts`](../packages/client/ui-database-connections/src/index.ts) |
 | `@panedesk/dsh-client-ui-deepseek-model-label-1017` | — | [`packages/client/ui-deepseek-model-label-1017/src/index.ts`](../packages/client/ui-deepseek-model-label-1017/src/index.ts) |
 | `@panedesk/dsh-client-ui-deliverables` | `systemPrompt` · `connection` · `sessionQuery` · `sessionController` · `workspaceFiles` · `fs` · `sandboxPolicy` · `workspaceChanges` | [`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts) |
 | `@panedesk/dsh-client-ui-directory-picker-browse` | — | [`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts) |
@@ -5446,6 +5501,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-client-ui-sidebar-terminal` | — | [`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts) |
 | `@panedesk/dsh-client-ui-skill` | — | [`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts) |
 | `@panedesk/dsh-client-ui-skills` | — | [`packages/client/ui-skills/src/index.ts`](../packages/client/ui-skills/src/index.ts) |
+| `@panedesk/dsh-client-ui-storage` | `postgresStorage` | [`packages/client/ui-storage/src/index.ts`](../packages/client/ui-storage/src/index.ts) |
 | `@panedesk/dsh-client-ui-subagent` | — | [`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts) |
 | `@panedesk/dsh-client-ui-tool` | — | [`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts) |
 | `@panedesk/dsh-client-ui-trajectory` | — | [`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts) |

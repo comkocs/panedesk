@@ -186,7 +186,7 @@ get(session: Session): SessionTitleSnapshot | undefined
  * Accept an explicit user title. Appends a `session/title` event with the
  * `user` source, which pins the title: in-flight automatic generation is
  * superseded and later user messages schedule none (an explicit
- * {@link SessionTitleService.refresh} remains the deliberate unpin).
+ * {@link SessionTitleService.refresh} can unpin only outside opening-name mode).
  * @param session - exact live session to rename.
  * @param title - raw user input; normalized before acceptance.
  * @returns the accepted title snapshot.
@@ -197,7 +197,7 @@ rename(session: Session, title: string): SessionTitleSnapshot
 
 /**
  * Explicitly retry the registered provider, or materialize the built-in
- * fallback when no provider is registered.
+ * fallback when no provider is registered. Opening-name mode preserves pinned titles.
  * @param session - exact live session to refresh.
  * @param signal - optional caller cancellation.
  * @returns latest accepted title, or `undefined` when no eligible text exists.
@@ -212,6 +212,13 @@ async refresh(session: Session, signal?: AbortSignal): Promise<SessionTitleSnaps
  * @returns exact Cordis effect disposer, which settles after active calls quiesce.
  */
 register(provider: SessionTitleProvider): () => Promise<void>
+
+/**
+ * Attach live opening-name preferences for the settings plugin's lifetime.
+ * @param preferences - current enablement and saved pattern readers.
+ * @returns disposer restoring the title service's own configuration.
+ */
+configureOpeningName(preferences: OpeningNamePreferences): () => void
 ```
 
 Types: [Session](session.md)

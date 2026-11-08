@@ -8,6 +8,10 @@ The dsh-base bundle patch shared by the web, headless, sdk, and acp profiles; th
 ```mermaid
 flowchart LR
   cfg["packages/bundle/base/cordis.patch.yml<br/>cordis.yml"]
+  plugin_dsh_base_db_connections["db-connections<br/>@panedesk/dsh-db-connections"]
+  cfg --> plugin_dsh_base_db_connections
+  plugin_dsh_base_tool_sql["tool-sql<br/>@panedesk/dsh-tool-sql"]
+  cfg --> plugin_dsh_base_tool_sql
   plugin_dsh_base_tool_plugin_manager["tool-plugin-manager<br/>@panedesk/dsh-plugin-manager/tools"]
   cfg --> plugin_dsh_base_tool_plugin_manager
   plugin_dsh_base_plugin_manager["plugin-manager<br/>@panedesk/dsh-plugin-manager"]
@@ -86,6 +90,8 @@ flowchart LR
   cfg --> plugin_dsh_base_storage
   plugin_dsh_base_storage_json["storage-json<br/>@panedesk/dsh-storage-json"]
   cfg --> plugin_dsh_base_storage_json
+  plugin_dsh_base_storage_postgres["storage-postgres<br/>@panedesk/dsh-storage-postgres"]
+  cfg --> plugin_dsh_base_storage_postgres
   plugin_dsh_base_storage_domain["storage-domain<br/>@panedesk/dsh-storage-domain"]
   cfg --> plugin_dsh_base_storage_domain
   plugin_dsh_base_session_projection_cache["session-projection-cache<br/>@panedesk/dsh-session-projection-cache"]
@@ -214,6 +220,8 @@ flowchart LR
 
 | Plugin id | Package / module |
 | --- | --- |
+| `db-connections` | `@panedesk/dsh-db-connections` |
+| `tool-sql` | `@panedesk/dsh-tool-sql` |
 | `tool-plugin-manager` | `@panedesk/dsh-plugin-manager/tools` |
 | `plugin-manager` | `@panedesk/dsh-plugin-manager` |
 | `timer` | `@panedesk/cordis-plugin-timer` |
@@ -253,6 +261,7 @@ flowchart LR
 | `session-projection` | `@panedesk/dsh-session-projection` |
 | `storage` | `@panedesk/dsh-storage` |
 | `storage-json` | `@panedesk/dsh-storage-json` |
+| `storage-postgres` | `@panedesk/dsh-storage-postgres` |
 | `storage-domain` | `@panedesk/dsh-storage-domain` |
 | `session-projection-cache` | `@panedesk/dsh-session-projection-cache` |
 | `otel` | `@panedesk/dsh-otel` |

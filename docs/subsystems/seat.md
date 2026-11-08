@@ -276,10 +276,16 @@ Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/s
 The browser cannot supply a principal, grant, host epoch or arbitrary administrative method.
 
 ```ts cordis-catalog
-/** Read installed node and live callback providers without starting an engine or sending work.
- * @returns Current provider observations and the configured polling interval.
+/** Read installed providers and profile paths without activating a transport.
+ * @returns Current observations, global configuration location and polling preferences.
  */
-@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number }>
+@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number; enabled: boolean; configured: boolean; configurationPath: string; configurationDirectory: string }>
+
+/** Persist a node preference through the profile editor and its normal Loader lifecycle.
+ * @param change - One transport toggle or browser refresh interval.
+ * @returns After persistence and any transport teardown or startup have completed.
+ */
+@Remote async configure(change: { enabled: boolean } | { refreshIntervalMs: number }): Promise<void>
 
 /** Execute one explicitly confirmed action under the authenticated owner's existing local-operator path.
  * @param action - Fixed local tunnel, callback resolution or source-owner action.
