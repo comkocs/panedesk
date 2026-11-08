@@ -78,7 +78,7 @@ it('configures MCP on a live profile, restores it on restart, and removes its to
   }
   expect(initial.before).not.toContain('mcp__demo__ping')
   expect(initial.denied.isError).toBe(true)
-  expect(JSON.stringify(initial.denied.content)).toContain('the user rejected escalating')
+  expect(JSON.stringify(initial.denied.content)).toContain('Plugin change owner approval was rejected')
   expect(initial.afterDenied).toEqual(initial.before)
   expect(initial.bundlesAfterDenied.map(bundle => bundle.name)).not.toContain('@test/creator-mcp')
   expect(initial.approvals).toEqual(['rejected', 'allowed-once'])

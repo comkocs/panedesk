@@ -252,7 +252,8 @@ describe.skipIf(MODE === 'record')('web e2e: bonus notice', () => {
     await mkdir(home, { recursive: true })
     // A stored grant bound to the double's origin starts the account credential-stored
     // without driving the browser sign-in flow.
-    await writeFile(join(home, '.credentials.yaml'),
+    await mkdir(join(home, 'private'), { recursive: true })
+    await writeFile(join(home, 'private', '.credentials.yaml'),
       `version: 1\nrefs: {}\nrecords:\n  deepseek-account-platform/default:\n    kind: grant\n    payload:\n      version: 1\n      token: ${TOKEN}\n      issuer: ${platform.origin}\n`,
       { mode: 0o600 })
     const overlay = join(root, 'bonus-notice.overlay.yml')
