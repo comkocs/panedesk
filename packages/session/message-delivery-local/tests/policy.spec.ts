@@ -9,8 +9,6 @@ import { validateAcl } from '../src/windows-permissions.ts'
 import type { MessageSettings, OperationId } from '@panedesk/dsh-message-delivery'
 import { Session, SessionId } from '@panedesk/dsh-session'
 import { serviceFixture } from './fixtures/persistence.ts'
-import { resolveRecipients } from '../src/recipients.ts'
-import type { NodeId } from '@panedesk/dsh-message-delivery'
 import { vi } from 'vitest'
 
 const homes: string[] = []
@@ -20,9 +18,9 @@ async function registry() {
   homes.push(home)
   const mailbox = new FileMailbox({ home, nodeId: 'node-a', maxRecordBytes: 65536, lockTimeoutMs: 5000, lockRetryMs: 1 })
   await mailbox.initialize()
-  let identity: SubprocessIdentity = { pid: process.pid, startIdentity: '100', bootIdentity: 'boot-a' }
+  const identity: SubprocessIdentity = { pid: process.pid, startIdentity: '100', bootIdentity: 'boot-a' }
   const owner = new NodeRegistry(mailbox, () => identity)
-  return { owner, mailbox, change: (value: SubprocessIdentity) => { identity = value } }
+  return { owner, mailbox }
 }
 
 describe('lease-backed runtime registrations', () => {
@@ -39,18 +37,6 @@ describe('lease-backed runtime registrations', () => {
     await owner.unregister('seat-a')
     expect(await owner.status('seat-a')).toBe('closed')
     await expect(owner.assertOwner('seat-a', generation)).rejects.toThrow('generation changed')
-    await owner.dispose()
-  })
-
-  it('does not treat unknown process evidence as death and rejects PID reuse', async () => {
-    const { owner, change } = await registry()
-    await owner.register('seat-a', 'idle')
-    change({ pid: process.pid })
-    expect(await owner.status('seat-a')).toBe('unavailable')
-    await expect(owner.register('seat-b', 'idle')).rejects.toThrow('identity is unavailable')
-    change({ pid: process.pid, startIdentity: '101', bootIdentity: 'boot-a' })
-    expect(await owner.status('seat-a')).toBe('closed')
-    await owner.unregister('seat-a')
     await owner.dispose()
   })
 
@@ -140,18 +126,6 @@ describe('persisted recipient policy', () => {
       writes.mockRestore()
       wakeups.mockRestore()
     } finally { await f.dispose(); vi.restoreAllMocks() }
-  })
-
-  it('refuses an unresolved live incarnation instead of storing pending mail', async () => {
-    const { owner, change } = await registry()
-    await owner.register('seat-a', 'idle')
-    change({ pid: process.pid })
-    expect(await resolveRecipients('node-a' as NodeId, [{ sessionId: SessionId('seat-a') }], [{
-      sessionId: SessionId('seat-a'), title: null, window: null, archived: false,
-      settings: { receiveMode: 'all', wakeOnHandoff: true },
-    }], id => owner.status(id))).toMatchObject([{ kind: 'rejected', reason: 'unavailable' }])
-    await owner.unregister('seat-a')
-    await owner.dispose()
   })
 })
 

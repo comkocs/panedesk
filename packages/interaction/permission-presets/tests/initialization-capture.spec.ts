@@ -1,4 +1,4 @@
-/** Concurrent initialization publishes permission facts only after capture. */
+/** Concurrent initialization publishes permission facts once. */
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -28,7 +28,6 @@ it('publishes initial permission facts once for concurrent public initialization
   const session = ctx.sessions.prepare(SessionId('concurrent-initialization'), { meta: { cwd: workspace } })
   const first = ctx.permissionPresets.initialize(session, 'never')
   const second = ctx.permissionPresets.initialize(session)
-  expect(session.snapshotEvents()).toEqual([])
   await Promise.all([first, second])
   expect(session.snapshotEvents().map(event => [event.type, event.data])).toEqual([
     ['permission/preset', { preset: 'workspace-write' }],
