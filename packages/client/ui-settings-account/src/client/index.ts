@@ -13,7 +13,6 @@ import type { AccountView, AccountDetails } from '@panedesk/dsh-deepseek-account
 import type { OnboardingChange } from './onboarding-contract.ts'
 import type { PlatformBridge } from './PlatformOverlay.tsx'
 import { ContactConfig, CONTACT_CONFIG_GLOBAL } from '../contact-config.ts'
-import { contactUrl } from './contact-url.ts'
 import { authorizeUrlWithTheme } from './authorize-url.ts'
 import { BrowserLogin } from './browser-login.ts'
 import { AccountOnboarding } from './AccountOnboarding.tsx'
@@ -177,35 +176,6 @@ export function apply(ctx: Context): void {
     subscribeModelSignInRequired: listener => ctx.remote.$on('deepseek-account/model-sign-in-required', listener),
     ...nativePlatform === undefined ? {} : { openPlatformPage: platformPageOpener(refreshAccount) },
     refreshAccount,
-    contactUs() {
-      // Sample the account, build and environment before awaiting native information, so
-      // a profile the read outlasts cannot replace the UID this click reported.
-      const profile = snapshot.details?.profile
-      const context = {
-        uid: profile?.status === 'ready' ? profile.value.id : null,
-        version: process.env.DSH_CLIENT_VERSION,
-        width: window.screen.width, height: window.screen.height, pixelRatio: window.devicePixelRatio,
-      }
-      const openForm = (deviceInfo: string): void => {
-        window.open(contactUrl(config, { ...context, deviceInfo }), '_blank', 'noopener,noreferrer')
-      }
-      const readDeviceInfo = (globalThis as typeof globalThis & {
-        dshDesktop?: { deviceInfo?: () => Promise<string> }
-      }).dshDesktop?.deviceInfo
-      if (readDeviceInfo === undefined) {
-        // A plain browser, or a Desktop bridge without the optional reader, reports the renderer user agent.
-        openForm(navigator.userAgent)
-        return
-      }
-      void (async () => {
-        let deviceInfo = ''
-        try { deviceInfo = await readDeviceInfo() }
-        catch (_error) {
-          // Native information is optional; the questionnaire opens without it.
-        }
-        openForm(deviceInfo)
-      })()
-    },
     showLogin(visible) { publish({ ...snapshot, loginVisible: visible }) },
     setOnboarding(active) { publish({ ...snapshot, onboarding: active }) },
     bonusNoticeShown(orderId) { notices.shown(orderId) },
@@ -241,16 +211,6 @@ export function apply(ctx: Context): void {
       }
     },
     async cancel(id) { const result = await ctx.remote.account.cancelSignIn(id); if (!result.ok) throw new Error('account cancel failed') },
-    async hasRunningAccountTasks() {
-      const result = await ctx.remote.account.hasRunningAccountTasks()
-      if (!result.ok) throw new Error('account task query failed')
-      return result.value
-    },
-    async signOut() {
-      const result = await ctx.remote.account.signOut(client())
-      if (result.ok) return
-      throw result.error
-    },
   }
   if (desktop) {
     const controller = new DesktopOnboardingController(
