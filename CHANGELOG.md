@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.5.0
+
+### Added
+
+- The session header has a statistics button that opens charts of token use by model, daily usage and a subagent call timeline, filtered by project and session.
+- Hovering a subagent in the header list shows its task: status, model, duration, tokens, a prompt summary and recent tool calls.
+- Skills are also read from `.claude/skills` in the project and in the home directory; the Skills page lists every scanned directory with its path, status and skill count.
+- Custom provider models get reasoning levels inferred from the model: GPT, o-series, Claude and Grok models offer low, medium, high and xhigh, defaulting to high; image and audio models offer none. Each model row shows its levels and can change them.
+- New sessions are named from the folder of the path in the opening message, or from a chosen part of it, followed by the creation date; repeated names on the same day get (1), (2). Untitled sessions also show the date.
+
+### Changed
+
+- Panedesk settings pages share one layout: a description, the switch and its default, the configuration file path with an Open button, and the adjustable options. DSH settings pages each start with a one-line introduction.
+- The external subagent registry setting has a file picker and an on/off switch.
+- Node connections are off by default and are turned on from their settings page.
+- Model discovery checks only the newest model of each family by default, comparing version numbers. Custom model APIs are listed first and DeepSeek last.
+- Completed subagents show a grey dot instead of a green one.
+- The subagent tree shows a session as idle when no turn is running, instead of always running.
+
+### Fixed
+
+- DeepSeek model discovery requested the wrong endpoint and failed with HTTP 404.
+- Agent presets imported from `.claude/agents` failed to load in the installed app.
+- The opening-name setting row was missing from the Panedesk features page.
+
+### Removed
+
+- The Inbox button and panel in the session header.
+
 ## 1.4.0
 
 ### Added
