@@ -1,6 +1,6 @@
 /** Frozen manual and wake openings remain closed and visible after host recovery. */
 import { expect, it, vi } from 'vitest'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type * as T from '@panedesk/dsh-seat'
@@ -32,10 +32,6 @@ it.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s closes after restar
     const seats = h.ctx.get('seats')!.withAuthority(await authorize(payload, operationId))
     expect(await (method === 'seat.openFrozen' ? seats.openFrozen!(base) : seats.wakeFrozen!(payload)))
       .toMatchObject(method === 'seat.openFrozen' ? { status: 'queued' } : { status: 'opened', result: { status: 'queued' } })
-    // Process identity now reports only a pid, so this process's own delivery registration
-    // reads as a live owner and refuses the handoff. Drop it before the opening send.
-    const registry = join(root, 'messages', 'nodes', 'node-a', 'registry')
-    for (const name of await readdir(registry).catch(() => [] as string[])) await rm(join(registry, name), { force: true })
     await h.engine.drive()
     const open = [...h.engine.journal.projection.opens.values()][0]!
     if (!open) throw new Error(JSON.stringify([...h.engine.journal.projection.pending.values()]))
