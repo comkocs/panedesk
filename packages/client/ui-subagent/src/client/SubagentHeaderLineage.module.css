@@ -319,7 +319,7 @@
   height: 15px;
 }
 
-.children > .node > .row::before {
+.children > .node > span > .row::before {
   content: '';
   position: absolute;
   top: 14px;
@@ -364,4 +364,41 @@
 
 .refresh:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.taskPreview {
+  padding: 12px 16px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.previewHeading,
+.previewSummary,
+.previewCall {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewHeading {
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.previewSummary {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.previewCalls {
+  max-height: min(320px, calc(100vh - 220px));
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.previewCall {
+  padding: 3px 0;
 }

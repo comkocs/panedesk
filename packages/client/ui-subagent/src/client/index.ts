@@ -14,6 +14,7 @@ import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import type {} from '@panedesk/dsh-client-ui-session/client'
 import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
+import { SubagentTaskFlow, SubagentTaskPreview } from './SubagentTaskPreview.tsx'
 import { en, NS, zh, type SubagentKey } from './locales.ts'
 
 declare module '@panedesk/dsh-client-ui-slots' {
@@ -57,6 +58,16 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['resources', 'sidebarRightTabs'], (scope) => {
     registerSidebarChat(scope, ctx.locale.bind(NS))
   })
+  ctx.slots.registerFactory({
+    name: 'subagent.task-preview',
+    scope: 'root',
+    locale: NS,
+    children: { 'subagent.task-preview.flow': { kind: 'single', scope: 'session' } },
+  }, SubagentTaskPreview)
+  ctx.slots.inject('subagent.task-preview.flow', () => ctx.slots.register({
+    name: 'subagent.task-preview.flow',
+    locale: NS,
+  }, SubagentTaskFlow))
   const catalogActions = (_parentSessionId: SessionId): SubagentCatalogInjected => ({
     openChild(address: SubagentAddress) {
       ctx.uiWorkspace.openSession(address)

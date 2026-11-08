@@ -7,9 +7,9 @@ import {
 import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import {
-  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular, StateDot, Tooltip,
+  HoverCard, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconRefreshOutlineRegular, StateDot, Tooltip,
 } from '@panedesk/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime, TranslateNS } from '@panedesk/dsh-client-ui-slots'
+import type { PropsLocale, PropsRenderFactories, PropsRuntime, TranslateNS } from '@panedesk/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import type {} from '@panedesk/dsh-token-meter/client'
@@ -30,9 +30,9 @@ export interface SubagentCatalogInjected {
 
 /** Full props for the session-header lineage renderer. */
 export type SubagentHeaderLineageProps =
-  PropsRuntime<'conversation.session.header.lineage'> & SubagentCatalogInjected & PropsLocale<typeof NS>
+  PropsRuntime<'conversation.session.header.lineage'> & PropsRenderFactories & SubagentCatalogInjected & PropsLocale<typeof NS>
 
-interface CatalogRowsProps {
+interface CatalogRowsProps extends PropsRenderFactories {
   parentSessionId: SessionId
   currentSessionId: SessionId | undefined
   catalog: SubagentCatalogSnapshot
@@ -200,7 +200,7 @@ function isKnownLeaf(catalog: SubagentCatalogSnapshot | undefined): boolean {
 /** Render one catalog level and recurse only through explicitly expanded rows. */
 function CatalogRows({
   parentSessionId, currentSessionId, catalog, catalogs, summaries, expanded, level,
-  openChild, openChildAside, refreshProjection, toggleBranch, closeCatalog, t,
+  openChild, openChildAside, refreshProjection, toggleBranch, closeCatalog, renderFactorySlot, t,
 }: CatalogRowsProps & { t: TranslateNS<typeof NS> }) {
   const [now, setNow] = useState(() => Date.now())
   const running = catalog.entries.some(entry => entry.activity === 'running')
@@ -307,72 +307,83 @@ function CatalogRows({
 
         return (
           <div key={entry.id} className={css.node}>
-            <div
-              role="treeitem"
-              tabIndex={external ? -1 : 0}
-              aria-disabled={external || undefined}
-              aria-level={level}
-              aria-current={isCurrent || undefined}
-              aria-label={[label, secondary, metrics].filter(value => value !== '').join(' ')}
-              {...canExpand ? { 'aria-expanded': isExpanded } : {}}
-              className={css.row}
-              onClick={open}
-              onKeyDown={handleKey}
-            >
-              {!canExpand
-                ? reserveDisclosure && <span className={css.disclosureSpace} />
-                : (
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    className={`${css.disclosure} ${isExpanded ? css.disclosureOpen : ''}`}
-                    aria-label={t(isExpanded ? 'branch.collapse' : 'branch.expand', { label })}
-                    onClick={toggle}
-                  >
-                    <IconChevronRightOutlineRegular />
-                  </button>
-                )}
-              <div className={css.clickarea}>
-                <span className={css.rowActivitySlot}>
-                  <StateDot state={entry.activity === 'running' ? 'ongoing' : completed ? 'done' : 'idle'} />
-                </span>
-                <span className={css.content}>
-                  <span className={`${css.label} ${isCurrent ? css.currentLabel : ''}`}>{label}</span>
-                  <span className={css.summary}>{secondary}</span>
-                </span>
-                {metrics !== '' && (
-                  <span className={css.metrics}>
-                    {tokenMetric !== undefined && <span className={css.metricToken}>{tokenMetric}</span>}
-                    {durationMetric !== undefined && (
-                      <span
-                        className={css.metricDuration}
-                        title={t('duration.exactTitle', { duration: durationMetric.exact })}
+            <HoverCard
+              variant="side-preview"
+              openDelayMs={500}
+              disabled={external || requiresOpening}
+              content={external ? null : renderFactorySlot('subagent.task-preview', {
+                address: { parentSessionId, childSessionId: entry.id, mode: entry.mode },
+                label, status: activity ?? '', metrics,
+              })}
+              anchor={(
+                <div
+                  role="treeitem"
+                  tabIndex={external ? -1 : 0}
+                  aria-disabled={external || undefined}
+                  aria-level={level}
+                  aria-current={isCurrent || undefined}
+                  aria-label={[label, secondary, metrics].filter(value => value !== '').join(' ')}
+                  {...canExpand ? { 'aria-expanded': isExpanded } : {}}
+                  className={css.row}
+                  onClick={open}
+                  onKeyDown={handleKey}
+                >
+                  {!canExpand
+                    ? reserveDisclosure && <span className={css.disclosureSpace} />
+                    : (
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className={`${css.disclosure} ${isExpanded ? css.disclosureOpen : ''}`}
+                        aria-label={t(isExpanded ? 'branch.collapse' : 'branch.expand', { label })}
+                        onClick={toggle}
                       >
-                        {durationMetric.compact}
+                        <IconChevronRightOutlineRegular />
+                      </button>
+                    )}
+                  <div className={css.clickarea}>
+                    <span className={css.rowActivitySlot}>
+                      <StateDot state={entry.activity === 'running' ? 'ongoing' : completed ? 'done' : 'idle'} />
+                    </span>
+                    <span className={css.content}>
+                      <span className={`${css.label} ${isCurrent ? css.currentLabel : ''}`}>{label}</span>
+                      <span className={css.summary}>{secondary}</span>
+                    </span>
+                    {metrics !== '' && (
+                      <span className={css.metrics}>
+                        {tokenMetric !== undefined && <span className={css.metricToken}>{tokenMetric}</span>}
+                        {durationMetric !== undefined && (
+                          <span
+                            className={css.metricDuration}
+                            title={t('duration.exactTitle', { duration: durationMetric.exact })}
+                          >
+                            {durationMetric.compact}
+                          </span>
+                        )}
                       </span>
                     )}
-                  </span>
-                )}
-                {!isCurrent && !external && (
-                  <Tooltip label={t('open.sidebar')} side="bottom" align="end">
-                    <button
-                      type="button"
-                      className={css.sidebarButton}
-                      aria-label={t('open.sidebar.aria', { label })}
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        openChildAside({ parentSessionId, childSessionId: entry.id, mode: entry.mode })
-                        closeCatalog()
-                      }}
-                      onKeyDown={(event) => { event.stopPropagation() }}
-                    >
-                      <IconChevronRightOutlineRegular />
-                    </button>
-                  </Tooltip>
-                )}
-              </div>
-            </div>
+                    {!isCurrent && !external && (
+                      <Tooltip label={t('open.sidebar')} side="bottom" align="end">
+                        <button
+                          type="button"
+                          className={css.sidebarButton}
+                          aria-label={t('open.sidebar.aria', { label })}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            openChildAside({ parentSessionId, childSessionId: entry.id, mode: entry.mode })
+                            closeCatalog()
+                          }}
+                          onKeyDown={(event) => { event.stopPropagation() }}
+                        >
+                          <IconChevronRightOutlineRegular />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              )}
+            />
             {isExpanded && (
               <div
                 role="group"
@@ -395,6 +406,7 @@ function CatalogRows({
                       refreshProjection={refreshProjection}
                       toggleBranch={toggleBranch}
                       closeCatalog={closeCatalog}
+                      renderFactorySlot={renderFactorySlot}
                       t={t}
                     />
                   )}
@@ -407,7 +419,7 @@ function CatalogRows({
   )
 }
 
-interface CatalogDropdownSharedProps extends SubagentCatalogInjected {
+interface CatalogDropdownSharedProps extends SubagentCatalogInjected, PropsRenderFactories {
   /** Session whose direct catalog roots the tree. */
   rootSessionId: SessionId
   useSessions: SubagentHeaderLineageProps['useSessions']
@@ -453,7 +465,7 @@ function catalogMenuPosition(trigger: HTMLButtonElement): CSSProperties {
 /** One trigger-plus-tree dropdown over the catalog rooted at `rootSessionId`. */
 function CatalogDropdown({
   rootSessionId, currentSessionId, displayTitle, openTitle, variant,
-  useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, t,
+  useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, renderFactorySlot, t,
 }: CatalogDropdownProps) {
   const ancestorSwitcher = variant === 'switcher' && openTitle !== undefined
   const projections = useSessions(state => state.projectionsBySession)
@@ -583,6 +595,7 @@ function CatalogDropdown({
         event.target instanceof Node
         && !rootRef.current?.contains(event.target)
         && !menuRef.current?.contains(event.target)
+        && !(event.target instanceof Element && event.target.closest('[data-subagent-task-preview]'))
       ) {
         changeOpen(false)
       }
@@ -736,6 +749,7 @@ function CatalogDropdown({
               refreshProjection={refreshProjection}
               toggleBranch={toggleBranch}
               closeCatalog={() => { changeOpen(false) }}
+              renderFactorySlot={renderFactorySlot}
               t={t}
             />
           </div>
@@ -747,7 +761,7 @@ function CatalogDropdown({
 
 /** Full props for the root-session catalog entry in the header actions band. */
 export type SubagentCatalogActionProps =
-  PropsRuntime<'conversation.session.header.actions'> & SubagentCatalogInjected & PropsLocale<typeof NS>
+  PropsRuntime<'conversation.session.header.actions'> & PropsRenderFactories & SubagentCatalogInjected & PropsLocale<typeof NS>
 
 /**
  * Session-header catalog action for root sessions: the descendant count and
@@ -758,7 +772,7 @@ export type SubagentCatalogActionProps =
  * @returns The count dropdown, or null on a child session.
  */
 export function SubagentCatalogAction({
-  sessionId, useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, t,
+  sessionId, useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, renderFactorySlot, t,
 }: SubagentCatalogActionProps) {
   const isChild = useSessions(state => state.byId[sessionId]?.origin === 'subagent')
   if (isChild) return null
@@ -772,6 +786,7 @@ export function SubagentCatalogAction({
       openChild={openChild}
       openChildAside={openChildAside}
       refreshProjection={refreshProjection}
+      renderFactorySlot={renderFactorySlot}
       t={t}
     />
   )
@@ -784,7 +799,7 @@ export function SubagentCatalogAction({
  */
 export function SubagentHeaderLineage({
   lineageSessionId, displayTitle, openTitle,
-  useSessions, useSession, useSessionStatus, openChild, openChildAside, refreshProjection, t,
+  useSessions, useSession, useSessionStatus, openChild, openChildAside, refreshProjection, renderFactorySlot, t,
 }: SubagentHeaderLineageProps) {
   const address = useSession(session => session.subagent?.address)
   const parentId = useSessions((state) => {
@@ -795,7 +810,7 @@ export function SubagentHeaderLineage({
     const summary = state.byId[lineageSessionId]
     return summary?.origin === 'subagent' ? summary.parentId : undefined
   })
-  const shared = { useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, t }
+  const shared = { useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, renderFactorySlot, t }
   // Root sessions carry no breadcrumb; their descendant count lives in the
   // header actions band (SubagentCatalogAction).
   if (parentId === undefined) return null
