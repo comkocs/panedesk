@@ -7,7 +7,7 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, readJournalSnapshot, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique, JournalViewOwner, readJournalFacts, ArtifactAppendCache,
+  appendMessageUnique, JournalViewOwner, readJournalFacts, readJournalEvents, ArtifactAppendCache,
 } from './journal.ts'
 import { LedgerUnavailableError, WriterLockIdentity } from './lock.ts'
 import type { LedgerIndex } from './index-store.ts'
@@ -17,7 +17,7 @@ import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, L
 import type { MessageQuery } from '@panedesk/dsh-message-delivery'
 import { readMessagePage } from './message-reader.ts'
 export { LedgerUnavailableError } from './lock.ts'
-export { messageEventId } from './journal.ts'
+export { messageEventId, validateEvent as validateLedgerEvent } from './journal.ts'
 import { Context, Service } from '@panedesk/cordis'
 import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult,
@@ -29,7 +29,7 @@ import type {
 export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 export { projectWaits, withoutWaitProjection } from './waits.ts'
-export { includeDescendantSessions } from './projection.ts'
+export { includeDescendantSessions, foldLedger } from './projection.ts'
 export { callWaits } from './call-waits.ts'
 import { callWaits } from './call-waits.ts'
 export type * from './call-contributor.ts'
@@ -42,6 +42,11 @@ export type Config = LedgerOptions
 declare module '@panedesk/cordis' {
   interface Context {
     sessionLedger: SessionLedger
+    /** Optional secondary ledger; the local journal remains authoritative. */
+    ledgerMirror: {
+      append(event: LedgerEvent): void
+      snapshot(): Promise<LedgerSnapshot | undefined>
+    }
   }
 }
 
@@ -154,6 +159,10 @@ export abstract class SessionLedger extends Service {
    * @returns Revisioned snapshot bounded by watermarks.
    */
   abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
+  /** Read committed body-free facts for a secondary storage mirror; unsupported providers return no facts. */
+  facts(): Promise<{ events: readonly LedgerEvent[]; complete: boolean }> {
+    return Promise.resolve({ events: [], complete: false })
+  }
   /** Price observed usage with decimal fixed-point arithmetic.
    * @param request - Frozen price, timestamp, tiers, and usage.
    * @returns Reference amount or explicit coverage gap.
@@ -220,6 +229,10 @@ export class JournalSessionLedger extends SessionLedger {
     ctx.effect(() => () => { viewOwner.dispose() })
     this.options = {
       viewOwner,
+      committed: event => {
+        try { ctx.get('ledgerMirror')?.append(event) }
+        catch (error) { ctx.logger.warn('Ledger mirror rejected a committed local fact', error) }
+      },
       identity: new WriterLockIdentity(),
       lockTimeoutMs: config.lockTimeoutMs ?? 5000,
       lockRetryMs: config.lockRetryMs ?? 10,
@@ -461,6 +474,11 @@ export class JournalSessionLedger extends SessionLedger {
       ...filter === undefined ? {} : { filter },
     })
   }
+  override async facts(): Promise<{ events: readonly LedgerEvent[]; complete: boolean }> {
+    const { root } = await this.location()
+    return readJournalEvents(root, this.options)
+  }
+
   /** Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.
    * @param request - frozen price entry, timestamp, tier names, and observed usage.
    * @returns reference USD amount or an explicit coverage gap.

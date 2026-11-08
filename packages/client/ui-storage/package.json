@@ -1,0 +1,37 @@
+{
+  "name": "@panedesk/dsh-client-ui-storage",
+  "description": "Data storage settings for a user-owned PostgreSQL database",
+  "version": "1.4.0",
+  "type": "module",
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-storage" },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    "./typert": { "types": "./lib/typert.host.d.ts", "default": "./lib/typert.host.js" },
+    "./remote": { "types": "./lib/typert.remote-client.d.ts", "default": "./lib/typert.remote-client.js" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": { "client": { "platform": "web", "inject": ["@panedesk/dsh-api-gateway", "@panedesk/dsh-client-locale", "@panedesk/dsh-client-resources", "@panedesk/dsh-api-session-controller", "@panedesk/dsh-client-ui-settings"] } },
+  "scripts": { "bundle": "tsdown" },
+  "license": "MIT",
+  "peerDependencies": { "@panedesk/cordis": "workspace:~" },
+  "dependencies": { "@panedesk/dsh-typert-protocol": "workspace:*" },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-gateway": "workspace:*",
+    "@panedesk/dsh-api-session-controller": "workspace:*",
+    "@panedesk/dsh-storage-postgres": "workspace:*",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-resources": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/dsh-client-ui-renderer": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "react": "^18.2.0"
+  },
+  "files": ["lib/index.js", "lib/client.js", "lib/types/**/*.d.ts", "lib/typert.host.js", "lib/typert.host.d.ts", "lib/typert.remote-client.js", "lib/typert.remote-client.d.ts"]
+}

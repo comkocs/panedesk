@@ -92,6 +92,7 @@
     "@panedesk/dsh-storage": "workspace:*",
     "@panedesk/dsh-storage-domain": "workspace:*",
     "@panedesk/dsh-storage-json": "workspace:*",
+    "@panedesk/dsh-storage-postgres": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-subagent-fork-in-process": "workspace:*",
     "@panedesk/dsh-subagent-spawn-in-process": "workspace:*",
