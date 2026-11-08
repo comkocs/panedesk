@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/slim-base",
   "description": "Panedesk slim core as a profile bundle: a verbatim row subset of dsh-base (minimal headless core plus compaction, spill, timeout guard, AGENTS.md loading)",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
