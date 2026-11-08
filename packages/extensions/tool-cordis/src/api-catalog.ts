@@ -2817,8 +2817,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Read-only authorization projection definition; it does not enable a new ledger writer.',
     methods: [
       {
-        signature: 'query(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>',
-        description: 'Read committed authorization facts without treating them as reusable capabilities.',
+        signature: 'query?(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>',
+        description: 'Optional reader for committed authorization facts.',
         parameters: [{ name: 'request', description: 'Authorized task, seat and time filters.' }],
         returns: 'Redacted facts with watermark or a structured refusal.',
       },

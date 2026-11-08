@@ -644,7 +644,7 @@ export interface ProjectSelection {
 
 ## `@panedesk/dsh-client-ui-seat-approvals`
 
-- `source`: [`packages/client/ui-seat-approvals/src/index.ts:10`](../packages/client/ui-seat-approvals/src/index.ts)
+- `source`: [`packages/client/ui-seat-approvals/src/index.ts:11`](../packages/client/ui-seat-approvals/src/index.ts)
 
 ```ts config-catalog
 /** Explicit activation and bounded observation of the existing engine. */

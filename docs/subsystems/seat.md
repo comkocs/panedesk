@@ -432,11 +432,11 @@ Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src
 Read-only authorization projection definition; it does not enable a new ledger writer.
 
 ```ts cordis-catalog
-/** Read committed authorization facts without treating them as reusable capabilities.
+/** Optional reader for committed authorization facts.
  * @param request - Authorized task, seat and time filters.
  * @returns Redacted facts with watermark or a structured refusal.
  */
-query(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>
+query?(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>
 
 /** Read engine facts by task without changing the legacy query method.
  * @param request - Task filter and existing pagination fields.
