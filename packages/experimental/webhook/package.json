@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-webhook",
   "description": "Fire-and-forget webhook rule runtime that creates Workspace-backed DeepSeek Harness Sessions",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publishConfig": {
     "access": "public"
   },

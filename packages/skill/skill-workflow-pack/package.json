@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-skill-workflow-pack",
   "description": "Bundled first-window guide and portable project collaboration rules",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-sql",
   "description": "Built-in PostgreSQL table discovery, structure inspection and SQL execution",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module", "license": "MIT",
   "publishConfig": { "access": "public" },
   "main": "lib/index.js", "types": "lib/types/index.d.ts",
