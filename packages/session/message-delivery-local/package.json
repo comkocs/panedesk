@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-message-delivery-local",
   "description": "Private local file mailboxes and lease-backed node registrations",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-seats",
   "description": "Owner-authorized manual seat picker and existing-window browser",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "license": "MIT",
   "publishConfig": { "access": "public" },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-shell",
   "description": "Abstract bash executor seam (ctx.shell) for the DeepSeek Harness",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "publishConfig": {
     "access": "public"
   },
