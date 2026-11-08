@@ -76,10 +76,10 @@ export interface StdioConfig {
   reconnect?: ReconnectConfig
 }
 
-/** Config for connecting to an MCP server over Streamable HTTP (SSE). */
+/** Config for connecting to an MCP server over Streamable HTTP or legacy SSE. */
 export interface StreamableHttpConfig {
-  /** Selects Streamable HTTP transport. */
-  transport: 'streamable-http'
+  /** Selects Streamable HTTP or legacy SSE transport. */
+  transport: 'streamable-http' | 'sse'
   /**
    * Stable local namespace for this server's model-facing tool names
    * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
@@ -100,7 +100,7 @@ export interface StreamableHttpConfig {
   reconnect?: ReconnectConfig
 }
 
-/** Configuration for one stdio or Streamable HTTP MCP server. */
+/** Configuration for one stdio, Streamable HTTP, or legacy SSE MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig
 
 type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
@@ -130,7 +130,7 @@ export const Config = z.union([
     reconnect: Reconnect,
   }),
   z.object({
-    transport: z.const('streamable-http'),
+    transport: z.union([z.const('streamable-http'), z.const('sse')]),
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),

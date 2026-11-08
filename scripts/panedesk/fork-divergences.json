@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "claude-code-mcp-config",
+      "description": "Load MCP servers from Claude Code configuration",
+      "origin": "Panedesk Claude Code configuration compatibility",
+      "reason": "Reuse project and user MCP declarations during profile composition, preserve Panedesk name precedence, expand environment variables, and support legacy SSE without rewriting source files.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/src/claude-mcp.ts",
+          "packages/boot/app-boot/src/compatibility-preflight.ts",
+          "packages/boot/app-boot/src/index.ts",
+          "packages/mcp/mcp-client/README.md",
+          "packages/mcp/mcp-client/README.zh.md",
+          "packages/mcp/mcp-client/src/index.ts",
+          "packages/mcp/mcp-client/src/transport.ts"
+        ]
+      }
+    },
+    {
       "id": "settings-dsh-page-introductions",
       "description": "Clarify account and built-in plugin settings pages",
       "origin": "Panedesk settings usability",

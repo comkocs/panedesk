@@ -1,14 +1,14 @@
 /**
  * Transport factory: creates the appropriate MCP transport based on the
  * plugin's resolved config. Stdio spawns a child process (with credential
- * scrubbing); Streamable HTTP connects to a URL.
+ * scrubbing); Streamable HTTP and legacy SSE connect to a URL.
  *
  * @module
  */
 
 import type { Transport } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
+import { SSEClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
 import type { Config } from './index.ts'
 
@@ -26,7 +26,7 @@ function buildChildEnv(extra: Record<string, string>): Record<string, string> {
  * Create an MCP transport from the resolved plugin config.
  *
  * @param config - Resolved plugin config discriminated on `transport`.
- * @returns A connected-ready MCP Transport (stdio or Streamable HTTP).
+ * @returns A connected-ready MCP Transport (stdio, Streamable HTTP, or legacy SSE).
  */
 export function createTransport(config: Config): Transport {
   switch (config.transport) {
@@ -36,6 +36,13 @@ export function createTransport(config: Config): Transport {
         args: config.args,
         env: buildChildEnv(config.env),
         cwd: config.cwd,
+      })
+    case 'sse':
+      return new SSEClientTransport(new URL(config.url), {
+        requestInit: { headers: config.headers },
+        eventSourceInit: {
+          fetch: (url, init) => fetch(url, { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), ...config.headers } }),
+        },
       })
     case 'streamable-http':
       return new StreamableHTTPClientTransport(

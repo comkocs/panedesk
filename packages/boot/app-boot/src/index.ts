@@ -29,7 +29,7 @@ export {
   PROFILE_COMPATIBILITY_FILENAME, readProfileCompatibility, readProfileVersionExemptions,
   setProfileVersionExemption, type ProfileCompatibility,
 } from './profile-compatibility.ts'
-import { prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
+import { mergeClaudeMcpEntries, prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
 import { ProfileRuntimeResolution, type RuntimeResolution } from './profile.ts'
 import { ResolutionRestartRequired } from './profile-resolution/resolver.ts'
 import { markKernelBoot, publishKernelStatus } from './kernel-status.ts'
@@ -447,7 +447,7 @@ async function recompose(
     // The recomposition judges the rows the launch judged, resolved from the file this Include read.
     const parentURL = new URL('.', new URL(includeConfig.path, entry.parent.tree.ctx.baseUrl)).href
     const prepared = effective === undefined ? prepareProfilePatches(ctx, patches, parentURL, binName)
-      : [{ insert: prepareProfileEntries(ctx, effective, parentURL, binName) }]
+      : [{ insert: prepareProfileEntries(ctx, mergeClaudeMcpEntries(ctx, effective, parentURL), parentURL, binName) }]
     if (declarations && state.declarations) {
       state.rollback ??= { declarations: state.declarations, runtime }
       state.declarations = structuredClone(declarations)

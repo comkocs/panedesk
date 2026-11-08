@@ -47,6 +47,8 @@ Main-process profiles publish immutable `ctx.kernelStatus.snapshot()` observatio
 <a id="profiles"></a>
 ### Profiles
 
+Profile boot and recomposition append [Claude Code MCP clients](../../mcp/mcp-client/README.md#claude-code-configuration) after composing Panedesk entries. Existing Panedesk server names win, including disabled declarations; optional Claude Code files are read without modification. Preset-only entry preparation does not repeat this import.
+
 Type-only consumers import `ProfileContext` and its Cordis augmentation from `@panedesk/dsh-app-boot/profile-context`; this declaration entry does not import host boot services or their Session augmentations.
 
 `ProfileContext` carries the launcher's profile name, directory, patch path, install anchor, cwd, home, started bundles, and launch-time overlays. `overlayPaths` names the command-line patch files whose parsed contents stay frozen. `readBundlePatches()` and `readProfilePatches()` return detached patch lists and do not update the Loader. Profile input paths are described in [boot](../../../docs/subsystems/boot.md#profile-input-paths). Host inputs are not captured or reviewed as protected records.
