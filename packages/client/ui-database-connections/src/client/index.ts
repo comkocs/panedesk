@@ -4,7 +4,7 @@ import type {} from '@panedesk/dsh-api-remotes/client'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
-import contribution from '@panedesk/dsh-db-connections/remote'
+import contribution from '@panedesk/dsh-client-ui-database-connections/remote'
 import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import { DatabaseSettings } from './DatabaseSettings.tsx'
 import { en, zh } from './locales.ts'
@@ -15,7 +15,7 @@ export const inject = ['slots', 'locale', 'remote']
 /** Mount only the settings methods; database clients and secrets stay on the Host. */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const unmount = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.databaseConnections'], ctx => {
+  const ui = ctx.inject(['remote.databaseConnectionSettings'], ctx => {
     ctx.effect(() => ctx.locale.register('databaseConnections', { en, zh }))
     const state = createSnapshotStore<Inspection>({ loading: true, filename: '', connections: [], error: '' })
     let closed = false, generation = 0
@@ -28,7 +28,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       const current = ++generation
       state.set({ ...state.getSnapshot(), loading: true, error: '' })
       try {
-        const value = unwrap(await ctx.remote.databaseConnections.inspect())
+        const value = unwrap(await ctx.remote.databaseConnectionSettings.inspect())
         if (!closed && current === generation) state.set({ ...value, loading: false, error: '' })
       } catch (error) {
         if (!closed && current === generation) state.set({ ...state.getSnapshot(), loading: false, error: error instanceof Error ? error.message : String(error) })
@@ -36,10 +36,10 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     }
     const inject = (): Injected => ({
       hooks: { inspection: state }, refresh,
-      async save(input) { unwrap(await ctx.remote.databaseConnections.save(input)); await refresh() },
-      async remove(id) { unwrap(await ctx.remote.databaseConnections.remove(id)); await refresh() },
-      async test(input) { return unwrap(await ctx.remote.databaseConnections.test(input)) },
-      async browse(path) { return unwrap(await ctx.remote.databaseConnections.browseKeys(path)) },
+      async save(input) { unwrap(await ctx.remote.databaseConnectionSettings.save(input)); await refresh() },
+      async remove(id) { unwrap(await ctx.remote.databaseConnectionSettings.deleteConnection(id)); await refresh() },
+      async test(input) { return unwrap(await ctx.remote.databaseConnectionSettings.test(input)) },
+      async browse(path) { return unwrap(await ctx.remote.databaseConnectionSettings.browseKeys(path)) },
       async open(path) { unwrap(await ctx.remote.session.openWorkspacePath({ path })) },
     })
     ctx.slots.inject('settings.section', () => ctx.slots.register({

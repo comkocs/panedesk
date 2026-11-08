@@ -4953,6 +4953,10 @@ importers:
         version: 4.4.3
 
   packages/client/ui-database-connections:
+    dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -4981,9 +4985,6 @@ importers:
       '@panedesk/dsh-db-connections':
         specifier: workspace:*
         version: link:../../database/db-connections
-      '@panedesk/dsh-typert-protocol':
-        specifier: workspace:*
-        version: link:../../typert/protocol
       react:
         specifier: ^18.2.0
         version: 18.3.1

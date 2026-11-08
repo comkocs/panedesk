@@ -15447,7 +15447,7 @@
       "id": "database-connections-and-sql-tool",
       "description": "Add PostgreSQL connection settings, credential-backed SSL/SSH connections and an opt-in built-in SQL tool",
       "origin": "Panedesk V15-C13",
-      "reason": "Let users connect local or server PostgreSQL databases without MCP, expose enabled connections to models, and provide a host API for a separate storage adapter.",
+      "reason": "Let users connect local or server PostgreSQL databases without MCP, expose enabled connections to models, and provide a host API for a separate storage adapter. Mount the settings package's own generated Remote bridge with deleteConnection so the database service's remove method does not collide with the client namespace service.",
       "match": {
         "type": "product-development",
         "paths": [
