@@ -58,7 +58,7 @@ type ChildDeliveryOptions =
     readonly source?: MessageSource
     readonly signal: AbortSignal
   }
-  | { readonly delivery: 'queue'; readonly source: MessageSource; readonly signal: AbortSignal }
+  | { readonly delivery: 'queue' | 'next-step'; readonly source: MessageSource; readonly signal: AbortSignal }
 
 /** Package-private hooks supplied by the owning service. */
 interface SubagentHost {
@@ -679,12 +679,13 @@ export class SubagentManager {
   }
 
   /**
-   * Queue one human-authored prompt as a distinct direct-child turn.
+   * Queue one human-authored prompt for a direct child, optionally joining after tools.
    * @param parent - exact live direct parent authorizing delivery.
    * @param childId - durable direct-child session id.
    * @param content - model-visible prompt blocks.
    * @param source - durable attribution for the human prompt.
    * @param signal - caller cancellation before inbox acceptance.
+   * @param afterTools - allow the next request after tools; final answers retain next-turn delivery.
    * @returns the accepted durable message id.
    */
   async queuePrompt(
@@ -693,8 +694,9 @@ export class SubagentManager {
     content: ContentBlock[],
     source: MessageSource,
     signal: AbortSignal,
+    afterTools = false,
   ): Promise<MessageId> {
-    return this.deliverToChild(parent, childId, content, { source, signal, delivery: 'queue' })
+    return this.deliverToChild(parent, childId, content, { source, signal, delivery: afterTools ? 'next-step' : 'queue' })
   }
 
   /**
@@ -729,7 +731,7 @@ export class SubagentManager {
       throw new SubagentError('subagent is submitting or has submitted its structured result; the message was not accepted', 'INPUT_CLOSED')
     }
     if (delivery === 'steer') local.handle.agent.steer(message)
-    else local.handle.agent.followup(message)
+    else local.handle.agent.followup(message, { afterTools: delivery === 'next-step' })
   }
 
   /**
@@ -791,7 +793,7 @@ export class SubagentManager {
       return
     }
     if (delivery === 'steer') parent.steer(message)
-    else parent.followup(message)
+    else parent.followup(message, { afterTools: delivery === 'next-step' })
   }
 
   /**

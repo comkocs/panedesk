@@ -353,7 +353,7 @@ export class SessionCommandController {
         }
         using binding = this.ctx.fileUploads.bindPrompt(agent, admission.receiptIds, request.requestId)
         if (request.mode === 'steer') agent.steer(message)
-        else agent.followup(message)
+        else agent.followup(message, { afterTools: request.mode === 'next-step' })
         binding.commit()
       } catch (error) {
         if (remoteErrorOf(error) !== undefined) throw error

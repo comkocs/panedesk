@@ -55,6 +55,8 @@ export interface InputScheduling {
   readonly enqueueSequence: number
   /** Earliest eligible turn; queue notices cannot enter the current turn mid-step. */
   readonly earliestTurn: number
+  /** Queued input may join this turn only when a completed tool step owes another request. */
+  readonly afterTools?: boolean
 }
 
 /** Required-on-read input lifecycle facts; appended input stays claimed after a synchronous pre-dispatch failure. */

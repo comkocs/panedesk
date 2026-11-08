@@ -18,9 +18,8 @@ export { DEFAULT_BUSY_ENTER_BEHAVIOR } from '../../submission-settings.ts'
 /**
  * Resolve one submission gesture against the busy-Enter preference. Plain
  * Enter and the primary Send button share the `enter` gesture, so the button
- * delivers exactly what Enter would. Direct `steer` is intentionally
- * best-effort: AgentLoop turns a closed-window submission into the next waking
- * Queue item.
+ * delivers exactly what Enter would. The persisted `steer` preference selects
+ * non-interrupting next-step delivery; `queue` waits until the turn ends.
  * @param preferred - the live busy-Enter preference.
  * @param running - whether the addressed agent currently reports busy.
  * @param gesture - plain Enter (or the Send button) or the Cmd/Ctrl-accelerated chord.
@@ -34,8 +33,9 @@ export function resolveSubmitMode(
   steeringAvailable: boolean,
 ): InputSubmitMode {
   if (!running || !steeringAvailable) return 'queue'
-  if (gesture === 'enter') return preferred
-  return preferred === 'queue' ? 'steer' : 'queue'
+  const nextStep = preferred === 'steer' ? 'next-step' : 'queue'
+  if (gesture === 'enter') return nextStep
+  return preferred === 'queue' ? 'next-step' : 'queue'
 }
 
 /**

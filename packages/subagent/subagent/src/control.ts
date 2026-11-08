@@ -17,7 +17,7 @@ const CONTROL_ID_SCHEMAS = {
     parentSessionId: SESSION_ID_SCHEMA,
     childSessionId: SESSION_ID_SCHEMA,
     mode: z.literal('continuable'),
-    delivery: z.enum(['queue', 'steer']),
+    delivery: z.enum(['queue', 'steer', 'next-step']),
   }),
   'subagent.interrupt': z.object({
     parentSessionId: SESSION_ID_SCHEMA,

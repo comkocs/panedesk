@@ -370,7 +370,7 @@ export class SubagentRuntime extends TypertRemoteService {
   ): Promise<MessageId> {
     return delivery === 'steer'
       ? this.requireManager().steerPrompt(parent, childId, content, source, signal)
-      : this.requireManager().queuePrompt(parent, childId, content, source, signal)
+      : this.requireManager().queuePrompt(parent, childId, content, source, signal, delivery === 'next-step')
   }
 
   /**

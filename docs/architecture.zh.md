@@ -116,7 +116,7 @@ turn/end
 
 `turn/*`、`step/*`、`system/message`、`user/message`、`assistant/message`、`assistant/attempt` 和 `tool/*` 是持久会话事件；其余是分属三个事件域的实时扩展点。`agent/assistant-stream` 发布进程本地 start、瞬态 chunk 与 end frame。loop 会在 committed end frame 前把完整紧凑 stream 提交为一个 message 或仅日志 attempt；Web Session-follow adapter 是该 live event 唯一的远程消费方。`agent/pre-step`、`agent/request`、`llm/stream` 和三个 `tools/*` 事件是 waterfall（瀑布式事件），其监听器必须调用 `next()` 才能委托下去；`agent/turn-stopping` 是 serial 事件，没有 `next()`。
 
-输入通过同一个 inbox 到达驱动器。带调度信息的输入按 `immediate`、`steer`、`queue` 排列符合条件的消息，同档先进先出；`queue` 等待轮次边界，`steer` 加入下一步骤而不取消当前输出。被动输入既不唤醒，也不独立续跑轮次；符合条件的被动知会随下一次自然开启的轮次进入。旧 `followup`、`steer`、`inject` 保留原调度行为。AgentLoop 的持久 `inbox` 投影使待处理输入在没有活跃 Agent 时仍可读取。
+输入通过同一个 inbox 到达驱动器。带调度信息的输入按 `immediate`、`steer`、`queue` 排列符合条件的消息，同档先进先出；`queue` 等待轮次边界，除非通过 `afterTools` 选择进入完整工具步骤后的下一请求；最终回答仍然结束当前轮。`steer` 加入下一步骤而不取消当前输出。被动输入既不唤醒，也不独立续跑轮次；符合条件的被动知会随下一次自然开启的轮次进入。旧 `followup`、`steer`、`inject` 保留原调度行为。AgentLoop 的持久 `inbox` 投影使待处理输入在没有活跃 Agent 时仍可读取。
 
 串行 `agent/input-preparing` 监听器可以在每次认领前等待生产方并入队；失败则输入不被认领。`agent/input/transition` 分别记录认领与发出。追加 `user/message` 前取消会保留身份和先进先出位置，回到同档队头，允许再次撤回。追加后同步构造请求失败则保留历史和已认领状态，不替换表面或重新入队。下一次包含该消息的请求在 stream 入口前提交首次发出并发布 `agent/input-dispatching`，中间不插入 await。发出表示本地入口，不代表远端已收到。
 

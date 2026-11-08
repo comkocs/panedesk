@@ -228,6 +228,13 @@ export class SessionInputShell implements SessionInput {
     this.restoreCommand()
   }
 
+  /** Append withdrawn text to the live draft, preserving reference chips and later edits. */
+  appendDraft(text: string): void {
+    if (text === '') return
+    const end = this.projection.detectText.length
+    this.draftEditor.insertAsyncText({ start: end, end }, `${end === 0 ? '' : '\n'}${text}`)
+  }
+
   /**
    * Reconnect optional catalog notifications and resume a pending command
    * chip restore without waiting for another edit.
