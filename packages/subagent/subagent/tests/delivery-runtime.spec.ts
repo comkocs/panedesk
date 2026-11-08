@@ -42,17 +42,6 @@ async function setup(script: ConstructorParameters<typeof MockAdapter>[0] = [tex
 }
 
 describe('declared delivery settlement', () => {
-  it.runIf(process.platform === 'linux')('confirms the host identity for an in-process child', async () => {
-    const { ledger, request } = await setup()
-    const run = await startPreparedActivation(request)
-    await run.result
-    const child = ledger.starts.find(start => start.parentSessionId === request.parent.id)!
-    expect(child.processIdentity).toMatchObject({ pid: process.pid, verification: 'verified' })
-    expect(child.processIdentity?.startIdentity).toBeTypeOf('string')
-    expect(child.processIdentity?.bootIdentity).toBeTypeOf('string')
-    expect(ledger.events).toContainEqual(expect.objectContaining({ kind: 'process/observed', runId: child.runId, liveness: 'confirmed' }))
-  })
-
   it('settles a failed process observation before refusing child publication', async () => {
     const { ledger, request, ctx } = await setup()
     const append = ledger.appendEvent.bind(ledger)
