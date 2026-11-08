@@ -13,6 +13,8 @@ import type { MessageCursor } from '@panedesk/dsh-message-delivery'
 /** Explicit local storage limits shared by every writer and scanner. */
 export interface JournalOptions extends WriterLockOptions {
   maxRecordBytes: number
+  /** Receives committed facts for optional mirrors; never performs local persistence. */
+  committed?: (event: LedgerEvent) => void
   /** Service-owned shared-view lifetime; absent owners use transaction-local views. */
   viewOwner?: JournalViewOwner
   /** Test-only interruption observer; absent in provider configuration and normal writes. */
@@ -167,7 +169,8 @@ function assertEvent(value: unknown): asserts value is LedgerEvent {
   } else if (event.kind === 'policy/denied') strings(event, ['operation', 'requested', 'definition', 'reason'])
 }
 
-function validateEvent(value: unknown): LedgerEvent {
+/** Validate a persisted body-free ledger event before projection or mirroring. */
+export function validateEvent(value: unknown): LedgerEvent {
   assertEvent(value)
   return value
 }
@@ -540,6 +543,17 @@ export async function readJournalSnapshot(root: string, options: JournalOptions,
   })
 }
 
+/** Read committed call facts under the same writer lock as the local snapshot. */
+export async function readJournalEvents(root: string, options: JournalOptions): Promise<{ events: LedgerEvent[]; complete: boolean }> {
+  root = await realpath(root)
+  return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    const view = await JournalView.forRoot(root, options)
+    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures)
+    await view.refresh(root, options.maxRecordBytes)
+    return { events: [...view.index.events.values()], complete: view.snapshot({ asOf: Date.now(), observationMaxAgeMs: 10000 }).complete }
+  })
+}
+
 /** Read keyed facts after checking closures for their call IDs; conflicting journals retain full projection semantics.
  * Unchanged closure contents are cached; selected directories and file identities are checked under the writer lock.
  * @param root - Existing canonical node directory.
@@ -614,6 +628,7 @@ export async function appendUnique(
       const path = view.eventFiles.get(prior.eventId)
       if (path === undefined) throw new Error('Ledger fact has no synchronized segment')
       await syncFiles([join(root, path)])
+      options.committed?.(prior)
       return view.acknowledgement('existing', prior)
     }
     for (const [tail, segment] of view.segments) {
@@ -628,8 +643,10 @@ export async function appendUnique(
         alert: { code: 'ledger-tail-recovered', message: 'An incomplete journal tail was preserved; writing resumed in a new segment.', redacted: false },
       }
       await view.append(root, recovery, frame(recovery, options.maxRecordBytes), options.appendCheckpoint)
+      options.committed?.(recovery)
     }
     await view.append(root, immutable, encoded, options.appendCheckpoint)
+    options.committed?.(immutable)
     return view.acknowledgement('appended', immutable)
   })
 }

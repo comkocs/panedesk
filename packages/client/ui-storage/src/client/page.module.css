@@ -1,0 +1,6 @@
+.page { display: grid; gap: 12px; max-width: 760px; }
+.page p { margin: 0; }
+.page code { overflow-wrap: anywhere; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.fields { display: grid; gap: 12px; }
+.fields label { display: grid; gap: 6px; }

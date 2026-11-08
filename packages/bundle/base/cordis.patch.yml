@@ -220,10 +220,16 @@
       config:
         root: !!js dshHomePath('storages')
 
+    - id: storage-postgres
+      name: '@panedesk/dsh-storage-postgres'
+      config:
+        configPath: !!js dshHomePath('storage.json')
+        localRoot: !!js dshHomePath('storages')
+
     - id: storage-domain
       name: '@panedesk/dsh-storage-domain'
       config:
-        backend: json
+        backend: postgres
 
     # Persisted projection cache: throttled write-behind over the
     # session_projcache domain (per-record layout — one version-stamped

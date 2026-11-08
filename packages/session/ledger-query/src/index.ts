@@ -59,7 +59,9 @@ export class LedgerQueryService extends Service {
    * @returns Coverage-aware call totals and child-session lifecycle counts.
    */
   async stats(request: StatsRequest, asOf?: number): Promise<StatsView> {
-    return summarizeStats(await this.source(), request, asOf ?? Date.now())
+    const mirror = this.ctx.get('ledgerMirror')
+    const snapshot = await mirror?.snapshot()
+    return summarizeStats(snapshot ?? await this.source(), request, asOf ?? Date.now())
   }
   /** Compute today's overview at the runtime clock or an explicit observation instant.
    * @param asOf - optional UTC millisecond observation time; omission reads the system clock.

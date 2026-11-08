@@ -392,6 +392,8 @@
     { "path": "./packages/experimental/tool-session-query" },
     { "path": "./packages/storage/storage" },
     { "path": "./packages/storage/storage-json" },
+    { "path": "./packages/storage/storage-postgres" },
+    { "path": "./packages/client/ui-storage/tsconfig.host.json" },
     { "path": "./packages/storage/storage-sqlite" },
     { "path": "./packages/storage/storage-domain" },
     { "path": "./packages/feedback/message-feedback" },

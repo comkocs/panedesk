@@ -344,6 +344,9 @@
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
 
+    - id: ui-storage
+      name: '@panedesk/dsh-client-ui-storage'
+
     - id: ui-stats
       name: '@panedesk/dsh-client-ui-stats'
       config:

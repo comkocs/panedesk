@@ -1,6 +1,30 @@
 {
   "divergences": [
     {
+      "id": "postgres-storage-backend",
+      "description": "User-owned PostgreSQL storage and Data storage settings",
+      "origin": "Panedesk user-owned data storage",
+      "reason": "Add a pure-JavaScript PostgreSQL KV backend with startup local fallback, credential-managed passwords, optional local copying, ledger mirroring and PostgreSQL-backed graphical statistics. Keep conversation bodies and the local ledger on disk.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/storage/storage-postgres/**",
+          "packages/client/ui-storage/**",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/journal.ts",
+          "packages/session/ledger-query/src/index.ts",
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/base/package.json",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "settings-dsh-page-introductions",
       "description": "Clarify account and built-in plugin settings pages",
       "origin": "Panedesk settings usability",
