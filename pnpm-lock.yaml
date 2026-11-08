@@ -5554,6 +5554,9 @@ importers:
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
       '@panedesk/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale
@@ -5578,9 +5581,15 @@ importers:
       '@panedesk/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../ui-slots
+      '@panedesk/dsh-config-editor':
+        specifier: workspace:*
+        version: link:../../boot/config-editor
       '@panedesk/dsh-host-admin':
         specifier: workspace:*
         version: link:../../host/host-admin
+      '@panedesk/dsh-node-link':
+        specifier: workspace:*
+        version: link:../../seat/node-link
       '@panedesk/dsh-remote-mock':
         specifier: workspace:*
         version: link:../../test-support/remote-mock

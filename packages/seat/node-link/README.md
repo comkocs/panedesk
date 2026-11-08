@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Optional node transport establishes bidirectional loopback forwarding through a supervised OpenSSH child process, reusing existing host aliases and strict host-key verification without creating SSH keys or remote commands. Omitting `runtime` creates no listener, process, or routing service.
+Optional node transport establishes bidirectional loopback forwarding through a supervised OpenSSH child process, reusing existing host aliases and strict host-key verification without creating SSH keys or remote commands. `enabled` defaults to false. Disabled transport or omitted `runtime` creates no listener, process, routing service, or health polling. Existing configured deployments must explicitly set `enabled: true`; the Nodes settings switch persists this field in the current profile patch. Disabling an active entry drains its owned transport through the Loader lifecycle without deleting retained operations or credentials.
 
 ## Table of Contents
 

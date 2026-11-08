@@ -3,6 +3,7 @@ import type { Context } from '@panedesk/cordis'
 import contribution from '@panedesk/dsh-client-ui-nodes/remote'
 import type {} from '../types.ts'
 import type {} from '@panedesk/dsh-api-gateway/client'
+import type {} from '@panedesk/dsh-api-session-controller/remote'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
 import { waitForPoll } from '@panedesk/dsh-client-resources/polling'
@@ -18,6 +19,8 @@ export type NodesData = Awaited<ReturnType<TypertClientRemote['nodes']['read']>>
 /** Components receive fixed actions rather than a transport or context. */
 export interface NodesActions {
   act(this: void, action: NodeAction): Promise<NodeActionResult>
+  configure(this: void, change: Parameters<TypertClientRemote['nodes']['configure']>[0]): Promise<void>
+  openPath(this: void, path: string, action: 'open' | 'reveal'): Promise<void>
 }
 
 declare module '@panedesk/dsh-client-ui-slots' {
@@ -34,7 +37,7 @@ export const inject = ['remote', 'slots', 'locale', 'resources']
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.nodes'], (scope) => {
+  const ui = ctx.inject(['remote.nodes', 'remote.session'], (scope) => {
     scope.effect(() => scope.locale.register('nodes', { en, zh }), 'nodes: locale')
     const t = scope.locale.bind('nodes')
     const actions: NodesActions = { act: async (action) => {
@@ -44,6 +47,12 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       } catch (error) {
         return { status: 'uncertain', code: remoteErrorOf(error)?.code ?? 'nodes/unavailable' }
       }
+    }, configure: async (change) => {
+      const result = await scope.remote.nodes.configure(change)
+      if (!result.ok) throw result.error
+    }, openPath: async (path, action) => {
+      const result = await scope.remote.session.openWorkspacePath({ path, action })
+      if (!result.ok) throw result.error
     } }
     scope.effect(() => scope.resources.register<'nodes'>({
       protocol: 'nodes',
@@ -55,7 +64,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
             const result = await scope.remote.nodes.read()
             if (aborted()) return
             yield result
-            if (!result.ok) return
+            if (!result.ok || !result.value.enabled) return
             interval = result.value.refreshIntervalMs
           } catch (error) {
             if (!aborted()) yield { ok: false, error: remoteErrorOf(error)

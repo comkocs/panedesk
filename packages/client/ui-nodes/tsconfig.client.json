@@ -9,6 +9,7 @@
     { "path": "../../seat/seat" },
     { "path": "../../util/crypto" },
     { "path": "../../api/gateway/tsconfig.client.json" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../resources" },
     { "path": "../ui-slots" },

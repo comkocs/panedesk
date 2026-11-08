@@ -7,6 +7,8 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../typert/protocol" },
     { "path": "../../host/host-admin" },
+    { "path": "../../boot/config-editor" },
+    { "path": "../../seat/node-link" },
     { "path": "../../seat/seat" }
   ]
 }
