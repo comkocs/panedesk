@@ -12987,7 +12987,6 @@
           "packages/client/ui-brand-official/README.i18n.yaml",
           "packages/client/ui-chat/src/client/chat/StatsPills.tsx",
           "packages/client/ui-chat/src/client/chat/TurnTailNodeView.tsx",
-          "packages/client/ui-chat/src/client/chat/running-whale@2x.png",
           "packages/client/ui-chat/src/client/locale.ts",
           "packages/client/ui-chat/tests/running-whale-tail.client.spec.tsx",
           "packages/client/ui-commands/README.i18n.yaml",
@@ -14922,13 +14921,28 @@
     },
     {
       "id": "empty-conversation-brand-mark",
-      "description": "Replace the empty conversation whale mark with the product mark",
+      "description": "Use the Panedesk four-pane mark across product brand surfaces",
       "origin": "Product branding",
-      "reason": "The empty conversation uses the same four-square mark as the desktop application and does not animate it.",
+      "reason": "The empty conversation keeps its existing static desktop mark. The sidebar, official brand occupants, and running Chat status share the same four-pane artwork through PanedeskMark. The name artwork and boot page say Panedesk without the upstream badge; unused whale components, image, and image-specific bundling are removed.",
       "match": {
         "type": "behavior",
         "paths": [
-          "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css"
+          "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css",
+          "packages/client/ui-primitives/src/PanedeskMark.tsx",
+          "packages/client/ui-primitives/src/BrandWordmark.tsx",
+          "packages/client/ui-primitives/src/index.ts",
+          "packages/client/ui-brand-official/src/client/Brand.tsx",
+          "packages/client/ui-brand-official/src/client/index.ts",
+          "packages/client/ui-brand-official/package.json",
+          "packages/client/ui-brand-official/locale/zh.json",
+          "packages/client/ui-brand-official/README.zh.md",
+          "packages/client/ui-chat/src/client/conversation-nodes/README.md",
+          "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+          "packages/client/ui-sidebar/src/client/SidebarRoot.module.css",
+          "packages/client/ui-chat/src/client/chat/RunningStatus.tsx",
+          "packages/client/ui-chat/src/client/chat/ChatView.module.css",
+          "packages/client/ui-chat/tsdown.config.ts",
+          "packages/client/web/src/boot-page.ts"
         ]
       }
     },
