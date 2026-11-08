@@ -29,6 +29,8 @@ The session header keeps the current session title as the lineage breadcrumb; wh
 
 This package registers the `dsh-resource://subagentchat/session/<child>?parent=<parent>&mode=<mode>` resource and builtin Sidebar tab type. The resource retains the child `SessionReference` directly from its address without refreshing the parent catalog, and releases the reference when the tab record closes. The tab renders the shared `conversation.content` Factory through `sidebar.chat.conversation`, fixes the local View to Chat, and omits the main Conversation header and width controls.
 
+The composer's Agent map button sits between permissions and model selection. It opens a scrollable map with the current session in the middle and compact descendant cards on upper and lower buses, including external tasks. Select a local card for its task preview and an action to open the conversation. Background shell tasks appear at the lower left; selecting one shows its command and recent output without changing execution. Close the panel with its close button or Escape.
+
 ### Browsing the tree
 
 Hovering a trigger opens its catalog after 150ms; leaving both trigger and catalog closes it after 120ms. Clicking the descendant-count trigger pins its catalog until outside click or Escape from the trigger or tree. Breadcrumb-title clicks navigate to the corresponding conversation.

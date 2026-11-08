@@ -1,6 +1,23 @@
 {
   "divergences": [
     {
+      "id": "agent-map-panel",
+      "description": "Add a compact composer agent map with background shell tasks",
+      "origin": "Panedesk agent visibility",
+      "reason": "Show the current session between upper and lower descendant buses, reuse task previews, and expose read-only background shell commands and recent output from the composer.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent/src/client/AgentMap.tsx",
+          "packages/client/ui-subagent/src/client/AgentMap.module.css",
+          "packages/client/ui-subagent/src/client/index.ts",
+          "packages/client/ui-subagent/src/client/locales.ts",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "settings-dsh-page-introductions",
       "description": "Clarify account and built-in plugin settings pages",
       "origin": "Panedesk settings usability",

@@ -15,6 +15,8 @@ import type {} from '@panedesk/dsh-client-ui-session/client'
 import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
 import { SubagentTaskFlow, SubagentTaskPreview } from './SubagentTaskPreview.tsx'
+import { AgentMap, type AgentMapInjected } from './AgentMap.tsx'
+import type {} from '@panedesk/dsh-api-job-controller/client'
 import { en, NS, zh, type SubagentKey } from './locales.ts'
 
 declare module '@panedesk/dsh-client-ui-slots' {
@@ -32,7 +34,7 @@ export type {
 } from './SubagentReadOnlyComposer.tsx'
 
 /** Required services for subagent presentation and navigation. */
-export const inject = ['sessions', 'uiWorkspace', 'slots', 'locale', 'sidebarRight']
+export const inject = ['sessions', 'uiWorkspace', 'slots', 'locale', 'sidebarRight', 'jobs']
 
 /** Claim the composer for one-shot history or an unavailable continuation owner. */
 function selectReadOnlySubagent(owner: ComposerChainProps): SubagentReadOnlyMatch | null {
@@ -102,6 +104,18 @@ export function apply(ctx: ClientContext): void {
       inject: catalogActions,
     }, SubagentCatalogAction),
   )
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+    name: 'conversation.input.left',
+    id: 'agent-map',
+    order: 10,
+    locale: NS,
+    inject: (sessionId: SessionId): AgentMapInjected => ({
+      ...catalogActions(sessionId),
+      hooks: { jobs: ctx.jobs.state },
+      watchRows: id => ctx.jobs.watchRows(id),
+      observe: (id, jobId) => ctx.jobs.observe(id, jobId),
+    }),
+  }, AgentMap))
   ctx.slots.inject(
     'conversation.composer',
     () => ctx.slots.register({

@@ -29,6 +29,7 @@
   "dsh": {
     "client": {
       "inject": [
+        "@panedesk/dsh-api-job-controller",
         "@panedesk/dsh-api-session-controller",
         "@panedesk/dsh-client-locale",
         "@panedesk/dsh-client-resources",
@@ -51,6 +52,7 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-api-job-controller": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-resources": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",
