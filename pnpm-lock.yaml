@@ -17075,9 +17075,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
-      '@panedesk/dsh-credentials':
+      '@panedesk/dsh-db-connections':
         specifier: workspace:*
-        version: link:../../credentials/credentials
+        version: link:../../database/db-connections
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
