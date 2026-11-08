@@ -15100,7 +15100,7 @@
       "id": "panedesk-opening-session-names",
       "description": "Add Panedesk features in General Settings and date-stamped opening session names",
       "origin": "Panedesk product settings",
-      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
+      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -15396,6 +15396,26 @@
           "packages/client/ui-subagent/src/client/locales.ts",
           "packages/client/ui-subagent/README.md",
           "packages/client/ui-subagent/README.zh.md"
+        ]
+      }
+    },
+    {
+      "id": "claude-code-mcp-config",
+      "description": "Load MCP servers from Claude Code configuration",
+      "origin": "Panedesk Claude Code configuration compatibility",
+      "reason": "Reuse project and user MCP declarations during profile composition, preserve Panedesk name precedence, expand environment variables, and support legacy SSE without rewriting source files.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/src/claude-mcp.ts",
+          "packages/boot/app-boot/src/compatibility-preflight.ts",
+          "packages/boot/app-boot/src/index.ts",
+          "packages/mcp/mcp-client/README.md",
+          "packages/mcp/mcp-client/README.zh.md",
+          "packages/mcp/mcp-client/src/index.ts",
+          "packages/mcp/mcp-client/src/transport.ts"
         ]
       }
     }

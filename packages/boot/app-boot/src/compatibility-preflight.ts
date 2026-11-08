@@ -13,6 +13,48 @@ import type {} from './profile-resolution/service.ts'
 import type {} from './profile-context.ts'
 import { evaluatePluginCompatibility, pluginCompatibilityWarning } from './plugin-compatibility.ts'
 import { readProfileCompatibility } from './profile-compatibility.ts'
+import { readClaudeMcpServers } from './claude-mcp.ts'
+import { interpolate } from '@panedesk/cordis-plugin-loader'
+
+/**
+ * Append imported MCP clients without replacing a Panedesk declaration, including a disabled one.
+ * @param ctx - profile owner and expression context.
+ * @param entries - fully composed profile entries.
+ * @param parentURL - module-resolution base for explicit plugin entries.
+ * @returns entries followed by non-conflicting Claude Code clients.
+ */
+export function mergeClaudeMcpEntries(ctx: Context, entries: readonly EntryOptions[], parentURL: string): EntryOptions[] {
+  const profile = ctx.get('profileContext')
+  if (profile === undefined) return [...entries]
+  const names = new Set<string>()
+  const ids = new Set<string>()
+  const visit = (rows: readonly EntryOptions[]): void => {
+    for (const row of rows) {
+      ids.add(row.id)
+      try {
+        const packageName = row.name === '@panedesk/dsh-mcp-client' ? row.name
+          : (manifestOf(ctx, row.name, parentURL) as { name?: string } | undefined)?.name
+        if (packageName === '@panedesk/dsh-mcp-client') {
+          const config = interpolate(ctx, row.config) as { serverName?: string } | undefined
+          if (config?.serverName !== undefined) names.add(config.serverName)
+        }
+      } catch (_invalidPanedeskEntry) {
+        // Existing admission and Loader diagnostics own invalid Panedesk entries.
+      }
+      if ((row.group === true || row.name === 'cordis:group' || row.name === '@panedesk/cordis-plugin-group') && Array.isArray(row.config)) {
+        visit(row.config as EntryOptions[])
+      }
+    }
+  }
+  visit(entries)
+  const imported = readClaudeMcpServers(profile.cwd).filter(server => !names.has(server.config.serverName))
+  return [...entries, ...imported.map(({ config }): EntryOptions => {
+    let id = `claude-mcp-${config.serverName}`
+    while (ids.has(id)) id += '-'
+    ids.add(id)
+    return { id, name: '@panedesk/dsh-mcp-client', config }
+  })]
+}
 
 function readManifest(filename: string): object {
   return JSON.parse(readFileSync(filename, 'utf8')) as object
@@ -182,6 +224,6 @@ export function prepareProfilePatches(
 ): PatchOptions[] {
   if (ctx.get('profileContext') === undefined) return patches
   const entries = applyEntryPatches([], patches, patchWarning(ctx))
-  const rows = prepareProfileEntries(ctx, entries, parentURL, binName)
+  const rows = prepareProfileEntries(ctx, mergeClaudeMcpEntries(ctx, entries, parentURL), parentURL, binName)
   return rows.length === 0 ? [] : [{ insert: rows }]
 }

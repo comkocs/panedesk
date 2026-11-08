@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-mcp-client` lets the model use tools and resources from external Model Context Protocol (MCP) servers. Configure one server per entry; its tools use names such as `mcp__github__create_issue`. No server is enabled by default. Shipped profiles already provide [shared resource discovery and reading](../mcp-resources/README.md). An empty caller scope adds no MCP tools or prompt text. Server instructions join the logged system prompt as literal text; MCP prompt templates are unsupported. Slow or crashed servers can delay startup or fail calls until recovery.
+`dsh-mcp-client` lets the model use tools and resources from external Model Context Protocol (MCP) servers. Configure one server per entry; its tools use names such as `mcp__github__create_issue`. Profile startup also imports existing Claude Code MCP declarations. Shipped profiles already provide [shared resource discovery and reading](../mcp-resources/README.md). An empty caller scope adds no MCP tools or prompt text. Server instructions join the logged system prompt as literal text; MCP prompt templates are unsupported. Slow or crashed servers can delay startup or fail calls until recovery.
 
 ## Table of Contents
 
@@ -26,6 +26,12 @@ English | [中文](README.zh.md)
 ## Use this package
 
 Add `dsh-mcp-client` when the model should call tools from an external MCP server as if they were native. Give each server a unique name and transport. The official SDK selects the 2026-07-28 protocol when available and falls back to supported legacy revisions. Choose stdio for a local program and Streamable HTTP for a service; stdio negotiation starts a temporary probe process before the serving process.
+
+### Claude Code configuration
+
+Panedesk profiles read `mcpServers` from `<project>/.mcp.json`, `~/.claude.json`, and `~/.claude.json` → `projects["<absolute project path>"].mcpServers`. The project is the launcher's working directory. Priority is Panedesk entries (including disabled entries), Claude Code local-project entries, shared-project entries, then user entries. Missing, unreadable, or invalid JSON sources are skipped; invalid servers and entries with missing environment variables are skipped individually. `${VAR}` and `${VAR-default}` expand in command, arguments, environment values, URL, and headers. Stdio children start in the project directory; `http` uses Streamable HTTP and `sse` uses legacy SSE, with headers on both the event stream and POST requests. Names outside `[A-Za-z0-9_-]{1,32}` receive a stable hashed namespace.
+
+There is no dedicated MCP settings page. Imported entries are from Claude Code; their source file is the absolute `<project>/.mcp.json` or `<user home>/.claude.json` path. Panedesk never writes either file. Restart the profile after editing a source; profile recomposition also re-reads it.
 
 ### Minimal configuration
 
@@ -54,7 +60,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 
 | Field | Default | Meaning |
 |---|---|---|
-| `transport` | required | `stdio` or `streamable-http` |
+| `transport` | required | `stdio`, `streamable-http`, or legacy `sse` |
 | `serverName` | required | Namespace for the server's tool names; `[A-Za-z0-9_-]{1,32}`, unique inside one registration scope |
 | `command` / `args` / `env` / `cwd` | — | stdio: executable, arguments, extra env merged over scrubbed ambient env, working directory |
 | `url` / `headers` | — | streamable-http: endpoint URL and extra request headers |

@@ -47,6 +47,8 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 <a id="profiles"></a>
 ### Profile
 
+Profile 启动及重新组合在合成 Panedesk 配置项之后追加 [Claude Code MCP 客户端](../../mcp/mcp-client/README.zh.md#use-this-package)。已有 Panedesk 服务器同名优先，包括已禁用声明；可选的 Claude Code 文件只读不写。仅准备 preset 配置项时不重复导入。
+
 仅使用类型的消费方从 `@panedesk/dsh-app-boot/profile-context` 导入 `ProfileContext` 及其 Cordis 扩充；此声明入口不引入宿主启动服务及其 Session 扩充。
 
 `ProfileContext` 携带启动器的 profile 名称、目录、补丁路径、安装锚点、cwd、home、已启动 bundle 和启动时叠加层。`overlayPaths` 记录命令行补丁文件，其解析内容保持冻结。`readBundlePatches()` 与 `readProfilePatches()` 返回分离的补丁列表，不更新 Loader。profile 输入路径见 [boot](../../../docs/subsystems/boot.zh.md#profile-input-paths)。宿主输入不再作为受保护记录采集或复核。

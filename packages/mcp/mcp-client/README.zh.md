@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-mcp-client` 让模型使用外部 MCP（Model Context Protocol）服务器的工具与资源。每台服务器配置一条记录；其工具使用 `mcp__github__create_issue` 这样的名称。默认不启用任何服务器。随附 profile 已提供[共享资源发现与读取](../mcp-resources/README.zh.md)。调用方作用域为空时，不添加 MCP 工具或提示词文本。服务器指令作为字面文本加入已记录的系统提示词；MCP 提示词模板不受支持。缓慢或崩溃的服务器可能延迟启动，或让调用失败直至恢复。
+`dsh-mcp-client` 让模型使用外部 MCP（Model Context Protocol）服务器的工具与资源。每台服务器配置一条记录；其工具使用 `mcp__github__create_issue` 这样的名称。Profile 启动还会导入已有 Claude Code MCP 声明。随附 profile 已提供[共享资源发现与读取](../mcp-resources/README.zh.md)。调用方作用域为空时，不添加 MCP 工具或提示词文本。服务器指令作为字面文本加入已记录的系统提示词；MCP 提示词模板不受支持。缓慢或崩溃的服务器可能延迟启动，或让调用失败直至恢复。
 
 ## 目录
 
@@ -26,6 +26,12 @@ kind: "package-reference"
 ## 使用本包
 
 当模型需要像调用原生工具一样调用外部 MCP 服务器时，添加 `dsh-mcp-client`。为每台服务器指定唯一名称和传输方式。官方 SDK 优先选择可用的 2026-07-28 协议，并回退到支持的旧版协议。本地程序使用 stdio，远端服务使用 Streamable HTTP；stdio 协商会先启动临时探测进程，再启动实际服务进程。
+
+### Claude Code 配置
+
+Panedesk profile 从 `<项目>/.mcp.json`、`~/.claude.json` 与 `~/.claude.json` → `projects["<项目绝对路径>"].mcpServers` 读取 `mcpServers`。项目为启动器的工作目录。优先级依次为 Panedesk 配置项（包括已禁用项）、Claude Code 本地项目项、共享项目项、用户项。缺失、不可读或 JSON 无效的来源直接跳过；无效服务器与缺少环境变量的条目逐项跳过。command、args、env 值、URL 与 headers 支持 `${VAR}` 和 `${VAR-default}` 展开。Stdio 子进程在项目目录启动；`http` 使用 Streamable HTTP，`sse` 使用传统 SSE，事件流与 POST 请求均携带 headers。不符合 `[A-Za-z0-9_-]{1,32}` 的名称使用稳定哈希 namespace。
+
+当前没有专用 MCP 设置页。导入项均为「来自 Claude Code」，来源文件为完整绝对路径 `<项目>/.mcp.json` 或 `<用户主目录>/.claude.json`；Panedesk 不写这两个文件。修改来源后重启 profile；profile 重新组合时也会重新读取。
 
 ### 最小配置
 
@@ -54,7 +60,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `transport` | 必填 | `stdio` 或 `streamable-http` |
+| `transport` | 必填 | `stdio`、`streamable-http` 或传统 `sse` |
 | `serverName` | 必填 | 服务器工具名称的 namespace；`[A-Za-z0-9_-]{1,32}`，在一个注册作用域内唯一 |
 | `command` / `args` / `env` / `cwd` | — | stdio：可执行文件、参数、合并到清洗过的环境之上的额外环境变量、工作目录 |
 | `url` / `headers` | — | streamable-http：端点 URL 与额外请求标头 |
