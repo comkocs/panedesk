@@ -40,7 +40,8 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerModelDiscovery(settingsNs, async (_request, signal) => {
     const connection = options()
     const key = await resolveApiKey(connection)
-    const response = await fetch(`${connection.baseURL.replace(/\/+$/u, '')}/models`, {
+    const baseURL = connection.baseURL.replace(/\/+$/u, '').replace(/\/anthropic$/u, '')
+    const response = await fetch(`${baseURL}/models`, {
       headers: { Authorization: `Bearer ${key}` }, ...signal === undefined ? {} : { signal },
     })
     if (!response.ok) throw new LlmError(`DeepSeek model discovery failed: HTTP ${response.status}`, 'DISCOVERY_FAILED')

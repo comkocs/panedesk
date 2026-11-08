@@ -584,6 +584,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 settingsNs={row.entry.settingsNs}
                 provider={row.entry.provider}
                 endpoint={storedEndpoint(schema, namespace, row.entry.settingsPath)}
+                keyRequired={row.entry.provider === 'deepseek-official' && !credentialConfigured}
                 modelCount={configuredModelCount(schema, namespace, [...row.entry.settingsPath, 'models'])}
                 operations={operations}
                 t={t}

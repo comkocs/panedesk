@@ -37,7 +37,7 @@ Authentication resolution returns the validated API key in `x-api-key` for both 
 
 The endpoint and credential reference come from one configuration resolution. In-flight requests retain that snapshot; subsequent updates affect subsequent calls. Account login state cannot change this route’s credential.
 
-`models` is an independently configurable catalog for this provider; defaults and protocol capabilities come from the shared transport. Discovery does not probe inference endpoints. The settings namespace is the Cordis entry id, or the plugin name without an entry. Product profiles retain the official entry id `llm-deepseek` and use `llm-deepseek-account` for the account route.
+`models` is an independently configurable catalog for this provider; defaults and protocol capabilities come from the shared transport. Discovery does not probe inference endpoints. Explicit settings-page discovery requests the API root's `/models` endpoint, stripping a trailing `/anthropic` from the Messages base URL; the default listing URL is `https://api.deepseek.com/models`. The settings namespace is the Cordis entry id, or the plugin name without an entry. Product profiles retain the official entry id `llm-deepseek` and use `llm-deepseek-account` for the account route.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

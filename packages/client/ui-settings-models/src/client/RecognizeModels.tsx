@@ -1,6 +1,6 @@
 /**
  * The provider card's recognize-and-try controls. Recognition asks the route's
- * listing and checks the three newest models; a model id typed by hand is
+ * listing and checks the newest model per family; a model id typed by hand is
  * probed with one output token.
  */
 import { useState } from 'react'
@@ -33,6 +33,8 @@ export interface RecognizeModelsProps {
   readonly t: Copy
   /** Whether the page is writable. */
   readonly disabled: boolean
+  /** Whether recognition must wait for a configured API key. */
+  readonly keyRequired?: boolean | undefined
   /**
    * How many models this card's provider already has configured. The guide under
    * the recognize button shows only while that count is zero; callers that do
@@ -65,6 +67,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
   const [probe, setProbe] = useState<{ readonly ok: boolean; readonly message: string } | undefined>(undefined)
 
   const recognize = async (): Promise<void> => {
+    if (props.keyRequired === true) return
     setBusy(true)
     setFailure(undefined)
     setSaved(undefined)
@@ -142,10 +145,11 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
 
   return (
     <div className={styles['recognize']}>
-      <button type="button" className={styles['secondaryButton']} disabled={disabled || busy} onClick={() => { void recognize() }}>
+      <button type="button" className={styles['secondaryButton']} disabled={disabled || busy || props.keyRequired === true} onClick={() => { void recognize() }}>
         {busy ? t('recognizing') : t('recognize')}
       </button>
-      {recognized === undefined && props.modelCount === 0 ? <p className={styles['modelCatalogMeta']}>{t('recognizeGuide')}</p> : null}
+      {props.keyRequired === true ? <p className={styles['modelCatalogMeta']}>{t('recognizeNeedsKey')}</p> : null}
+      {recognized === undefined && props.modelCount === 0 && props.keyRequired !== true ? <p className={styles['modelCatalogMeta']}>{t('recognizeGuide')}</p> : null}
       {failure === undefined ? null : <p role="alert">{t('recognizeFailed')}: {failure}</p>}
       {recognized === undefined
         ? null
@@ -153,7 +157,9 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
           <div>
             <p>{t('recognizeLead').replace('{count}', String(recognized.checked.size))}</p>
             <p className={styles['modelCatalogMeta']}>
-              {recognized.orderBasis === 'createdAt' ? t('recognizeOrderCreated') : t('recognizeOrderServer')}
+              {t(recognized.orderBasis === 'version'
+                ? 'recognizeOrderVersion'
+                : recognized.orderBasis === 'createdAt' ? 'recognizeOrderCreated' : 'recognizeOrderServer')}
             </p>
             <ul className={styles['candidateList']}>
               {recognized.models.map(model => (

@@ -37,7 +37,7 @@ kind: "package-reference"
 
 端点和凭据引用来自同一次配置解析；进行中的请求保留该快照，后续配置更新仅影响后续请求。账号登录态不影响该路由使用的凭据。
 
-`models` 是该 provider 独立的可配置目录；默认值和协议能力来自共享传输包。目录判断不探测推理端点。设置命名空间采用 Cordis entry id，没有 entry 时采用插件名。产品保留 official 的 `llm-deepseek` entry id，账号使用 `llm-deepseek-account`。
+`models` 是该 provider 独立的可配置目录；默认值和协议能力来自共享传输包。目录判断不探测推理端点。设置页显式识别请求 API 根地址的 `/models` 端点，去除 Messages base URL 末尾的 `/anthropic`；默认列表地址为 `https://api.deepseek.com/models`。设置命名空间采用 Cordis entry id，没有 entry 时采用插件名。产品保留 official 的 `llm-deepseek` entry id，账号使用 `llm-deepseek-account`。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
