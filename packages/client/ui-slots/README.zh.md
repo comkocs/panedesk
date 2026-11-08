@@ -61,6 +61,8 @@ register 调用可以用 `store: defineStore(...)` 声明 store 席位：`init` 
 
 `SlotCore` 在构造时预置 `'root'` slot，并强制执行加载时验证。`ChainSelect` selector 按升序 `priority` 运行（相同值按注册顺序）；第一个非 null 返回值选中其条目，并成为组件的 `matched` prop；全部返回 null 时使用 owner 的 `renderSlotChain` fallback（`ChainRenderOpts`）。每个 key 都携带一个 declaration epoch，它只在声明与移除时递增；`ui-renderer` 将其用于 `ctx.slots.inject`，且与普通条目版本相互独立。实时检查使用严格的 `type: 'slot' | 'factory'` 节点，并把 Factory-owned child Slots 嵌套在其 definition 下。
 
+列表注册可携带可选的、由 owner 定义的 `group` 字符串。账本将其保留在已存储的 options 中而不解释其含义；投影 owner 负责分组与展示。
+
 ### 渲染器约定
 
 `renderer.ts` 携带安装约定（`SlotRenderer`、`SlotRendererHost`）以及 `StaleAuthorizationError`/`SlotOwnershipError`；ui-renderer 负责实现，并在其插件生命周期中完成安装。引擎产物与渲染器宿主约定携带裸快照 source（`getSnapshot`/`subscribe`），绝不携带 React 钩子——钩子绑定属于渲染机制。Factory 崩溃使用普通监督通道，幂等 effect 仅在 commit 后保留逐渲染位置 Store handle。

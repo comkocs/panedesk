@@ -275,7 +275,7 @@ export function apply(ctx: Context): void {
     const update = () => {
       if (snapshot.view?.status === 'credential-stored') {
         unregister ??= ctx.slots.register({
-          name: 'settings.section', id: 'account', order: -10, label: () => t('nav'),
+          name: 'settings.section', id: 'account', group: 'dsh', order: -10, label: () => t('nav'),
           locale: 'settings.account', inject: () => operations,
         }, AccountSection)
       } else {

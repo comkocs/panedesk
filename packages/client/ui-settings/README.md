@@ -43,6 +43,8 @@ A page that edits a namespace another plugin owns registers through `ctx.configF
 
 A settings surface registers into the slot types this package declares. The shell (`sidebar.settings` occupant, navigation, chrome) lives in ui-settings-general; feature pages register `settings.section` contributions; the Plugins section hosts `settings.plugins.tab` pages; onboarding steps register `settings.onboarding`. Cross-namespace surfaces (schema introspection, the served-namespace directory, `hasDocument`) read the same mirror through `ctx.configForms.describe()`.
 
+Section registrations may set `group: 'dsh' | 'panedesk'` for grouped navigation; omitting it keeps a section at the top level. The shell-owned Panedesk features page declares `settings.panedesk.item`, an ordered list with empty owner props like `settings.general.item`.
+
 A Settings shell may provide optional `settingsNavigation.openSection(id)` for feature-owned navigation. The shell retains selection and visibility; callers do not construct a parallel Settings panel. Availability ends with the shell registration.
 
 ### Observable success and failures

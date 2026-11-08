@@ -35,6 +35,7 @@ import type { DesktopUpdateBridge } from '../types.ts'
 import { DesktopUpdateSource } from './desktop-update-source.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
+import { PanedeskSection } from './PanedeskSection.tsx'
 import { CurrentVersionRow } from './CurrentVersionRow.tsx'
 import { OpeningNameRow, PanedeskFeaturesHeading, type OpeningNameRowInjected } from './OpeningNameRow.tsx'
 import type { OpeningNamePattern } from '@panedesk/dsh-session-title/types'
@@ -159,6 +160,7 @@ export function apply(ctx: ClientContext): void {
                 id: e.options.id ?? '',
                 order: e.options.order ?? 0,
                 label: resolveSlotLabel(e.options.label) ?? '',
+                group: e.options.group,
               }))
               .sort((a, b) => a.order - b.order)
           }
@@ -259,6 +261,15 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'panedesk-features',
+    group: 'panedesk',
+    order: 0,
+    label: () => t('panedesk.features'),
+    locale: NS,
+    children: { 'settings.panedesk.item': { kind: 'list', scope: 'root' } },
+  }, PanedeskSection))
   // The page's module system applies no plugin update from another Host release; this dialog offers the reload.
   const releasePromptInjected = (): HostReleasePromptInjected => ({
     dismissRelease: () => { ctx.modules.entries.dismissRelease() },

@@ -16,6 +16,7 @@ import clsx from 'clsx'
 import {
   ConnectionIndicator, Tooltip, useModalLayer,
   IconAgentPresetOutlineMedium, IconArchiveOutlineMedium, IconCloseOutlineRegular, IconDataOutlineMedium,
+  IconChevronDownOutlineRegular, IconChevronRightOutlineRegular,
   IconPersonalizationOutlineMedium, IconSettingsOutlineMedium, IconUserOutlineMedium,
 } from '@panedesk/dsh-client-ui-primitives'
 import type { ConnectionIndicatorState } from '@panedesk/dsh-client-ui-primitives'
@@ -42,20 +43,48 @@ type PanelProps = {
   rows: readonly SettingsSectionRow[]
   renderSlot: SettingsRootComponentProps['renderSlot']
   activeId: string | undefined
+  navigationRevision: number
   onSelect: (id: string) => void
   onClose: () => void
+  t: SettingsRootComponentProps['t']
 }
 
 /**
- * Body-portaled modal layer: full-viewport mask + centered panel. Close paths: the
- * header button, a mask click, and document-level Escape (mounted only while
- * open, so the listener lifetime is the panel's).
+ * Body-portaled modal layer. Background clicks are blocked without dismissal;
+ * the header button, Escape, and the settings command retain close ownership.
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
-  // Entries can unmount underneath the requested id, so the render-time
-  // projection falls back to the first row when the id is gone.
-  const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
+function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelect, onClose, t }: PanelProps) {
+  // Entries can unmount underneath the requested id; prefer a top-level page.
+  const activeRow = rows.find(r => r.id === activeId) ?? rows.find(r => r.group === undefined) ?? rows[0]
+  const active = activeRow?.id
+  const activeGroup = activeRow?.group
+  const [navigation, setNavigation] = useState(() => ({
+    active, navigationRevision,
+    expanded: { panedesk: activeGroup === 'panedesk', dsh: activeGroup === 'dsh' },
+  }))
+  let expanded = navigation.expanded
+  if (navigation.active !== active || navigation.navigationRevision !== navigationRevision) {
+    expanded = {
+      panedesk: expanded.panedesk || activeGroup === 'panedesk',
+      dsh: expanded.dsh || activeGroup === 'dsh',
+    }
+    setNavigation({ active, navigationRevision, expanded })
+  }
   const titleId = useId()
+  const groupsId = useId()
+  const renderRow = (row: SettingsSectionRow) => (
+    <button
+      key={row.id}
+      type="button"
+      className={clsx(css.navCell, row.id === active && css.active)}
+      aria-current={row.id === active ? 'true' : undefined}
+      data-modal-autofocus={row.id === active ? '' : undefined}
+      onClick={() => { onSelect(row.id) }}
+    >
+      {navIcon(row.id)}
+      <span className={css.navLabel}>{row.label}</span>
+    </button>
+  )
 
   const panel = useRef<HTMLDivElement>(null)
   useModalLayer(panel, true, onClose)
@@ -66,25 +95,38 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
   // Beside the root, base.css's `body > :not(#root)` rule subtracts it instead.
   return createPortal((
     <div className={css.overlay} role="presentation">
-      <div className={css.mask} aria-hidden="true" onClick={onClose} />
+      <div className={css.mask} aria-hidden="true" />
       <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <nav className={css.nav}>
           <div className={css.navTitle} id={titleId} tabIndex={-1}
             data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
           <div className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                data-modal-autofocus={row.id === active ? '' : undefined}
-                onClick={() => { onSelect(row.id) }}
-              >
-                {navIcon(row.id)}
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
+            {rows.filter(row => row.group === undefined).map(renderRow)}
+            {(['panedesk', 'dsh'] as const).map(group => {
+              const children = rows.filter(row => row.group === group)
+              const open = expanded[group]
+              const childrenId = `${groupsId}-${group}`
+              const descriptionId = `${childrenId}-description`
+              return (
+                <div key={group} className={css.navGroup}>
+                  <button type="button" className={clsx(css.navCell, activeGroup === group && css.active)}
+                    aria-expanded={open} aria-controls={childrenId}
+                    aria-describedby={group === 'dsh' ? descriptionId : undefined}
+                    onClick={() => {
+                      setNavigation({ active, navigationRevision, expanded: { ...expanded, [group]: !open } })
+                      if (!open && children[0]) onSelect(children[0].id)
+                    }}>
+                    {navIcon(group)}
+                    <span className={css.navLabel}>{t(`group.${group}`)}</span>
+                    {open ? <IconChevronDownOutlineRegular size={14} /> : <IconChevronRightOutlineRegular size={14} />}
+                  </button>
+                  {group === 'dsh' && <div id={descriptionId} className={css.groupDescription}>{t('group.dsh.description')}</div>}
+                  <div id={childrenId} className={css.navChildren} hidden={!open}>
+                    {children.map(renderRow)}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </nav>
         <div className={css.content}>
@@ -114,7 +156,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
     useDesktopUpdate, openDesktopUpdate, useStore, actions, useShortcuts,
   } = props
-  const { open, activeId } = useStore(state => state)
+  const { open, activeId, navigationRevision } = useStore(state => state)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'settings.open'))
   const { close, openSection } = actions
   const [requestedOnboarding, setRequestedOnboarding] = useState<string | undefined>()
@@ -248,8 +290,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           rows={rows}
           renderSlot={renderSlot}
           activeId={activeId}
+          navigationRevision={navigationRevision}
           onSelect={actions.select}
           onClose={close}
+          t={t}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's

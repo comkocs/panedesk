@@ -67,7 +67,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       },
     }), 'nodes: resources')
     scope.slots.inject('settings.section', () => scope.slots.register({
-      name: 'settings.section', id: 'nodes', order: 75, label: () => t('title'), locale: 'nodes', inject: () => actions,
+      name: 'settings.section', id: 'nodes', group: 'panedesk', order: 75, label: () => t('title'), locale: 'nodes', inject: () => actions,
     }, NodesSection))
   })
   try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }

@@ -15018,6 +15018,43 @@
           "packages/shell/tool-pwsh/src/index.ts"
         ]
       }
+    },
+    {
+      "id": "settings-panedesk-dsh-groups",
+      "description": "Group settings under General, Models, Panedesk and DSH without background dismissal",
+      "origin": "Panedesk settings navigation",
+      "reason": "Preserve upstream sections under DSH and Panedesk-owned sections under Panedesk, add an empty Panedesk features row slot, and keep the settings panel open on background clicks while retaining keyboard dismissal.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-slots/src/index.ts",
+          "packages/client/ui-slots/README.md",
+          "packages/client/ui-slots/README.zh.md",
+          "packages/client/ui-slots/README.i18n.yaml",
+          "packages/client/ui-settings/src/client/contract/slots.ts",
+          "packages/client/ui-settings/README.md",
+          "packages/client/ui-settings/README.zh.md",
+          "packages/client/ui-settings/README.i18n.yaml",
+          "packages/client/ui-settings-general/src/client/SettingsRoot.tsx",
+          "packages/client/ui-settings-general/src/client/SettingsRoot.module.css",
+          "packages/client/ui-settings-general/src/client/shell-contract.ts",
+          "packages/client/ui-settings-general/src/client/shell-store.ts",
+          "packages/client/ui-settings-general/src/client/index.ts",
+          "packages/client/ui-settings-general/src/client/locales.ts",
+          "packages/client/ui-settings-general/src/client/PanedeskSection.tsx",
+          "packages/client/ui-settings-general/README.md",
+          "packages/client/ui-settings-general/README.zh.md",
+          "packages/client/ui-settings-general/README.i18n.yaml",
+          "packages/client/ui-settings-account/src/client/index.ts",
+          "packages/client/ui-settings-plugins/src/client/index.ts",
+          "packages/client/ui-agent-preset/src/client/index.ts",
+          "packages/client/ui-project-onboarding/src/client/index.ts",
+          "packages/client/ui-seat-profiles/src/client/index.ts",
+          "packages/client/ui-skills/src/client/index.ts",
+          "packages/client/ui-stats/src/client/index.ts",
+          "packages/client/ui-nodes/src/client/index.ts"
+        ]
+      }
     }
   ]
 }

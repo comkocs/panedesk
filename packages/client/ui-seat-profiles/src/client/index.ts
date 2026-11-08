@@ -147,7 +147,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<() => Pr
     scope.slots.inject('settings.section', function* () {
       const handle = createProfileStore(), instance = handle.create()
       const store: typeof handle = { ...handle, create: () => instance }
-      yield scope.slots.register({ name: 'settings.section', id: 'seat-profiles', order: 35,
+      yield scope.slots.register({ name: 'settings.section', id: 'seat-profiles', group: 'panedesk', order: 35,
         locale: 'seatProfiles', label: () => scope.locale.bind('seatProfiles')('nav'), store, inject: () => face }, Profiles)
       const dispose = scope.reflect.provide('seatProfilesNavigation', {
         open: (seat: SeatName) => {
