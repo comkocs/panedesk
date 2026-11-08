@@ -23,12 +23,15 @@ async function batch(root: string, stage: string) {
         operationId: 'second-seat' as T.SeatOperationId })
     }
     const payload: T.OpenSeatBatchRequest = { seats: [h.definition.seat, seat], origin: 'remote', operationId: 'batch' as T.SeatOperationId }
-    const authority = await h.authorize(payload, payload.operationId, true), grant = authority.authorization
+    const grant = { fact: { authorizationId: 'batch-entry' as T.AuthorizationRef, taskIds: [], kind: 'node-delegation', principalId,
+      nodeId: h.engine.options.nodeId, sourceNodeId: sender, origin: payload.origin, policyRevision: 1,
+      operationId: payload.operationId, requestDigest: digest(payload), checkedAt: new Date().toISOString(),
+      decision: 'allowed', reasonCode: 'fixture' } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant
     const request: Extract<NodeWireRequest, { method: 'seat.openBatch' }> = { version: 'node-link/v1', requestId: 'batch-request' as NodeWireRequest['requestId'],
-      method: 'seat.openBatch', sourceNodeId: sender, targetNodeId: authority.nodeId, operationId: payload.operationId,
+      method: 'seat.openBatch', sourceNodeId: sender, targetNodeId: h.engine.options.nodeId, operationId: payload.operationId,
       payload, payloadDigest: digest(payload), deadline: '2099-01-01T00:00:00.000Z', hop: 1,
       delegation: { kind: 'node-delegation', hop: 1, principalId, authorizationRef: grant.fact.authorizationId,
-        sourceNodeId: sender, targetNodeId: authority.nodeId, operationId: payload.operationId, requestDigest: digest(payload),
+        sourceNodeId: sender, targetNodeId: h.engine.options.nodeId, operationId: payload.operationId, requestDigest: digest(payload),
         taskIds: [], expiresAt: '2099-01-01T00:00:00.000Z' } }
     let first: T.OpenSeatResult | undefined
     if (stage === 'partial') {

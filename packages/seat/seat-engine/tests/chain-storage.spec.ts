@@ -75,11 +75,12 @@ async function fixture() {
     triggerId: intent.data.trigger.triggerId, originalOperationId: operationId, targetNodeId: nodeId,
     snapshotDigest: snapshot.digest, callbackPath: { kind: 'source', sourceId },
     modeCeiling: { mode: 'remind', policy: { sourceId, projectId: intent.data.trigger.projectId, revision: 1 } } }
+  const authorizationRef = 'authorization' as T.AuthorizationRef
   const data: T.NodeWorkChainAcceptedData = { capability: 'node-work-chain/v1', route,
     openingContext: { snapshot, openingMode: 'auto', scopeReservation: { reservationId: 'reservation' as T.NodeWorkChainScopeReservation['reservationId'],
       sourceId, sourceOwnerNodeId: sourceNodeId, ownerEpoch, operationId, taskIds: [],
       snapshotDigest: snapshot.digest, policyRevision: 1 } },
-    expectedSeatRevision: 1, authorizationRef: 'authorization' as T.AuthorizationRef, payloadDigest: digest('payload'),
+    expectedSeatRevision: 1, authorizationRef, payloadDigest: digest('payload'),
     operationKey: { sourceNodeId, principalId, sourceId, ownerEpoch, method: 'engine.acceptFrozen', operationId }, trigger: intent.data.trigger }
   const frozen = intent.data.pending.frozenOpen
   if (!frozen) throw new Error('Expected frozen input')
@@ -87,7 +88,7 @@ async function fixture() {
     operationId, seat: intent.seat!, data }
   const authorization: import('../src/authorization-storage.ts').AuthorizationEffect = {
     kind: 'authorization/checked', capability: 'seat-authorization/v1', eventId: 'authorization-event' as T.EngineEventId,
-    operationId, seat: intent.seat!, data: { authorizationId: data.authorizationRef, kind: 'node-delegation',
+    operationId, seat: intent.seat!, data: { authorizationId: authorizationRef, kind: 'node-delegation',
       principalId, sourceNodeId, origin: 'remote', nodeId, operationId, requestDigest: data.payloadDigest, taskIds: [],
       policyRevision: 1, decision: 'allowed', reasonCode: 'allowed', checkedAt: frame.observedAt, seat: intent.seat! } }
   const { digest: _digest, byteLength: _length, ...body } = frame
