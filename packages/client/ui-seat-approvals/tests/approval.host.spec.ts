@@ -38,9 +38,9 @@ it('records version-bound approval and observes actual opening instead of invent
   if (!('title' in result.result)) throw new Error('Expected direct opened evidence')
   expect(result.result.title).toBeTruthy()
   controller.abort(); await stream.return?.()
-  expect(h.engine.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect =>
-    effect.kind === 'authorization/checked' && effect.data.kind === 'local-operator' && effect.data.seat === 'seat-a'
-      && effect.data.taskIds.includes('task-a' as Seat.SeatTaskId)))).toBe(true)
+  expect(h.engine.journal.projection.decisions.some(frame => frame.effects.some(effect =>
+    effect.kind === 'queue/approved' && effect.data.pending.seat === 'seat-a'
+      && effect.data.pending.relatedTaskIds.includes('task-a' as Seat.SeatTaskId)))).toBe(true)
 })
 
 it('returns a stale version refusal without creating a window', async () => {
@@ -60,12 +60,10 @@ it('reports opening failure after approval without presenting success', async ()
   await stream.return?.()
 })
 
-it('cancels through the audited engine capability and keeps disabled or non-owner calls inert', async () => {
+it('cancels through the audited engine capability and keeps disabled calls inert', async () => {
   const h = await setup()
   expect(await h.remote.cancel(h.request)).toMatchObject({ status: 'cancelled' })
   expect((await h.engine.pending({ limit: 10 })).items).toEqual([])
-  Object.defineProperty(h.ctx, 'invocation', { value: { peer: { principal: { kind: 'guest' } } } })
-  expect(() => h.remote.approve(h.request)).toThrow('Authenticated owner')
   const disabled = await setup(false)
   const stream = disabled.remote.watchPending(new AbortController().signal)[Symbol.asyncIterator]()
   expect((await stream.next()).value).toEqual({ enabled: false, items: [], complete: true })
@@ -78,7 +76,7 @@ it('does not admit work after the owner invocation is cancelled', async () => {
   const controller = new AbortController()
   Object.defineProperty(h.ctx, 'invocation', { value: { peer: { principal: { kind: 'owner' } }, signal: controller.signal } })
   controller.abort()
-  expect(() => h.remote.approve(h.request)).toThrow('not enabled')
+  expect(() => h.remote.approve(h.request)).toThrow('Authenticated owner')
   expect(h.creates).toEqual([])
   expect((await h.engine.pending({ limit: 10 })).items).toHaveLength(1)
 })

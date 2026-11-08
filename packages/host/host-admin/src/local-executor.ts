@@ -3,6 +3,7 @@ import type { Context } from '@panedesk/cordis'
 import type * as Seat from '@panedesk/dsh-seat'
 import type {} from '@panedesk/dsh-seat-engine'
 import { SeatEngine, queryTasks, queryOperation } from '@panedesk/dsh-seat-engine'
+import { cancelledOperation } from './cancellation-projection.ts'
 import { createHostAdminExecutor } from './executor.ts'
 import type { HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse } from './index.ts'
 
@@ -33,7 +34,11 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
       },
       operation: async (params: Seat.SeatOperationQuery) => {
         await engine.ready()
-        return queryOperation(engine.journal.projection, params, engine.options.config.nodeName)
+        const view = engine.journal.projection
+        const projected = queryOperation(view, params, engine.options.config.nodeName)
+        const recorded = projected.status === 'settled' && projected.result.status === 'cancelled' && 'cancellation' in projected.result
+        const retained = !recorded && projected.status !== 'settled' ? cancelledOperation(view, params) : undefined
+        return retained ?? projected
       },
     } : {}),
     ...(transport ? { rebuildTransport: (peerNodeId?: Seat.SeatNodeId) => transport.rebuildTransport(peerNodeId) } : {}) }

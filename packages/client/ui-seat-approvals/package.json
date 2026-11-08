@@ -36,6 +36,7 @@
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-util-crypto": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-seat-engine": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

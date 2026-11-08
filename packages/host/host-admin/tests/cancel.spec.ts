@@ -39,7 +39,7 @@ test('cancels pending work once and replays the retained receipt after restart',
     expect(h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect => effect.kind === 'queue/cancelled')).toHaveLength(1)
     const receipt = await callAdmin(files, 'engine.operation', { operationId: target.operationId }, limits)
     expect(receipt).toMatchObject({ status: 'ok', result: { status: 'settled', result: { status: 'cancelled', cancellation: {
-      reason: target.reason, queueItemId: target.queueItemId } } } })
+      queueItemId: target.queueItemId, reasonPresent: false } } } })
     await stop(); stop = undefined
     stop = await mountAdmin(restartedContext, { runtime })
     expect(await callAdmin(files, 'engine.cancel', target, limits)).toMatchObject({ status: 'ok', result })

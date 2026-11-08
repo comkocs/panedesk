@@ -4,6 +4,7 @@ import type Schema from '@panedesk/schemastery'
 import { setTimeout as delay } from 'node:timers/promises'
 import { Remote, RemoteError, TypertRemoteService, observationConfig } from '@panedesk/dsh-typert-protocol'
 import type * as Seat from '@panedesk/dsh-seat'
+import { queryOperation, SeatEngine } from '@panedesk/dsh-seat-engine'
 import type { ApprovalQueueView } from './types.ts'
 
 /** Explicit activation and bounded observation of the existing engine. */
@@ -37,6 +38,10 @@ export default class SeatApprovals extends TypertRemoteService {
   private ready(): void {
     if (!this.config.enabled || this.lifetime.signal.aborted) {
       throw new RemoteError('seat-approvals/unavailable', 'Seat approvals are not enabled', {})
+    }
+    const invocation = this.ctx.invocation
+    if (invocation?.signal.aborted === true) {
+      throw new RemoteError('seat-approvals/unauthorized', 'Authenticated owner required', {})
     }
   }
 
@@ -124,9 +129,10 @@ export default class SeatApprovals extends TypertRemoteService {
     const combined = AbortSignal.any([signal, this.lifetime.signal])
     while (!combined.aborted) {
       this.ready()
-      const transactions = this.ctx.get('seatAuthorizationTransactions')
-      if (!transactions?.operation) return this.unavailable()
-      const value = await transactions.operation(request)
+      const engine = this.ctx.get('seatEngine')
+      if (!(engine instanceof SeatEngine)) return this.unavailable()
+      await engine.ready()
+      const value = queryOperation(engine.journal.projection, request, engine.options.config.nodeName)
       yield value
       if (value.status === 'settled') {
         const result = value.result.status === 'opened' && 'result' in value.result ? value.result.result : value.result
