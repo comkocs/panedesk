@@ -13,7 +13,7 @@ export async function wakeProcess(root: string, stage: string): Promise<void> {
     const operationId = 'process-wake-delivery' as T.SeatOperationId, base = request(operationId)
     const payload: T.WakeFrozenSeatRequest = { ...base, request: { seat: base.request.seat, operationId } }
     const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', operationId,
-      sourceNodeId: 'sending-node' as T.SeatNodeId, principalId: 'remote-principal' as T.SeatPrincipalId,
+      sourceNodeId: payload.route.sourceOwnerNodeId, principalId: 'remote-principal' as T.SeatPrincipalId,
       sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch }, payloadDigest: digest(payload) }
     if (stage === 'recover') {
       await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])

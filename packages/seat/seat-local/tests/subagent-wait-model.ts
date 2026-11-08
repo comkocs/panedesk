@@ -21,7 +21,7 @@ export class SubagentWaitModel extends CreationAdapter {
     this.requests.push(options)
     const stage = this.stage++
     if (stage === 1) {
-      const childId = /started subagent ([^"\\\s]+)/.exec(JSON.stringify(options.messages))?.[1]
+      const childId = /started subagent ([^"\\\s;]+)/.exec(JSON.stringify(options.messages))?.[1]
       if (!childId) throw new Error('The model did not receive a child session id')
       this.childId = childId
     }

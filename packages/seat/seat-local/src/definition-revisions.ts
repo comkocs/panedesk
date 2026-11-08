@@ -29,7 +29,7 @@ export function installDefinitionRevisions(ctx: Context, seats: LocalSeatService
       if (!current()) return refusal('hello-policy-not-ready')
       if ('status' in definition) return refusal('method-not-allowed')
       const admission = definition.remoteAdmission
-      if (admission && (!admission.allowOpen || !admission.sourceNodeIds.includes(request.sourceOwnerNodeId)
+      if (admission && (!admission.sourceNodeIds.includes(request.sourceOwnerNodeId)
           || !admission.sourceIds.includes(request.sourceId) || !admission.principalIds.includes(authority.principalId)
           || !admission.methods.includes(request.openingMethod))) return refusal('remote-open-not-allowed')
       if (!Number.isSafeInteger(definition.revision) || definition.revision <= 0) return refusal('seat-revision-mismatch')
