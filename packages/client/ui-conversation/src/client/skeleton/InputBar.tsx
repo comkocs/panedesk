@@ -36,7 +36,6 @@ import {
 } from '../input/editor/view-binding.ts'
 import { resolveSubmitMode } from '../input/submission-policy.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
-import { isImageMediaType } from '../service.ts'
 import { ContextMeter } from './ContextMeter.tsx'
 import { observeControlRow } from './control-row-layout.ts'
 import css from './InputBar.module.css'
@@ -212,11 +211,6 @@ export const InputBar = memo(function InputBar({
   const intakeFiles = useCallback((files: readonly File[], directories?: ReadonlySet<File>): void => {
     if (locked || machineBusy || (subagent !== null && !continuable) || addFiles === undefined || files.length === 0) return
     const rejected = ((): string | null => {
-      // Child prompts support images, but not generic file receipts or the
-      // Desktop path-reference fallback. Refuse mixed batches before intake.
-      if (continuable && files.some(file => directories?.has(file) || !isImageMediaType(file.type))) {
-        return t('image.unsupportedType')
-      }
       if (imageLimits !== undefined) {
         const mediaTypes = imageLimits.mediaTypes as readonly string[]
         const images = files.filter(file => mediaTypes.includes(file.type))
@@ -456,7 +450,7 @@ export const InputBar = memo(function InputBar({
               ref={fileInputRef}
               type="file"
               multiple
-              disabled={subagent !== null}
+              disabled={!canAcceptDrop}
               hidden
               onChange={onPickFiles}
             />

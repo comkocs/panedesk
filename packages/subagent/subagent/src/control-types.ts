@@ -6,6 +6,7 @@
  */
 
 import type { PromptContentPart } from '@panedesk/dsh-attachment/types'
+import type { FileUploadReceiptId } from '@panedesk/dsh-client-file-upload/types'
 import type { Branded } from '@panedesk/dsh-brand'
 import type { MessageId } from '@panedesk/dsh-llm/brand'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -102,10 +103,10 @@ export interface SubagentPromptRequest {
   readonly delivery: 'queue' | 'steer'
   /**
    * Browser prompt parts delivered as the child's user message. The Host
-   * admits and persists image parts before delivery, so the wire never
-   * carries a durable attachment reference the caller could fabricate.
+   * admits image bytes and resolves file receipts staged for the exact live
+   * authorizing parent before delivery; callers cannot supply durable attachment references.
    */
-  readonly content: readonly PromptContentPart[]
+  readonly content: readonly (PromptContentPart | { readonly type: 'file'; readonly receiptId: FileUploadReceiptId })[]
   /** Optional browser zone sampled for this exact human prompt. */
   readonly clientTimeZone?: string
 }

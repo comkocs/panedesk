@@ -374,7 +374,7 @@ export interface LlmModelInfo {
   name: string
   /** Optional user-facing distinction from otherwise similar models. */
   description?: string
-  /** Accepted request modalities; absent means unknown, while an explicit omission is negative capability. */
+  /** Advisory request modalities; omission resolves to text and image without restricting dispatch. */
   inputModalities?: readonly ModelModality[]
 }
 

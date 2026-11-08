@@ -91,7 +91,7 @@ export const catalogModelFields = {
 const catalogModel: z<DeepSeekCatalogModel> = z.object({
   id: z.string().required(),
   ...catalogModelFields,
-  inputModalities: z.array(z.union(MODEL_MODALITIES)).min(1).default(['text']),
+  inputModalities: z.array(z.union(MODEL_MODALITIES)).min(1).default(['text', 'image']),
 })
 
 /** Shared schema fields for Messages protocol options. */
@@ -151,7 +151,7 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
         `llm-deepseek: catalog model "${model.id}" maxTokens must be a positive integer`,
       )
     }
-    const inputModalities = model.inputModalities ?? ['text']
+    const inputModalities = model.inputModalities ?? ['text', 'image']
     if (inputModalities.length === 0) {
       throw new Error(`llm-deepseek: catalog model "${model.id}" inputModalities must not be empty`)
     }

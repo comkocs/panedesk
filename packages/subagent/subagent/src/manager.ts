@@ -12,7 +12,7 @@ import type {} from '@panedesk/dsh-working-directory'
 import type { Context } from '@panedesk/cordis'
 import type { Agent, AgentOptions, CreateAgentOptions } from '@panedesk/dsh-agent'
 import { brandString } from '@panedesk/dsh-brand'
-import { ReasoningEffortId, contentHasImage, createUserMessage, errorChain } from '@panedesk/dsh-llm'
+import { ReasoningEffortId, createUserMessage, errorChain } from '@panedesk/dsh-llm'
 import type { ContentBlock, MessageId, MessageSource } from '@panedesk/dsh-llm'
 import { SessionLogOffset } from '@panedesk/dsh-session'
 import type { SessionId, SessionEvent, UserMessage } from '@panedesk/dsh-session'
@@ -1443,13 +1443,6 @@ export class SubagentManager {
         if (disposal !== undefined) {
           return disposal.then(() => undefined, () => undefined)
         }
-        if (contentHasImage(content)) {
-          await this.assertImageCapable(requireLocalActivation(activation).handle.agent, options.signal)
-          if (activation.closing !== undefined) {
-            await Promise.allSettled([activation.closing])
-            return undefined
-          }
-        }
         const messageId = this.submitAdmitted(activation, content, options, parent)
         this.announce(activation)
         return messageId
@@ -1591,12 +1584,6 @@ export class SubagentManager {
     commit?: () => void,
   ): Promise<MessageId> {
     try {
-      if (contentHasImage(content)) {
-        await this.assertImageCapable(requireLocalActivation(activation).handle.agent, options.signal)
-        if (activation.closing !== undefined) {
-          throw new SubagentError(`subagent "${activation.childId}" is closing`, 'ACTIVATION_CLOSING')
-        }
-      }
       const messageId = this.submitAdmitted(activation, content, options, parent)
       commit?.()
       this.announce(activation)
@@ -1633,25 +1620,6 @@ export class SubagentManager {
       this.wake(activation)
     }
     return message.id
-  }
-
-  /** Refuse image content for a child whose fixed model accepts text only. */
-  private async assertImageCapable(
-    agent: Agent,
-    signal: AbortSignal,
-  ): Promise<void> {
-    const { provider, model } = agent.options
-    if (provider === undefined || model === undefined) return
-    const llm = this.ctx.get('llm')
-    /* v8 ignore next -- without an LLM registry, delivery defers to projection. */
-    if (llm === undefined) return
-    const info = await llm.resolveModelInfo(provider, model, signal)
-    if (info.inputModalities !== undefined && !info.inputModalities.includes('image')) {
-      throw new SubagentError(
-        `Model "${model}" does not support image input.`,
-        'MODEL_DOES_NOT_SUPPORT_IMAGES',
-      )
-    }
   }
 
   /** Resolve the persistence service continuable children require, or fail loud. */

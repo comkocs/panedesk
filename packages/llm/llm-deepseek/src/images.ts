@@ -42,9 +42,9 @@ export async function prepareImages(
   const versions = new Map<ImageAttachmentRef['attachmentId'], RequestImageAttachment>()
   const messages = projectOffloadedImages(history, ref => offloadedImageText(ref, access(ref)))
   if (!messages.some(message => contentHasImage(message.content))) return { messages, versions }
-  const model = connection.models.find(entry => entry.id === modelId)
-  if (model?.inputModalities?.includes('image') !== true || attachments === undefined) {
-    throw new LlmError('DeepSeek Messages image input requires a vision model and attachment service', 'UNSUPPORTED_CONTENT')
+  const model = connection.models.find(entry => entry.id === modelId) ?? { id: modelId }
+  if (attachments === undefined) {
+    throw new LlmError('DeepSeek Messages image input requires an attachment service', 'UNSUPPORTED_CONTENT')
   }
   if (messages.some(message => message.role !== 'user' && message.role !== 'tool' && contentHasImage(message.content))) {
     throw new LlmError('DeepSeek Messages supports images only in user messages and tool results', 'UNSUPPORTED_CONTENT')

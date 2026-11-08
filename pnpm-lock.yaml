@@ -16923,6 +16923,9 @@ importers:
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
+      '@panedesk/dsh-client-file-upload':
+        specifier: workspace:*
+        version: link:../../client/file-upload
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs

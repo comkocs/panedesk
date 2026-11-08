@@ -60,9 +60,12 @@ export function rejectPrompt(error: unknown, childSessionId: SessionId, signal: 
   if (error instanceof AttachmentError) {
     throw new RemoteError('subagent/attachment-invalid', error.message, { reason: error.code }, { cause: error })
   }
+  if (error instanceof RemoteError && error.code === 'session/attachment-invalid') {
+    throw new RemoteError('subagent/attachment-invalid', error.message, { reason: 'FILE_NOT_STAGED' }, { cause: error })
+  }
   if (error instanceof SubagentError) {
     switch (error.code) {
-      case 'MODEL_DOES_NOT_SUPPORT_IMAGES':
+      case 'FILE_NOT_STAGED':
         throw new RemoteError(
           'subagent/attachment-invalid',
           error.message,

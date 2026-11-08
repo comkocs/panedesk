@@ -69,16 +69,6 @@ function normalizedAccessText(ref: ImageAttachmentRef, access: ImageAttachmentAc
 }
 
 /**
- * Stable text shown to a model that cannot accept one durable image reference.
- * @param ref - durable normalized attachment omitted from the request.
- * @returns deterministic text-only placeholder.
- */
-export function textOnlyImageText(ref: ImageAttachmentRef): string {
-  const digest = String(ref.attachmentId).slice('sha256:'.length, 'sha256:'.length + 8)
-  return `[image omitted because this model accepts text only; attachment sha256:${digest}]`
-}
-
-/**
  * Stable model-facing handle for one exact request image. Identity comes from
  * the occurrence's own durable reference: request versions are prepared per
  * attachment id, so one shared version may serve occurrences whose display
@@ -117,9 +107,7 @@ export function offloadedImageText(
 }
 
 /**
- * True when typed model content contains an image block. This is the one image
- * walk shared by every image policy (capability gating, text-only
- * serialization, compaction survey), so a consumer cannot silently diverge.
+ * True when typed model content contains an image block.
  * @param content - typed model content blocks.
  * @returns whether any block is an image.
  */
@@ -329,40 +317,6 @@ export function requiredImageOffload(
     })
   }
   return offloadedImagePrefixCount(lengths, budget)
-}
-
-/** Replace every image occurrence for a text-only model. */
-function replaceImagesForTextModel(blocks: readonly ContentBlock[]): ContentBlock[] {
-  let next: ContentBlock[] | undefined
-  for (const [index, block] of blocks.entries()) {
-    if (block.type === 'image') {
-      next ??= blocks.slice(0, index)
-      next.push({ type: 'text', text: textOnlyImageText(block.attachment) })
-      continue
-    }
-    next?.push(block)
-  }
-  return next ?? blocks as ContentBlock[]
-}
-
-/**
- * Project request image content into deterministic text for an exact text-only model.
- * @param messages - complete request history.
- * @returns the original list without images, otherwise shallow message copies with stable placeholders.
- */
-export function projectImagesForTextModel(messages: readonly Message[]): readonly Message[]
-/**
- * Project image content in mixed durable and request-only inputs for a text-only model.
- * @param messages - complete request inputs.
- * @returns original inputs without images, otherwise copies with stable placeholders.
- */
-export function projectImagesForTextModel(messages: readonly RequestMessage[]): readonly RequestMessage[]
-export function projectImagesForTextModel(messages: readonly RequestMessage[]): readonly RequestMessage[] {
-  if (!messages.some(message => contentHasImage(message.content))) return messages
-  return messages.map((message) => {
-    const content = replaceImagesForTextModel(message.content)
-    return content === message.content ? message : { ...message, content }
-  })
 }
 
 /** Request messages and tools after one route's tool update projection. */
