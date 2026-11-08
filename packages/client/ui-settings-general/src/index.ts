@@ -22,8 +22,8 @@ export const Config = z.object({
   welcomeNoticeVersion: z.string().volatile(),
   openingNameEnabled: z.boolean().default(true).volatile(),
   openingName: z.object({
-    sample: z.string().required(), selected: z.string().required(),
-    left: z.string().required(), right: z.string().required(),
+    sample: z.string().default(''), selected: z.string().default(''),
+    left: z.string().default(''), right: z.string().default(''),
   }).volatile(),
 })
 
@@ -35,7 +35,10 @@ export function apply(ctx: Context, config: Config): void {
   ctx.inject(['sessionTitle'], child => {
     child.effect(() => child.sessionTitle.configureOpeningName({
       enabled: () => config.openingNameEnabled.get(),
-      pattern: () => config.openingName.get(),
+      pattern: () => {
+        const pattern = config.openingName.get()
+        return pattern?.sample && pattern.selected ? pattern : undefined
+      },
     }))
   })
   ctx.inject(['settings'], (child) => { child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)) })

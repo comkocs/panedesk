@@ -374,10 +374,10 @@ export class SessionTitleService extends Service {
     fallbackMaxBytes: z.number().step(1).min(1).required(),
     maxTitleBytes: z.number().step(1).min(1).required(),
     openingName: z.object({
-      sample: z.string().required(),
-      left: z.string().required(),
-      right: z.string().required(),
-      selected: z.string().required(),
+      sample: z.string().default(''),
+      left: z.string().default(''),
+      right: z.string().default(''),
+      selected: z.string().default(''),
     }).volatile(),
   })
 
@@ -638,7 +638,7 @@ export class SessionTitleService extends Service {
     if (first?.type !== 'user/message') return
     const text = first.data.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
     const pattern = this.openingPreferences === undefined ? this.openingName?.get() : this.openingPreferences.pattern()
-    const matched = (pattern === undefined ? undefined : extractOpeningName(text, pattern)) ?? extractOpeningFolder(text)
+    const matched = (pattern?.sample && pattern.selected ? extractOpeningName(text, pattern) : undefined) ?? extractOpeningFolder(text)
     const name = normalizeSessionTitle(matched ?? (/\p{Script=Han}/u.test(text) ? '未命名' : 'Untitled'), this.config.maxTitleBytes)
     const title = await this.automaticTitle(session, name)
     if (!this.serviceActive() || !this.openingEnabled() || this.ctx.sessions.get(session.id) !== session

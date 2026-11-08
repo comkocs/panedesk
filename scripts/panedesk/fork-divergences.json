@@ -15267,7 +15267,7 @@
       "id": "panedesk-feature-preferences-and-registry-picker",
       "description": "Keep opening-name settings visible and provide a desktop external-registry file picker",
       "origin": "Panedesk feature settings",
-      "reason": "Own global opening-name preferences in the always-mounted settings plugin, default naming to on and external registry reads to off, expose the actual profile patch path for inline open actions, and select registry files through window-owned Desktop IPC without a Web picker.",
+      "reason": "Own global opening-name preferences in the always-mounted settings plugin, allow missing opening-name fields and treat an empty sample or selection as unset, default naming to on and external registry reads to off, expose the actual profile patch path for inline open actions, and select registry files through window-owned Desktop IPC without a Web picker.",
       "match": {
         "type": "behavior",
         "paths": [
