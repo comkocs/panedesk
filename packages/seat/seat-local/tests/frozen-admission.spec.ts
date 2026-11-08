@@ -1,7 +1,7 @@
 /** Loader-owned local admission preserves frozen acknowledgements and exact business queries. */
 import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
-import { frozenHost, sender, principalId } from './frozen-fixture.ts'
+import { frozenHost, principalId } from './frozen-fixture.ts'
 import { digest } from '../src/store.ts'
 import type { LocalSeatService } from '../src/service.ts'
 
@@ -11,7 +11,7 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits a missing 
     const operationId = `late:${method}` as T.SeatOperationId, base = request(operationId)
     const payload = method === 'seat.openFrozen' ? base : { ...base, request: { seat: base.request.seat, operationId } }
     const original = structuredClone(payload)
-    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: payload.route.sourceOwnerNodeId, principalId,
       sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
     const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const
     await registry.ready(methods)
@@ -41,7 +41,7 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
       const seats = h.ctx.get('seats')!.withAuthority(await authorize(value, operationId))
       return method === 'seat.openFrozen' ? seats.openFrozen!(value as T.OpenFrozenSeatRequest) : seats.wakeFrozen!(value)
     }
-    const queryAfterRecovery = { key: { sourceNodeId: sender, principalId, sourceId: payload.route.sourceId,
+    const queryAfterRecovery = { key: { sourceNodeId: payload.route.sourceOwnerNodeId, principalId, sourceId: payload.route.sourceId,
       ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
     expect(await registry.query(queryAfterRecovery, await authorize(queryAfterRecovery, 'after-recovery' as T.SeatOperationId)))
       .toEqual({ status: 'missing' })
@@ -51,7 +51,7 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
     expect(await invoke()).toEqual(first)
     const changed = { ...payload, openingContext: { ...payload.openingContext, openingMode: 'auto' as const } }
     expect(await invoke(changed)).toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
-    const key: T.NodeWorkChainOperationKey = { sourceNodeId: sender, principalId, sourceId: payload.route.sourceId,
+    const key: T.NodeWorkChainOperationKey = { sourceNodeId: payload.route.sourceOwnerNodeId, principalId, sourceId: payload.route.sourceId,
       ownerEpoch: payload.route.ownerEpoch, method, operationId }
     const query = { key, payloadDigest: digest(payload) }
     await expect.poll(() => ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'].map(method =>
@@ -93,7 +93,7 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s queries pre-open 
     const cancellation = await h.engine.cancel({ queueItemId: pending.queueItemId,
       expectedStateVersion: pending.stateVersion, operationId: 'cancel-terminal' as T.SeatOperationId })
     expect(cancellation).toMatchObject({ status: 'cancelled' })
-    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: payload.route.sourceOwnerNodeId, principalId,
       sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
     for (let pass = 0; pass < 2; pass++) {
       expect(await registry.query(query, await authorize(query, operationId))).toMatchObject({ status: 'settled', method,
@@ -158,7 +158,7 @@ test.each(['seat.openFrozen'] as const)(
       await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
       const provider = registry.resolve(method)!
       const payload = request('query-lifecycle' as T.SeatOperationId)
-      const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+      const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: payload.route.sourceOwnerNodeId, principalId,
         sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method,
         operationId: payload.request.operationId }, payloadDigest: digest(payload) }
       const authority = await authorize(query, 'query-lifecycle-authority' as T.SeatOperationId)

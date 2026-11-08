@@ -1,7 +1,7 @@
 /** Stable wire inputs are shared by the independent writer and recovery processes. */
 import type * as T from '@panedesk/dsh-seat'
 import { digest } from '@panedesk/dsh-seat-engine'
-import { methods, sender, principalId } from './frozen-process-fixture.ts'
+import { methods, principalId } from './frozen-process-fixture.ts'
 
 /** Build one complete frozen request and its exact retained query.
  * @param method - Target provider method.
@@ -29,7 +29,7 @@ export function processInput(method: typeof methods[number], definition: T.SeatD
   const payload = method === 'engine.acceptFrozen' ? { ...base, envelope }
     : method === 'seat.openFrozen' ? { ...base, request: { seat: definition.seat, operationId, origin: 'remote' as const } }
       : { ...base, request: { seat: definition.seat, operationId } }
-  const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId, sourceId, ownerEpoch, method, operationId },
-    payloadDigest: digest(payload) }
+  const query: T.NodeWorkChainOperationRequest = { key: {
+    sourceNodeId: route.sourceOwnerNodeId, principalId, sourceId, ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
   return { method, payload, query, operationId }
 }

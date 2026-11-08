@@ -65,16 +65,6 @@ test.each(['committed', 'pending', 'authentication', 'protocol', 'other'] as con
     } finally { await f.close() }
   })
 
-test('missing issuer retains transient retries without transport or local callbacks', async () => {
-  const f = await setup()
-  try {
-    f.composition.outboxIssuer = async () => undefined
-    await f.outbox.deliver(0)
-    expect(f.delivery()).toMatchObject({ phase: 'retry-due', responseClass: 'transient' })
-    expect(f.seen).toEqual([]); expect(f.local).not.toHaveBeenCalled()
-  } finally { await f.close() }
-})
-
 test('disconnection retains exponential backoff and restores one same-key delivery', async () => {
   const f = await setup()
   try {

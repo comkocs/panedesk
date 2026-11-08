@@ -46,6 +46,11 @@ export function services(engine: () => SeatEngine, calls: T.SeatAuthorizationChe
       const retained = await queryRoutedCallback(engine(), { key: chainKey(request), payloadDigest: request.payloadDigest })
       if (!retained || canonical(retained) !== canonical(request.payload)) return undefined
       const issuer = (await callbackIssuer(engine().options.nodeId).outboxIssuer!(request))!
-      return { check: async (input) => { calls.push(input); return issuer.check(input) } }
+      return { check: async (input) => {
+        calls.push(input)
+        const grant = await issuer.check(input)
+        if ('status' in grant) return grant
+        return { ...grant, fact: { ...grant.fact, authorizationId: randomUUID() as T.AuthorizationRef } }
+      } }
     } }
 }

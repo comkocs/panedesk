@@ -60,7 +60,7 @@ test('authorized existing-window wake sends once and replays the first receipt a
     expect(first).toMatchObject({ status: 'sent', operationId: request.request.operationId })
     expect(await invoke(request)).toEqual(first)
     expect(send).toHaveBeenCalledTimes(1)
-    const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', sourceNodeId: sender, principalId,
+    const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', sourceNodeId: request.route.sourceOwnerNodeId, principalId,
       sourceId: request.route.sourceId, ownerEpoch: request.route.ownerEpoch, operationId: request.request.operationId },
     payloadDigest: digest(request) }
     expect(await registry.query(query, await authorize(query, 'query-wake' as T.SeatOperationId)))
@@ -114,7 +114,7 @@ test('queries a missing-window frozen wake execution without replacing its admis
     await h.engine.drive()
     const open = [...h.engine.journal.projection.opens.values()][0]
     if (!open) throw new Error('Expected retained wake opening')
-    const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', sourceNodeId: sender, principalId,
+    const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', sourceNodeId: request.route.sourceOwnerNodeId, principalId,
       sourceId: request.route.sourceId, ownerEpoch: request.route.ownerEpoch, operationId: request.request.operationId },
     payloadDigest: digest(request) }
     expect(await registry.query(query, await authorize(query, 'query-wake-execution' as T.SeatOperationId)))
@@ -129,7 +129,10 @@ test.each([true, false])('explicit node wake composition preserves existing-wind
   const { h } = await setup(existing)
   try {
     const payload: T.WakeSeatRequest = { seat: h.definition.seat, operationId: 'legacy-wake' as T.SeatOperationId }
-    const grant = { fact: { authorizationId: 'wake-entry' as T.AuthorizationRef } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant
+    const grant = { fact: { authorizationId: 'wake-entry' as T.AuthorizationRef, kind: 'node-delegation',
+      principalId, nodeId: h.options.nodeId, sourceNodeId: sender, origin: 'remote', taskIds: [], policyRevision: 1,
+      operationId: payload.operationId, requestDigest: digest(payload), checkedAt: new Date().toISOString(),
+      decision: 'allowed', reasonCode: 'fixture' } } as Pick<T.SeatAuthorizationGrant, 'fact'> as T.SeatAuthorizationGrant
     const request: Extract<NodeWireRequest, { method: 'seat.wake' }> = { version: 'node-link/v1', method: 'seat.wake',
       requestId: 'wake-request' as NodeWireRequest['requestId'], operationId: payload.operationId,
       sourceNodeId: sender, targetNodeId: h.options.nodeId, payload, payloadDigest: digest(payload),
