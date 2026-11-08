@@ -1,4 +1,5 @@
 /** Old sender refusals and durable seat uncertainty converge without weakening the outbox barrier. */
+import { randomUUID } from 'node:crypto'
 import { afterEach, expect, test, vi } from 'vitest'
 import * as Host from '@panedesk/dsh-host-admin'
 import type * as Seat from '@panedesk/dsh-seat'
@@ -62,7 +63,7 @@ test.each(['before-ready', 'after-ready', 'before-timeout', 'after-timeout'] as 
       const seat = original.delegation.seat
       const fact: Seat.SeatIssuedAuthorizationFact = { kind: 'human', principalId, nodeId: original.sourceNodeId, origin: 'manual',
         ...(seat === undefined ? {} : { seat }), taskIds: original.delegation.taskIds, policyRevision: 1, decision: 'allowed', reasonCode: 'allowed',
-        authorizationId: 'fresh-callback' as Seat.AuthorizationRef, operationId: request.operationId,
+        authorizationId: randomUUID() as Seat.AuthorizationRef, operationId: request.operationId,
         requestDigest: request.requestDigest, checkedAt: new Date().toISOString() }
       return { fact } as Pick<Seat.SeatAuthorizationGrant, 'fact'> as Seat.SeatAuthorizationGrant
     } }
