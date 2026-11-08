@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1
+
+### Fixed
+
+- In 1.6.0, the project opening settings plugin could fail to activate at startup and show "Application failed to start".
+- Startup failure reports now include the reason for each plugin that failed to activate.
+
 ## 1.6.0
 
 ### Added
