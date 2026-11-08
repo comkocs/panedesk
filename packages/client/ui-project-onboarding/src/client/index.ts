@@ -21,7 +21,7 @@ export const inject = ['slots', 'locale', 'remote', 'configForms']
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.projectOpening'], (ctx) => {
+  const ui = ctx.inject(['remote.projectOpening', 'remote.session'], (ctx) => {
     ctx.effect(() => ctx.locale.register('projectOnboarding', { en, zh }))
     const mirror = ctx.configForms.describe()
     const controller = new ProjectPreferencesController({

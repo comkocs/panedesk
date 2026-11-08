@@ -15322,7 +15322,7 @@
       "id": "project-opening-complete-settings",
       "description": "Complete project opening settings with workspace selection, immediate mode persistence, storage locations and engine status",
       "origin": "Panedesk project opening settings",
-      "reason": "Explain all three modes and the default without requiring a project Session. Reuse workspace hooks and native Host path actions; expose owner-only actual profile and JSON catalog locations while preserving first-entry guidance and transactional mode writes.",
+      "reason": "Explain all three modes and the default without requiring a project Session. Reuse workspace hooks and native Host path actions; expose owner-only actual profile and JSON catalog locations while preserving first-entry guidance and transactional mode writes. Inject remote.session before constructing the settings controller so activation does not depend on Remote mount order.",
       "match": {
         "type": "behavior",
         "paths": [
