@@ -4296,7 +4296,7 @@
       "id": "live-subagent-model-and-type-selection",
       "description": "Offer configured models and imported agent types in new and restored sessions.",
       "origin": "Panedesk built-in subagent delegation",
-      "reason": "Resolve model names against live provider catalogs at dispatch, retain imported types without a matching provider, and remove the obsolete model-selection settings card. Suitable for upstream contribution.",
+      "reason": "Resolve model names against live provider catalogs at dispatch, retain imported types without a matching provider, and remove the obsolete model-selection settings card. Import agent instructions through a package subpath backed by the published JavaScript and a workspace source alias so imported types also load in installations. Suitable for upstream contribution.",
       "match": {
         "type": "product-development",
         "paths": [
@@ -4304,6 +4304,10 @@
           "packages/subagent/tool-subagent/src/model-selection.ts",
           "packages/subagent/tool-subagent/src/list-models.ts",
           "packages/subagent/tool-subagent/src/preset-selection.ts",
+          "packages/preset/agent-preset-registry/package.json",
+          "packages/preset/agent-preset-registry/README.md",
+          "packages/preset/agent-preset-registry/README.zh.md",
+          "tsconfig.base.json",
           "packages/preset/agent-preset-registry/src/claude-agents.ts",
           "packages/preset/agent-preset-registry/src/claude-agent-instructions.ts",
           "packages/preset/agent-preset-registry/src/definition.ts",

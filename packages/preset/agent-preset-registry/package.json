@@ -26,6 +26,10 @@
       "types": "./lib/types/display.d.ts",
       "default": "./lib/types/display.js"
     },
+    "./claude-agent-instructions": {
+      "types": "./lib/types/claude-agent-instructions.d.ts",
+      "default": "./lib/types/claude-agent-instructions.js"
+    },
     "./typert": {
       "types": "./lib/typert.host.d.ts",
       "default": "./lib/typert.host.js"

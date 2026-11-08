@@ -6,8 +6,8 @@ import { load } from 'js-yaml'
 import type { Context } from '@panedesk/cordis'
 import type { PresetDefinition } from './definition.ts'
 
-/** Instruction plugin, addressed by its source file so the Loader can import it. */
-const INSTRUCTION_PLUGIN = new URL('./claude-agent-instructions.ts', import.meta.url).href
+/** Instruction plugin, resolved through source aliases or the installed package export. */
+const INSTRUCTION_PLUGIN = '@panedesk/dsh-agent-preset-registry/claude-agent-instructions'
 
 /** Claude Code tool name to the Panedesk tool a running agent can call. */
 const CLAUDE_TOOL_NAMES: Readonly<Record<string, string>> = {

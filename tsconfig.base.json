@@ -201,6 +201,7 @@
       "@panedesk/dsh-agent-preset-registry/tools": ["./packages/preset/agent-preset-registry/src/tools.ts"],
       "@panedesk/dsh-agent-preset-registry/types": ["./packages/preset/agent-preset-registry/src/types.ts"],
       "@panedesk/dsh-agent-preset-registry/display": ["./packages/preset/agent-preset-registry/src/display.ts"],
+      "@panedesk/dsh-agent-preset-registry/claude-agent-instructions": ["./packages/preset/agent-preset-registry/src/claude-agent-instructions.ts"],
       "@panedesk/dsh-pwsh-local": ["./packages/shell/pwsh-local/src/index.ts"],
       "@panedesk/dsh-tool-pwsh": ["./packages/shell/tool-pwsh/src/index.ts"],
       "@panedesk/dsh-shell-env": ["./packages/shell/shell-env/src/index.ts"],
