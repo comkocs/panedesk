@@ -201,6 +201,7 @@ export function ConversationContent(props: ConversationContentProps) {
     >
       <div className={css.scrollBody} data-conversation-scroll="">
         {sessionId === undefined ? null : <Views />}
+        {zone !== undefined && renderSlot('conversation.pending', zone)}
         {composerSeat}
       </div>
       <WidthControls container={body} phase={phase} />

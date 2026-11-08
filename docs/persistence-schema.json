@@ -406,7 +406,7 @@
       "kind": "event",
       "event": "agent/inbox/spliced",
       "surface": false,
-      "digest": "50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98",
+      "digest": "8d28dd42eb03b986f5326f2544eb9f9e443868554b53004fa29e1c49dadba340",
       "schema": {
         "root": 0,
         "nodes": [
@@ -822,30 +822,28 @@
             "kind": "union",
             "types": [
               34,
-              36,
+              37,
               39,
-              41,
+              42,
               44,
-              49,
+              47,
               52,
-              61,
+              55,
               64,
-              69,
-              71,
-              73,
-              75,
-              77,
-              79,
-              81,
-              83,
-              85,
-              87,
-              89,
-              91,
-              93,
+              67,
+              72,
+              74,
+              76,
+              78,
+              80,
+              82,
+              84,
+              86,
+              88,
+              90,
+              92,
+              94,
               96,
-              97,
-              98,
               99,
               100,
               101,
@@ -909,31 +907,33 @@
               159,
               160,
               161,
+              162,
               163,
-              167,
+              164,
+              166,
               170,
-              172,
+              173,
               175,
-              176,
-              177,
               178,
               179,
+              180,
               181,
               182,
-              183,
               184,
+              185,
               186,
               187,
-              188,
               189,
               190,
+              191,
               192,
               193,
-              194,
+              195,
               196,
-              198,
+              197,
               199,
-              207
+              201,
+              202
             ]
           },
           {
@@ -947,6 +947,35 @@
               {
                 "name": "kind",
                 "type": 35,
+                "optional": false
+              },
+              {
+                "name": "outcome",
+                "type": 36,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "literal",
+            "value": "user-question-reply"
+          },
+          {
+            "kind": "literal",
+            "value": "answered"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "callId",
+                "type": 7,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 38,
                 "optional": false
               }
             ],
@@ -971,7 +1000,7 @@
               },
               {
                 "name": "principal",
-                "type": 37,
+                "type": 40,
                 "optional": true
               },
               {
@@ -987,7 +1016,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 38,
+                "type": 41,
                 "optional": false
               }
             ],
@@ -1007,7 +1036,7 @@
               },
               {
                 "name": "kind",
-                "type": 40,
+                "type": 43,
                 "optional": false
               },
               {
@@ -1032,12 +1061,12 @@
               },
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 43,
+                "type": 46,
                 "optional": false
               },
               {
@@ -1076,17 +1105,17 @@
             "properties": [
               {
                 "name": "entries",
-                "type": 45,
+                "type": 48,
                 "optional": false
               },
               {
                 "name": "form",
-                "type": 47,
+                "type": 50,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 48,
+                "type": 51,
                 "optional": false
               },
               {
@@ -1099,7 +1128,7 @@
           },
           {
             "kind": "array",
-            "element": 46
+            "element": 49
           },
           {
             "kind": "object",
@@ -1130,12 +1159,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 50,
+                "type": 53,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 51,
+                "type": 54,
                 "optional": false
               },
               {
@@ -1159,22 +1188,22 @@
             "properties": [
               {
                 "name": "form",
-                "type": 53,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 54,
+                "type": 57,
                 "optional": false
               },
               {
                 "name": "references",
-                "type": 55,
+                "type": 58,
                 "optional": false
               },
               {
                 "name": "version",
-                "type": 60,
+                "type": 63,
                 "optional": false
               }
             ],
@@ -1190,7 +1219,7 @@
           },
           {
             "kind": "array",
-            "element": 56
+            "element": 59
           },
           {
             "kind": "object",
@@ -1202,12 +1231,12 @@
               },
               {
                 "name": "capturedThroughSeq",
-                "type": 57,
+                "type": 60,
                 "optional": false
               },
               {
                 "name": "compacted",
-                "type": 59,
+                "type": 62,
                 "optional": false
               },
               {
@@ -1247,7 +1276,7 @@
               },
               {
                 "name": "truncated",
-                "type": 59,
+                "type": 62,
                 "optional": false
               }
             ],
@@ -1257,7 +1286,7 @@
             "kind": "union",
             "types": [
               20,
-              58
+              61
             ]
           },
           {
@@ -1277,17 +1306,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 62,
+                "type": 65,
                 "optional": false
               },
               {
                 "name": "reportPaths",
-                "type": 63,
+                "type": 66,
                 "optional": true
               },
               {
@@ -1316,17 +1345,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 66,
+                "type": 69,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1342,7 +1371,7 @@
           },
           {
             "kind": "array",
-            "element": 68
+            "element": 71
           },
           {
             "kind": "object",
@@ -1365,17 +1394,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 70,
+                "type": 73,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1390,17 +1419,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 72,
+                "type": 75,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1415,17 +1444,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 74,
+                "type": 77,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1440,17 +1469,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 76,
+                "type": 79,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1465,17 +1494,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 78,
+                "type": 81,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1490,17 +1519,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 80,
+                "type": 83,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1515,17 +1544,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 82,
+                "type": 85,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1540,17 +1569,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 84,
+                "type": 87,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1565,17 +1594,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 86,
+                "type": 89,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1590,17 +1619,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 88,
+                "type": 91,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1615,17 +1644,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 90,
+                "type": 93,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1640,17 +1669,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 65,
+                "type": 68,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 92,
+                "type": 95,
                 "optional": false
               },
               {
                 "name": "sections",
-                "type": 67,
+                "type": 70,
                 "optional": false
               }
             ],
@@ -1665,12 +1694,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 95,
+                "type": 98,
                 "optional": false
               },
               {
@@ -1694,33 +1723,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 66,
-                "optional": false
-              },
-              {
-                "name": "summary",
-                "type": 7,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 42,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 70,
+                "type": 69,
                 "optional": false
               },
               {
@@ -1736,12 +1744,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 72,
+                "type": 73,
                 "optional": false
               },
               {
@@ -1757,12 +1765,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 74,
+                "type": 75,
                 "optional": false
               },
               {
@@ -1778,12 +1786,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 76,
+                "type": 77,
                 "optional": false
               },
               {
@@ -1799,12 +1807,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 78,
+                "type": 79,
                 "optional": false
               },
               {
@@ -1820,12 +1828,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 80,
+                "type": 81,
                 "optional": false
               },
               {
@@ -1841,12 +1849,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 82,
+                "type": 83,
                 "optional": false
               },
               {
@@ -1862,12 +1870,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 84,
+                "type": 85,
                 "optional": false
               },
               {
@@ -1883,12 +1891,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 86,
+                "type": 87,
                 "optional": false
               },
               {
@@ -1904,12 +1912,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 88,
+                "type": 89,
                 "optional": false
               },
               {
@@ -1925,12 +1933,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 90,
+                "type": 91,
                 "optional": false
               },
               {
@@ -1946,12 +1954,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 42,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 92,
+                "type": 93,
                 "optional": false
               },
               {
@@ -1967,204 +1975,17 @@
             "properties": [
               {
                 "name": "form",
-                "type": 50,
+                "type": 45,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 66,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
+                "type": 95,
                 "optional": false
               },
               {
-                "name": "kind",
-                "type": 70,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 72,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 74,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 76,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 78,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 80,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 82,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 84,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 86,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 88,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 90,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "form",
-                "type": 50,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 92,
+                "name": "summary",
+                "type": 7,
                 "optional": false
               }
             ],
@@ -2180,7 +2001,7 @@
               },
               {
                 "name": "kind",
-                "type": 66,
+                "type": 69,
                 "optional": false
               }
             ],
@@ -2196,7 +2017,7 @@
               },
               {
                 "name": "kind",
-                "type": 70,
+                "type": 73,
                 "optional": false
               }
             ],
@@ -2212,7 +2033,7 @@
               },
               {
                 "name": "kind",
-                "type": 72,
+                "type": 75,
                 "optional": false
               }
             ],
@@ -2228,7 +2049,7 @@
               },
               {
                 "name": "kind",
-                "type": 74,
+                "type": 77,
                 "optional": false
               }
             ],
@@ -2244,7 +2065,7 @@
               },
               {
                 "name": "kind",
-                "type": 76,
+                "type": 79,
                 "optional": false
               }
             ],
@@ -2260,7 +2081,7 @@
               },
               {
                 "name": "kind",
-                "type": 78,
+                "type": 81,
                 "optional": false
               }
             ],
@@ -2276,7 +2097,7 @@
               },
               {
                 "name": "kind",
-                "type": 80,
+                "type": 83,
                 "optional": false
               }
             ],
@@ -2292,7 +2113,7 @@
               },
               {
                 "name": "kind",
-                "type": 82,
+                "type": 85,
                 "optional": false
               }
             ],
@@ -2308,7 +2129,7 @@
               },
               {
                 "name": "kind",
-                "type": 84,
+                "type": 87,
                 "optional": false
               }
             ],
@@ -2324,7 +2145,7 @@
               },
               {
                 "name": "kind",
-                "type": 86,
+                "type": 89,
                 "optional": false
               }
             ],
@@ -2340,7 +2161,7 @@
               },
               {
                 "name": "kind",
-                "type": 88,
+                "type": 91,
                 "optional": false
               }
             ],
@@ -2356,7 +2177,7 @@
               },
               {
                 "name": "kind",
-                "type": 90,
+                "type": 93,
                 "optional": false
               }
             ],
@@ -2372,7 +2193,7 @@
               },
               {
                 "name": "kind",
-                "type": 92,
+                "type": 95,
                 "optional": false
               }
             ],
@@ -2383,12 +2204,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 66,
+                "type": 69,
                 "optional": false
               }
             ],
@@ -2399,12 +2220,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 70,
+                "type": 73,
                 "optional": false
               }
             ],
@@ -2415,12 +2236,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 72,
+                "type": 75,
                 "optional": false
               }
             ],
@@ -2431,12 +2252,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 74,
+                "type": 77,
                 "optional": false
               }
             ],
@@ -2447,12 +2268,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 76,
+                "type": 79,
                 "optional": false
               }
             ],
@@ -2463,12 +2284,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 78,
+                "type": 81,
                 "optional": false
               }
             ],
@@ -2479,12 +2300,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 80,
+                "type": 83,
                 "optional": false
               }
             ],
@@ -2495,12 +2316,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 82,
+                "type": 85,
                 "optional": false
               }
             ],
@@ -2511,12 +2332,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 84,
+                "type": 87,
                 "optional": false
               }
             ],
@@ -2527,12 +2348,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 86,
+                "type": 89,
                 "optional": false
               }
             ],
@@ -2543,12 +2364,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 88,
+                "type": 91,
                 "optional": false
               }
             ],
@@ -2559,12 +2380,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 90,
+                "type": 93,
                 "optional": false
               }
             ],
@@ -2575,12 +2396,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 94,
+                "type": 56,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 92,
+                "type": 95,
                 "optional": false
               }
             ],
@@ -2591,12 +2412,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 66,
+                "type": 69,
                 "optional": false
               }
             ],
@@ -2607,12 +2428,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 70,
+                "type": 73,
                 "optional": false
               }
             ],
@@ -2623,12 +2444,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 72,
+                "type": 75,
                 "optional": false
               }
             ],
@@ -2639,12 +2460,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 74,
+                "type": 77,
                 "optional": false
               }
             ],
@@ -2655,12 +2476,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 76,
+                "type": 79,
                 "optional": false
               }
             ],
@@ -2671,12 +2492,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 78,
+                "type": 81,
                 "optional": false
               }
             ],
@@ -2687,12 +2508,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 80,
+                "type": 83,
                 "optional": false
               }
             ],
@@ -2703,12 +2524,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 82,
+                "type": 85,
                 "optional": false
               }
             ],
@@ -2719,12 +2540,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 84,
+                "type": 87,
                 "optional": false
               }
             ],
@@ -2735,12 +2556,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 86,
+                "type": 89,
                 "optional": false
               }
             ],
@@ -2751,12 +2572,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 88,
+                "type": 91,
                 "optional": false
               }
             ],
@@ -2767,12 +2588,12 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 90,
+                "type": 93,
                 "optional": false
               }
             ],
@@ -2783,12 +2604,220 @@
             "properties": [
               {
                 "name": "form",
-                "type": 47,
+                "type": 97,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 92,
+                "type": 95,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 69,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 73,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 75,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 77,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 79,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 81,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 83,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 85,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 87,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 89,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 91,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 93,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "form",
+                "type": 50,
+                "optional": false
+              },
+              {
+                "name": "kind",
+                "type": 95,
                 "optional": false
               }
             ],
@@ -2804,7 +2833,7 @@
               },
               {
                 "name": "kind",
-                "type": 162,
+                "type": 165,
                 "optional": false
               },
               {
@@ -2829,12 +2858,12 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 164,
+                "type": 167,
                 "optional": false
               },
               {
                 "name": "messageClass",
-                "type": 165,
+                "type": 168,
                 "optional": false
               },
               {
@@ -2854,7 +2883,7 @@
               },
               {
                 "name": "senderSessionId",
-                "type": 166,
+                "type": 169,
                 "optional": false
               }
             ],
@@ -2872,7 +2901,7 @@
             "kind": "union",
             "types": [
               7,
-              58
+              61
             ]
           },
           {
@@ -2880,12 +2909,12 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 164,
+                "type": 167,
                 "optional": false
               },
               {
                 "name": "messageClass",
-                "type": 168,
+                "type": 171,
                 "optional": false
               },
               {
@@ -2900,7 +2929,7 @@
               },
               {
                 "name": "senderSessionId",
-                "type": 166,
+                "type": 169,
                 "optional": false
               }
             ],
@@ -2909,8 +2938,8 @@
           {
             "kind": "union",
             "types": [
-              42,
-              169
+              45,
+              172
             ]
           },
           {
@@ -2922,7 +2951,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 171,
+                "type": 174,
                 "optional": false
               },
               {
@@ -2957,7 +2986,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 173,
+                "type": 176,
                 "optional": false
               },
               {
@@ -2972,7 +3001,7 @@
               },
               {
                 "name": "replayState",
-                "type": 174,
+                "type": 177,
                 "optional": true
               }
             ],
@@ -2991,7 +3020,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 66,
+                "type": 69,
                 "optional": false
               }
             ],
@@ -3002,7 +3031,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 70,
+                "type": 73,
                 "optional": false
               }
             ],
@@ -3013,7 +3042,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 72,
+                "type": 75,
                 "optional": false
               }
             ],
@@ -3024,7 +3053,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 74,
+                "type": 77,
                 "optional": false
               }
             ],
@@ -3035,7 +3064,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 180,
+                "type": 183,
                 "optional": false
               }
             ],
@@ -3050,7 +3079,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 76,
+                "type": 79,
                 "optional": false
               }
             ],
@@ -3061,7 +3090,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 78,
+                "type": 81,
                 "optional": false
               }
             ],
@@ -3072,7 +3101,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 80,
+                "type": 83,
                 "optional": false
               }
             ],
@@ -3083,7 +3112,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 185,
+                "type": 188,
                 "optional": false
               }
             ],
@@ -3098,7 +3127,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 82,
+                "type": 85,
                 "optional": false
               }
             ],
@@ -3109,7 +3138,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 84,
+                "type": 87,
                 "optional": false
               }
             ],
@@ -3120,7 +3149,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 86,
+                "type": 89,
                 "optional": false
               }
             ],
@@ -3131,7 +3160,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 88,
+                "type": 91,
                 "optional": false
               }
             ],
@@ -3142,7 +3171,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 191,
+                "type": 194,
                 "optional": false
               }
             ],
@@ -3168,7 +3197,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 90,
+                "type": 93,
                 "optional": false
               }
             ],
@@ -3179,7 +3208,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 195,
+                "type": 198,
                 "optional": false
               }
             ],
@@ -3194,7 +3223,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 197,
+                "type": 200,
                 "optional": false
               }
             ],
@@ -3209,7 +3238,7 @@
             "properties": [
               {
                 "name": "kind",
-                "type": 92,
+                "type": 95,
                 "optional": false
               }
             ],
@@ -3230,17 +3259,17 @@
               },
               {
                 "name": "changes",
-                "type": 200,
+                "type": 203,
                 "optional": false
               },
               {
                 "name": "form",
-                "type": 50,
+                "type": 53,
                 "optional": false
               },
               {
                 "name": "kind",
-                "type": 206,
+                "type": 209,
                 "optional": false
               }
             ],
@@ -3248,14 +3277,14 @@
           },
           {
             "kind": "array",
-            "element": 201
+            "element": 204
           },
           {
             "kind": "object",
             "properties": [
               {
                 "name": "action",
-                "type": 202,
+                "type": 205,
                 "optional": false
               },
               {
@@ -3279,9 +3308,9 @@
           {
             "kind": "union",
             "types": [
-              203,
-              204,
-              205
+              206,
+              207,
+              208
             ]
           },
           {
@@ -3301,35 +3330,6 @@
             "value": "agent-instructions"
           },
           {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "callId",
-                "type": 7,
-                "optional": false
-              },
-              {
-                "name": "kind",
-                "type": 208,
-                "optional": false
-              },
-              {
-                "name": "outcome",
-                "type": 209,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "literal",
-            "value": "user-question-reply"
-          },
-          {
-            "kind": "literal",
-            "value": "answered"
-          },
-          {
             "kind": "literal",
             "value": "canceled"
           },
@@ -3340,6 +3340,11 @@
           {
             "kind": "object",
             "properties": [
+              {
+                "name": "afterTools",
+                "type": 62,
+                "optional": true
+              },
               {
                 "name": "earliestTurn",
                 "type": 20,
@@ -3352,7 +3357,7 @@
               },
               {
                 "name": "passive",
-                "type": 59,
+                "type": 62,
                 "optional": false
               },
               {
@@ -3410,7 +3415,7 @@
       "kind": "event",
       "event": "agent/input/transition",
       "surface": false,
-      "digest": "b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf",
+      "digest": "74ec79de4358fd720eefa4dd9d41d619a7ea0066e0507862e5651e46b3a970b9",
       "schema": {
         "root": 0,
         "nodes": [
@@ -3429,12 +3434,12 @@
               },
               {
                 "name": "seq",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "time",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
@@ -3496,18 +3501,23 @@
             "kind": "object",
             "properties": [
               {
-                "name": "earliestTurn",
+                "name": "afterTools",
                 "type": 8,
+                "optional": true
+              },
+              {
+                "name": "earliestTurn",
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "enqueueSequence",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "passive",
-                "type": 9,
+                "type": 8,
                 "optional": false
               },
               {
@@ -3520,11 +3530,11 @@
           },
           {
             "kind": "primitive",
-            "type": "number"
+            "type": "boolean"
           },
           {
             "kind": "primitive",
-            "type": "boolean"
+            "type": "number"
           },
           {
             "kind": "union",
@@ -3571,12 +3581,12 @@
               },
               {
                 "name": "step",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "turn",
-                "type": 8,
+                "type": 9,
                 "optional": false
               }
             ],
@@ -3611,12 +3621,12 @@
               },
               {
                 "name": "step",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "turn",
-                "type": 8,
+                "type": 9,
                 "optional": false
               }
             ],
@@ -3646,12 +3656,12 @@
               },
               {
                 "name": "step",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "turn",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
@@ -3668,7 +3678,7 @@
           },
           {
             "kind": "array",
-            "element": 8
+            "element": 9
           },
           {
             "kind": "object",
@@ -3690,12 +3700,12 @@
               },
               {
                 "name": "step",
-                "type": 8,
+                "type": 9,
                 "optional": false
               },
               {
                 "name": "turn",
-                "type": 8,
+                "type": 9,
                 "optional": false
               }
             ],
@@ -24406,6 +24416,13 @@
       "sources": []
     },
     {
+      "digest": "239a1425579d1ccac16e7265244e67583e1932c1947aa6bc290aaac75e268500",
+      "names": [],
+      "sources": [
+        "packages/core/agent/src/types.ts:64"
+      ]
+    },
+    {
       "digest": "23af3759678a30de1d11d946772da8c051c63caa67997c5da05d30d7a9fe8a97",
       "names": [],
       "sources": []
@@ -24486,15 +24503,6 @@
       "digest": "29aa673eaba60cbc388f505248bf698c80c13d080f4ee2ff3312ba1950e34e77",
       "names": [],
       "sources": []
-    },
-    {
-      "digest": "29d44ca4112ea6bc0622c138949e090ff7e731812a9f98cc0b675bc39101b83d",
-      "names": [
-        "packages/core/agent/src/types.ts#InputTransition"
-      ],
-      "sources": [
-        "packages/core/agent/src/types.ts:61"
-      ]
     },
     {
       "digest": "2a5e4fd96d8d1a034a9f9c6430059e2de499aa5e4ea03b1a4b402a72d6be2826",
@@ -24955,6 +24963,11 @@
       "sources": []
     },
     {
+      "digest": "48926b6219cbafd3ecf13b1974c61569624aa632e277eb174e8bb28b586558b5",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "48e5c9861f16ac07e78cb7b5ae9dabdf7bb85c58baed5a51b4ad275050ea58e3",
       "names": [],
       "sources": []
@@ -25055,7 +25068,7 @@
         "packages/workflow/workflow/src/types.ts#WorkflowRunId"
       ],
       "sources": [
-        "packages/api/session-controller/src/types.ts:446",
+        "packages/api/session-controller/src/types.ts:447",
         "packages/attachment/attachment/src/brand.ts:6",
         "packages/compaction/compaction/src/brand.ts:4",
         "packages/core/agent/src/types.ts:47",
@@ -25128,11 +25141,6 @@
     },
     {
       "digest": "50cf02d875f8a1f1411f4a6fbcffab9120ccef5f74a47331fbf29480e5f68f48",
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98",
       "names": [],
       "sources": []
     },
@@ -25344,6 +25352,11 @@
       "sources": []
     },
     {
+      "digest": "5dae28cd8a05fab9f9389eea41c42a2c9735161a0a77b747f29b5157ffa8ddbd",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "5dd766ccd1702a1142ad8b4bd44f2242f8e8a6752669ad3de0a5d224329b1438",
       "names": [],
       "sources": [
@@ -25443,6 +25456,15 @@
       "digest": "62ecb62dc0fe1b5e70217f8a80c39256a40ee3a1917be14e5ca899d20c35f7fd",
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "6418e6ea2d81c81e9fcc14e316a1e103514b0cfea2be94f8d761efefc5a99d09",
+      "names": [
+        "packages/core/agent/src/types.ts#InputTransition"
+      ],
+      "sources": [
+        "packages/core/agent/src/types.ts:63"
+      ]
     },
     {
       "digest": "6487b10ba7542f3c447b1e41a1c6a590b7bfafe0b9b66b49f34028da85bb970f",
@@ -25629,7 +25651,7 @@
       "digest": "6dacb1584f2bfbe209dc6b6f578d51da6d55595f64d0e63c727c98f359278def",
       "names": [],
       "sources": [
-        "packages/api/session-controller/src/types.ts:455"
+        "packages/api/session-controller/src/types.ts:456"
       ]
     },
     {
@@ -25760,6 +25782,11 @@
     },
     {
       "digest": "7382c4fc95fe8c5db65ca4d9da572b115d0dbb818b7f32c22ab040318ffbb4bc",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "74ec79de4358fd720eefa4dd9d41d619a7ea0066e0507862e5651e46b3a970b9",
       "names": [],
       "sources": []
     },
@@ -26118,6 +26145,15 @@
       ]
     },
     {
+      "digest": "8ab934ebd47f95991d2bf578d54a07641fbf28c0f0c8dc64b911845043fb8a7f",
+      "names": [
+        "packages/core/agent/src/types.ts#InputScheduling"
+      ],
+      "sources": [
+        "packages/core/agent/src/types.ts:50"
+      ]
+    },
+    {
       "digest": "8ad45ad053b4d89f8865c17cc9ff3b8748e86045f3f0fb816269a34af2619141",
       "names": [],
       "sources": [
@@ -26157,6 +26193,11 @@
     },
     {
       "digest": "8cdd3fdd295cee53035de16a1b23411716f75e9f994fe9510cac5d7fef605c76",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "8d28dd42eb03b986f5326f2544eb9f9e443868554b53004fa29e1c49dadba340",
       "names": [],
       "sources": []
     },
@@ -26239,13 +26280,6 @@
       ],
       "sources": [
         "packages/interaction/user-approval/src/types.ts:33"
-      ]
-    },
-    {
-      "digest": "9336389ed21d48cf04d0be9d8d964134de294bb5af6512087f1f0eccca3fb606",
-      "names": [],
-      "sources": [
-        "packages/core/agent/src/types.ts:62"
       ]
     },
     {
@@ -26441,15 +26475,6 @@
       "sources": []
     },
     {
-      "digest": "9f6ff05616a886a384d146a026a0fbaea2b29b104bc831f538f1509dbe5ae1e8",
-      "names": [
-        "packages/core/agent/src/types.ts#InputScheduling"
-      ],
-      "sources": [
-        "packages/core/agent/src/types.ts:50"
-      ]
-    },
-    {
       "digest": "a0a2e5c42e1c929445ecd1cd70f49be6b66441894ec72c08e8ae332821d4a3cb",
       "names": [],
       "sources": []
@@ -26538,11 +26563,6 @@
     },
     {
       "digest": "a67c6deaa79e782f677800a3dc9cea372b1f50ec85330426c03f9b83a44e17b5",
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "a6a19ef9ceddd13013b69fae1a06a76fe65883d2eba6797e53a1f9313fe98a1f",
       "names": [],
       "sources": []
     },
@@ -26812,11 +26832,6 @@
       "sources": []
     },
     {
-      "digest": "b26cc71e4d00bd94e2a1864dbbc91121d658d8852f67eefaa4044d57269da935",
-      "names": [],
-      "sources": []
-    },
-    {
       "digest": "b2a5c8c008a31e3dc6c3013502f2356aca13894b31c8e70601fa92f2d40d1dba",
       "names": [],
       "sources": []
@@ -26916,6 +26931,13 @@
       "sources": []
     },
     {
+      "digest": "b767d6233fe38649424ea79143e5e6cdbc1186d49ea1374949f36a44c83dbb28",
+      "names": [],
+      "sources": [
+        "packages/core/agent/src/types.ts:137"
+      ]
+    },
+    {
       "digest": "b790aeb2319b5c0d2a905277abc1f7b5aa68736387758ef8856b3ae92ac9d129",
       "names": [
         "packages/core/session/src/types.ts#TurnEndCancelCause"
@@ -26976,11 +26998,6 @@
     },
     {
       "digest": "b993441f8ce7d27b80e619e113e232ae8e62d3d5a8340f6bfe12d8c4c018e62f",
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf",
       "names": [],
       "sources": []
     },
@@ -27171,13 +27188,6 @@
       "names": [],
       "sources": [
         "packages/compaction/compaction/src/types.ts:72"
-      ]
-    },
-    {
-      "digest": "ca88b0017e94e6e572d8fa5a294ce0d556825d6637543fa28fe42fa3c0c3ac42",
-      "names": [],
-      "sources": [
-        "packages/core/agent/src/types.ts:135"
       ]
     },
     {

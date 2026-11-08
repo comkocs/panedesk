@@ -54,6 +54,7 @@ const schedulingSchema = z.object({
   passive: z.boolean(),
   enqueueSequence: z.number().int().nonnegative(),
   earliestTurn: z.number().int().nonnegative(),
+  afterTools: z.boolean().optional(),
 })
 
 /** Standard fold that reconstructs pending input and rejects invalid durable splice history. */
@@ -129,7 +130,8 @@ export const inboxProjectionDefinition = {
       for (const [index, message] of splice.inserted.entries()) {
         const policy = splice.scheduling?.[index]
         if (policy !== undefined) {
-          scheduling[message.id] = schedulingSchema.parse(policy)
+          const { afterTools, ...parsed } = schedulingSchema.parse(policy)
+          scheduling[message.id] = { ...parsed, ...(afterTools === undefined ? {} : { afterTools }) }
           sequence = Math.max(sequence, policy.enqueueSequence)
         } else {
           sequence++
@@ -235,9 +237,11 @@ export class ReactLoopInbox implements InboxContract {
    * Remove and return the complete batch proposed for one step.
    * @param target - whether this boundary also consumes one queued turn.
    * @param turn - turn that will own the claimed batch.
-   * @returns next-step input followed by the queued turn, when requested.
+   * @param step - step identity for scheduled claim reservations.
+   * @param afterTools - admit opted-in queue messages after a completed tool step.
+   * @returns next-step input followed by eligible queued input.
    */
-  claim(target: InboxTarget, turn: number, step?: number): UserMessage[] {
+  claim(target: InboxTarget, turn: number, step?: number, afterTools = false): UserMessage[] {
     const state = this.current()
     const reserve = (messages: readonly UserMessage[]): void => {
       const scheduled = messages.filter(message => state.scheduling[message.id] !== undefined)
@@ -259,7 +263,8 @@ export class ReactLoopInbox implements InboxContract {
       message, list, policy: state.scheduling[message.id],
     }))).filter(({ list, policy }) => policy === undefined
       ? list === 'next-step' || target === 'next-turn'
-      : policy.earliestTurn <= turn && (policy.priority !== 'queue' || target === 'next-turn'))
+      : policy.earliestTurn <= turn
+        && (policy.priority !== 'queue' || target === 'next-turn' || (afterTools && policy.afterTools === true)))
     if (Object.keys(state.scheduling).length > 0) {
       candidates.sort((a, b) => rank[a.policy?.priority ?? (a.list === 'next-step' ? 'steer' : 'queue')]
         - rank[b.policy?.priority ?? (b.list === 'next-step' ? 'steer' : 'queue')]
@@ -267,7 +272,8 @@ export class ReactLoopInbox implements InboxContract {
     }
     let ordinaryClaimed = false
     const selected = candidates.filter(({ list, policy }) => {
-      const ordinary = policy === undefined ? list === 'next-turn' : policy.priority === 'queue' && !policy.passive
+      const ordinary = policy === undefined ? list === 'next-turn'
+        : policy.priority === 'queue' && !policy.passive && !(afterTools && policy.afterTools === true)
       if (ordinary && ordinaryClaimed) return false
       ordinaryClaimed ||= ordinary
       return true

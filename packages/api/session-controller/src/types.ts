@@ -382,7 +382,8 @@ export interface SessionPromptRequest {
   /** Client-minted identity persisted on the exact accepted user message. */
   readonly requestId: SessionRequestId
   readonly sessionId: SessionId
-  readonly mode: 'queue' | 'steer'
+  /** next-step waits for tools; a final answer defers it to a new turn. */
+  readonly mode: 'queue' | 'steer' | 'next-step'
   /** At least one non-whitespace text part or attachment. */
   readonly content: readonly PromptContentPart[]
   readonly clientTimeZone?: string

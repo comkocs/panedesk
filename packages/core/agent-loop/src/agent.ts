@@ -184,7 +184,9 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       priority: options.priority,
       passive: options.passive,
       enqueueSequence: this.inbox.nextSequence,
-      earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running' && options.priority !== 'queue' ? turn : turn + 1),
+      earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running'
+        && (options.priority !== 'queue' || options.afterTools === true) ? turn : turn + 1),
+      ...(options.afterTools === undefined ? {} : { afterTools: options.afterTools }),
     })
     if (options.operationId !== undefined) this.inputOperations.set(options.operationId, signature)
     if (options.priority === 'immediate' && !options.passive && this.phase.kind === 'running' && !this.phase.abort.signal.aborted) {
@@ -210,8 +212,12 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
     if (this.inbox.hasRunnable) this.wakeDriver()
   }
 
-  followup(input: UserMessage): void {
-    this.send(input, 'next-turn', true)
+  followup(input: UserMessage, options?: { readonly afterTools?: boolean }): void {
+    if (options?.afterTools === true) {
+      this.enqueue(input, { priority: 'queue', passive: false, wakeup: true, afterTools: true })
+    } else {
+      this.send(input, 'next-turn', true)
+    }
   }
 
   steer(input: UserMessage): void {
@@ -314,7 +320,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
     }
   }
 
-  private async preStep(target: InboxTarget, position: { turn: number; step: number }): Promise<PreparedStep> {
+  private async preStep(target: InboxTarget, position: { turn: number; step: number }, afterTools: boolean): Promise<PreparedStep> {
     /* v8 ignore next -- private callers establish the running phase before proposing a step */
     if (this.phase.kind !== 'running') throw new Error(`agent "${this.id}": pre-step outside running phase`)
     const signal = this.phase.abort.signal
@@ -323,7 +329,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       await preparation
       signal.throwIfAborted()
     }
-    const claimed = this.inbox.claim(target, position.turn, position.step)
+    const claimed = this.inbox.claim(target, position.turn, position.step, afterTools)
     const assembly = await this.loopCtx.systemPrompt.assemble(assembleContextFor(this, signal))
     signal.throwIfAborted()
     const decision = await this.dispatch.waterfall(
@@ -375,7 +381,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       while (true) {
         signal.throwIfAborted()
         const step = phase.step + 1
-        const decision = await this.preStep(target, { turn, step })
+        const decision = await this.preStep(target, { turn, step }, target === 'next-step' && turnEnds === null)
         if (decision.kind === 'reject') {
           turnEnds = { kind: 'blocked' }
           return false

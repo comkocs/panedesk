@@ -270,6 +270,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
     'conversation.hero.seat': { kind: 'single'; scope: 'session-maybe'; owner: { currentDirectory: string | undefined } }
     /** Compact options right-aligned in the New Session row after the workspace and preset controls; rendered only with a Session. */
     'conversation.hero.options': { kind: 'list'; scope: 'session' }
+    /** Pending message bubbles after the conversation views and before the sticky composer. */
+    'conversation.pending': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -316,6 +318,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
         'conversation.composer': { kind: 'chain'; scope: 'session' }
         'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe' }
         'conversation.input.dock': { kind: 'list'; scope: 'session' }
+        'conversation.pending': { kind: 'list'; scope: 'session' }
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }

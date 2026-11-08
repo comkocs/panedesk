@@ -14,7 +14,7 @@ export const BUSY_ENTER_BEHAVIORS = ['queue', 'steer'] as const
 /** Configurable meaning of plain Enter while the addressed agent is busy. */
 export type BusyEnterBehavior = typeof BUSY_ENTER_BEHAVIORS[number]
 
-/** Unset preferences use Enter-as-Steer for running conversations. */
+/** The persisted steer preference selects non-interrupting delivery after tools, including for unset preferences. */
 export const DEFAULT_BUSY_ENTER_BEHAVIOR: BusyEnterBehavior = 'steer'
 
 /** Durable conversation section shared by the Host schema and the browser scope. */

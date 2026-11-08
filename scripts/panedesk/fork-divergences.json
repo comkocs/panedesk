@@ -14983,6 +14983,36 @@
       }
     },
     {
+      "id": "conversation-after-tools-pending-bubbles",
+      "description": "Queue running composer submissions after tools without interrupting the turn",
+      "origin": "Product conversation delivery",
+      "reason": "The persisted steer preference selects safe next-step delivery: wait for all tools, join an owed request, or start a new turn after a final answer. Host-owned FIFO pending bubbles support withdrawal into the current draft and explicit legacy Steer through Send now. Queue retains next-turn delivery; no settings migration is added.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/core/agent/src/types.ts",
+          "packages/core/agent/src/runtime-types.ts",
+          "packages/core/agent-loop/src/agent.ts",
+          "packages/core/agent-loop/src/inbox.ts",
+          "packages/api/session-controller/src/commands.ts",
+          "packages/api/session-controller/src/types.ts",
+          "packages/api/session-controller/src/client/contract/session.ts",
+          "packages/api/session-controller/src/client/sessions/session.ts",
+          "packages/subagent/subagent/src/control-types.ts",
+          "packages/subagent/subagent/src/control.ts",
+          "packages/subagent/subagent/src/index.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/client/ui-conversation/src/submission-settings.ts",
+          "packages/client/ui-conversation/src/client/input/submission-policy.ts",
+          "packages/client/ui-conversation/src/client/input/facade.ts",
+          "packages/client/ui-conversation/src/client/queue/QueueDock.tsx",
+          "packages/client/ui-conversation/src/client/queue/QueueDock.module.css",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx",
+          "packages/client/ui-conversation/src/client/locales.ts"
+        ]
+      }
+    },
+    {
       "id": "desktop-package-without-post-pack-smoke",
       "description": "Package desktop installers without pre-pack or post-pack runtime smoke checks, except after signing",
       "origin": "Desktop packaging",

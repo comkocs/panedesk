@@ -1,11 +1,9 @@
 /** Composer submission vocabulary shared by the input and settings domains. */
 
-import type { BusyEnterBehavior } from '../../submission-settings.ts'
-
 export type { BusyEnterBehavior } from '../../submission-settings.ts'
 
-/** Delivery mode requested for one ordinary composer message. */
-export type InputSubmitMode = BusyEnterBehavior
+/** Delivery mode requested for one ordinary composer message; next-step waits for tools without interrupting. */
+export type InputSubmitMode = 'queue' | 'steer' | 'next-step'
 
 /** Keyboard gesture whose delivery mode the submission policy resolves. */
 export type ComposerSubmitGesture = 'enter' | 'accelerated'

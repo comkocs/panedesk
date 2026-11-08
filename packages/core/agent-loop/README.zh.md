@@ -74,7 +74,7 @@ const handle = await ctx.agents.create({
 
 每次 inbox 变更都会提交一条规范化的 `agent/inbox/spliced` 事件。投影注册表会同步折叠该事件，因此 `Session.append()` 返回时，实时投影已经反映该 splice。插入、编辑、移除、领取与取消都通过同一组标准 splice 坐标回放。普通删除携带 `outcome: 'canceled'` 并发出 `agent/inbox/discarded { message }`；领取使用不带 outcome 的纯删除，并发出 `agent/inbox/claimed`。每次插入都会发出 `agent/inbox/inserted { message }`。`MessageId` 在两个待处理列表之间保持唯一。需要被移除消息的消费方应使用 claimed 或 discarded 通知，而不依赖 splice 前的 `session/event` 投影视图。
 
-显式 `enqueue` 调度按 immediate、steer、queue 的顺序选择符合条件的输入，同档保留接收顺序。被动输入随自然轮次合批，但不独立驱动轮次。既有 `send`、`followup`、`steer` 和 `inject` 保持两列表行为。没有匹配的 `agent/input-preparing` 监听器时，准备阶段不会在旧路径的同步领取前增加等待边界。显式调度输入在任何 `user/message` 追加前被取消时，认领项返回原优先级队列；已经追加的输入在请求构造失败后保持已认领，直到发出。取消不会恢复旧路径已经领取的输入。
+显式 `enqueue` 调度按 immediate、steer、queue 的顺序选择符合条件的输入，同档保留接收顺序。被动输入随自然轮次合批，但不独立驱动轮次。既有 `send`、`followup`、`steer` 和 `inject` 保持两列表行为。显式使用 `followup(message, { afterTools: true })` 的消息仍留在 `next-turn` 中供撤回；完整工具步骤结束且仍需下一请求时，符合条件的消息按先进先出顺序进入该请求。最终回答则将它们留给后续轮次。此模式与旧 Steer 均不取消工具或跳过剩余调用。没有匹配的 `agent/input-preparing` 监听器时，准备阶段不会在旧路径的同步领取前增加等待边界。显式调度输入在任何 `user/message` 追加前被取消时，认领项返回原优先级队列；已经追加的输入在请求构造失败后保持已认领，直到发出。取消不会恢复旧路径已经领取的输入。
 
 立即输入只以 `interjection` 取消当前 agent，保留排队输入并请求续跑。在本驱动器存活期间，重复操作号不会再次取消；持久投递所有者负责跨重载的幂等性。同一操作号用于不同输入或选项时抛错。改档把待处理输入移到新优先级队尾，不发丢弃通知；改为立即档使用同一取消路径。
 

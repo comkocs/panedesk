@@ -16,6 +16,6 @@ export function reportMessageSubmission(ctx: Context, submission: MessageSubmiss
     ...state.sessionId === undefined ? {} : { session_id: state.sessionId },
     ...model === undefined ? {} : { model_name: `${model.provider}/${model.name}`, ...model.effort === undefined ? {} : { thinking_effort: model.effort } },
     run_mode: state.runMode,
-    msg_type: state.running ? mode : 'default',
+    msg_type: state.running ? mode === 'next-step' ? 'steer' : mode : 'default',
   }, timestamp)
 }

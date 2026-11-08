@@ -114,11 +114,13 @@ interface Agent {
   send(message: UserMessage, target: InboxTarget, wakeup: boolean): void
 
   /**
-   * Queue an ordinary follow-up turn and wake the driver. The item becomes the
-   * sole ordinary message of its own turn.
+   * Queue a follow-up turn and wake the driver. With afterTools, a running
+   * tool step can admit the input into its next request without cancellation;
+   * a final answer leaves it queued for its own turn.
    * @param message - identified prompt content and the source that supplied it.
+   * @param options - whether tool completion may admit this input into the current turn.
    */
-  followup(message: UserMessage): void
+  followup(message: UserMessage, options?: { readonly afterTools?: boolean }): void
 
   /** Retry pending work after an admission policy changes, without inserting a message. */
   wake?(): void
