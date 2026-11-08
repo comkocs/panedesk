@@ -1280,7 +1280,7 @@ describe('headless recorded-session snapshots', () => {
       ]
       const homeOutsideWorkspace = scenario.manifest.workspace?.home === 'outside-workspace'
         || ['deepseek-fetch', 'plugin-owner-install-explicit', 'ptc-node-workspace', 'ptc-policy-change',
-          'session-sandbox-root', 'terminal-workspace-revoked', 'web-fetch'].includes(scenario.name)
+          'session-sandbox-root', 'web-fetch'].includes(scenario.name)
       // Outside-workspace-home scenarios own their cwd and place the product home beside it,
       // keeping the materialized launch patches and package links out of the authorized workspace.
       const scenarioCwd = homeOutsideWorkspace
