@@ -23949,7 +23949,7 @@
         "packages/subagent/tool-subagent/src/model-selection.ts#AllowedModelRoute"
       ],
       "sources": [
-        "packages/session/session-title/src/types.ts:28",
+        "packages/session/session-title/src/types.ts:32",
         "packages/subagent/tool-subagent/src/model-selection.ts:33"
       ]
     },
@@ -24253,7 +24253,7 @@
       "digest": "1b5649238876e28811e80f10ec67a00c197ad3babd4ecc61a22b09064b88c597",
       "names": [],
       "sources": [
-        "packages/session/session-title/src/types.ts:37"
+        "packages/session/session-title/src/types.ts:41"
       ]
     },
     {
@@ -24632,7 +24632,7 @@
         "packages/session/session-title/src/types.ts#SessionTitleSource"
       ],
       "sources": [
-        "packages/session/session-title/src/types.ts:36"
+        "packages/session/session-title/src/types.ts:40"
       ]
     },
     {
@@ -25068,7 +25068,7 @@
         "packages/workflow/workflow/src/types.ts#WorkflowRunId"
       ],
       "sources": [
-        "packages/api/session-controller/src/types.ts:447",
+        "packages/api/session-controller/src/types.ts:471",
         "packages/attachment/attachment/src/brand.ts:6",
         "packages/compaction/compaction/src/brand.ts:4",
         "packages/core/agent/src/types.ts:47",
@@ -25091,8 +25091,8 @@
         "packages/llm/llm/src/brand.ts:67",
         "packages/schedule/schedule/src/types.ts:36",
         "packages/session/message-delivery/src/types.ts:10",
-        "packages/session/session-title/src/index.ts:44",
-        "packages/session/session-title/src/types.ts:25",
+        "packages/session/session-title/src/index.ts:46",
+        "packages/session/session-title/src/types.ts:29",
         "packages/util/brand/src/index.ts:18",
         "packages/workflow/workflow/src/types.ts:13"
       ]
@@ -25508,7 +25508,7 @@
         "packages/skill/skill/src/index.ts#SkillInvocationSource"
       ],
       "sources": [
-        "packages/skill/skill/src/index.ts:146"
+        "packages/skill/skill/src/index.ts:156"
       ]
     },
     {
@@ -25651,7 +25651,7 @@
       "digest": "6dacb1584f2bfbe209dc6b6f578d51da6d55595f64d0e63c727c98f359278def",
       "names": [],
       "sources": [
-        "packages/api/session-controller/src/types.ts:456"
+        "packages/api/session-controller/src/types.ts:480"
       ]
     },
     {
@@ -26728,7 +26728,7 @@
         "packages/interaction/commands/src/types.ts:75",
         "packages/interaction/commands/src/types.ts:79",
         "packages/llm/llm/src/message.ts:111",
-        "packages/session/session-title/src/types.ts:43"
+        "packages/session/session-title/src/types.ts:47"
       ]
     },
     {
@@ -26881,7 +26881,7 @@
         "packages/session/session-title/src/types.ts#SessionTitleEventData"
       ],
       "sources": [
-        "packages/session/session-title/src/types.ts:49"
+        "packages/session/session-title/src/types.ts:53"
       ]
     },
     {
@@ -26965,7 +26965,7 @@
       "digest": "b81e9de81a481b24e1e1f9adf038bfc59e57b4f35ce62f8f1e45284186f4f812",
       "names": [],
       "sources": [
-        "packages/session/session-title/src/types.ts:38"
+        "packages/session/session-title/src/types.ts:42"
       ]
     },
     {

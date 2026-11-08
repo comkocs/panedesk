@@ -157,7 +157,7 @@ export type Config = PresetDefinition
 
 - `inject`: `loader` · `sessionProjections`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:18`](../packages/preset/agent-preset-registry/src/preset.ts)
+- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:22`](../packages/preset/agent-preset-registry/src/preset.ts)
 
 ```ts config-catalog
 /** Registry selection policy. */
@@ -576,15 +576,16 @@ export interface Config {
 
 ## `@panedesk/dsh-client-ui-nodes`
 
-- `source`: [`packages/client/ui-nodes/src/index.ts:13`](../packages/client/ui-nodes/src/index.ts)
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/client/ui-nodes/src/index.ts:16`](../packages/client/ui-nodes/src/index.ts)
 
 ```ts config-catalog
 /** Availability and polling are deployment configuration, not client-owned authority. */
 export interface Config {
-  /** Whether authenticated owners can read observations and submit confirmed operations. */
+  /** Whether observations are enabled when no node transport is installed. */
   enabled: boolean
   /** Polling interval in milliseconds returned to browser observation consumers. */
-  refreshIntervalMs: number
+  refreshIntervalMs: Volatile<number>
   /** Maximum callback and source-operation rows requested from each provider. */
   pageSize: number
 }
@@ -682,7 +683,7 @@ export interface Config {
 - `source`: [`packages/client/ui-settings-account/src/index.ts:9`](../packages/client/ui-settings-account/src/index.ts)
 
 ```ts config-catalog
-/** Public contact options and live device-local onboarding progress. */
+/** Bonus notice options and live device-local onboarding progress. */
 export interface Config extends ContactConfig {
   /** Onboarding progress format version. */
   version: Volatile<1>
@@ -700,12 +701,8 @@ export interface Config extends ContactConfig {
   developerTools: Volatile<boolean>
 }
 
-/** Questionnaire destination and bonus notice timings shared by Host and Client. */
+/** Bonus notice timings shared by Host and Client. */
 export interface ContactConfig {
-  /** HTTPS questionnaire URL; override for a test form. */
-  contactFormUrl: string
-  /** Questionnaire source option; empty until Harness is supported by the form. */
-  contactSource: string
   /** First delay before retrying a failed bonus acknowledgement. */
   bonusAckRetryDelayMs: number
   /** Ceiling for the acknowledgement retry backoff. */
@@ -722,6 +719,27 @@ export type OnboardingPurpose = 'office' | 'development' | 'both'
 export type OnboardingProcess = 'compact' | 'standard' | 'detailed'
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-settings-account -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-settings-general -->
+<a id="panedeskdsh-client-ui-settings-general"></a>
+
+## `@panedesk/dsh-client-ui-settings-general`
+
+- `refs`: `OpeningNamePattern` (`@panedesk/dsh-session-title/types`) · `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/client/ui-settings-general/src/index.ts:11`](../packages/client/ui-settings-general/src/index.ts)
+
+```ts config-catalog
+/** Runtime preferences projected to the browser. */
+export interface Config {
+  /** Last acknowledged welcome notice version. */
+  welcomeNoticeVersion: Volatile<string | undefined>
+  /** Enable opening-message names and creation dates globally. */
+  openingNameEnabled: Volatile<boolean>
+  /** Sample and anchors used for new session names. */
+  openingName: Volatile<OpeningNamePattern | undefined>
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-settings-general -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-settings-models -->
 <a id="panedeskdsh-client-ui-settings-models"></a>
@@ -778,15 +796,16 @@ export interface Config {
 
 ## `@panedesk/dsh-client-ui-stats`
 
-- `source`: [`packages/client/ui-stats/src/index.ts:10`](../packages/client/ui-stats/src/index.ts)
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/client/ui-stats/src/index.ts:14`](../packages/client/ui-stats/src/index.ts)
 
 ```ts config-catalog
 /** Explicit statistics availability and refresh cadence. */
 export interface Config {
   /** Permit authenticated owners to read aggregate and call projections. */
-  enabled: boolean
+  enabled: Volatile<boolean>
   /** Client resource refresh interval in milliseconds. */
-  refreshIntervalMs: number
+  refreshIntervalMs: Volatile<number>
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-stats -->
@@ -797,7 +816,8 @@ export interface Config {
 ## `@panedesk/dsh-client-ui-subagent-tree`
 
 - `inject`: `typert`
-- `source`: [`packages/client/ui-subagent-tree/src/index.ts:20`](../packages/client/ui-subagent-tree/src/index.ts)
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/client/ui-subagent-tree/src/index.ts:23`](../packages/client/ui-subagent-tree/src/index.ts)
 
 ```ts config-catalog
 /** Explicit subagent-tree availability and refresh cadence. */
@@ -806,6 +826,10 @@ export interface Config {
   enabled: boolean
   /** Client resource refresh interval in milliseconds. */
   refreshIntervalMs: number
+  /** Host-readable external JSONL registry; empty disables file reads. */
+  externalRegistryFile: Volatile<string>
+  /** Enable external registry reads while retaining the configured path. */
+  externalRegistryEnabled: Volatile<boolean>
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-subagent-tree -->
@@ -2159,7 +2183,7 @@ export interface Config extends ProtocolConfig {
 
 - `inject`: `llm`
 - `refs`: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/llm/llm-pi-ai/src/config.ts:222`](../packages/llm/llm-pi-ai/src/config.ts)
+- `source`: [`packages/llm/llm-pi-ai/src/config.ts:210`](../packages/llm/llm-pi-ai/src/config.ts)
 
 ```ts config-catalog
 /** Plugin configuration: the provider routes this instance owns. */
@@ -2222,14 +2246,9 @@ export interface PiAiProviderProfile {
    */
   defaultMaxTokens?: number
   /**
-   * Request modalities for a model this route lists that neither its entry's
-   * {@link PiAiModelProfile.input} nor the installed catalog declares (default
-   * `[text]`). A fallback like the capacities above, not an override: a
-   * catalog model keeps the modalities the catalog records for it, and this
-   * value never narrows one. A gateway serving vision models the catalog does
-   * not describe declares `[text, image]` once here instead of on every entry.
-   * Unlike an entry's list, this one may not be empty — nothing sits below it
-   * to answer instead.
+   * Advisory request modalities when an entry's {@link PiAiModelProfile.input}
+   * is absent or empty (default `[text, image, file, audio]`). This list does not restrict
+   * image dispatch; the upstream provider determines support. It must not be empty.
    */
   defaultInput?: PiAiModality[]
   /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */
@@ -2282,20 +2301,14 @@ export interface PiAiModelProfile {
    */
   maxTokens?: number
   /**
-   * Request modalities this model accepts. Absent — or empty, which describes
-   * a model that accepts nothing and so states no answer either — keeps the
-   * installed catalog entry's modalities, then the route's `defaultInput`.
-   * Declaring images is what makes a hand-declared vision model usable, and
-   * declaring text alone corrects a catalog model whose gateway does not serve
-   * what the catalog records. This is a claim about the endpoint, not a check
-   * of it: nothing interrogates a gateway for what it accepts, so a model
-   * claiming images its endpoint refuses is refused by the provider instead,
-   * mid-turn.
+   * Advisory request modalities. Absent or empty inherits the route's
+   * `defaultInput`, which defaults to text, image, file, and audio. Explicit declarations
+   * remain metadata and never suppress images in provider requests.
    */
   input?: PiAiModality[]
   /**
    * Selectable reasoning efforts. Absent inherits the installed catalog
-   * entry's capability (a hand-declared model has none and does not reason);
+   * entry's capability, or infers levels from a custom model's identity and protocol;
    * `false` declares a non-reasoning model, which is how a profile strips
    * reasoning from a catalog model its gateway cannot serve; a non-empty dict
    * declares the offered levels and their wire spellings.
@@ -2406,8 +2419,8 @@ export interface PiAiCompatProfile {
   supportsStrictTools?: boolean
 }
 
-/** One request modality a pi-ai model may accept. */
-export type PiAiModality = Model<Api>['input'][number]
+/** One advisory input type a provider profile may declare. */
+export type PiAiModality = Model<Api>['input'][number] | 'file' | 'audio'
 
 /**
  * Selectable reasoning efforts for one model: each key is a level the model
@@ -2705,6 +2718,8 @@ export interface Config {
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */
 export interface Config {
+  /** Whether configured transport may start; disabled by default. */
+  enabled: boolean
   /** Explicit activation, node identities and transport resource bounds. */
   runtime?: NodeLinkRuntimeConfig | undefined
 }
@@ -3733,7 +3748,8 @@ export enum SessionTelemetryMode {
 ## `@panedesk/dsh-session-title`
 
 - `inject`: `sessions` · `sessionProjections`
-- `source`: [`packages/session/session-title/src/index.ts:56`](../packages/session/session-title/src/index.ts)
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/session/session-title/src/index.ts:60`](../packages/session/session-title/src/index.ts)
 
 ```ts config-catalog
 /** Required deterministic fallback and accepted-title limits. */
@@ -3742,8 +3758,22 @@ export interface Config {
   readonly fallbackMaxWords: number
   /** Maximum UTF-8 bytes in the built-in fallback. */
   readonly fallbackMaxBytes: number
-  /** Maximum UTF-8 bytes in any accepted title. */
+  /** Maximum UTF-8 bytes in the title name, excluding the automatic creation-date suffix. */
   readonly maxTitleBytes: number
+  /** Saved opening-message anchors; absent uses the opening folder before model-generated titles. */
+  readonly openingName?: Volatile<OpeningNamePattern | undefined>
+}
+
+/** Saved opening-message sample and path-tolerant anchors; absence selects automatic titles. */
+export interface OpeningNamePattern {
+  /** Opening-message sample used to select the name. */
+  readonly sample: string
+  /** Anchor immediately before the selected name. */
+  readonly left: string
+  /** Anchor immediately after the selected name. */
+  readonly right: string
+  /** Selected sample text shown in the name preview. */
+  readonly selected: string
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-session-title -->
@@ -4088,7 +4118,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:188`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:190`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -4814,7 +4844,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:51`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:48`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */
@@ -4827,8 +4857,7 @@ export interface Config extends PresetSelectionConfig {
    */
   toolName?: string
   /**
-   * Sample the Host `subagent-model-selection` setting for each new top-level
-   * Session and inherit that decision in its child Sessions.
+   * Retired setting accepted for existing compositions; model selection is always available.
    */
   modelSelectionSettings?: boolean
   /** Expose model-authored delivery declarations; inherited preset composition keeps forks identical to their parent. */
@@ -4854,7 +4883,7 @@ export interface Config extends PresetSelectionConfig {
 export interface PresetSelectionConfig {
   /** Default independent preset; omission inherits the parent when the model makes no selection. */
   agentPreset?: string
-  /** Non-empty allowlist exposing agent_preset to the model; omission offers all usable registered presets. */
+  /** Retired allowlist accepted for existing compositions; all usable presets are offered. */
   allowedAgentPresets?: string[] | undefined
 }
 ```
@@ -5403,7 +5432,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-bash` | — | [`packages/client/ui-settings-bash/src/index.ts`](../packages/client/ui-settings-bash/src/index.ts) |
-| `@panedesk/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-plugin-inventory` | — | [`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-plugins` | — | [`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-session-log` | — | [`packages/client/ui-settings-session-log/src/index.ts`](../packages/client/ui-settings-session-log/src/index.ts) |
