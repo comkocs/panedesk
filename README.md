@@ -2,7 +2,7 @@
 
 # Panedesk
 
-![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-1.2.1-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-1.3.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
 
 An open-source, plugin-based coding-agent workspace for CLI, Web and desktop.
 
@@ -51,8 +51,6 @@ Configure a provider as prompted; run `node apps/cli/lib/bin.js --help` for CLI 
 - macOS and Windows host-mediated launch channels remain unverified; do not expose privileged host automation to an untrusted workload account.
 - Windows native sandbox enforcement and the desktop CLI launcher have not been validated on hardware; prefer the Web package and retain OS-account isolation.
 - Windows desktop third-party platform cookies remain readable to low-integrity commands; keep sensitive platform accounts out of the desktop browser used with untrusted tasks.
-- Landlock protection rules are passed in argv and can exceed launch budgets on large directory layouts; reduce workspace scope instead of disabling protection.
-- The Linux execve binding uses a byte-budget refusal to avoid an argument-allocation defect; shorten oversized commands or split them into smaller invocations.
 - macOS Web cannot identify product-sandbox cookie replay; run untrusted processes under a separate account.
 - Persistent PowerShell terminals under the Linux native sandbox may produce no output and time out; use Bash there instead.
 - Plugin activation can lag installation under heavy load; wait for activation to finish before retrying or issuing plugin-dependent tasks.

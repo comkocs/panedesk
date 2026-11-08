@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0
+
+### Removed
+
+- Panedesk's extra protection layers on top of upstream DSH are removed; file access, subprocess, seat, credential and session behavior follow upstream again.
+
+### Added
+
+- Subagents can be dispatched by the agent types defined under `.claude/agents`.
+- Subagent reports include the child session id and the model actually used.
+- Child processes receive `PANEDESK_ENTRYPOINT`.
+
+### Changed
+
+- File tool write errors name the step, the path and whether it was denied or a system call failed, in English and Chinese.
+- New sessions default to workspace-write access on every platform, as upstream.
+
 ## 1.2.1
 
 ### Fixed

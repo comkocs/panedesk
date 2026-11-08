@@ -2,7 +2,7 @@
 
 # Panedesk
 
-![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-1.2.1-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-1.3.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
 
 开源、插件化的编程智能体工作台，支持 CLI、Web 与桌面客户端。
 
@@ -51,8 +51,6 @@ node apps/cli/lib/bin.js init
 - macOS 与 Windows 的宿主代起进程通道尚未核验；不要向不可信任务账号开放高权限宿主自动化。
 - Windows 原生沙箱权限执行与桌面 CLI 启动器尚未经实机验收；优先使用 Web 包并保留系统账号隔离。
 - Windows 桌面端第三方平台 cookie 仍可被低完整性命令读取；不要在运行不可信任务的桌面浏览器中登录敏感平台账号。
-- Landlock 保护规则经 argv 传递，大目录布局可能超过启动预算；请缩小工作区范围，不要关闭保护。
-- Linux execve 绑定用字节预算拒绝规避参数分配缺陷；请缩短超大命令或拆成多次调用。
 - macOS Web 无法识别产品沙箱的 cookie 回放；请用独立账号运行不可信进程。
 - Linux 原生沙箱下 PowerShell 持久终端可能无输出并超时；请改用 Bash。
 - 高负载下插件激活可能晚于安装返回；请等激活完成后再重试或执行依赖该插件的任务。
