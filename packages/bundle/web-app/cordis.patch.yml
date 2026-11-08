@@ -353,7 +353,7 @@
     - id: ui-nodes
       name: '@panedesk/dsh-client-ui-nodes'
       config:
-        enabled: true
+        enabled: false
         refreshIntervalMs: 10000
         pageSize: 200
 

@@ -1,6 +1,9 @@
 /** Owner-only settings bridge reuses the running host's observation and operator executors. */
 import { randomUUID } from 'node:crypto'
-import type { Context } from '@panedesk/cordis'
+import { dirname, resolve } from 'node:path'
+import type { Context, Volatile } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-config-editor'
+import type {} from '@panedesk/dsh-node-link'
 import Schema from '@panedesk/schemastery'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import { readNodeHealth, executeNodeOperator, decodeHostAdminRequest } from '@panedesk/dsh-host-admin'
@@ -11,10 +14,10 @@ import type { NodeAction, NodeActionResult } from './types.ts'
 
 /** Availability and polling are deployment configuration, not client-owned authority. */
 export interface Config {
-  /** Whether authenticated owners can read observations and submit confirmed operations. */
+  /** Whether observations are enabled when no node transport is installed. */
   enabled: boolean
   /** Polling interval in milliseconds returned to browser observation consumers. */
-  refreshIntervalMs: number
+  refreshIntervalMs: Volatile<number>
   /** Maximum callback and source-operation rows requested from each provider. */
   pageSize: number
 }
@@ -26,14 +29,15 @@ declare module '@panedesk/cordis' {
 /** The browser cannot supply a principal, grant, host epoch or arbitrary administrative method. */
 export default class NodesService extends TypertRemoteService {
   static Config: Schema<Config> = Schema.object({
-    enabled: Schema.boolean().default(true),
-    refreshIntervalMs: Schema.number().min(1000).max(2147483647).step(1).default(10000),
+    enabled: Schema.boolean().default(false),
+    refreshIntervalMs: Schema.number().min(1000).max(2147483647).step(1).default(10000).volatile(),
     pageSize: Schema.number().min(1).max(200).step(1).default(200),
   })
   private readonly lifetime = new AbortController()
   private readonly active = new Set<Promise<NodeActionResult>>()
 
-  constructor(ctx: Context, private readonly config: Config) {
+  constructor(private readonly ownerContext: Context, private readonly config: Config) {
+    const ctx = ownerContext
     super(ctx, 'nodes')
     ctx.effect(() => async () => {
       this.lifetime.abort()
@@ -43,21 +47,49 @@ export default class NodesService extends TypertRemoteService {
 
   private invocation(): () => boolean {
     const invocation = this.ctx.invocation
-    if (!this.config.enabled) throw new RemoteError('nodes/disabled', 'Node settings are disabled', {})
     const current = () => !this.lifetime.signal.aborted && !invocation?.signal.aborted
     if (!current()) throw new RemoteError('nodes/unavailable', 'Node settings are unavailable', {})
     return current
   }
 
-  /** Read installed node and live callback providers without starting an engine or sending work.
-   * @returns Current provider observations and the configured polling interval.
+  private configuration() {
+    const editor = this.ctx.get('configEditor')
+    if (!editor) throw new RemoteError('nodes/unavailable', 'Profile configuration is unavailable', {})
+    const links = editor.entries().filter(entry => entry.options.name === '@panedesk/dsh-node-link')
+    const link = links.length === 1 ? links[0] : undefined
+    const config = link?.fiber?.config as import('@panedesk/dsh-node-link').Config | undefined
+    return { editor, link, configured: config?.runtime !== undefined,
+      enabled: config?.enabled ?? this.config.enabled }
+  }
+
+  /** Read installed providers and profile paths without activating a transport.
+   * @returns Current observations, global configuration location and polling preferences.
    */
   @Remote
-  async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number }> {
+  async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number; enabled: boolean;
+    configured: boolean; configurationPath: string; configurationDirectory: string }> {
     const current = this.invocation()
+    const { editor, enabled, configured } = this.configuration()
     const view = await readNodeHealth(this.ctx, this.config.pageSize)
     if (!current()) throw new RemoteError('nodes/unavailable', 'Node settings are unavailable', {})
-    return { view, refreshIntervalMs: this.config.refreshIntervalMs }
+    const configurationPath = resolve(editor.documentPath)
+    return { view, refreshIntervalMs: this.config.refreshIntervalMs.get(), enabled, configured,
+      configurationPath, configurationDirectory: dirname(configurationPath) }
+  }
+
+  /** Persist a node preference through the profile editor and its normal Loader lifecycle.
+   * @param change - One transport toggle or browser refresh interval.
+   * @returns After persistence and any transport teardown or startup have completed.
+   */
+  @Remote
+  async configure(change: { enabled: boolean } | { refreshIntervalMs: number }): Promise<void> {
+    this.invocation()
+    const { editor, link, configured } = this.configuration()
+    const entry = 'enabled' in change ? link : editor.entries().find(row => row.fiber === this.ownerContext.fiber)
+    if (!entry || 'enabled' in change && !configured) {
+      throw new RemoteError('nodes/unavailable', 'Configure one node transport in the profile first', {})
+    }
+    await editor.edit(entry, current => ({ ...current, ...change }))
   }
 
   /** Execute one explicitly confirmed action under the authenticated owner's existing local-operator path.
@@ -67,6 +99,7 @@ export default class NodesService extends TypertRemoteService {
   @Remote
   act(action: NodeAction): Promise<NodeActionResult> {
     const current = this.invocation()
+    if (!this.configuration().enabled) throw new RemoteError('nodes/disabled', 'Node connections are disabled', {})
     const operation = this.execute(action, current)
     this.active.add(operation)
     void operation.then(() => { this.active.delete(operation) }, (_error: unknown) => {

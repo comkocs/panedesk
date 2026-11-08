@@ -1,6 +1,24 @@
 {
   "divergences": [
     {
+      "id": "node-settings-opt-in-configuration",
+      "description": "Make node connections opt-in with global configuration and refresh controls",
+      "origin": "Panedesk unified settings pages",
+      "reason": "Explain multi-machine use, expose the actual profile patch through existing desktop path actions, persist preferences through the profile editor, and keep peer transport and observation polling off by default without removing node observations.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-nodes/**",
+          "packages/seat/node-link/src/index.ts",
+          "packages/seat/node-link/README.md",
+          "packages/seat/node-link/README.zh.md",
+          "packages/seat/node-link/README.i18n.yaml",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",

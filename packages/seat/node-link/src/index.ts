@@ -195,11 +195,13 @@ export interface NodeLinkRuntimeConfig {
 }
 /** Omission preserves the empty plugin's no-I/O behavior. */
 export interface Config {
+  /** Whether configured transport may start; disabled by default. */
+  enabled: boolean
   /** Explicit activation, node identities and transport resource bounds. */
   runtime?: NodeLinkRuntimeConfig | undefined
 }
 /** All listener, persistence and supervision limits are explicit deployment choices. */
-export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Schema.const(undefined), Schema.object({
+export const Config: Schema<Config> = Schema.object({ enabled: Schema.boolean().default(false), runtime: Schema.union([Schema.const(undefined), Schema.object({
   nodeId: Schema.string().required(), peerNodeId: Schema.string().required(), peerName: Schema.string().required(),
   directory: Schema.string().required(), listenPort: Schema.number().min(0).max(65535).step(1).required(),
   peerPort: Schema.number().min(1).max(65535).step(1).required(),
@@ -225,6 +227,7 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _config - Optional runtime activation and resource bounds.
  */
 export function apply(_ctx: Context, _config: Config): void | Promise<() => Promise<void>> {
+  if (!_config.enabled) return
   if (process.platform === 'win32' && _config.runtime !== undefined) {
     return Promise.resolve(_ctx.effect(async () => {
       await _ctx.plugin({ name: 'node-link-business', apply(owner: Context) {
