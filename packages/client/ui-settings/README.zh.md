@@ -41,7 +41,7 @@ kind: "package-reference"
 
 ### 填充设置 slot
 
-设置界面会注册进本包声明的 slot 类型。外壳（`sidebar.settings` 占位方、导航、界面框架）位于 ui-settings-general；功能页面注册 `settings.section` 贡献；「插件」分区承载 `settings.plugins.tab` 页面；首次使用引导步骤注册 `settings.onboarding`。跨命名空间的表面（schema 内省、已服务命名空间目录、`hasDocument`）通过 `ctx.configForms.describe()` 读同一面镜像。
+设置界面会注册进本包声明的 slot 类型。外壳（`sidebar.settings` 占位方、导航、界面框架）位于 ui-settings-general；功能页面注册 `settings.section` 贡献；「插件」分区承载 `settings.plugins.tab` 页面；首次使用引导步骤注册 `settings.onboarding`。跨命名空间的表面（schema 内省、已服务命名空间目录、`hasDocument` 与可选的绝对路径 `documentPath`）通过 `ctx.configForms.describe()` 读同一面镜像。
 
 分区注册可设置 `group: 'dsh' | 'panedesk'` 来加入分组导航；省略该字段则保留在顶层。外壳持有的「Panedesk 特色设置」页声明 `settings.panedesk.item`，它与 `settings.general.item` 一样是 owner props 为空的有序列表。
 

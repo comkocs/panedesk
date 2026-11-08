@@ -93,7 +93,21 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       settings.effect(() => settings.configForms.whileServed([namespace], () => settings.slots.inject('settings.panedesk.item', () =>
         settings.slots.register({
           name: 'settings.panedesk.item', id: 'external-subagent-registry', order: 20, locale: 'subagentTree',
-          inject: (): RegistrySettingsFace => ({ hooks: { registry: form }, save: path => form.set('externalRegistryFile', path) }),
+          inject: (): RegistrySettingsFace => {
+            const picker = (globalThis as typeof globalThis & {
+              __DSH_FILE_PICKER__?: { pick(): Promise<string | null> }
+            }).__DSH_FILE_PICKER__
+            return {
+              hooks: { registry: form, document: settings.configForms.describe() },
+              chooseFile: picker === undefined ? undefined : () => picker.pick(),
+              setEnabled: enabled => form.set('externalRegistryEnabled', enabled),
+              save: path => form.mutate([
+                { op: 'set', path: ['externalRegistryFile'], value: path },
+                { op: 'set', path: ['externalRegistryEnabled'], value: path !== '' },
+              ]),
+              openPath: async (path, action) => (await scope.remote.session.openWorkspacePath(action === 'reveal' ? { path, action } : { path })).ok,
+            }
+          },
         }, RegistrySettingsRow))))
     })
     const labelOf = (sessionId: SessionId): string => {

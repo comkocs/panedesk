@@ -21,6 +21,8 @@ export interface SettingsDescribeView {
   writable: boolean
   /** Whether a native settings document exists for the Host to open. */
   hasDocument: boolean
+  /** Absolute Host profile patch path, when supplied by the settings provider. */
+  documentPath?: string
 }
 
 /** Mirror state every derived settings surface renders from. */

@@ -38,7 +38,7 @@ import { GeneralSection } from './GeneralSection.tsx'
 import { PanedeskSection } from './PanedeskSection.tsx'
 import { CurrentVersionRow } from './CurrentVersionRow.tsx'
 import { OpeningNameRow, type OpeningNameRowInjected } from './OpeningNameRow.tsx'
-import type { OpeningNamePattern } from '@panedesk/dsh-session-title/types'
+import type { OpeningNameSettings } from './OpeningNameRow.tsx'
 import { DeveloperToolsRow, type DeveloperToolsRowInjected } from './DeveloperToolsRow.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
@@ -80,17 +80,18 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settin
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  const openingNameForm = ctx.configForms.get<{ openingName?: OpeningNamePattern }>('session-title')
-  ctx.effect(() => ctx.configForms.whileServed(['session-title'], () =>
-    ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
-      name: 'settings.panedesk.item', id: 'opening-auto-name', order: 10, locale: NS,
-      inject: (): OpeningNameRowInjected => ({
-        hooks: { openingName: openingNameForm },
-        save: (pattern, revision) => openingNameForm.mutate([pattern === undefined
-          ? { op: 'unset', path: ['openingName'] }
-          : { op: 'set', path: ['openingName'], value: { ...pattern } }], revision),
-      }),
-    }, OpeningNameRow))), 'ui-settings-general: opening name')
+  const openingNameForm = ctx.configForms.get<OpeningNameSettings>('ui-settings-general')
+  ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
+    name: 'settings.panedesk.item', id: 'opening-auto-name', order: 10, locale: NS,
+    inject: (): OpeningNameRowInjected => ({
+      hooks: { openingName: openingNameForm, document: ctx.configForms.describe() },
+      setEnabled: enabled => openingNameForm.set('openingNameEnabled', enabled),
+      openPath: async (path, action) => (await ctx.remote.session.openWorkspacePath(action === 'reveal' ? { path, action } : { path })).ok,
+      save: (pattern, revision) => openingNameForm.mutate([pattern === undefined
+        ? { op: 'unset', path: ['openingName'] }
+        : { op: 'set', path: ['openingName'], value: { ...pattern } }], revision),
+    }),
+  }, OpeningNameRow))
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item', id: 'developer-tools', order: 15, locale: NS,
     inject: (): DeveloperToolsRowInjected => ({
