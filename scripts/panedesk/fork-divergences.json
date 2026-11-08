@@ -1,6 +1,24 @@
 {
   "divergences": [
     {
+      "id": "settings-dsh-page-introductions",
+      "description": "Clarify account and built-in plugin settings pages",
+      "origin": "Panedesk settings usability",
+      "reason": "Explain when to use account and built-in plugin settings in the page introductions.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-account/README.md",
+          "packages/client/ui-settings-account/README.zh.md",
+          "packages/client/ui-settings-account/src/client/AccountSection.tsx",
+          "packages/client/ui-settings-account/src/client/locales.ts",
+          "packages/client/ui-settings-plugins/README.md",
+          "packages/client/ui-settings-plugins/README.zh.md",
+          "packages/client/ui-settings-plugins/src/client/locales.ts"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",

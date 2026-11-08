@@ -32,7 +32,7 @@ Desktop and plain Web clients both mount the sidebar Settings launcher, Account 
 
 Account settings display a circular 32px profile image and show the account icon while no URL is available, loading is pending, or loading failed. A rendered image failure updates the shared result and remains eligible for retry; reports from a superseded picture attempt are ignored. Each Settings entry, or return from a Settings or quota-notice top-up page, retries a failed image once even when its URL is unchanged; pending and successful loads are reused. A changed picture URL starts a new load; account-state replacement, sign-out, and plugin unload discard the previous picture and its callbacks.
 
-The section registers through settings.section and uses the account Remote namespace. The stream survives carrier reconnects through the shared Remote supervisor. The page renders feature-owned English and Chinese copy and keeps API keys separate from account state.
+The section registers through settings.section and uses the account Remote namespace. The stream survives carrier reconnects through the shared Remote supervisor. The page introduces account and balance information for checking usage or topping up, renders feature-owned English and Chinese copy, and keeps API keys separate from account state.
 
 Account operations carry this UI's client identity to the Host: build version, active language, and the current UTC offset in seconds sampled as the operation is issued.
 
