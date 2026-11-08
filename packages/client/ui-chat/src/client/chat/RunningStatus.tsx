@@ -1,9 +1,8 @@
 /** Running Turn clock isolated from the transcript's render cycle. */
 import { memo, useEffect, useState } from 'react'
-import { TextShimmer } from '@panedesk/dsh-client-ui-primitives'
+import { PanedeskMark, TextShimmer } from '@panedesk/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { formatRunDuration, LIVE_RUN_CLOCK_INTERVAL_MS } from './message-chrome.ts'
-import { RunningWhaleTail } from './RunningWhaleTail.tsx'
 import a11yCss from './accessibility.module.css'
 import css from './ChatView.module.css'
 
@@ -33,7 +32,7 @@ export const RunningStatus = memo(function RunningStatus({ startTime, t }: Runni
       <span className={a11yCss.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">{t('chat.deepDiving')}</span>
       <span className={css.runningDivider} aria-hidden="true" />
       <span className={css.runningContent}>
-        <RunningWhaleTail />
+        <span className={css.runningIcon} aria-hidden="true"><PanedeskMark size={14} /></span>
         <TextShimmer active className={css.runningText}>{label}</TextShimmer>
       </span>
     </div>

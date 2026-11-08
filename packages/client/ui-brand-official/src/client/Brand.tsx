@@ -1,13 +1,13 @@
-import { BrandWordmark, FishLogo } from '@panedesk/dsh-client-ui-primitives'
+import { BrandWordmark, PanedeskMark } from '@panedesk/dsh-client-ui-primitives'
 import type { SidebarBrandMarkOwnerProps } from '@panedesk/dsh-client-ui-sidebar/client'
 
 /**
  * Render the official mark with the presentation requested by its host surface.
  * @param props - Host-supplied mark presentation.
- * @returns the official whale mark.
+ * @returns the Panedesk four-pane mark.
  */
 export function OfficialBrandMark({ size }: SidebarBrandMarkOwnerProps) {
-  return <FishLogo size={size} />
+  return <PanedeskMark size={size} />
 }
 
 /**
