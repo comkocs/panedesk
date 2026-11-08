@@ -60,8 +60,8 @@ export interface SubagentLastToolCall {
   readonly time: number
 }
 
-/** Why a node's model column is absent; the ledger is never used as a fallback. */
-export type SubagentModelSource = 'transcript' | 'unavailable' | 'unreadable'
+/** Model evidence source or why it is absent; the ledger is never a fallback. */
+export type SubagentModelSource = 'transcript' | 'registry' | 'unavailable' | 'unreadable'
 
 /** One tree node: parent-child identity plus the read-only monitoring facts. */
 export interface SubagentTreeNode {
@@ -69,17 +69,28 @@ export interface SubagentTreeNode {
   readonly sessionId: SessionId
   /** Direct parent session; `null` only for the requested root. */
   readonly parentSessionId: SessionId | null
-  /** Children in first-observed ledger order. */
+  /** Children in first-observed ledger order, followed by registered external leaves. */
   readonly children: readonly SubagentTreeNode[]
+  /** External dispatch metadata; absent for native sessions. External nodes are leaves. */
+  readonly external?: {
+    /** Short task title, falling back to the dispatched type. */
+    readonly title: string
+    /** Agent type reported by the dispatcher. */
+    readonly type: string
+    /** Reported start time in epoch milliseconds; null when absent. */
+    readonly startedAt: number | null
+    /** Reported end time in epoch milliseconds; null while absent. */
+    readonly endedAt: number | null
+  }
   /** Monitoring state from lifecycle and wait facts. */
   readonly status: SubagentNodeStatus
   /** Latest process-liveness observation carried by the ledger. */
   readonly liveness: SubagentLiveness
   /** Terminal cause; present only while `status` is `finished`. */
   readonly endReason?: SubagentEndReason | undefined
-  /** Model id from the transcript's assistant messages; `null` stays unknown. */
+  /** Observed transcript model or reported external model; `null` stays unknown. */
   readonly model: string | null
-  /** Which transcript read path produced — or failed to produce — `model`. */
+  /** Which evidence source produced — or failed to produce — `model`. */
   readonly modelSource: SubagentModelSource
   /** Five token columns over the session's calls. */
   readonly tokens: SubagentTokenColumns
@@ -109,6 +120,8 @@ export interface SubagentTreeView {
   readonly complete: boolean
   /** Root node for the requested session; always present, with children possibly empty. */
   readonly root: SubagentTreeNode
+  /** Whether a configured external registry could not be read; native nodes remain usable. */
+  readonly externalRegistryUnreadable?: boolean
   /** Client refresh cadence the deployment configured, in milliseconds. */
   readonly refreshIntervalMs: number
 }

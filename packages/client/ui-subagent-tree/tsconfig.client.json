@@ -15,6 +15,7 @@
     { "path": "../ui-primitives" },
     { "path": "../ui-renderer" },
     { "path": "../ui-conversation/tsconfig.client.json" },
-    { "path": "../ui-sidebar-right" }
+    { "path": "../ui-sidebar-right" },
+    { "path": "../ui-settings/tsconfig.client.json" }
   ]
 }

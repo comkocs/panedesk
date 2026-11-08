@@ -6,7 +6,9 @@
  * @module @panedesk/dsh-client-ui-subagent-tree
  */
 
-import type { Context } from '@panedesk/cordis'
+import { readFile } from 'node:fs/promises'
+import type { Context, Volatile } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-settings'
 import type {} from '@panedesk/dsh-session-ledger'
 import type { SessionQueryEngine } from '@panedesk/dsh-session-query'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -15,6 +17,7 @@ import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-p
 import type { SubagentTreeRequest, SubagentTreeView } from './types.ts'
 import { assembleSubagentTree, subagentTreeSessions, type SubagentTranscriptFacts } from './tree.ts'
 import { foldTranscriptFacts } from './transcript.ts'
+import { externalRegistryNodes } from './external-registry.ts'
 
 /** Explicit subagent-tree availability and refresh cadence. */
 export interface Config {
@@ -22,6 +25,8 @@ export interface Config {
   enabled: boolean
   /** Client resource refresh interval in milliseconds. */
   refreshIntervalMs: number
+  /** Host-readable external JSONL registry; empty disables file reads. */
+  externalRegistryFile: Volatile<string>
 }
 
 declare module '@panedesk/cordis' {
@@ -32,9 +37,10 @@ declare module '@panedesk/cordis' {
 export default class SubagentTreeService extends TypertRemoteService {
   static inject = ['typert']
 
-  static Config: Schema<Config> = Schema.object({
+  static Config = Schema.object({
     enabled: Schema.boolean().default(true),
     refreshIntervalMs: Schema.number().min(1000).max(2147483647).step(1).default(5000),
+    externalRegistryFile: Schema.string().default('').volatile(),
   })
 
   private readonly lifetime = new AbortController()
@@ -46,6 +52,7 @@ export default class SubagentTreeService extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'subagentTree')
     ctx.effect(() => () => { this.lifetime.abort() })
+    ctx.inject(['settings'], child => { child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)) })
   }
 
   private cancelled(): boolean {
@@ -96,6 +103,20 @@ export default class SubagentTreeService extends TypertRemoteService {
     if (root === null) {
       throw new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {})
     }
-    return { asOf, complete: snapshot.complete, root, refreshIntervalMs: this.config.refreshIntervalMs }
+    const path = this.config.externalRegistryFile.get()
+    let text = ''
+    let externalRegistryUnreadable = false
+    if (path !== '') {
+      try {
+        text = await readFile(path, 'utf8')
+      } catch (_unreadableRegistry) {
+        // Preserve native nodes and retry on the next poll without exposing host paths.
+        externalRegistryUnreadable = true
+      }
+    }
+    if (this.cancelled()) throw new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {})
+    const children = [...root.children, ...externalRegistryNodes(text, request.sessionId, asOf)]
+    return { asOf, complete: snapshot.complete, root: { ...root, children }, externalRegistryUnreadable,
+      refreshIntervalMs: this.config.refreshIntervalMs }
   }
 }

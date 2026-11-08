@@ -519,6 +519,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           ...workdir !== undefined ? { workdir } : {},
           ...args.timeoutMs !== undefined ? { timeoutMs: args.timeoutMs } : {},
           dshEnv: ctx.shellEnv.collect(exec),
+          env: { CLAUDE_CODE_SESSION_ID: exec.agent?.session.header.id ?? '' },
           ...policy !== undefined ? { sandboxPolicy: policy } : {},
         }
         if (args.run_in_background === true) {

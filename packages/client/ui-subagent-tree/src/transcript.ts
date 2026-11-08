@@ -28,7 +28,8 @@ export function foldTranscriptFacts(
   for (let index = Math.max(0, inheritedEventCount); index < events.length; index += 1) {
     const event = events[index]
     if (event === undefined) continue
-    if (event.type === 'assistant/message') model = event.data.message.source.model
+    if (event.type === 'request/header') model = event.data.header.config.model
+    else if (event.type === 'assistant/message') model = event.data.message.source.model
     else if (event.type === 'tool/call') lastToolCall = { name: event.data.name, time: event.time }
   }
   return { model, modelSource: 'transcript', lastToolCall }

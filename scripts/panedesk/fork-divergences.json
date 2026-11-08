@@ -14996,6 +14996,28 @@
           ".github/workflows/windows-package.yml"
         ]
       }
+    },
+    {
+      "id": "subagent-tree-external-registry",
+      "description": "Show native subagents at launch and external dispatch records under their parent session",
+      "origin": "Subagent tree compatibility",
+      "reason": "Keep native ledger lifecycle and usage evidence, show observed request models before responses, and merge a user-configured host JSONL registry through the existing tree refresh. Command children receive their initiating Panedesk session id for parent attribution.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent-tree/src/index.ts",
+          "packages/client/ui-subagent-tree/src/external-registry.ts",
+          "packages/client/ui-subagent-tree/src/types.ts",
+          "packages/client/ui-subagent-tree/src/tree.ts",
+          "packages/client/ui-subagent-tree/src/transcript.ts",
+          "packages/client/ui-subagent-tree/src/client/index.ts",
+          "packages/client/ui-subagent-tree/src/client/panel.tsx",
+          "packages/client/ui-subagent-tree/src/client/settings.tsx",
+          "packages/client/ui-subagent-tree/src/client/locales.ts",
+          "packages/shell/tool-bash/src/index.ts",
+          "packages/shell/tool-pwsh/src/index.ts"
+        ]
+      }
     }
   ]
 }

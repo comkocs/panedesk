@@ -7888,6 +7888,9 @@ importers:
       '@panedesk/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
       '@panedesk/dsh-client-ui-sidebar-right':
         specifier: workspace:*
         version: link:../ui-sidebar-right
@@ -7909,6 +7912,9 @@ importers:
       '@panedesk/dsh-session-query':
         specifier: workspace:*
         version: link:../../session-query/session-query
+      '@panedesk/dsh-settings':
+        specifier: workspace:*
+        version: link:../../settings/settings
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

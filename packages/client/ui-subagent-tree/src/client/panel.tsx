@@ -1,7 +1,7 @@
 /** Subagent tree presentation: nested rows with per-node usage and a read-only monitoring modal. */
 import { useState } from 'react'
 import { IconPanedeskSubagentTree } from '@panedesk/dsh-client-ui-panedesk-icons'
-import { Button, Modal, StateDot } from '@panedesk/dsh-client-ui-primitives'
+import { Button, Modal, StateDot, Tag } from '@panedesk/dsh-client-ui-primitives'
 import type { ResourceStatus } from '@panedesk/dsh-client-resources/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -68,7 +68,7 @@ interface RowModel {
 function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => string): readonly RowModel[] {
   const rows: RowModel[] = []
   const walk = (node: SubagentTreeNode, depth: number): void => {
-    rows.push({ node, depth, label: labelOf(node.sessionId) })
+    rows.push({ node, depth, label: node.external?.title ?? labelOf(node.sessionId) })
     for (const child of node.children) walk(child, depth + 1)
   }
   walk(root, 0)
@@ -83,10 +83,12 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
 export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: SubagentTreeTabProps) {
   const { tab } = useTabInfo()
   const resource = useResource<'subagenttree'>(tab.contentId)
-  const [monitored, setMonitored] = useState<SubagentTreeNode | null>(null)
+  const [monitoredId, setMonitoredId] = useState<string | null>(null)
   const view: SubagentTreeView | undefined = resource.value
   const message = stateKey(resource.status, resource.value, resource.failure?.code)
   const rows = view === undefined ? [] : flattenRows(view.root, labelOf)
+  const nodeKey = (node: SubagentTreeNode): string => `${node.external ? 'external' : 'native'}:${node.sessionId}`
+  const monitored = rows.find(row => nodeKey(row.node) === monitoredId)
   const number = (value: number | null | undefined): string => value === null || value === undefined ? t('unknown') : String(value)
   const time = (value: number): string => new Intl.DateTimeFormat(undefined,
     { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(value)
@@ -95,6 +97,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: Subagen
     <p>{t('description')}</p>
     <p>{t('transcriptNote')}</p>
     <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(message)}</p>
+    {view?.externalRegistryUnreadable && <p role="alert">{t('registryError')}</p>}
     {view && <table className={css.table}>
       <caption className={css.caption}>{t('title')}</caption>
       <thead><tr>
@@ -105,23 +108,25 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: Subagen
         <th scope="col">{t('cacheHitRate')}</th>
         <th scope="col"><span aria-hidden="true">{t('monitor')}</span></th>
       </tr></thead>
-      <tbody>{rows.map(({ node, depth, label }) => <tr key={node.sessionId}>
+      <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}>
         <td style={{ paddingLeft: `${8 + depth * 18}px` }}>
-          <StateDot state={node.status === 'running' ? 'ongoing' : node.status === 'waiting' ? 'warning' : 'done'} />
+          <StateDot state={node.status === 'running' ? 'ongoing' : node.status === 'waiting' ? 'warning' : node.endReason === 'error' ? 'error' : 'done'} />
           <span className={css.label}>{label}</span>
+          {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
         <td>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
-        <td>{node.model ?? t('modelUnknown')}</td>
+        <td>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
-          {number(node.tokens.inputTokens)} / {number(node.tokens.cacheReadTokens)} / {number(node.tokens.outputTokens)}
+          {t('totalTokens')}: {number(node.tokens.inputTokens === null || node.tokens.outputTokens === null ? null : node.tokens.inputTokens + node.tokens.outputTokens)}
+          {' · '}{number(node.tokens.inputTokens)} / {number(node.tokens.cacheReadTokens)} / {number(node.tokens.outputTokens)}
         </td>
         <td>{node.cacheHitRate === null ? t('unknown') : `${Math.round(node.cacheHitRate * 100)}%`}</td>
-        <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitored(node) }}>{t('monitor')}</Button></td>
+        <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitoredId(nodeKey(node)) }}>{t('monitor')}</Button></td>
       </tr>)}</tbody>
     </table>}
-    <Modal open={monitored !== null} onClose={() => { setMonitored(null) }}
+    <Modal open={monitored !== undefined} onClose={() => { setMonitoredId(null) }}
       title={t('monitorTitle')} closeLabel={t('monitorClose')} contentClassName={css.monitorContent ?? ''}>
-      {monitored !== null && <MonitoringView node={monitored} label={labelOf(monitored.sessionId)} t={t} number={number} time={time} />}
+      {monitored !== undefined && <MonitoringView node={monitored.node} label={monitored.label} t={t} number={number} time={time} />}
     </Modal>
   </section>
 }
@@ -134,12 +139,18 @@ function MonitoringView({ node, label, t, number, time }: {
   number: (value: number | null | undefined) => string
   time: (value: number) => string
 }) {
-  const modelText = node.model !== null ? node.model : t(node.modelSource === 'unreadable' ? 'unreadable' : node.modelSource === 'unavailable' ? 'unavailable' : 'modelUnknown')
+  const modelText = node.model !== null ? node.model : t(node.external ? 'unknown' : node.modelSource === 'unreadable' ? 'unreadable' : node.modelSource === 'unavailable' ? 'unavailable' : 'modelUnknown')
   const rows: readonly { key: SubagentTreeKey; value: string }[] = [
     { key: 'session', value: label },
     { key: 'status', value: t(node.status) + (node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : '') },
     { key: 'liveness', value: t(node.liveness) },
     { key: 'model', value: modelText },
+    ...(node.external ? [
+      { key: 'external' as const, value: node.external.type },
+      { key: 'startedAt' as const, value: node.external.startedAt === null ? t('unknown') : time(node.external.startedAt) },
+      { key: 'endedAt' as const, value: node.external.endedAt === null ? t('unknown') : time(node.external.endedAt) },
+    ] : []),
+    { key: 'totalTokens', value: number(node.tokens.inputTokens === null || node.tokens.outputTokens === null ? null : node.tokens.inputTokens + node.tokens.outputTokens) },
     { key: 'inputTokens', value: number(node.tokens.inputTokens) },
     { key: 'cacheReadTokens', value: number(node.tokens.cacheReadTokens) },
     { key: 'cacheWriteShortTokens', value: number(node.tokens.cacheWriteShortTokens) },
