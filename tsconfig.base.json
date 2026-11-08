@@ -52,7 +52,6 @@
       "@panedesk/dsh-seat-engine/reader": ["./packages/seat/seat-engine/src/reader.ts"],
       "@panedesk/dsh-seat-gates": ["./packages/seat/seat-gates/src/index.ts"],
       "@panedesk/dsh-seat-gates/reader": ["./packages/seat/seat-gates/src/reader.ts"],
-      "@panedesk/dsh-seat-gates/events": ["./packages/seat/seat-gates/src/events.ts"],
       "@panedesk/dsh-seat/types": ["./packages/seat/seat/src/types.ts"],
       "@panedesk/dsh-client-ui-inbox": ["./packages/client/ui-inbox/src/index.ts"],
       "@panedesk/dsh-client-ui-inbox/client": ["./packages/client/ui-inbox/src/client/index.ts"],

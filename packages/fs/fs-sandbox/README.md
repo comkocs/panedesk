@@ -45,8 +45,6 @@ The backend's config is unchanged from the local backend's (`cwd` resolution def
 
 The effective mode comes from the calling session's override or escalation grant, falling back to the deployment default when neither is in force. `read-only` denies every mutation with the structured `FS_SANDBOX_DENIED`. `workspace-write` allows a mutation only when the target canonicalizes under the workspace root or a platform temp area (`/tmp`, `os.tmpdir()`) — the same writable set the Seatbelt profile grants. `danger-full-access` delegates unfenced.
 
-`workspace-write` also rejects targets that contain, or lie within, a path listed in the call policy's `protectedPaths` or the current sandbox-policy resolution, including targets inside an authorized workspace. It combines those lists immediately before mutation and canonicalizes missing paths through their nearest existing ancestor, including symlink prefixes. These denials retain `sandboxDenial: 'protected-host-path'` and the specific reason instead of the generic escalation hint.
-
 ### Observable success and failures
 
 Reads keep local filesystem behavior. A denied mutation returns an `FS_SANDBOX_DENIED` error carrying the effective mode; through the tools the model sees `[sandbox: file access denied under <mode> mode]` plus the one-approved-wider retry hint, identical to bash's denials. A session with an approved escalation may retry the same operation at a strictly wider mode for that one call.

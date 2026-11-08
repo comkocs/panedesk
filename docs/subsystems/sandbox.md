@@ -55,8 +55,6 @@ interface SandboxExecutionPolicy {
   mode: SandboxMode
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
-  /** Accepted and ignored. Host-input path lists no longer exclude writes. */
-  protectedPaths?: readonly string[]
   /** Accepted and ignored. Workspace writes are not held for extra authorization. */
   requiresWorkspaceAuthorization?: true
   /**
