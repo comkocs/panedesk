@@ -15,7 +15,7 @@ export const inject = ['slots', 'locale', 'remote']
 /** Mount only the settings methods; database clients and secrets stay on the Host. */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const unmount = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.databaseConnectionSettings'], ctx => {
+  const ui = ctx.inject(['remote.databaseConnectionSettings', 'remote.session'], ctx => {
     ctx.effect(() => ctx.locale.register('databaseConnections', { en, zh }))
     const state = createSnapshotStore<Inspection>({ loading: true, filename: '', connections: [], error: '' })
     let closed = false, generation = 0
