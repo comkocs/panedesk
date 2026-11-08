@@ -66,7 +66,7 @@ function styleInjectionModule(
  * Everything else under @panedesk/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@panedesk\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@panedesk\/dsh-client-resources\/polling$|@panedesk\/dsh-client-ui-panedesk-icons$|@panedesk\/dsh-token-meter\/client$|@panedesk\/dsh-native-command\/types$|@panedesk\/dsh-host-open-in-app\/shared$|@panedesk\/dsh-plugin-manager\/registry$|@panedesk\/dsh-agent-preset-registry\/display$|@panedesk\/dsh-api-workspace-controller\/default-workspace$|@panedesk\/dsh-spill-policy\/notice$)/
+export const INLINE_SAFE = /^(?:@panedesk\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@panedesk\/dsh-client-resources\/polling$|@panedesk\/dsh-client-ui-panedesk-icons$|@panedesk\/dsh-token-meter\/client$|@panedesk\/dsh-session-title\/client$|@panedesk\/dsh-native-command\/types$|@panedesk\/dsh-host-open-in-app\/shared$|@panedesk\/dsh-plugin-manager\/registry$|@panedesk\/dsh-agent-preset-registry\/display$|@panedesk\/dsh-api-workspace-controller\/default-workspace$|@panedesk\/dsh-spill-policy\/notice$)/
 
 /**
  * Vendored framework libraries: rescoped into @panedesk, so the gate below
