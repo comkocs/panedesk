@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "subagent-catalog-task-flow-preview",
+      "description": "Preview a child task flow on prolonged catalog-row hover",
+      "origin": "Panedesk subagent task visibility",
+      "reason": "Reuse the retained child session and Chat publication for a bounded live tool-call preview beside the catalog without exposing complete prompts or replies or changing navigation.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md",
+          "packages/client/ui-subagent/README.i18n.yaml",
+          "packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx",
+          "packages/client/ui-subagent/src/client/SubagentHeaderLineage.module.css",
+          "packages/client/ui-subagent/src/client/SubagentTaskPreview.tsx",
+          "packages/client/ui-subagent/src/client/index.ts",
+          "packages/client/ui-subagent/src/client/locales.ts",
+          "packages/client/ui-primitives/src/HoverCard.tsx",
+          "packages/client/ui-primitives/README.md",
+          "packages/client/ui-primitives/README.zh.md",
+          "packages/client/ui-primitives/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",
