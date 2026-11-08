@@ -216,6 +216,16 @@ function storedEndpoint(
   return { ...baseURL === undefined ? {} : { baseURL }, ...api === undefined ? {} : { api } }
 }
 
+/** How many models this provider already lists, read from the settings it stores. */
+function configuredModelCount(
+  schema: SettingsSchemaOperations,
+  namespace: SettingsNamespaceView,
+  path: readonly string[],
+): number {
+  const current = schema.getPath(namespace.value, path)
+  return Array.isArray(current) ? current.length : 0
+}
+
 function keyConfiguredOf(row: ProviderRow): boolean {
   return row.apiKeyEnv !== undefined
     ? row.credential?.configured === true
@@ -570,10 +580,11 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 </span>
               </div>
               {error}
-              <RecognizeModels
+              {row.entry.hasModelDiscovery && <RecognizeModels
                 settingsNs={row.entry.settingsNs}
                 provider={row.entry.provider}
                 endpoint={storedEndpoint(schema, namespace, row.entry.settingsPath)}
+                modelCount={configuredModelCount(schema, namespace, [...row.entry.settingsPath, 'models'])}
                 operations={operations}
                 t={t}
                 disabled={!state.writable || state.status !== 'ready'}
@@ -598,7 +609,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   await controller.load()
                   return undefined
                 }}
-              />
+              />}
               {renderSlot(
                 'settings.models.provider-card',
                 { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },

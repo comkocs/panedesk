@@ -572,7 +572,9 @@ export class LlmRuntime extends TypertRemoteService {
    */
   @Remote
   listConfigurableProviders(): LlmConfigurableProvider[] {
-    return [...this.directory.values()].map(detachDirectoryEntry)
+    return [...this.directory.values()].map(entry => ({
+      ...detachDirectoryEntry(entry), hasModelDiscovery: this.discoveries.has(entry.settingsNs),
+    }))
   }
 
   /**

@@ -127,6 +127,7 @@ function scriptedFace(options: {
           provider,
           displayName: provider,
           settingsNs: 'llm-pi-ai',
+          hasModelDiscovery: true,
           settingsPath: ['providers', provider],
           declared: options.declaredRoutes?.includes(provider) ?? false,
         })),
@@ -686,7 +687,7 @@ describe('endpoint interrogation', () => {
     ])
   })
 
-  it('checks the three newest unknown models, leaving older and configured ones unchecked', async () => {
+  it('checks the newest two models of each family, leaving older and configured ones unchecked', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([
       { id: 'kept', createdAt: 9, contextWindow: 111 },
       { id: 'oldest', createdAt: 1 },
@@ -709,11 +710,11 @@ describe('endpoint interrogation', () => {
     expect(checked('newest')).toBe(true)
     expect(checked('second')).toBe(true)
     expect(checked('third')).toBe(true)
-    expect(checked('oldest')).toBe(false)
+    expect(checked('oldest')).toBe(true)
     expect(checked('kept')).toBe(false)
   })
 
-  it('checks the first three unknown models in server order when no creation time is disclosed', async () => {
+  it('checks every unknown model in server order when no creation time is disclosed', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([
       { id: 'first' }, { id: 'second' }, { id: 'third' }, { id: 'fourth' },
     ])))
@@ -726,7 +727,7 @@ describe('endpoint interrogation', () => {
     expect(checked('first')).toBe(true)
     expect(checked('second')).toBe(true)
     expect(checked('third')).toBe(true)
-    expect(checked('fourth')).toBe(false)
+    expect(checked('fourth')).toBe(true)
   })
 
   it('keeps the rows editable when the provider cannot be interrogated', async () => {
@@ -1092,6 +1093,7 @@ describe('hand-declared providers', () => {
       displayName: 'Acme 网关',
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'acme-gateway'],
+      hasModelDiscovery: true,
       declared: true,
     }])))
     openEditor('acme-gateway')
@@ -1375,7 +1377,9 @@ describe('hand-declared providers', () => {
     // Endpoint first: the gate names the one thing standing in the way.
     expect(screen.getByText(en.customNeedsBaseUrl)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
-    expect(screen.getByText(en.customNeedsModels)).toBeTruthy()
+    // No model row is required: an empty catalog is a usable provider.
+    expect(screen.queryByText(en.customNeedsModels)).toBeNull()
+    expect(buttonNamed(en.create).disabled).toBe(false)
 
     // Satisfied: the shared line disappears rather than rendering empty.
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
@@ -1466,11 +1470,14 @@ describe('hand-declared providers', () => {
     fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
     expect(screen.getByText(en.customNeedsBaseUrl)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
-    expect(screen.getByText(en.customNeedsModels)).toBeTruthy()
-    expect(buttonNamed(en.create).disabled).toBe(true)
+    // An empty catalog does not block creation; a row the user started typing does.
+    expect(screen.queryByText(en.customNeedsModels)).toBeNull()
+    expect(buttonNamed(en.create).disabled).toBe(false)
 
     // A model row with no id is not a model.
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    expect(buttonNamed(en.create).disabled).toBe(false)
+    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: ' ' } })
     expect(buttonNamed(en.create).disabled).toBe(true)
     fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'm' } })
     expect(buttonNamed(en.create).disabled).toBe(false)
@@ -1780,5 +1787,79 @@ describe('API key field', () => {
     await waitFor(() => { expect(mutate).toHaveBeenCalledOnce() })
     await waitFor(() => { expect(load).toHaveBeenCalledOnce() })
     expect(screen.queryByRole('textbox', { name: en.customRoute })).toBeNull()
+  })
+})
+
+describe('custom provider recognition', () => {
+  it('stores picked recognized models when creating a provider past an untouched empty row', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'selected', name: 'Selected', contextWindow: 4096, maxTokens: 2048, inputModalities: ['text', 'image'] },
+      { id: 'unselected' },
+    ])))
+    const { face, mutate } = scriptedFace({ discover })
+    const onClose = vi.fn()
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://gateway.example/v1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+    const picker = await screen.findByRole('dialog', { name: en.fetchTitle })
+    fireEvent.click(within(picker).getByRole('button', { name: en.fetchDeselectAll }))
+    fireEvent.click(within(picker).getByRole('checkbox', { name: 'selected' }))
+    fireEvent.click(within(picker).getByRole('button', { name: en.fetchAdopt }))
+    fireEvent.click(screen.getByRole('button', { name: en.create }))
+
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(mutate).ops[0]?.value).toMatchObject({
+      models: [{ id: 'selected', name: 'Selected', contextWindow: 4096, maxTokens: 2048, input: ['text', 'image'] }],
+    })
+  })
+
+  it('fetches available models once the address and key are filled, and again only when one of them changes', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'listed' }])))
+    const { face } = scriptedFace({ discover })
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18080' } })
+    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'sk-test' } })
+    await screen.findByRole('checkbox', { name: 'listed' })
+    expect(discover).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.customDisplayName), { target: { value: 'Acme' } })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(discover).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18081' } })
+    await screen.findByRole('checkbox', { name: 'listed' })
+    expect(discover).toHaveBeenCalledTimes(2)
+  })
+
+  it('creates a provider past an untouched empty model row, dropping that row', async () => {
+    const { face, mutate } = scriptedFace()
+    const onClose = vi.fn()
+    render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} reasoningLevels={LEVELS} revision={7} operations={operationsWith(face)}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:18080' } })
+
+    expect(buttonNamed(en.create).disabled).toBe(false)
+    fireEvent.click(screen.getByText(en.create))
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(mutate).ops[0]?.value).toMatchObject({ models: [] })
   })
 })

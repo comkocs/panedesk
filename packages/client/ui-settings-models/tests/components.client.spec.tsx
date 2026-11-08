@@ -193,9 +193,9 @@ function scriptedFace(overrides: {
         { id: 'openai', name: 'openai' },
       ]))),
       listConfigurableProviders: vi.fn(() => Promise.resolve(remoteOk([
-        { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
+        { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true, hasModelDiscovery: true },
         {
-          provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true,
+          provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true, hasModelDiscovery: true,
           defaultBaseURL: 'https://api.openai.com/v1', baseURLEnv: ['FIXTURE_ENDPOINT'], nativeAuth: { env: ['OPENAI_API_KEY'], oauth: false },
         },
         {
@@ -324,7 +324,7 @@ it.each([
   expect(await within(provider).findByLabelText('Extra')).toBeTruthy()
   fireEvent.click(within(provider).getByRole('button', { name: en.fetchAdopt }))
   await waitFor(() => { expect(scripted.mutate).toHaveBeenCalledWith(ns, [{ op: 'set', path, value: [...existing, { id: 'extra-model', name: 'Extra', ...input }] }], 0) })
-  expect(await within(provider).findByText(en.recognizedSaved)).toBeTruthy()
+  expect(await within(provider).findByText(en.recognizedSaved.replace('{count}', '1'))).toBeTruthy()
 })
 
 async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
@@ -375,6 +375,22 @@ async function mountDeepSeekCard(overrides: Parameters<typeof scriptedFace>[0] =
 }
 
 describe('ModelsSection', () => {
+  it('shows recognition only for providers with registered discovery', async () => {
+    const scripted = scriptedFace()
+    scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], hasModelDiscovery: true },
+      {
+        provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], hasModelDiscovery: false,
+        defaultBaseURL: 'https://api.openai.com/v1', baseURLEnv: ['FIXTURE_ENDPOINT'], nativeAuth: { env: ['OPENAI_API_KEY'], oauth: false },
+      },
+    ]))
+    await mountFace(scripted)
+    const deepseek = screen.getByText('DeepSeek', { selector: 'span' }).closest('li')!
+    const openai = screen.getByText('openai', { selector: 'span' }).closest('li')!
+    expect(within(deepseek).queryByRole('button', { name: en.recognize })).not.toBeNull()
+    expect(within(openai).queryByRole('button', { name: en.recognize })).toBeNull()
+  })
+
   it('keeps the credential state unconfirmed when its redacted read fails', async () => {
     const scripted = scriptedFace()
     scripted.face.credentials.describe.mockResolvedValue(remoteFail('credentials unavailable', 'gateway/internal'))

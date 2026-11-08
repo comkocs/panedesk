@@ -33,6 +33,12 @@ export interface RecognizeModelsProps {
   readonly t: Copy
   /** Whether the page is writable. */
   readonly disabled: boolean
+  /**
+   * How many models this card's provider already has configured. The guide under
+   * the recognize button shows only while that count is zero; callers that do
+   * not know the count omit it and the guide stays hidden.
+   */
+  readonly modelCount?: number | undefined
   /** Persist the selected catalog through the existing settings owner. */
   readonly onAdopt?: ((models: readonly LlmDiscoveredModel[]) => Promise<string | undefined>) | undefined
 }
@@ -54,14 +60,14 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [recognized, setRecognized] = useState<Recognized | undefined>(undefined)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState<number | undefined>(undefined)
   const [manualId, setManualId] = useState('')
   const [probe, setProbe] = useState<{ readonly ok: boolean; readonly message: string } | undefined>(undefined)
 
   const recognize = async (): Promise<void> => {
     setBusy(true)
     setFailure(undefined)
-    setSaved(false)
+    setSaved(undefined)
     try {
       const answer = await operations.discoverModels(settingsNs, {
         provider,
@@ -121,11 +127,12 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
     if (recognized === undefined || props.onAdopt === undefined) return
     setBusy(true)
     setFailure(undefined)
-    setSaved(false)
+    setSaved(undefined)
     try {
-      const refusal = await props.onAdopt(recognized.models.filter(model => recognized.checked.has(model.id)))
+      const chosen = recognized.models.filter(model => recognized.checked.has(model.id))
+      const refusal = await props.onAdopt(chosen)
       if (refusal !== undefined) setFailure(refusal)
-      else setSaved(true)
+      else setSaved(chosen.length)
     } catch (error: unknown) {
       setFailure(error instanceof Error ? error.message : String(error))
     } finally {
@@ -138,25 +145,27 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
       <button type="button" className={styles['secondaryButton']} disabled={disabled || busy} onClick={() => { void recognize() }}>
         {busy ? t('recognizing') : t('recognize')}
       </button>
+      {recognized === undefined && props.modelCount === 0 ? <p className={styles['modelCatalogMeta']}>{t('recognizeGuide')}</p> : null}
       {failure === undefined ? null : <p role="alert">{t('recognizeFailed')}: {failure}</p>}
       {recognized === undefined
         ? null
         : (
           <div>
-            <p>
+            <p>{t('recognizeLead').replace('{count}', String(recognized.checked.size))}</p>
+            <p className={styles['modelCatalogMeta']}>
               {recognized.orderBasis === 'createdAt' ? t('recognizeOrderCreated') : t('recognizeOrderServer')}
             </p>
-            <ul>
+            <ul className={styles['candidateList']}>
               {recognized.models.map(model => (
-                <li key={model.id}>
-                  <label>
+                <li key={model.id} className={styles['candidate']}>
+                  <label className={styles['candidateLabel']}>
                     <input
                       type="checkbox"
                       checked={recognized.checked.has(model.id)}
                       disabled={disabled || busy}
                       onChange={() => { toggle(model.id) }}
                     />
-                    <span>{model.name ?? model.id}</span>
+                    <span className={styles['candidateId']}>{model.name ?? model.id}</span>
                   </label>
                 </li>
               ))}
@@ -164,7 +173,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
             {props.onAdopt === undefined ? null : <button type="button" disabled={disabled || busy || recognized.checked.size === 0} onClick={() => { void adopt() }}>{t('fetchAdopt')}</button>}
           </div>
         )}
-      {saved ? <p role="status">{t('recognizedSaved')}</p> : null}
+      {saved === undefined ? null : <p role="status">{t('recognizedSaved').replace('{count}', String(saved))}</p>}
       <label>
         {t('tryModelId')}
         <input value={manualId} disabled={disabled || busy} onChange={(event) => { setManualId(event.target.value) }} />

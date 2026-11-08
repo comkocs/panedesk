@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+
+- Models added from recognition are now saved when creating a custom provider.
+- Requests to non-Claude models through Anthropic Messages gateways carry session metadata even when no cache option is set.
+
+## 1.2.0
+
+### Added
+
+- Model recognition keeps the latest two models of each family.
+- Custom provider forms fetch available models automatically once the base URL and API key are filled in.
+- DeepSeek providers support model discovery, and providers without discovery no longer show the discover button.
+- The model recognition panel explains what was selected and how to add more.
+- New sessions remember the permission preset you last picked.
+- Session titles refresh from recent rounds as a conversation goes on.
+
+### Changed
+
+- Requests to non-Claude models through Anthropic Messages gateways carry Claude Code style session metadata, so gateway prompt caching can hit.
+- The empty new-session page shows the Panedesk mark.
+
 ## 1.1.1
 
 ### Fixed

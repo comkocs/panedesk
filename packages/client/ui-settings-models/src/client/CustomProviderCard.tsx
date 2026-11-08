@@ -107,6 +107,11 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const [protocol, setProtocol] = useState(protocols[0] ?? '')
   const [keyDraft, setKeyDraft] = useState('')
   const [models, setModels] = useState<readonly ModelDraft[]>([])
+  /**
+   * Rows the user has typed into, by position. A row added and left untouched
+   * is not a model yet, so it neither blocks creation nor is stored.
+   */
+  const [touched, setTouched] = useState<ReadonlySet<number>>(() => new Set())
   const [busy, setBusy] = useState(false)
   const [listBusy, setListBusy] = useState(false)
   useEffect(() => { onBusyChange?.(busy || listBusy) }, [busy, listBusy, onBusyChange])
@@ -129,14 +134,15 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   // bad row is named by its position here too. Capacities have route-level
   // fallbacks; what a route cannot default is at least one model. Every row of
   // this hand-declared route edits its reasoning levels, so they are checked too.
-  const modelFailure = validateDeepSeekModels(models) ?? validateReasoningEfforts(models)
+  const storedModels = models.filter((_model, index) => touched.has(index))
+  const modelFailure = validateDeepSeekModels(storedModels) ?? validateReasoningEfforts(storedModels)
   const keyFailure = apiKeyFailure(keyDraft)
   // The typed key with paste whitespace removed. A blank field yields an empty
   // string, which the create path reads as "no key supplied" — a route may
   // legitimately authenticate through the provider's own ambient discovery.
   const keyValue = keyDraft.trim()
   const ready = route.length > 0 && !routeInvalid && !routeTaken
-    && normalizedBaseURL.length > 0 && !baseUrlInvalid && models.length > 0 && modelFailure === undefined
+    && normalizedBaseURL.length > 0 && !baseUrlInvalid && modelFailure === undefined
     && keyFailure === undefined
   // The one blocked gate worth a line under the form. A satisfied card says
   // nothing at all rather than printing an empty paragraph.
@@ -170,7 +176,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         ...storesKey ? { apiKeyEnv: keyRef } : {},
         api: protocol,
         baseURL: normalizedBaseURL,
-        models: models.map(model => ({ ...model })),
+        models: storedModels.map(model => ({ ...model })),
       }
       // `taken` is a snapshot too, so the id check alone cannot see a route
       // declared after this card opened; the revision makes that race a
@@ -292,6 +298,18 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       <ModelListEditor
         models={models}
         onChange={setModels}
+        onRowEdited={(index) => { setTouched(current => new Set(current).add(index)) }}
+        onRowRemoved={(index) => {
+          setTouched((current) => {
+            const next = new Set<number>()
+            for (const at of current) {
+              if (at < index) next.add(at)
+              else if (at > index) next.add(at - 1)
+            }
+            return next
+          })
+        }}
+        autoDiscover={!models.some((_model, index) => touched.has(index))}
         reasoningLevels={reasoningLevels}
         probe={{
           settingsNs: NS,

@@ -91,6 +91,19 @@ export class SessionTitleInvalidError extends Error {
 /** Automatic generation cadence owned by a registered provider. */
 export type SessionTitleAutomaticMode = 'first-prompt' | 'all-prompts'
 
+/**
+ * Completed rounds after which a `first-prompt` provider retitles: once the
+ * third round finishes, then again every twelve rounds (the 15th, the 27th, …).
+ */
+const FIRST_PROMPT_RETITLE_START = 3
+const FIRST_PROMPT_RETITLE_INTERVAL = 12
+
+/** Whether a `first-prompt` provider retitles after this many completed rounds. */
+function firstPromptRetitleRound(completedRounds: number): boolean {
+  return completedRounds >= FIRST_PROMPT_RETITLE_START
+    && (completedRounds - FIRST_PROMPT_RETITLE_START) % FIRST_PROMPT_RETITLE_INTERVAL === 0
+}
+
 /** Immutable input supplied to one title-provider call. */
 export interface SessionTitleProviderRequest {
   /** Live session being titled. */
@@ -107,6 +120,12 @@ export interface SessionTitleProviderRequest {
   readonly currentTitle?: SessionTitleSnapshot
   /** Cancellation for supersession, disposal, timeout composition, or the explicit caller. */
   readonly signal: AbortSignal
+  /**
+   * Completed rounds this automatic retitle covers. Present only for a
+   * `first-prompt` retitle; absent for the opening title, `all-prompts`, and
+   * an explicit refresh. A retitle reads the recent rounds and may decline.
+   */
+  readonly retitleRound?: number
 }
 
 /** Provider output before service-owned normalization and log acceptance. */
@@ -128,9 +147,10 @@ export interface SessionTitleProvider {
   /**
    * Produce one title revision.
    * @param request - message snapshot, current title, current route, session, and cancellation.
-   * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it.
+   * @returns proposed title plus exact input seqs and the optional provider/model route used to generate it,
+   *   or `undefined` when a retitle finds the standing title still accurate.
    */
-  generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult>
+  generate(request: SessionTitleProviderRequest): Promise<SessionTitleProviderResult | undefined>
 }
 
 /** Extract one eligible human text message from a session event. */
@@ -178,6 +198,8 @@ interface PendingAutomaticWork {
   readonly registration: ProviderRegistration
   readonly revision: number
   readonly throughSeq: SessionSeq
+  /** Completed rounds this `first-prompt` retitle covers; absent for the opening title and `all-prompts`. */
+  readonly retitleRound?: number
 }
 
 /** Provider call currently allowed to commit for one session. */
@@ -192,6 +214,12 @@ interface SessionTitleWorkState {
   fallback?: Promise<SessionTitleSnapshot | undefined>
   pending?: PendingAutomaticWork
   active?: ActiveProviderWork
+  /** Completed rounds (a human prompt answered by an assistant message) folded for this session. */
+  completedRounds: number
+  /** Seq of the newest human prompt already answered, so one prompt counts once. */
+  answeredThroughSeq: SessionSeq
+  /** Round of the latest scheduled `first-prompt` retitle, so one round schedules once. */
+  scheduledRetitleRound?: number
 }
 
 /** Validate one positive integer configuration field. */
@@ -364,6 +392,9 @@ export class SessionTitleService extends Service {
         case 'user/message':
           this.onUserMessage(session, event)
           break
+        case 'assistant/message':
+          this.onAssistantMessage(session, event)
+          break
         case 'request/header':
           this.onRequestHeader(session, event)
           break
@@ -529,6 +560,33 @@ export class SessionTitleService extends Service {
     })
   }
 
+  /**
+   * Count one completed round when an assistant reply answers the latest human
+   * prompt, and schedule a `first-prompt` retitle on its cadence. The reply is
+   * the round's end: the route is already logged, so the call starts here.
+   */
+  private onAssistantMessage(session: Session, event: Extract<SessionEvent, { type: 'assistant/message' }>): void {
+    if (!this.serviceActive() || event.data.interrupted === true) return
+    const state = this.stateFor(session)
+    const lastSeq = this.titleInputOf(session).lastSeq
+    if (lastSeq === null || lastSeq <= state.answeredThroughSeq) return
+    state.answeredThroughSeq = lastSeq
+    state.completedRounds += 1
+    const registration = this.registration
+    if (registration === undefined || registration.closing) return
+    if (registration.provider.automatic !== 'first-prompt') return
+    if (session.header.parentSession !== undefined) return
+    if (this.get(session)?.source.kind === 'user') return
+    const round = state.completedRounds
+    if (!firstPromptRetitleRound(round) || state.scheduledRetitleRound === round) return
+    state.scheduledRetitleRound = round
+    const revision = this.supersede(state, 'completed round superseded title generation')
+    this.startPending(session, state, { registration, revision, throughSeq: lastSeq, retitleRound: round }, {
+      provider: event.data.message.source.provider,
+      model: event.data.message.source.model,
+    })
+  }
+
   /** Start pending automatic work only after its exact main-request route is logged. */
   private onRequestHeader(session: Session, event: Extract<SessionEvent, { type: 'request/header' }>): void {
     if (!this.serviceActive()) return
@@ -611,8 +669,11 @@ export class SessionTitleService extends Service {
         messages,
         ...route === undefined ? {} : { route },
         ...currentTitle === undefined ? {} : { currentTitle },
+        ...work.retitleRound === undefined ? {} : { retitleRound: work.retitleRound },
         signal: work.signal,
       })
+      // A retitle may keep the standing title instead of logging another one.
+      if (result === undefined) return currentTitle
       this.assertCurrent(session, work)
       const accepted = this.validateResult(result, messages)
       session.append('session/title', {
@@ -723,7 +784,7 @@ export class SessionTitleService extends Service {
   private stateFor(session: Session): SessionTitleWorkState {
     let state = this.work.get(session)
     if (state === undefined) {
-      state = { revision: 0 }
+      state = { revision: 0, completedRounds: 0, answeredThroughSeq: SessionSeq(0) }
       this.work.set(session, state)
     }
     return state

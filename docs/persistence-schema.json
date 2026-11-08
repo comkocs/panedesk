@@ -23860,7 +23860,7 @@
       "digest": "012ead24ade01106d448e0ad9811d72eda66fd7d851e165318966cf52b34ff84",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:574"
+        "packages/llm/llm/src/types.ts:576"
       ]
     },
     {
@@ -23901,7 +23901,7 @@
       "digest": "0553a7709a522476de9edf26bac4bc1ae8cda303f94d0407e6a8d1502862c6ce",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:575"
+        "packages/llm/llm/src/types.ts:577"
       ]
     },
     {
@@ -23978,7 +23978,7 @@
         "packages/llm/llm/src/types.ts#ReplayEnvelope"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:466"
+        "packages/llm/llm/src/types.ts:468"
       ]
     },
     {
@@ -24524,7 +24524,7 @@
       "digest": "2abb711460e6238d851c30f3e4bdd87a2aa1887ee70575b3d3b7b25610673095",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:491"
+        "packages/llm/llm/src/types.ts:493"
       ]
     },
     {
@@ -24791,7 +24791,7 @@
       "digest": "3bec87f9e6ab3da03346f49923d3c51621debc0159df68605e543c3b2a026f90",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:489"
+        "packages/llm/llm/src/types.ts:491"
       ]
     },
     {
@@ -25202,7 +25202,7 @@
         "packages/llm/llm/src/types.ts#CacheRetention"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:561"
+        "packages/llm/llm/src/types.ts:563"
       ]
     },
     {
@@ -25477,7 +25477,7 @@
         "packages/llm/llm/src/types.ts#ToolSchema"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:523"
+        "packages/llm/llm/src/types.ts:525"
       ]
     },
     {
@@ -25522,7 +25522,7 @@
       "digest": "6904f635b8e768cdabf470841824efb6ee70393f90b6de95c4fd7f5d3e109731",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:495"
+        "packages/llm/llm/src/types.ts:497"
       ]
     },
     {
@@ -25553,7 +25553,7 @@
         "packages/llm/llm/src/types.ts#StreamChunk"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:488"
+        "packages/llm/llm/src/types.ts:490"
       ]
     },
     {
@@ -25710,7 +25710,7 @@
       "digest": "701688cda06fa2c2c5643dc2ec0f2064dba7c3087dbbbadec020ab09612e362c",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:494"
+        "packages/llm/llm/src/types.ts:496"
       ]
     },
     {
@@ -25745,7 +25745,7 @@
         "packages/llm/llm/src/types.ts#LlmCacheControl"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:564"
+        "packages/llm/llm/src/types.ts:566"
       ]
     },
     {
@@ -26097,7 +26097,7 @@
       "digest": "88a610b831be6d92612a464be5c7d0b88ec24d97bd299837bf74bf7672183c9a",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:492"
+        "packages/llm/llm/src/types.ts:494"
       ]
     },
     {
@@ -26277,7 +26277,7 @@
       "digest": "95080295115fbd83544520ba247b68a03790131f6a2eac323d388758cb542f65",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:490"
+        "packages/llm/llm/src/types.ts:492"
       ]
     },
     {
@@ -27271,7 +27271,7 @@
       "digest": "d4b739491689cc6bb13d07ffac1a32239875abda364c0d5edd8f74faf5e9c00d",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:493"
+        "packages/llm/llm/src/types.ts:495"
       ]
     },
     {
@@ -27393,7 +27393,7 @@
       "digest": "dc09715d31baff7e949244859110d74c7e6f4428d9a9eeb257b627533cd933b5",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:573"
+        "packages/llm/llm/src/types.ts:575"
       ]
     },
     {
@@ -27770,7 +27770,7 @@
         "packages/llm/llm/src/types.ts#SystemPromptUpdate"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:432"
+        "packages/llm/llm/src/types.ts:434"
       ]
     },
     {
