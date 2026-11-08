@@ -46,7 +46,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
     /**
      * One settings page per list entry. Registrant options carry the nav
      * identity: `id` (section key, drives `only` filtering), `order` (nav
-     * position), `label` (registrant-localized display text — the registrant
+     * position), optional `group` (`dsh` or `panedesk`; absent means top-level),
+     * `label` (registrant-localized display text — the registrant
      * re-registers with fresh text on locale change, so the shell never
      * subscribes locale state; the ledger bump doubles as the shell's
      * re-render trigger). Sections render inside the panel content column.
@@ -90,6 +91,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
      * layer and every registrant already depends on it for `ctx.configForms`.
      */
     'settings.general.item': { kind: 'list'; scope: 'root'; owner: SettingsGeneralItemOwnerProps }
+    /** Feature-owned preference rows in the shell's Panedesk features section. */
+    'settings.panedesk.item': { kind: 'list'; scope: 'root'; owner: SettingsGeneralItemOwnerProps }
   }
 }
 /** Owner share of a General preference row (the section supplies nothing). */

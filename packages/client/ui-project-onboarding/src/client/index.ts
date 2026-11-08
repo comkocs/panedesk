@@ -47,7 +47,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       locale: 'projectOnboarding', inject: guideFace,
     }, ProjectGuide))
     ctx.slots.inject('settings.section', () => ctx.slots.register({
-      name: 'settings.section', id: 'project-opening', order: 25,
+      name: 'settings.section', id: 'project-opening', group: 'panedesk', order: 25,
       label: () => ctx.locale.bind('projectOnboarding')('title'),
       locale: 'projectOnboarding', inject: face,
     }, ProjectSettings))

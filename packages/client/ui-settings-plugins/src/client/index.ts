@@ -76,6 +76,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'plugins',
+    group: 'dsh',
     order: 15,
     label: () => t('nav'),
     locale: NS,

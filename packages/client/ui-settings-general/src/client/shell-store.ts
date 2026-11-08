@@ -1,7 +1,7 @@
 /** Shared settings viewing state for its mouse and command entry points. */
 import { defineStore, type EngineStoreHandle } from '@panedesk/dsh-client-store'
 
-type State = { open: boolean; activeId: string | undefined }
+type State = { open: boolean; activeId: string | undefined; navigationRevision: number }
 type Actions = {
   open(draft: State): void
   close(draft: State): void
@@ -15,12 +15,12 @@ type Actions = {
  */
 export function createSettingsShellStore(): EngineStoreHandle<State, Actions> {
   return defineStore({
-    init: (): State => ({ open: false, activeId: undefined as string | undefined }),
+    init: (): State => ({ open: false, activeId: undefined as string | undefined, navigationRevision: 0 }),
     actions: {
       open: (d) => { d.open = true },
       close: (d) => { d.open = false; d.activeId = undefined },
       select: (d, id: string) => { d.activeId = id },
-      openSection: (d, id: string) => { d.activeId = id; d.open = true },
+      openSection: (d, id: string) => { d.activeId = id; d.open = true; d.navigationRevision++ },
     },
   })
 }

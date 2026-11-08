@@ -779,6 +779,8 @@ export type KindOptions<
       id: string
       order?: number
       label?: SlotLabel
+      /** Optional owner-defined navigation group; absent entries remain top-level. */
+      group?: string
       /**
        * Optional snapshot kept beside the list entry and omitted from the
        * stored options when absent, so a registration without it is unchanged.
@@ -855,6 +857,8 @@ export interface StoredEntry {
     id?: string
     order?: number
     label?: SlotLabel
+    /** Owner-defined list navigation group, preserved without interpretation. */
+    group?: string
     priority?: number
     /** Present only when the list registration passed `badge`. */
     badge?: ObservableSnapshot<unknown>
@@ -896,6 +900,7 @@ interface ErasedOptions {
   id?: string | undefined
   order?: number | undefined
   label?: SlotLabel | undefined
+  group?: string | undefined
   badge?: ObservableSnapshot<unknown> | undefined
   select?: ((owner: never) => unknown) | undefined
   priority?: number | undefined
@@ -1284,6 +1289,7 @@ export class SlotCore {
         ...(options.id !== undefined ? { id: options.id } : {}),
         ...(options.order !== undefined ? { order: options.order } : {}),
         ...(options.label !== undefined ? { label: options.label } : {}),
+        ...(options.group !== undefined ? { group: options.group } : {}),
         ...(options.priority !== undefined ? { priority: options.priority } : {}),
         ...(options.badge !== undefined ? { badge: options.badge } : {}),
       },

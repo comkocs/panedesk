@@ -25,6 +25,8 @@ export interface SettingsSectionRow {
   id: string
   order: number
   label: string
+  /** Settings navigation group; absent for General and Models. */
+  group?: string | undefined
 }
 
 /** One ordered onboarding step projected from a slot registration. */

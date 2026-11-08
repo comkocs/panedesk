@@ -68,7 +68,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       name: 'main', key: panel, locale: 'stats',
     }, StatsPanel))
     scope.slots.inject('settings.section', () => scope.slots.register({
-      name: 'settings.section', id: 'stats', order: 70, label: () => t('title'), locale: 'stats', inject: () => actions,
+      name: 'settings.section', id: 'stats', group: 'panedesk', order: 70, label: () => t('title'), locale: 'stats', inject: () => actions,
     }, StatsSettings))
     scope.slots.inject('conversation.session.header.utilities', () => scope.slots.register({
       name: 'conversation.session.header.utilities', id: 'stats-tools', order: -1, locale: 'stats', inject: () => actions,
