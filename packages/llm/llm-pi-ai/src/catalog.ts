@@ -29,6 +29,7 @@ import type {
   Provider,
   ThinkingLevelMap,
 } from '@earendil-works/pi-ai'
+import { inferReasoningEfforts } from './reasoning.ts'
 
 /**
  * Pricing for a model the installed catalog does not describe. The harness
@@ -620,7 +621,7 @@ export interface PiAiModelProfile {
   input?: PiAiModality[]
   /**
    * Selectable reasoning efforts. Absent inherits the installed catalog
-   * entry's capability (a hand-declared model has none and does not reason);
+   * entry's capability, or infers levels from a custom model's identity and protocol;
    * `false` declares a non-reasoning model, which is how a profile strips
    * reasoning from a catalog model its gateway cannot serve; a non-empty dict
    * declares the offered levels and their wire spellings.
@@ -706,22 +707,24 @@ interface ModelReasoning {
  * @param provider - provider route key, for diagnostics.
  * @param entry - the configured model entry.
  * @param base - the installed catalog entry of the same id, when one exists.
+ * @param api - resolved wire protocol used by custom-model inference.
+ * @param routeCompat - route defaults for effort-parameter support.
  * @returns the reasoning fields the materialized model carries.
  */
 function resolveModelReasoning(
   provider: string,
   entry: PiAiModelProfile,
   base: Model<Api> | undefined,
+  api: string,
+  routeCompat: PiAiCompatProfile | undefined,
 ): ModelReasoning {
-  const efforts = entry.reasoningEfforts
-  if (efforts === undefined) {
-    // Reasoning rides the installed entry or is absent: a bare capability flag
-    // would make pi-ai advertise effort levels with no `thinkingLevelMap` to
-    // spell them, and no listing endpoint reports a model's reasoning
-    // protocol. The entry's map (when any) arrives through the `...base`
-    // spread in the model literal.
-    return { reasoning: base?.reasoning ?? false }
-  }
+  if (entry.reasoningEfforts === undefined && base !== undefined) return { reasoning: base.reasoning }
+  const efforts = entry.reasoningEfforts === undefined ? inferReasoningEfforts({
+    id: entry.id,
+    name: entry.name,
+    api,
+    supportsReasoningEffort: entry.compat?.supportsReasoningEffort ?? routeCompat?.supportsReasoningEffort,
+  }) : entry.reasoningEfforts
   // The installed entry's map may ride along through `...base`; pi-ai never
   // reads it on a non-reasoning model, so stripping it is not worth a field
   // enumeration here.
@@ -951,7 +954,7 @@ export function resolveRouteModels(
       cost: base?.cost ?? NO_COST,
       contextWindow,
       maxTokens,
-      ...resolveModelReasoning(provider, entry, base),
+      ...resolveModelReasoning(provider, entry, base, api, request.compat),
       ...resolveModelCompat(provider, entry, request.compat, base, api),
     }
   }

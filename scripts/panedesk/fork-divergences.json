@@ -1,6 +1,36 @@
 {
   "divergences": [
     {
+      "id": "custom-model-reasoning-inference",
+      "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
+      "origin": "Custom model gateway reasoning selection",
+      "reason": "Preserve explicit effort declarations, infer compatible text-model efforts from identity and protocol, exclude non-text generation models, and default to high or the highest supported effort without changing pi-ai wire mappings.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/llm/llm-pi-ai/src/reasoning.ts",
+          "packages/llm/llm-pi-ai/src/catalog.ts",
+          "packages/llm/llm-pi-ai/src/config.ts",
+          "packages/llm/llm-pi-ai/src/adapter.ts",
+          "packages/llm/llm-pi-ai/package.json",
+          "packages/llm/llm-pi-ai/README.md",
+          "packages/llm/llm-pi-ai/README.zh.md",
+          "packages/llm/llm-pi-ai/README.i18n.yaml",
+          "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "packages/client/ui-settings-models/src/client/ModelRow.tsx",
+          "packages/client/ui-settings-models/src/client/ModelReasoningEfforts.tsx",
+          "packages/client/ui-settings-models/src/client/ProviderEditor.tsx",
+          "packages/client/ui-settings-models/src/client/locales.ts",
+          "packages/client/ui-settings-models/package.json",
+          "packages/client/ui-settings-models/tsconfig.json",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-settings-models/README.i18n.yaml",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",

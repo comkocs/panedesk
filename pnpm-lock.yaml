@@ -6901,6 +6901,9 @@ importers:
       '@panedesk/dsh-host-webserver':
         specifier: workspace:*
         version: link:../../host/webserver
+      '@panedesk/dsh-llm-pi-ai':
+        specifier: workspace:*
+        version: link:../../llm/llm-pi-ai
       '@panedesk/dsh-remote-mock':
         specifier: workspace:*
         version: link:../../test-support/remote-mock

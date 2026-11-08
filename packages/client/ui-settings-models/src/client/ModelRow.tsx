@@ -27,6 +27,8 @@ interface ModelRowProps {
   inputLoading?: boolean
   /** Levels the row's `reasoningEfforts` may declare; absent or empty shows no reasoning control. */
   reasoningLevels?: readonly string[] | undefined
+  /** Derived defaults shown without writing an override until reasoning is edited. */
+  reasoningModel?: DeepSeekModelDraft | undefined
   expanded: boolean
   disabled: boolean
   t: (key: ModelsKey) => string
@@ -46,6 +48,7 @@ interface ModelRowProps {
  */
 export function ModelRow(props: ModelRowProps): ReactNode {
   const { model, position, t, disabled } = props
+  const reasoningModel = props.reasoningModel ?? model
   return (
     <div className={styles['modelEntry']}>
       <div className={styles['modelRow']}>
@@ -86,6 +89,14 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           <IconTrashOutlineRegular size={14} />
         </button>
       </div>
+      {props.reasoningLevels !== undefined && props.reasoningLevels.length > 0
+        ? (
+          <button type="button" className={styles['linkButton']} disabled={disabled} onClick={props.onToggle}>
+            {t('modelReasoning')}: {typeof reasoningModel['reasoningEfforts'] === 'object' && reasoningModel['reasoningEfforts'] !== null
+              ? Object.keys(reasoningModel['reasoningEfforts']).join(' / ') : t('modelReasoningDisabled')}
+          </button>
+        )
+        : null}
       {props.expanded
         ? (
           <div className={styles['modelAdvanced']}>
@@ -112,7 +123,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
             {props.reasoningLevels !== undefined && props.reasoningLevels.length > 0
               ? (
                 <ModelReasoningEfforts
-                  model={model} levels={props.reasoningLevels} position={position} disabled={disabled} t={t} onChange={props.onChange}
+                  model={reasoningModel} levels={props.reasoningLevels} position={position} disabled={disabled} t={t} onChange={props.onChange}
                 />
               )
               : null}
