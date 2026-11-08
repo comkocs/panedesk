@@ -21,11 +21,10 @@ export function inferReasoningEfforts(model: ReasoningModelHint): false | Partia
   if (model.supportsReasoningEffort === false) return false
   const matches = (pattern: RegExp): boolean => identities.some(value => pattern.test(value))
   let levels: readonly ModelThinkingLevel[]
-  if (matches(/(?:^|[\s/:])(?:gpt-|o\d|claude-|(?:astra|sol|terra|luna)[\s\d.-])/)) {
+  if (matches(/(?:^|[\s/:])(?:gpt-|o\d|claude-|grok-|(?:astra|sol|terra|luna)[\s\d.-])/)) {
     levels = ['low', 'medium', 'high', 'xhigh']
-  } else if (matches(/(?:^|[\s/:])(?:grok|glm|deepseek|gemini)-/)
-    && (model.supportsReasoningEffort === true
-      || model.api === 'openai-responses' && matches(/(?:^|[\s/:])grok-4\.[3-7](?:\D|$)/))) {
+  } else if (matches(/(?:^|[\s/:])(?:glm|deepseek|gemini)-/)
+    && model.supportsReasoningEffort === true) {
     levels = ['low', 'medium', 'high']
   } else {
     return false
