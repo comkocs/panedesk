@@ -182,7 +182,6 @@ export const SERVICE_PAGE: Record<string, string> = {
   postgresStorage: 'storage.md',
   dataStorage: 'storage.md',
   databaseConnections: 'storage.md',
-  ledgerMirror: 'session-telemetry.md',
   subagentModelSelection: 'subagent.md',
   subagents: 'subagent.md',
   subprocess: 'subprocess.md',
@@ -233,6 +232,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  ledgerMirror: 'provider-installed interface-typed secondary ledger — packages/storage/storage-postgres/README.md owns append and snapshot behavior',
   messageDeliveryUnavailable: 'optional local delivery refusal value — packages/session/message-delivery-local/README.md owns the API',
   hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',
   windowsBashConfig: 'not a service: boot-provided optional config accessor for Loader expressions — packages/host/host-bash-setup/README.md owns confirmed selection and restart semantics',

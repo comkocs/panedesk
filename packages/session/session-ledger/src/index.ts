@@ -159,7 +159,9 @@ export abstract class SessionLedger extends Service {
    * @returns Revisioned snapshot bounded by watermarks.
    */
   abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
-  /** Read committed body-free facts for a secondary storage mirror; unsupported providers return no facts. */
+  /** Read committed body-free facts for a secondary storage mirror; unsupported providers return no facts.
+   * @returns Retained facts and whether their history is complete.
+   */
   facts(): Promise<{ events: readonly LedgerEvent[]; complete: boolean }> {
     return Promise.resolve({ events: [], complete: false })
   }

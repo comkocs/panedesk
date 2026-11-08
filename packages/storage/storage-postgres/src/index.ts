@@ -99,7 +99,9 @@ export default class PostgresStorage extends Service {
     this.ctx.provide('ledgerMirror', { append: event => this.appendLedger(event), snapshot: () => this.ledgerSnapshot() })
   }
 
-  /** Return settings and connection status without returning the stored credential. */
+  /** Return settings and connection status without returning the stored credential.
+   * @returns Saved selection, connection names and startup status.
+   */
   async status(): Promise<StorageStatus> {
     await this.ready
     let settings = this.settings
@@ -110,7 +112,10 @@ export default class PostgresStorage extends Service {
       restartRequired: this.restartRequired }
   }
 
-  /** Persist the selected saved connection without copying configuration or credentials. */
+  /** Persist the selected saved connection without copying configuration or credentials.
+   * @param input - Selected local backend or saved connection id.
+   * @returns Saved selection and restart status.
+   */
   async save(input: StorageSettingsInput): Promise<StorageStatus> {
     await this.ready
     const settings = settingsSchema.parse(input.settings)
@@ -123,7 +128,10 @@ export default class PostgresStorage extends Service {
     return this.status()
   }
 
-  /** Probe the selected connection with SELECT 1 only, without creating storage tables. */
+  /** Probe the selected connection with SELECT 1 only, without creating storage tables.
+   * @param input - Saved connection selection to probe.
+   * @returns Whether SELECT 1 succeeded and any connection error.
+   */
   async testConnection(input: StorageSettingsInput): Promise<ConnectionResult> {
     try {
       const settings = settingsSchema.parse(input.settings)
@@ -134,7 +142,9 @@ export default class PostgresStorage extends Service {
     } catch (error) { return { connected: false, error: this.message(error) } }
   }
 
-  /** Copy local storage units without replacing existing remote keys; restart to reload imported data. */
+  /** Copy local storage units without replacing existing remote keys; restart to reload imported data.
+   * @returns Number of newly copied rows.
+   */
   async migrate(): Promise<number> {
     await this.ready
     const backend = await this.connect(await this.readSettings())

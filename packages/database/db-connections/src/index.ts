@@ -84,38 +84,54 @@ export default class DatabaseConnections extends TypertRemoteService {
     })
   }
 
-  /** List non-secret configurations for Host consumers. */
+  /** List non-secret configurations for Host consumers.
+   * @returns Saved connection metadata without credentials.
+   */
   async listConnections(): Promise<DatabaseConnection[]> {
     return catalogSchema.parse(JSON.parse(await readFile(this.filename, 'utf8')))
   }
 
-  /** Resolve non-secret configuration by stable id; missing ids fail explicitly. */
+  /** Resolve non-secret configuration by stable id; missing ids fail explicitly.
+   * @param id - Saved connection id.
+   * @returns Matching non-secret configuration.
+   */
   async getConfig(id: string): Promise<DatabaseConnection> {
     const row = (await this.listConnections()).find(value => value.id === id)
     if (!row) throw new Error('Database connection no longer exists')
     return row
   }
 
-  /** Open a dedicated client and optional SSH forward by id. No connection is opened at boot. */
+  /** Open a dedicated client and optional SSH forward by id. No connection is opened at boot.
+   * @param id - Saved connection id.
+   * @param signal - Optional cancellation for the connection lifetime.
+   * @returns Caller-owned client and close operation.
+   */
   async open(id: string, signal?: AbortSignal): Promise<OpenDatabaseConnection> {
     const config = await this.getConfig(id)
     const secrets = await this.secrets(id)
     return this.connect(config, secrets.password, secrets.passphrase, signal)
   }
 
-  /** Close every currently open handle for an id, including its SSH forwards. */
+  /** Close every currently open handle for an id, including its SSH forwards.
+   * @param id - Saved connection id whose handles are released.
+   */
   async close(id: string): Promise<void> {
     await Promise.all([...(this.handles.get(id) ?? [])].map(handle => handle.close()))
   }
 
-  /** Owner settings read, with no password or key content in the response. */
+  /** Owner settings read, with no password or key content in the response.
+   * @returns Catalog path and saved non-secret configurations.
+   */
   @Remote
   async inspect(): Promise<{ filename: string; connections: DatabaseConnection[] }> {
     this.owner()
     return { filename: this.filename, connections: await this.listConnections() }
   }
 
-  /** Save one connection; omitted secrets retain stored values and empty strings clear them. */
+  /** Save one connection; omitted secrets retain stored values and empty strings clear them.
+   * @param input - Connection metadata and optional credential updates.
+   * @returns Persisted non-secret configuration.
+   */
   @Remote
   async save(input: ConnectionInput): Promise<DatabaseConnection> {
     this.owner()
@@ -142,7 +158,9 @@ export default class DatabaseConnections extends TypertRemoteService {
     return row
   }
 
-  /** Delete metadata first, then remove the credential and release open connections. */
+  /** Delete metadata first, then remove the credential and release open connections.
+   * @param id - Saved connection to remove.
+   */
   @Remote
   async remove(id: string): Promise<void> {
     this.owner()
@@ -157,7 +175,10 @@ export default class DatabaseConnections extends TypertRemoteService {
     await this.close(id)
   }
 
-  /** Probe an unsaved form without persisting its secrets; the short-lived client is always closed. */
+  /** Probe an unsaved form without persisting its secrets; the short-lived client is always closed.
+   * @param input - Connection settings and optional draft credentials.
+   * @returns Whether SELECT 1 succeeded and any connection error.
+   */
   @Remote
   async test(input: ConnectionInput): Promise<ConnectionTest> {
     this.owner()
@@ -173,7 +194,10 @@ export default class DatabaseConnections extends TypertRemoteService {
     }
   }
 
-  /** Browse Host filenames for private-key selection; no file contents are returned or copied. */
+  /** Browse Host filenames for private-key selection; no file contents are returned or copied.
+   * @param path - Absolute directory to browse, or empty for the home directory.
+   * @returns Directory path, parent and file entries.
+   */
   @Remote
   async browseKeys(path: string): Promise<{ path: string; parent: string; entries: { name: string; path: string; directory: boolean }[] }> {
     this.owner()
