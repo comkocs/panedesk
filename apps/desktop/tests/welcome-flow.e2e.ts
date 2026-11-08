@@ -143,7 +143,7 @@ describe.skipIf(!existsSync(builtHost))('built Desktop welcome flow', () => {
       }
       const status = async () => backend.read()
       const fingerprint = (): string => createHash('sha256')
-        .update(readFileSync(join(home, '.credentials.yaml'))).digest('hex')
+        .update(readFileSync(join(home, 'private', '.credentials.yaml'))).digest('hex')
       await restart()
       expect(await status()).toMatchObject({ hasApiKey: false, localePreference: null })
       const before = fingerprint()

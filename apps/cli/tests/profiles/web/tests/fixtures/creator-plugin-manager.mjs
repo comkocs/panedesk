@@ -1,6 +1,8 @@
 /** Test-only IPC assertions over real Creator presets and profile management. */
 export const inject = ['agents', 'agentPresets', 'tools', 'pluginManager', 'permissionPresets']
 
+const gatewayOriginal = Symbol.for('cordis.original')
+
 export function apply(ctx, config) {
   const receive = message => {
     if (message !== 'initial' && message !== 'restart') return
@@ -15,11 +17,21 @@ export function apply(ctx, config) {
     let activeSession
     let answer = 'rejected'
     const approvals = []
-    const disposeApproval = ctx.on('approval/request', (request, next) => {
-      if (request.toolName !== 'plugin_manager') return next()
-      approvals.push(answer)
-      return Promise.resolve(answer)
-    }, { prepend: true })
+    // Plugin changes ask the owner through the gateway, not the Host approval waterfall.
+    const gateway = ctx.get('typertGateway')?.[gatewayOriginal]
+    const requestOwnerEvent = gateway?.requestOwnerEvent
+    if (gateway !== undefined && requestOwnerEvent !== undefined) {
+      gateway.requestOwnerEvent = function (event, request, context) {
+        if (event === 'approval/request' && request?.toolName === 'plugin_manager') {
+          approvals.push(answer)
+          return Promise.resolve({ kind: 'result', value: answer })
+        }
+        return requestOwnerEvent.call(this, event, request, context)
+      }
+    }
+    const disposeApproval = () => {
+      if (gateway !== undefined && requestOwnerEvent !== undefined) gateway.requestOwnerEvent = requestOwnerEvent
+    }
     const make = async id => {
       const handle = await ctx.agents.create({ sessionId: id, cwd: process.cwd(),
         setup: scope => ctx.agentPresets.mount(scope, 'cordis').then(() => undefined) })
