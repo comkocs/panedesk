@@ -43,19 +43,23 @@ The catalog and the body have separate lifecycles: discovery parses frontmatter 
 
 ### Roots and priority
 
-Default roots are scanned in this provider's rank order:
+Default roots include Claude Code project and user directories; `<userHome>` comes from `os.homedir()`, independently of the configurable Harness and agent homes. Roots are scanned in this provider's rank order:
 
 | Rank | Source | Path |
 |---|---|---|
 | 100 | `project-dsh` | `<projectRoot>/.panedesk/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
+| 210 | `project-claude` | `<projectRoot>/.claude/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
+| 510 | `user-claude` | `<userHome>/.claude/skills` |
 
 The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user DSH root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$DSH_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
 
 `listSkillCatalog(ctx, cwd?, scope?)` reads the available catalog without an Agent or Session and returns names, descriptions, source paths, and `builtin` / `user` / `project` groups. Only the effective highest-priority source of each name is listed; shadowed sources are omitted. Custom roots remain outside these three groups. Omitting `cwd` omits project roots; a caller supplying a project directory owns its authorization. The optional `scope` includes its preset or agent provider layers; omission reads only global providers. The helper resolves the registry through `ctx.get('skills')`, so optional consumers need no `skills` injection; an absent registry rejects the request rather than returning an empty catalog.
+
+`FileSystemSkillProvider.directories(options)` inspects the same resolved roots as discovery, including custom and configured bundled roots, without starting watchers. It returns each full path, source, provider, existence, and valid skill count before same-name precedence. Disabled providers retain this read-only inspection.
 
 ### Mount and configure
 
@@ -68,6 +72,7 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 
 | Field | Default | Meaning |
 |---|---|---|
+| `enabled` | `true` | Scan and expose this provider’s skills; disabling retains directory inspection and configuration |
 | `providerName` | `filesystem` | Unique provider name registered on `ctx.skills` |
 | `includeDefaultRoots` | `true` | Include project and user roots around `customSkillDirs` |
 | `dshHome` | `$PANEDESK_HOME` or `~/.panedesk` | Harness config root; its `skills` subdirectory is scanned |

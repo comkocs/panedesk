@@ -19,9 +19,11 @@ export function skillCatalogGroup(skill: SkillSummary): SkillCatalogGroup | unde
       return 'builtin'
     case 'user-dsh':
     case 'user-agents':
+    case 'user-claude':
       return 'user'
     case 'project-dsh':
     case 'project-agents':
+    case 'project-claude':
       return 'project'
     default:
       return undefined

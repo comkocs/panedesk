@@ -37,7 +37,17 @@ export function isSkillName(name: string): boolean {
 }
 
 /** Origin bucket for a skill contribution. The value is prompt-visible metadata, not precedence by itself. */
-export type SkillSource = 'project-dsh' | 'project-agents' | 'runtime' | 'user-dsh' | 'user-agents' | 'custom' | 'bundled' | (string & {})
+export type SkillSource = 'project-dsh' | 'project-agents' | 'project-claude' | 'runtime' | 'user-dsh' | 'user-agents' | 'user-claude' | 'custom' | 'bundled' | (string & {})
+
+/** One configured filesystem root, including missing and shadowed skill sources. */
+export interface SkillDirectory {
+  readonly path: string
+  readonly source: SkillSource
+  readonly provider: string
+  readonly exists: boolean
+  /** Valid discovered skills before same-name precedence is applied. */
+  readonly count: number
+}
 
 /** Optional provider-specific base used by loaded skill bodies to resolve relative resources. */
 export type SkillResourceBase =
@@ -247,6 +257,12 @@ export interface SkillProviderObservation {
 export interface SkillProvider {
   /** Unique provider name in the `ctx.skills` registry. */
   readonly name: string
+  /**
+   * Inspect configured filesystem roots without changing catalog precedence.
+   * @param options - workspace-sensitive lookup context.
+   * @returns roots with existence and pre-deduplication skill counts.
+   */
+  readonly directories?: (options: SkillLookupOptions) => Promise<readonly SkillDirectory[]>
   /**
    * List available skill candidates for the current lookup context. Provider
    * plugins register synchronously during `apply()`; remote initialization,
@@ -514,6 +530,23 @@ export class SkillRegistry extends Service {
       return undefined
     }
     return definition
+  }
+
+  /**
+   * Inspect filesystem roots from the global and selected provider layers.
+   * @param options - scope and cwd selecting the same providers as the catalog.
+   * @returns each provider's roots, including missing directories and shadowed skills.
+   */
+  async directories(options: SkillViewOptions = {}): Promise<SkillDirectory[]> {
+    const directories: SkillDirectory[] = []
+    for (const layer of [this.layers.global, ...this.layers.chainLayers(options.scope)]) {
+      for (const { provider } of layer.providers.values()) {
+        throwIfAborted(options.signal)
+        if (provider.directories !== undefined) directories.push(...await provider.directories(options))
+      }
+    }
+    throwIfAborted(options.signal)
+    return directories
   }
 
   private async collect(options: SkillViewOptions): Promise<CollectResult> {

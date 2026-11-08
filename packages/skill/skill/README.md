@@ -52,6 +52,8 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 - **Embedded skills.** Plugins register an in-memory skill with `ctx.skills.register(...)`; the registry fills in a default invocation policy and the `runtime` provider label. Same-name runtime registrations in one layer are first-wins with a warning.
 - **Provider registration.** A provider contributes its catalog with `ctx.skills.registerProvider(...)`; registration is synchronous, and the returned disposer removes the provider. `runtime` is a reserved provider name.
 
+`ctx.skills.directories(options)` asks filesystem-capable providers in the global and selected scope layers for their configured roots. Missing directories and shadowed skills remain visible through existence and pre-deduplication counts; inspection errors reject the read instead of changing skill precedence. Providers without the optional `directories` method contribute no filesystem roots.
+
 An invocation policy on every skill decides which surfaces may advertise and load it: `modelInvocable` for model-facing tools and catalogs, `userInvocable` for human-facing commands. The registry keeps all four combinations, so one discovery result can serve both surfaces without conflating their catalogs.
 
 | Policy | Model | User |

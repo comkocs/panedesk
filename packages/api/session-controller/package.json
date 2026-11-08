@@ -124,6 +124,7 @@
   },
   "devDependencies": {
     "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-config-editor": "workspace:*",
     "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",

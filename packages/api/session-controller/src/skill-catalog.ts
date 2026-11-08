@@ -4,7 +4,8 @@ import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-agent-preset-registry/types'
 import { SessionQueryError } from '@panedesk/dsh-session-query'
 import { isUserInvocable } from '@panedesk/dsh-skill'
-import { listSkillCatalog } from '@panedesk/dsh-skill-filesystem'
+import { listSkillCatalog, type Config as FileSystemSkillConfig } from '@panedesk/dsh-skill-filesystem'
+import type {} from '@panedesk/dsh-config-editor'
 import type {} from '@panedesk/dsh-working-directory'
 import type { ScopeKey } from '@panedesk/dsh-scope'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
@@ -97,7 +98,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
    * List global and default-preset built-in, user, and project skills without creating a session.
    * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
    * @param signal - caller lifetime carried by the Remote transport.
-   * @returns the three directories.
+   * @returns effective skills, scanned roots, and editable global filesystem-provider settings.
    * @throws RemoteError when no registry is mounted or discovery fails.
    */
   @Remote('catalog')
@@ -109,7 +110,8 @@ export class SessionSkillCatalog extends TypertRemoteService {
     }
     // The Remote transport checks workspace permission when that resource is
     // registered, or global permission without an id; raw paths are not ids.
-    if (this.ctx.get('skills') === undefined) {
+    const registry = this.ctx.get('skills')
+    if (registry === undefined) {
       throw new RemoteError('skills/unavailable', 'skill registry is absent', {})
     }
     try {
@@ -117,10 +119,52 @@ export class SessionSkillCatalog extends TypertRemoteService {
       signal.throwIfAborted()
       const entries = await listSkillCatalog(this.ctx, workspace?.path, lease?.key)
       signal.throwIfAborted()
-      return { entries }
+      const directories = await registry.directories({ cwd: workspace?.path, scope: lease?.key, signal })
+      const editor = this.ctx.get('configEditor')
+      const settings = editor?.configuration().flatMap(({ entry }) => {
+        if (entry.options.name !== '@panedesk/dsh-skill-filesystem' || entry.fiber === undefined) return []
+        const value = entry.fiber.config as FileSystemSkillConfig
+        return [{
+          ns: entry.options.id,
+          path: editor.documentPath,
+          value: {
+            enabled: value.enabled ?? true,
+            includeDefaultRoots: value.includeDefaultRoots ?? true,
+            customSkillDirs: value.customSkillDirs ?? [],
+            watch: value.watch ?? true,
+            watchPollIntervalMs: value.watchPollIntervalMs ?? 100,
+          },
+        }]
+      }) ?? []
+      signal.throwIfAborted()
+      return { entries, directories, settings }
     } catch (error: unknown) {
       throw new RemoteError('gateway/internal', `skill listing failed: ${String(error)}`, {})
     }
+  }
+
+  /**
+   * Persist filesystem-provider settings through the profile's existing config editor.
+   * @param ns - addressable filesystem-provider entry returned by catalog.
+   * @param patch - changed scanning or watcher fields; the plugin schema validates values before saving.
+   * @returns after persistence and normal Loader reconciliation.
+   * @throws RemoteError when configuration is unavailable or the entry cannot be edited.
+   */
+  @Remote
+  async configure(ns: string, patch: {
+    enabled?: boolean
+    includeDefaultRoots?: boolean
+    customSkillDirs?: string[]
+    watch?: boolean
+    watchPollIntervalMs?: number
+  }): Promise<void> {
+    const editor = this.ctx.get('configEditor')
+    const entry = editor?.entries().find(row => row.options.id === ns
+      && row.options.name === '@panedesk/dsh-skill-filesystem')
+    if (editor === undefined || entry === undefined) {
+      throw new RemoteError('skills/unavailable', 'filesystem skill configuration is unavailable', {})
+    }
+    await editor.edit(entry, current => ({ ...current, ...patch }))
   }
 
   /** Resolve a live or standing preset scope without creating an Agent. */

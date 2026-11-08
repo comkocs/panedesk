@@ -1,45 +1,40 @@
-/**
- * What the Skills page reads. The host supplies the three directories; this
- * package never reads the filesystem itself.
- */
-
+/** Host-owned catalog and scan settings read without creating a session. */
 import type { WorkspaceId } from '@panedesk/dsh-api-workspace-controller/client'
+import type { SkillCatalogPageEntry, SkillCatalogPageValue, SkillCatalogSettings } from '@panedesk/dsh-api-session-controller/types'
 
-/** One of the three skill directories. */
-export type SkillPageGroup = 'builtin' | 'user' | 'project'
-
-/** One skill row. */
-export interface SkillPageEntry {
-  /** Skill name. */
-  readonly name: string
-  /** Short description. */
-  readonly description: string
-  /** Directory the skill was discovered in. */
-  readonly group: SkillPageGroup
-  /** Absolute source path. */
-  readonly path: string
-}
-
-/** Why a listing did not produce rows. */
+/** Skill scope used for the effective catalog groups. */
+export type SkillPageGroup = SkillCatalogPageEntry['group']
+/** Effective skill row supplied by the host. */
+export type SkillPageEntry = SkillCatalogPageEntry
+/** One provider's editable scan controls. */
+export type SkillPageSettings = SkillCatalogSettings
+/** Why a listing could not complete. */
 export type SkillPageRefusal = 'unavailable' | 'disabled' | 'denied' | 'failed'
-
-/** What one listing answered. */
+/** Catalog response or a refusal the page can announce. */
 export type SkillPageListing =
-  | { readonly kind: 'listed'; readonly entries: readonly SkillPageEntry[]; readonly workspace: boolean }
+  | ({ readonly kind: 'listed'; readonly workspace: boolean } & SkillCatalogPageValue)
   | { readonly kind: 'refused'; readonly reason: SkillPageRefusal; readonly message?: string }
 
-/** Host reads the page is allowed to make. */
+/** Operations bound to the existing host services. */
 export interface SkillPageOperations {
   /**
-   * List the three directories.
-   * @param workspaceId - registered workspace selected on this page, or undefined for host skills.
-   * @returns the rows, or why none could be listed.
+   * Read effective skills, scan directories, and profile controls.
+   * @param workspaceId - registered workspace, or undefined for global roots only.
+   * @returns the catalog or an actionable refusal.
    */
   list(workspaceId?: WorkspaceId): Promise<SkillPageListing>
   /**
-   * Open one source file through the host's existing path opener.
-   * @param path - absolute source path from a listed row.
-   * @returns the refusal message, or undefined once the host accepted the path.
+   * Open a source file or reveal it in the host file manager.
+   * @param path - absolute host path returned by the catalog.
+   * @param action - default opener or file-manager navigation.
+   * @returns a refusal message, or undefined on success.
    */
-  open(path: string): Promise<string | undefined>
+  open(path: string, action?: 'open' | 'reveal'): Promise<string | undefined>
+  /**
+   * Save changed provider controls through the existing profile editor.
+   * @param ns - provider entry returned by the catalog.
+   * @param patch - changed scan fields.
+   * @returns a failure message, or undefined after saving and reloading.
+   */
+  configure(ns: string, patch: Partial<Omit<SkillPageSettings['value'], 'customSkillDirs'>> & { customSkillDirs?: string[] }): Promise<string | undefined>
 }

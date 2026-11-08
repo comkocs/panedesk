@@ -3,3 +3,14 @@
   flex-direction: column;
   gap: 8px;
 }
+
+.section fieldset,
+.section label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path {
+  overflow-wrap: anywhere;
+}

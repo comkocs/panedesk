@@ -3811,7 +3811,7 @@ export interface Config {
 
 ## `@panedesk/dsh-skill`
 
-- `source`: [`packages/skill/skill/src/index.ts:278`](../packages/skill/skill/src/index.ts)
+- `source`: [`packages/skill/skill/src/index.ts:294`](../packages/skill/skill/src/index.ts)
 
 ```ts config-catalog
 /** Skill registry configuration. */
@@ -3828,11 +3828,13 @@ export interface Config {
 ## `@panedesk/dsh-skill-filesystem`
 
 - `inject`: `skills`
-- `source`: [`packages/skill/skill-filesystem/src/index.ts:99`](../packages/skill/skill-filesystem/src/index.ts)
+- `source`: [`packages/skill/skill-filesystem/src/index.ts:103`](../packages/skill/skill-filesystem/src/index.ts)
 
 ```ts config-catalog
 /** Local filesystem skill provider configuration. */
 export interface Config {
+  /** Whether this provider scans and exposes skills; defaults to true. */
+  enabled?: boolean
   /** Unique provider name. Defaults to `filesystem`. */
   providerName?: string
   /** Whether project and user roots are included around custom roots. */

@@ -1648,6 +1648,9 @@ importers:
       '@panedesk/dsh-commands':
         specifier: workspace:*
         version: link:../../interaction/commands
+      '@panedesk/dsh-config-editor':
+        specifier: workspace:*
+        version: link:../../boot/config-editor
       '@panedesk/dsh-credentials':
         specifier: workspace:*
         version: link:../../credentials/credentials
@@ -7676,6 +7679,9 @@ importers:
       '@panedesk/dsh-api-remotes':
         specifier: workspace:*
         version: link:../../api/remotes
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
       '@panedesk/dsh-api-workspace-controller':
         specifier: workspace:*
         version: link:../../api/workspace-controller
