@@ -16,6 +16,9 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../boot/config-editor"
+    },
+    {
       "path": "../../typert/protocol"
     },
     {
