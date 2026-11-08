@@ -272,15 +272,13 @@
     - id: subprocess
       name: '@panedesk/dsh-subprocess-local'
 
-    # The policy service owns platform defaults; configuration and environment
-    # choices remain explicit overrides rather than implicit write authorization.
     - id: sandbox
       name: '@panedesk/dsh-sandbox-local'
 
     - id: sandbox-policy
       name: '@panedesk/dsh-sandbox-policy'
       config:
-        mode: !!js process.env.PANEDESK_PERMISSION_MODE
+        mode: !!js process.env.PANEDESK_PERMISSION_MODE ?? 'workspace-write'
         workspaceRoot: !!js process.cwd()
 
     - id: bash-sandbox

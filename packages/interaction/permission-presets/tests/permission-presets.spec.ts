@@ -76,23 +76,20 @@ describe('permission preset fold', () => {
     } finally { await ctx.fiber.dispose() }
   })
 
-  it('does not turn an implicit Windows default into an explicit session override', async () => {
-    const ctx = new Context()
+  it('pins the workspace-write default and preserves an explicit read-only selection', async () => {
+    const ctx = await mounted({ config: { presets: {
+      'read-only': { sandbox: 'read-only', approval: 'ask' },
+      'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
+    } } })
     try {
-      await ctx.plugin(SessionStore)
-      await ctx.plugin(SessionProjectionRegistry)
-      ctx.provide('sandboxPolicy', { windowsDefault: true })
-      ctx.provide('shell', { sandboxMode: 'read-only' })
-      ctx.provide('approval', { config: { policy: 'ask' } })
-      await ctx.plugin(PermissionPresetService, { presets: {
-        'read-only': { sandbox: 'read-only', approval: 'ask' },
-        'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
-      } })
-      const session = ctx.sessions.create(SessionId('implicit-windows'))
-      expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode')).toEqual([])
+      const session = ctx.sessions.create(SessionId('default-workspace-write'))
+      const modes = () => session.snapshotEvents().filter(event => event.type === 'sandbox/mode').map(event => event.data)
+      expect(ctx.permissionPresets.current(session)).toBe('workspace-write')
+      expect(modes()).toEqual([{ mode: 'workspace-write' }])
       ctx.permissionPresets.set(session, 'read-only')
-      expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode').map(event => event.data))
-        .toEqual([{ mode: 'read-only' }])
+      await ctx.permissionPresets.initialize(session)
+      expect(ctx.permissionPresets.current(session)).toBe('read-only')
+      expect(modes()).toEqual([{ mode: 'workspace-write' }, { mode: 'read-only' }])
     } finally { await ctx.fiber.dispose() }
   })
 

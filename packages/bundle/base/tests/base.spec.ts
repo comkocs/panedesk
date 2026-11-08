@@ -91,8 +91,10 @@ describe('dsh-base bundle', () => {
     }
     const policyConfig = rows.find(row => row.id === 'sandbox-policy')?.config as { mode: { __jsExpr: string } }
     for (const platform of ['win32', 'linux', 'darwin'] as const) {
-      expect(evaluate(scope(platform, {}), policyConfig.mode.__jsExpr)).toBeUndefined()
-      expect(evaluate(scope(platform, { PANEDESK_PERMISSION_MODE: 'read-only' }), policyConfig.mode.__jsExpr)).toBe('read-only')
+      expect(evaluate(scope(platform, {}), policyConfig.mode.__jsExpr)).toBe('workspace-write')
+      for (const mode of ['read-only', 'workspace-write', 'danger-full-access']) {
+        expect(evaluate(scope(platform, { PANEDESK_PERMISSION_MODE: mode }), policyConfig.mode.__jsExpr)).toBe(mode)
+      }
     }
     const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'
     for (const id of ['bash-sandbox', 'tool-bash', 'pwsh-sandbox', 'tool-pwsh']) {
