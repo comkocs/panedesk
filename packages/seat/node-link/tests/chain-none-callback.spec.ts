@@ -58,12 +58,17 @@ test.each(['before-ready', 'after-ready', 'before-timeout', 'after-timeout'] as 
         }
       },
       remove: async (name) => { records.delete(`${directory}/${name}`) }, lock: async () => async () => {} })
-    const entry = engine.authorizationIssuers.register({ identity: { kind: 'human', principalId,
-      nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
+    const issuer: Seat.SeatAuthorizationIssuer = { check: async (request) => {
+      const seat = original.delegation.seat
+      const fact: Seat.SeatIssuedAuthorizationFact = { kind: 'human', principalId, nodeId: original.sourceNodeId, origin: 'manual',
+        ...(seat === undefined ? {} : { seat }), taskIds: original.delegation.taskIds, policyRevision: 1, decision: 'allowed', reasonCode: 'allowed',
+        authorizationId: 'fresh-callback' as Seat.AuthorizationRef, operationId: request.operationId,
+        requestDigest: request.requestDigest, checkedAt: new Date().toISOString() }
+      return { fact } as Pick<Seat.SeatAuthorizationGrant, 'fact'> as Seat.SeatAuthorizationGrant
+    } }
     const issuerFor = async (request: ChainRequest) => Host.digest(chainKey(request)) === Host.digest(chainKey(original))
       && (request.method === 'chain.operation' ? request.payload.payloadDigest : request.payloadDigest) === original.payloadDigest
-      ? entry.issuer : undefined
+      ? issuer : undefined
     const business = new ChainBusinessRegistry()
     const seen: ChainRequest[] = []
     let executions = 0, writebacks = 0, committed = false

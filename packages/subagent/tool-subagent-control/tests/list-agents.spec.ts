@@ -56,7 +56,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-async function setupWith(adapter: MockAdapter | GatedAdapter, overflow: 'error' | 'queue' = 'error') {
+async function setupWith(adapter: MockAdapter | GatedAdapter) {
   const ctx = new Context()
   contexts.add(ctx)
   await mountAgentLoopTestDependencies(ctx)
@@ -66,7 +66,7 @@ async function setupWith(adapter: MockAdapter | GatedAdapter, overflow: 'error' 
   await ctx.plugin(TestSessionQuery)
   await ctx.plugin(AgentLoop, { agents: [] })
   await mountWorkingDirectoryFixture(ctx)
-  await ctx.plugin(SubagentRuntime, { overflow })
+  await ctx.plugin(SubagentRuntime)
   await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
   await ctx.plugin(tool)
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -161,18 +161,6 @@ describe('dsh-tool-subagent-control/list-agents', () => {
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe('(no subagents)')
-  })
-
-  it.each(['children', 'descendants'])('adds queue counts, oldest time and positions to %s without treating tickets as children', async (scope) => {
-    const { ctx, parent } = await setupWith(new MockAdapter([]), 'queue')
-    vi.spyOn(ctx.subagents, 'listQueued').mockReturnValue({ queuedCount: 2, earliestQueuedAt: 1000,
-      tickets: [1, 2].map(position => ({ ticketId: `ticket-${position}` as import('@panedesk/dsh-subagent').SubagentQueued['ticketId'],
-        parentSessionId: parent.id, position, queuedAt: position * 1000, state: 'queued' })) })
-    const result = await callTool(ctx, 'list_agents', { scope }, parent)
-    expect(result.isError).toBe(false)
-    expect(text(result)).toBe('Queued dispatches: 2; earliest queued at: 1970-01-01T00:00:01.000Z\n'
-      + 'ticket-1 [queued] position=1\nticket-2 [queued] position=2\n'
-      + 'Queued tickets are not child ids and do not accept send_message.')
   })
 
   it('renders direct children in array order with registry statuses', async () => {
