@@ -515,8 +515,8 @@ Registry of YAML-declared presets and the revisions live Agents retain.
 
 ```ts cordis-catalog
 /** Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset.
- * A project definition overrides the user definition of the same name. A model no configured
- * provider advertises is listed broken with the cause; a tool name with no Panedesk tool is
+ * A project definition overrides the user definition of the same name. Model preferences are
+ * resolved at delegation, not during import; a tool name with no Panedesk tool is
  * recorded on the preset and left out of the allowlist. Files are read once, never watched or written.
  * @param sources - home and workspace roots; omitted roots use the process home and cwd.
  */
@@ -580,7 +580,7 @@ composedPreset(ctx: Context): string | undefined
  * @param ctx Agent context.
  * @returns Frozen policy metadata, or undefined when no preset is bound.
  */
-composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> | undefined
+composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> | undefined
 
 /** Read a service supplied inside an Agent's isolated preset group.
  * @param agent Agent whose composition is queried.

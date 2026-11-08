@@ -660,8 +660,8 @@ listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<Subagen
  * message the child's inbox accepted; later execution is independent of this
  * call. Queue delivery targets a later turn; steer delivery targets the
  * nearest step and retains the Agent loop's best-effort fallback semantics.
- * Image parts are admitted and persisted through the attachment store
- * before delivery, and the child's model must accept image input.
+ * Image bytes and parent-scoped file receipts become durable attachment
+ * references before delivery, without model-capability preflight.
  * Cold resume at capacity rejects with `subagent/delivery-unavailable`.
  * @param request - durable address, delivery, minted identity, content, and optional browser zone.
  * @param signal - carrier cancellation, owning the call until inbox acceptance.

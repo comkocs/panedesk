@@ -314,13 +314,13 @@ Host service owning upload storage and receipts keyed by each receiving Agent's 
 registerAgentResolver(resolve: AgentResolver): () => void
 
 /**
- * Persist one encoded upload and stage it under the Agent receiver selected by Typert.
- * @param agent - receiving Agent resolved from the Remote Agent scope.
+ * Persist one encoded upload for an ordinary Session or a live child.
+ * @param sessionId - receiving Session identity.
  * @param request - canonical base64 bytes and optional display name.
  * @param signal - caller cancellation before storage begins.
  * @returns the staged receipt and durable file reference.
  */
-@Remote('upload') upload(agent: Agent, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue>
+@Remote('upload') async upload(sessionId: SessionId, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue>
 
 /**
  * Persist raw chunks for one Session without aggregating the upload.

@@ -137,7 +137,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'async importClaudeAgents(sources: ClaudeAgentSources): Promise<void>',
-        description: 'Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset. A project definition overrides the user definition of the same name. A model no configured provider advertises is listed broken with the cause; a tool name with no Panedesk tool is recorded on the preset and left out of the allowlist. Files are read once, never watched or written.',
+        description: 'Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset. A project definition overrides the user definition of the same name. Model preferences are resolved at delegation, not during import; a tool name with no Panedesk tool is recorded on the preset and left out of the allowlist. Files are read once, never watched or written.',
         parameters: [{ name: 'sources', description: 'home and workspace roots; omitted roots use the process home and cwd.' }],
       },
       {
@@ -195,7 +195,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Its preset id, if bound.',
       },
       {
-        signature: 'composedPolicy(ctx: Context): Pick<AgentPreset, \'executionPolicy\' | \'executionPolicyDigest\'> | undefined',
+        signature: 'composedPolicy(ctx: Context): Pick<AgentPreset, \'executionPolicy\' | \'executionPolicyDigest\' | \'model\' | \'reasoningEffort\'> | undefined',
         description: 'Read execution metadata from the exact revision retained by an Agent.',
         parameters: [{ name: 'ctx', description: 'Agent context.' }],
         returns: 'Frozen policy metadata, or undefined when no preset is bound.',
@@ -1125,9 +1125,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'disposer removing this resolver.',
       },
       {
-        signature: '@Remote(\'upload\') upload(agent: Agent, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue>',
-        description: 'Persist one encoded upload and stage it under the Agent receiver selected by Typert.',
-        parameters: [{ name: 'agent', description: 'receiving Agent resolved from the Remote Agent scope.' }, { name: 'request', description: 'canonical base64 bytes and optional display name.' }, { name: 'signal', description: 'caller cancellation before storage begins.' }],
+        signature: '@Remote(\'upload\') async upload(sessionId: SessionId, request: EncodedFileUploadRequest, signal: AbortSignal): Promise<FileUploadValue>',
+        description: 'Persist one encoded upload for an ordinary Session or a live child.',
+        parameters: [{ name: 'sessionId', description: 'receiving Session identity.' }, { name: 'request', description: 'canonical base64 bytes and optional display name.' }, { name: 'signal', description: 'caller cancellation before storage begins.' }],
         returns: 'the staged receipt and durable file reference.',
       },
       {
@@ -5174,7 +5174,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'prompt\') async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>',
-        description: 'Deliver one browser-authored message to a continuable child through the exact live direct parent, retaining the caller-minted request identity and validated browser zone on the accepted message. Success identifies the message the child\'s inbox accepted; later execution is independent of this call. Queue delivery targets a later turn; steer delivery targets the nearest step and retains the Agent loop\'s best-effort fallback semantics. Image parts are admitted and persisted through the attachment store before delivery, and the child\'s model must accept image input. Cold resume at capacity rejects with `subagent/delivery-unavailable`.',
+        description: 'Deliver one browser-authored message to a continuable child through the exact live direct parent, retaining the caller-minted request identity and validated browser zone on the accepted message. Success identifies the message the child\'s inbox accepted; later execution is independent of this call. Queue delivery targets a later turn; steer delivery targets the nearest step and retains the Agent loop\'s best-effort fallback semantics. Image bytes and parent-scoped file receipts become durable attachment references before delivery, without model-capability preflight. Cold resume at capacity rejects with `subagent/delivery-unavailable`.',
         parameters: [{ name: 'request', description: 'durable address, delivery, minted identity, content, and optional browser zone.' }, { name: 'signal', description: 'carrier cancellation, owning the call until inbox acceptance.' }],
         returns: 'the accepted message\'s inbox identity.',
         throws: ['{RemoteError} `gateway/bad-request`, `subagent/attachment-invalid`, `subagent/invalid-time-zone`, `subagent/parent-unavailable`, `subagent/not-resumable`, `subagent/unauthorized`, `subagent/delivery-unavailable`, `gateway/cancelled`, or `gateway/internal`.'],
@@ -7087,6 +7087,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
   },
   {
+    name: 'AllowedModelRoute',
+    declaration: 'export interface AllowedModelRoute {\n    readonly provider: string;\n    readonly model: string;\n}',
+  },
+  {
     name: 'AnonymousTranslationProvider',
     declaration: 'export type AnonymousTranslationProvider = \'google\' | \'bing\';',
   },
@@ -8456,7 +8460,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'InputScheduling',
-    declaration: 'export interface InputScheduling {\n    readonly priority: InputPriority;\n    readonly passive: boolean;\n    readonly enqueueSequence: number;\n    readonly earliestTurn: number;\n}',
+    declaration: 'export interface InputScheduling {\n    readonly priority: InputPriority;\n    readonly passive: boolean;\n    readonly enqueueSequence: number;\n    readonly earliestTurn: number;\n    readonly afterTools?: boolean;\n}',
   },
   {
     name: 'InputTransition',
@@ -9448,7 +9452,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ModelModalityMap',
-    declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n}',
+    declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n    file: \'file\';\n    audio: \'audio\';\n}',
   },
   {
     name: 'ModelProviderGroup',
@@ -9944,7 +9948,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PresetDefinition',
-    declaration: 'export interface PresetDefinition {\n    readonly id: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly executionPolicy?: PresetExecutionPolicy;\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
+    declaration: 'export interface PresetDefinition {\n    readonly id: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly model?: string;\n    readonly reasoningEffort?: string;\n    readonly executionPolicy?: PresetExecutionPolicy;\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
   },
   {
     name: 'PresetExecutionPolicy',
@@ -11536,7 +11540,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionPromptRequest',
-    declaration: 'export interface SessionPromptRequest {\n    readonly requestId: SessionRequestId;\n    readonly sessionId: SessionId;\n    readonly mode: \'queue\' | \'steer\';\n    readonly content: readonly PromptContentPart[];\n    readonly clientTimeZone?: string;\n}',
+    declaration: 'export interface SessionPromptRequest {\n    readonly requestId: SessionRequestId;\n    readonly sessionId: SessionId;\n    readonly mode: \'queue\' | \'steer\' | \'next-step\';\n    readonly content: readonly PromptContentPart[];\n    readonly clientTimeZone?: string;\n}',
   },
   {
     name: 'SessionPromptValue',
@@ -12123,8 +12127,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SubagentLiveness = \'confirmed\' | \'unknown\' | \'dead\';',
   },
   {
+    name: 'SubagentModelSelectionSettings',
+    declaration: 'export interface SubagentModelSelectionSettings {\n    enabled: boolean;\n    allowedModels: AllowedModelRoute[];\n}',
+  },
+  {
     name: 'SubagentModelSource',
-    declaration: 'export type SubagentModelSource = \'transcript\' | \'unavailable\' | \'unreadable\';',
+    declaration: 'export type SubagentModelSource = \'transcript\' | \'registry\' | \'unavailable\' | \'unreadable\';',
   },
   {
     name: 'SubagentNodeStatus',
@@ -12136,7 +12144,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentPromptRequest',
-    declaration: 'export interface SubagentPromptRequest {\n    readonly requestId: SubagentPromptRequestId;\n    readonly parentSessionId: SessionId;\n    readonly childSessionId: SessionId;\n    readonly mode: \'continuable\';\n    readonly delivery: \'queue\' | \'steer\';\n    readonly content: readonly PromptContentPart[];\n    readonly clientTimeZone?: string;\n}',
+    declaration: 'export interface SubagentPromptRequest {\n    readonly requestId: SubagentPromptRequestId;\n    readonly parentSessionId: SessionId;\n    readonly childSessionId: SessionId;\n    readonly mode: \'continuable\';\n    readonly delivery: \'queue\' | \'steer\' | \'next-step\';\n    readonly content: readonly (PromptContentPart | {\n        readonly type: \'file\';\n        readonly receiptId: FileUploadReceiptId;\n    })[];\n    readonly clientTimeZone?: string;\n}',
   },
   {
     name: 'SubagentPromptRequestId',
@@ -12204,7 +12212,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentTreeNode',
-    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
+    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly external?: {\n        readonly title: string;\n        readonly type: string;\n        readonly startedAt: number | null;\n        readonly endedAt: number | null;\n    };\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
   },
   {
     name: 'SubagentTreeRequest',
@@ -12212,7 +12220,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentTreeView',
-    declaration: 'export interface SubagentTreeView {\n    readonly asOf: number;\n    readonly complete: boolean;\n    readonly root: SubagentTreeNode;\n    readonly refreshIntervalMs: number;\n}',
+    declaration: 'export interface SubagentTreeView {\n    readonly asOf: number;\n    readonly complete: boolean;\n    readonly root: SubagentTreeNode;\n    readonly externalRegistryUnreadable?: boolean;\n    readonly refreshIntervalMs: number;\n}',
   },
   {
     name: 'SubmitCloseReportRequest',
