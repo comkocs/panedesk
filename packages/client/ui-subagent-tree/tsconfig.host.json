@@ -1,13 +1,14 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "lib/types", "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo" },
-  "files": ["src/index.ts", "src/types.ts", "src/tree.ts", "src/transcript.ts"],
+  "files": ["src/index.ts", "src/types.ts", "src/tree.ts", "src/transcript.ts", "src/external-registry.ts"],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../typert/protocol" },
     { "path": "../../core/session" },
     { "path": "../../session/session-ledger" },
-    { "path": "../../session-query/session-query" }
+    { "path": "../../session-query/session-query" },
+    { "path": "../../settings/settings" }
   ]
 }

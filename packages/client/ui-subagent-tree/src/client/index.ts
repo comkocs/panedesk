@@ -18,6 +18,8 @@ import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
 import { RemoteError, remoteErrorOf, type RemoteResult, type TypertClientRemote } from '@panedesk/dsh-typert-protocol'
 import { SubagentTreeAction, SubagentTreeTab, type SubagentTreeActions, type SubagentTreeLabels } from './panel.tsx'
 import { en, zh, type SubagentTreeKey } from './locales.ts'
+import type {} from '@panedesk/dsh-client-ui-settings/client'
+import { RegistrySettingsRow, type RegistrySettings, type RegistrySettingsFace } from './settings.tsx'
 
 /** Stable implementation identity for the tree tab body and pill registration. */
 export const SUBAGENT_TREE_ID = '@panedesk/dsh-client-ui-subagent-tree'
@@ -85,6 +87,15 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   const ui = ctx.inject(['remote.subagentTree', 'sessions'], (scope) => {
     scope.effect(() => scope.locale.register('subagentTree', { en, zh }), 'subagentTree: locale')
     const t = scope.locale.bind('subagentTree')
+    scope.inject(['configForms'], settings => {
+      const namespace = 'ui-subagent-tree'
+      const form = settings.configForms.get<RegistrySettings>(namespace)
+      settings.effect(() => settings.configForms.whileServed([namespace], () => settings.slots.inject('settings.general.item', () =>
+        settings.slots.register({
+          name: 'settings.general.item', id: 'external-subagent-registry', order: 9020, locale: 'subagentTree',
+          inject: (): RegistrySettingsFace => ({ hooks: { registry: form }, save: path => form.set('externalRegistryFile', path) }),
+        }, RegistrySettingsRow))))
+    })
     const labelOf = (sessionId: SessionId): string => {
       const entry = scope.sessions.list.getSnapshot().byId[sessionId]
       return entry?.projectionValues?.subagent?.label ?? entry?.displayTitle ?? sessionId
