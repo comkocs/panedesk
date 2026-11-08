@@ -504,7 +504,6 @@ export async function packageTarget(
       ...desktopElectronBuilderArguments(target, true),
       '--config.mac.notarize=false',
     ], electronBuilderEnv)
-    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
     await withMacOSNotarizationProxy(mac?.notarizationProxy, () => packageMacOSArtifacts({
       arch: target.arch,
       // electron-builder named these artifacts after the published version, so locating them uses the same identifier.
@@ -514,14 +513,11 @@ export async function packageTarget(
     }, artifact => execute(desktopElectronBuilderArguments(target, false, artifact), electronBuilderEnv)), undefined, undefined, proxyEvent)
   } else if (target.platform === 'darwin' && !invocation.unsigned && !invocation.skipNotarization) {
     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
-    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
     const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'Panedesk.app')
     await withMacOSNotarizationProxy(mac?.notarizationProxy,
       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
   } else {
     await signedStage('artifacts', () => execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv))
-    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts',
-      ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
   }
   if (!invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
     writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)

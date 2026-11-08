@@ -14931,6 +14931,19 @@
           "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css"
         ]
       }
+    },
+    {
+      "id": "desktop-package-without-post-pack-smoke",
+      "description": "Package desktop installers without running the packaged-runtime smoke afterwards",
+      "origin": "Desktop packaging",
+      "reason": "package-target.ts no longer runs scripts/smoke-packaged-runtime.ts after electron-builder finishes the installer. Signing, notarization, the release record, and packaging-event recording stay in place. The Windows packaging workflow step names no longer say the packaged runtime is smoked. Pre-pack runtime checks are unchanged. The smoke script and its tests remain for separate use.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/scripts/package-target.ts",
+          ".github/workflows/windows-package.yml"
+        ]
+      }
     }
   ]
 }
