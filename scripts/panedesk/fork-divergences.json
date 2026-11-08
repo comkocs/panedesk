@@ -1,6 +1,27 @@
 {
   "divergences": [
     {
+      "id": "sidebar-direct-settings-launcher",
+      "description": "Replace the sidebar account menu with a direct Settings button",
+      "origin": "Panedesk sidebar simplification",
+      "reason": "Use one gear button for expanded and collapsed sidebars instead of a menu containing Settings, Feedback and account authentication actions. Retain account sign-in, model guidance, bonus notices and API-key setup through their other entries.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-account/README.md",
+          "packages/client/ui-settings-account/README.zh.md",
+          "packages/client/ui-settings-account/README.i18n.yaml",
+          "packages/client/ui-settings-account/src/client/AccountMenu.tsx",
+          "packages/client/ui-settings-account/src/client/AccountMenu.module.css",
+          "packages/client/ui-settings-account/src/client/AccountSection.tsx",
+          "packages/client/ui-settings-account/src/client/index.ts",
+          "packages/client/ui-settings-account/src/client/locales.ts",
+          "packages/client/ui-settings-account/src/contact-config.ts",
+          "packages/client/ui-settings-account/src/index.ts"
+        ]
+      }
+    },
+    {
       "id": "local-write-actionable-errors",
       "description": "Report local write failures with bilingual operation, path and cause details",
       "origin": "Local filesystem write diagnostics",

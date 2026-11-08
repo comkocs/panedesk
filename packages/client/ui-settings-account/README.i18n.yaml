@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-account/README.md
 /:
-  en: 13d891a226092817
-  zh: 90bf6ff56dd3c096
+  en: 10f6cc4f77048ffc
+  zh: 6db6d6aaf085bc66
 /panedesk-dsh-client-ui-settings-account:
   en: e8f57524a517436f
   zh: 82b7f14c14ef403e
 /panedesk-dsh-client-ui-settings-account/summary:
-  en: 54da65ea807d7af1
-  zh: 359f85d16724d71d
+  en: 18f83e5fb2a122be
+  zh: 35868ba859c961f2
 /panedesk-dsh-client-ui-settings-account/table-of-contents:
   en: c26f81e8adf0128b
   zh: e11ab371f51f66bc
 /panedesk-dsh-client-ui-settings-account/use-this-package:
-  en: 45aa7b44d5424d9b
-  zh: 20c7d344c4e9bce0
+  en: 0c6c016b31bf22a7
+  zh: 044a18baca81e24e
 /panedesk-dsh-client-ui-settings-account/use-this-package/desktop-onboarding:
   en: c1c4db71fd09ca13
   zh: a40c0a01e9951945
