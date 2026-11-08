@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.0
+
+### Added
+
+- An agent map button between the permission and model pickers opens a compact map of the session's subagents, expanding from the session in the middle, with background shell tasks in the corner. Selecting an agent shows its task and can open its session.
+- The Database connections settings page stores PostgreSQL connections from a connection string or separate fields, with SSL, an optional SSH tunnel and a connection test. Passwords and key passphrases are kept in Panedesk credentials.
+- Panedesk data can be stored in a saved PostgreSQL connection, in its own `panedesk` schema. Existing local data can be copied over, and Panedesk falls back to local storage when the database cannot be reached. Ledger rows are written there too and the statistics panel reads them.
+- A saved connection can let the model query it through a built-in SQL tool that lists tables, describes columns and runs SQL.
+- MCP servers configured for Claude Code in the project's `.mcp.json` and in `~/.claude.json` are loaded as well; Panedesk's own entries win on name clashes.
+
+### Changed
+
+- Completed agents in the agent map show a grey dot.
+
 ## 1.5.0
 
 ### Added
