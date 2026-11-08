@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "project-opening-complete-settings",
+      "description": "Complete project opening settings with workspace selection, immediate mode persistence, storage locations and engine status",
+      "origin": "Panedesk project opening settings",
+      "reason": "Explain all three modes and the default without requiring a project Session. Reuse workspace hooks and native Host path actions; expose owner-only actual profile and JSON catalog locations while preserving first-entry guidance and transactional mode writes.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-project-onboarding/README.md",
+          "packages/client/ui-project-onboarding/README.zh.md",
+          "packages/client/ui-project-onboarding/README.i18n.yaml",
+          "packages/client/ui-project-onboarding/src/opening.ts",
+          "packages/client/ui-project-onboarding/src/client/ProjectGuide.tsx",
+          "packages/client/ui-project-onboarding/src/client/ProjectSettings.tsx",
+          "packages/client/ui-project-onboarding/src/client/ProjectGuide.module.css",
+          "packages/client/ui-project-onboarding/src/client/settings-controller.ts",
+          "packages/client/ui-project-onboarding/src/client/index.ts",
+          "packages/client/ui-project-onboarding/src/client/locales.ts",
+          "packages/client/ui-project-onboarding/src/client/props.ts",
+          "packages/client/ui-project-onboarding/tsconfig.host.json"
+        ]
+      }
+    },
+    {
       "id": "sidebar-direct-settings-launcher",
       "description": "Replace the sidebar account menu with a direct Settings button",
       "origin": "Panedesk sidebar simplification",

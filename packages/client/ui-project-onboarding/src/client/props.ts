@@ -21,5 +21,12 @@ export interface GuideInjected extends ProjectInjected {
 
 /** Session-only first-entry modal. */
 export type GuideProps = PropsRuntime<'conversation.input.overlay'> & InjectFace<GuideInjected> & PropsLocale<'projectOnboarding'>
-/** Product settings page. */
-export type SettingsProps = PropsRuntime<'settings.section'> & InjectFace<ProjectInjected> & PropsLocale<'projectOnboarding'>
+/** Settings-only observations and native file actions; the conversation overlay does not consume them. */
+export interface SettingsInjected extends ProjectInjected {
+  hooks: ProjectInjected['hooks'] & { inspection: HostObservable<import('./settings-controller.ts').OpeningInspection> }
+  refresh: () => Promise<void>
+  openPath: (path: string, action: 'open' | 'reveal') => Promise<boolean>
+}
+
+/** Product settings page, available without a Session. */
+export type SettingsProps = PropsRuntime<'settings.section'> & InjectFace<SettingsInjected> & PropsLocale<'projectOnboarding'>

@@ -1,6 +1,8 @@
 /** Owner-authorized persistence and engine application of workspace opening modes. */
 import { randomUUID } from 'node:crypto'
-import { resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { z } from 'zod'
+import type {} from '@panedesk/dsh-config-editor'
 import type { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { SeatCallContext, SeatProjectId, SeatOperationId, SeatProjectPolicy } from '@panedesk/dsh-seat'
@@ -35,6 +37,30 @@ export default class ProjectOpening extends TypertRemoteService {
       this.lifetime.abort()
       await Promise.allSettled([...this.active])
     })
+  }
+
+  /** Read owner-visible storage locations and current engine availability without starting it.
+   * @returns Absolute profile and JSON catalog paths; null means the local provider is absent or uses another backend.
+   */
+  @Remote
+  async inspect(): Promise<{ settingsFile: string; settingsDirectory: string; catalogFile: string | null; catalogDirectory: string | null; engine: 'running' | 'recovering' | 'unavailable' }> {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('project-opening/unauthorized', 'Authenticated owner required', {})
+    }
+    const entries = this.ctx.get('configEditor')?.entries() ?? []
+    const configOf = (name: string): unknown => entries.find(entry => !entry.disabled && entry.options.name === name)?.fiber?.config
+    const domain = z.object({ backend: z.string(), routes: z.record(z.string(), z.string()).optional() })
+      .safeParse(configOf('@panedesk/dsh-storage-domain'))
+    const json = z.object({ root: z.string() }).safeParse(configOf('@panedesk/dsh-storage-json'))
+    const backend = domain.success ? domain.data.routes?.seat_catalog ?? domain.data.backend : undefined
+    const engine = this.ctx.get('seatEngine')
+    const settingsFile = resolve(this.ctx.settings.documentPath)
+    const catalogDirectory = this.ctx.get('seats') && backend === 'json' && json.success ? resolve(json.data.root) : null
+    return {
+      settingsFile, settingsDirectory: dirname(settingsFile),
+      catalogFile: catalogDirectory === null ? null : join(catalogDirectory, 'seat_catalog.json'), catalogDirectory,
+      engine: engine ? (await engine.nodeStatus()).engine : 'unavailable',
+    }
   }
 
   /** Persist one explicit human selection and apply it to matching local seat projects.

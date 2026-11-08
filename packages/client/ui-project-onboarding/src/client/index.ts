@@ -6,9 +6,11 @@ import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import contribution from '@panedesk/dsh-client-ui-project-onboarding/remote'
 import { ProjectPreferencesController } from './controller.ts'
-import { ProjectGuide, ProjectSettings } from './ProjectGuide.tsx'
+import { ProjectGuide } from './ProjectGuide.tsx'
+import { ProjectSettings } from './ProjectSettings.tsx'
+import { ProjectSettingsController } from './settings-controller.ts'
 import { en, zh } from './locales.ts'
-import type { GuideInjected, ProjectInjected } from './props.ts'
+import type { GuideInjected, ProjectInjected, SettingsInjected } from './props.ts'
 
 /** Services used by the preferences projection and its slot contributions. */
 export const inject = ['slots', 'locale', 'remote', 'configForms']
@@ -40,6 +42,11 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       hooks: { preferences: controller.state }, retry: () => controller.load(),
       select: (path, mode) => controller.select(path, mode),
     })
+    const settings = new ProjectSettingsController(ctx.remote.projectOpening, ctx.remote.session)
+    const settingsFace = (): SettingsInjected => ({ ...face(),
+      hooks: { preferences: controller.state, inspection: settings.state },
+      refresh: () => settings.load(), openPath: (path, action) => settings.openPath(path, action),
+    })
     const welcome = ctx.configForms.get<Record<string, unknown>>('ui-settings-general')
     const guideFace = (): GuideInjected => ({ ...face(), hooks: { preferences: controller.state, welcome } })
     ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
@@ -49,14 +56,15 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     ctx.slots.inject('settings.section', () => ctx.slots.register({
       name: 'settings.section', id: 'project-opening', group: 'panedesk', order: 25,
       label: () => ctx.locale.bind('projectOnboarding')('title'),
-      locale: 'projectOnboarding', inject: face,
+      locale: 'projectOnboarding', inject: settingsFace,
     }, ProjectSettings))
     ctx.effect(() => mirror.subscribe(() => {
       // Failed initial reads stay retryable without recursively starting another read.
       if (mirror.getSnapshot().view !== undefined) void controller.load()
     }))
-    ctx.effect(() => () => { controller.dispose() })
+    ctx.effect(() => () => { controller.dispose(); settings.dispose() })
     void controller.load()
+    void settings.load()
   })
   try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }
   return async () => { await ui.dispose(); await disposeRemote() }

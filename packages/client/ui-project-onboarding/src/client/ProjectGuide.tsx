@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Button, Modal } from '@panedesk/dsh-client-ui-primitives'
 import type { ProjectSelection } from '../types.ts'
-import type { GuideProps, SettingsProps } from './props.ts'
+import type { GuideProps } from './props.ts'
 import type { PropsLocale } from '@panedesk/dsh-client-ui-slots'
 import type { ProjectPreferences } from './controller.ts'
 import type { WELCOME_NOTICE_VERSION } from '@panedesk/dsh-client-ui-settings-models/src/onboarding-copy.ts'
@@ -78,19 +78,3 @@ export function ProjectGuide(props: GuideProps) {
   </Modal>
 }
 
-/** Render previously entered projects inside product settings.
- * @param props Preferences, retry and selection actions, and typed locale.
- * @returns Loading, empty, failure, read-only, or editable project state.
- */
-export function ProjectSettings({ usePreferences, retry, select, t }: SettingsProps) {
-  const state = usePreferences(value => value)
-  if (state.status === 'loading') return <p role="status">{t('loading')}</p>
-  if (state.status === 'error') return <><p role="alert">{t('error')}</p><Button onClick={() => { void retry() }}>{t('retry')}</Button></>
-  const paths = Object.keys(state.projects)
-  return <div className={css.page}>
-    <h2>{t('title')}</h2>
-    {paths.length === 0 ? <p>{t('empty')}</p> : paths.map(path =>
-      <ProjectChoice key={`${path}:${state.revision}`} path={path} state={state} select={select} t={t} />)}
-    <p>{t('unavailable')}</p>
-  </div>
-}

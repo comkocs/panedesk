@@ -20,3 +20,17 @@
 .choice p {
   overflow-wrap: anywhere;
 }
+
+.page {
+  min-width: 0;
+}
+
+.page h2, .page h3, .page h4, .page p {
+  margin: 0;
+}
+
+.page button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
