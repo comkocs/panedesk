@@ -36,6 +36,8 @@ import { DesktopUpdateSource } from './desktop-update-source.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { CurrentVersionRow } from './CurrentVersionRow.tsx'
+import { OpeningNameRow, PanedeskFeaturesHeading, type OpeningNameRowInjected } from './OpeningNameRow.tsx'
+import type { OpeningNamePattern } from '@panedesk/dsh-session-title/types'
 import { DeveloperToolsRow, type DeveloperToolsRowInjected } from './DeveloperToolsRow.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
@@ -77,6 +79,20 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settin
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'panedesk-features', order: 9000, locale: NS,
+  }, PanedeskFeaturesHeading))
+  const openingNameForm = ctx.configForms.get<{ openingName?: OpeningNamePattern }>('session-title')
+  ctx.effect(() => ctx.configForms.whileServed(['session-title'], () =>
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item', id: 'opening-auto-name', order: 9010, locale: NS,
+      inject: (): OpeningNameRowInjected => ({
+        hooks: { openingName: openingNameForm },
+        save: (pattern, revision) => openingNameForm.mutate([pattern === undefined
+          ? { op: 'unset', path: ['openingName'] }
+          : { op: 'set', path: ['openingName'], value: { ...pattern } }], revision),
+      }),
+    }, OpeningNameRow))), 'ui-settings-general: opening name')
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item', id: 'developer-tools', order: 15, locale: NS,
     inject: (): DeveloperToolsRowInjected => ({

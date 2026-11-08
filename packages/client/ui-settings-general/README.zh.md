@@ -41,13 +41,16 @@ kind: "package-reference"
 
 可选服务 `settingsNavigation.openSection(id)` 使用同一个 owner store，在已贡献分区打开既有设置外壳。服务随外壳撤销，不新增启动入口或冷启动条目。
 
+<a id="the-general-section"></a>
 ### 「通用」分区
 
-Web 与桌面端的通用设置底部显示当前发布版本，使用构建注入的 `DSH_CLIENT_VERSION` 元数据和当前语言。缺少版本元数据的局部构建不显示该行。
+Web 与桌面端的通用设置在核心偏好之后显示当前发布版本，使用构建注入的 `DSH_CLIENT_VERSION` 元数据和当前语言。缺少版本元数据的局部构建不显示该行。
+
+**Panedesk 特色设置**是 `settings.general.item` 中顺序为 `9000` 的 `panedesk-features` 标题行。其首项 `opening-auto-name` 的顺序为 `9010`，通过共享配置表单编辑 Host 的 `session-title.openingName` 配置。在多行输入框贴入开窗词，选中非空且不含空白的名称，查看即时名称与日期预览后保存。样句、选中文本及推导的左右锚保存在活动档的 `cordis.patch.yml` 中；清除截取部位恢复继承配置，其缺省为未设置。写入以修订号防止覆盖并发修改，失败时保留草稿。只有 Host 提供标题配置时才显示此行。[会话标题](../../session/session-title/README.zh.md#choosing-a-title-source)定义匹配、自动更新、创建日期及手动改名优先规则。
 
 代码工作工具开关控制 [ui-settings](../ui-settings/README.zh.md#use-this-package) 定义的共享偏好 `ui-settings.enabled`。Web 和桌面端均提供此开关，立即跟随已接受的变更，并在写入完成前禁用重复输入。写入失败时显示本地化的重试提示。
 
-「通用」分区承载内置的代码工作工具行与当前版本行，以及功能包注册进 `settings.general.item` 的行。每个注册方拥有自己的行文案与行为。例如「外观」行位于 ui-theme。
+「通用」分区承载内置的代码工作工具行、当前版本行与 Panedesk 特色设置行，以及功能包注册进 `settings.general.item` 的行。每个注册方拥有自己的行文案与行为。例如「外观」行位于 ui-theme。
 
 ### 打开配置文件
 
@@ -67,7 +70,7 @@ Web 与桌面端的通用设置底部显示当前发布版本，使用构建注�
 <details>
 <summary>实现细节——点击展开</summary>
 
-外壳拥有界面框架与投影，并提供代码工作工具行与当前版本行；功能注册方拥有其余内容与文案。
+外壳拥有界面框架与投影，并提供代码工作工具行、当前版本行与 Panedesk 特色设置行；功能注册方拥有其余内容与文案。
 
 ### 账本投影
 
@@ -122,7 +125,7 @@ Web 与桌面端的通用设置底部显示当前发布版本，使用构建注�
 
 这些限制说明外壳自身提供什么、功能包必须提供什么；它们是当前包约束。
 
-- **额外的通用设置行需要相应功能插件**：外壳提供代码工作工具与当前版本；功能插件提供其他偏好。
+- **额外的通用设置行需要相应功能插件**：外壳提供代码工作工具、当前版本及 Panedesk 特色设置中的开窗命名编辑器；功能插件提供其他偏好。
 - **Windows 顶栏徽标的气泡仍向右展开**：`DesktopUpdateBadge` 占用顶栏的 `sidebar.toggle.badge` 且请求 `side="right"`，侧栏收起时其气泡会被 Desktop 菜单文字遮挡；侧栏开关与新建会话的气泡则改在顶栏下方展开（#4688）。
 
 <a id="dev-note"></a>

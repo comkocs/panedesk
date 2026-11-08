@@ -6846,6 +6846,9 @@ importers:
       '@panedesk/dsh-remote-mock':
         specifier: workspace:*
         version: link:../../test-support/remote-mock
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../settings/settings

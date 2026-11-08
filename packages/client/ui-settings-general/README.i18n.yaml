@@ -16,10 +16,10 @@
   zh: ec11bdeb5d3ce818
 /panedesk-dsh-client-ui-settings-general/use-this-package:
   en: 2c5c37248e21bfc3
-  zh: 021bf20592a21070
+  zh: 5cc687de539596be
 /panedesk-dsh-client-ui-settings-general/use-this-package/the-general-section:
-  en: 8b8a7c6287bb303b
-  zh: 19535112531aedd5
+  en: f420f62cde73dcf1
+  zh: 8ed42244bf1fb920
 /panedesk-dsh-client-ui-settings-general/use-this-package/opening-the-configuration-file:
   en: 597df68b5913e8d7
   zh: bc9114f3e877679a
@@ -27,8 +27,8 @@
   en: 27f0f6ec55f00228
   zh: 69b47ff1efd81c17
 /panedesk-dsh-client-ui-settings-general/understand-the-implementation:
-  en: 41726bcd4ae37c0a
-  zh: d994b70ca7997da8
+  en: 3525809cfa835aa7
+  zh: 7a8f69546125a937
 /panedesk-dsh-client-ui-settings-general/understand-the-implementation/ledger-projections:
   en: 3e3c2c72f87e8b23
   zh: 12b10ba2d37c9077
@@ -54,8 +54,8 @@
   en: ca75c51c89c2c9b0
   zh: de54f3467ef3b9be
 /panedesk-dsh-client-ui-settings-general/known-limitations-and-deferred-work:
-  en: 97dd637a320ac334
-  zh: faa5c512c56a128e
+  en: b07bd3ade533be2d
+  zh: 7aa41f59222fb1b2
 /panedesk-dsh-client-ui-settings-general/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98
