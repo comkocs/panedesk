@@ -76,6 +76,8 @@ jobs:
           pnpm run package:desktop:win:x64:unsigned -- --check *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'check.log')
           exit $LASTEXITCODE
       - name: Build unsigned installer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           pnpm run package:desktop:win:x64:unsigned *>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'package.log')
           exit $LASTEXITCODE

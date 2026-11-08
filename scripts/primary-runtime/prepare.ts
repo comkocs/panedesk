@@ -15,6 +15,22 @@ import lock from './lock.json' with { type: 'json' }
 import { prunePrimaryRuntimePythonTests } from './prune-python-tests.ts'
 
 /**
+ * Fetch a locked archive; GitHub release downloads carry the workflow token when one is set,
+ * because GitHub throttles unauthenticated release downloads first. The token is not sent to
+ * the storage host the release redirects to.
+ * @param url - Locked archive URL.
+ * @param timeout - Per-request timeout in milliseconds.
+ * @returns The archive response.
+ */
+async function fetchAsset(url: string, timeout: number): Promise<Response> {
+  const token = process.env.GITHUB_TOKEN
+  if (!token || new URL(url).hostname !== 'github.com') return fetch(url, { signal: AbortSignal.timeout(timeout) })
+  const first = await fetch(url, { headers: { authorization: `Bearer ${token}` }, redirect: 'manual', signal: AbortSignal.timeout(timeout) })
+  const location = first.headers.get('location')
+  return location === null ? first : fetch(location, { signal: AbortSignal.timeout(timeout) })
+}
+
+/**
  * Download or reuse an archive only when its bytes match the release lock.
  * @param url - Locked archive URL.
  * @param sha256 - Expected hexadecimal digest for the selected algorithm.
@@ -32,7 +48,7 @@ export async function downloadPrimaryRuntimeAsset(url: string, sha256: string, c
     cached = false
     const timeout = Number(process.env.DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS ?? '300000')
     if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 2_147_483_647) throw new Error('DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS must be an integer from 1 to 2147483647')
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeout) })
+    const response = await fetchAsset(url, timeout)
     if (!response.ok) throw new Error(`primary runtime download: ${String(response.status)} ${url}`)
     bytes = Buffer.from(await response.arrayBuffer())
   }
