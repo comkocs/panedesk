@@ -15,9 +15,13 @@ import type { OptionalSessionSeq, SessionSeq } from '@panedesk/dsh-session/types
 
 /** Saved opening-message sample and path-tolerant anchors; absence selects automatic titles. */
 export interface OpeningNamePattern {
+  /** Opening-message sample used to select the name. */
   readonly sample: string
+  /** Anchor immediately before the selected name. */
   readonly left: string
+  /** Anchor immediately after the selected name. */
   readonly right: string
+  /** Selected sample text shown in the name preview. */
   readonly selected: string
 }
 
