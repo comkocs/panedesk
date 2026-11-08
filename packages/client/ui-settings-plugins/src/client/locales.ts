@@ -7,7 +7,7 @@ export type PluginsSettingsLocaleKey = 'nav' | 'title' | 'intro' | 'tabs' | 'emp
 export const en: Record<PluginsSettingsLocaleKey, string> = {
   nav: 'Built-in plugins',
   title: 'Built-in plugins',
-  intro: 'Inspect the plugins this deployment ships.',
+  intro: 'Browse the built-in plugins here when you want to see what is available.',
   tabs: 'Plugin views',
   empty: 'This deployment exposes no plugin views.',
 }
@@ -16,7 +16,7 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
 export const zh: Record<PluginsSettingsLocaleKey, string> = {
   nav: '内置插件',
   title: '内置插件',
-  intro: '查看内置部署的插件列表',
+  intro: '想了解有哪些插件可用时，可以在这里查看内置插件。',
   tabs: '插件视图',
   empty: '本部署没有开放任何插件视图。',
 }
