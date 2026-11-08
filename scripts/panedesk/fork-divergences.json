@@ -15038,9 +15038,9 @@
     },
     {
       "id": "desktop-package-without-post-pack-smoke",
-      "description": "Package desktop installers without pre-pack or post-pack runtime smoke checks, except after signing",
+      "description": "Package desktop installers without pre-pack or post-pack runtime smoke checks, except after signing; packaging builds artifacts only and skips the aggregate type checks",
       "origin": "Desktop packaging",
-      "reason": "package-target.ts no longer runs scripts/smoke-packaged-runtime.ts after electron-builder finishes the installer or forwards the deferred-smoke flags. prepare-dsh.ts omits the primary and prepared runtime smokes and the post-smoke verification, while retaining static verifyDesktopRuntime checks. prepare-primary-runtime.ts prepares the payload without smoke execution or a deferSmoke option; prepare-runtime.ts no longer accepts or forwards the defer-primary-runtime-smoke option. Signing and its post-signing smokes, notarization, the release record, and packaging-event recording stay in place. The Windows packaging workflow step names no longer say the packaged runtime is smoked. The smoke functions, standalone smoke scripts, and tests remain for separate use.",
+      "reason": "package-target.ts no longer runs scripts/smoke-packaged-runtime.ts after electron-builder finishes the installer or forwards the deferred-smoke flags. prepare-dsh.ts omits the primary and prepared runtime smokes and the post-smoke verification, while retaining static verifyDesktopRuntime checks. prepare-primary-runtime.ts prepares the payload without smoke execution or a deferSmoke option; prepare-runtime.ts no longer accepts or forwards the defer-primary-runtime-smoke option. Signing and its post-signing smokes, notarization, the release record, and packaging-event recording stay in place. The Windows packaging workflow step names no longer say the packaged runtime is smoked. The smoke functions, standalone smoke scripts, and tests remain for separate use. Desktop packaging builds artifacts only and skips the aggregate type checks while retaining the official build profile.",
       "match": {
         "type": "behavior",
         "paths": [
