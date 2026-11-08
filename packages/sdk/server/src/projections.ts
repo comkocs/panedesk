@@ -82,7 +82,7 @@ export async function hostProjection(ctx: Context, method: keyof HostProjectionM
   if (method === 'authorizations/query') {
     const request = decodeAuthorizationQuery(input)
     const provider = ctx.get('seatAuthorizationQueries')
-    if (provider === undefined) throw new JsonRpcResponseError(-32601, 'Authorization queries are unavailable', { reason: 'unsupported' })
+    if (provider?.query === undefined) throw new JsonRpcResponseError(-32601, 'Authorization queries are unavailable', { reason: 'unsupported' })
     return provider.query(request)
   }
   if (Object.keys(input).some(key => method !== 'nodes/status' || key !== 'nodeId')) throw new TypeError('Unknown node query field')

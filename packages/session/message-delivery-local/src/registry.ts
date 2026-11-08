@@ -128,11 +128,8 @@ export class NodeRegistry {
       const session = registration.sessions.find(item => item.sessionId === sessionId)
       if (!session) continue
       const current = this.inspect(registration.identity.pid)
-      if (current.startIdentity === undefined) {
-        // ESRCH is the only PID-only observation that verifies absence; EPERM remains unknown.
-        try { process.kill(registration.identity.pid, 0) } catch (error) {
-          if (object(error) && error.code === 'ESRCH') continue
-        }
+      try { process.kill(registration.identity.pid, 0) } catch (error) {
+        if (object(error) && error.code === 'ESRCH') continue
         return 'unavailable'
       }
       if (!sameProcessIdentity(registration.identity, current)) {

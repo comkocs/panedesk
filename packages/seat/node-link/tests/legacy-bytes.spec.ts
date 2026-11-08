@@ -82,10 +82,13 @@ test.each(fixtures)('preserves $method success, refusal, digest and authorizatio
     expect(digest(request.payload)).toBe(fixture.payloadDigest)
     expect(request.delegation.kind).toBe('node-delegation')
     expect(JSON.stringify(await router.route(request))).toBe(fixture.successBytes)
-    expect(facts.length).toBeGreaterThan(0)
-    expect(facts.every(value => value === fixture.factBytes)).toBe(true)
+    if (request.method === 'messages.send') expect(facts).toEqual([])
+    else {
+      expect(facts.length).toBeGreaterThan(0)
+      expect(facts.every(value => value === fixture.factBytes)).toBe(true)
+    }
     allowed = false
-    // The receiver rechecks the same authorization even when the original result is retained.
+    // Seat writes recheck authorization; message delivery no longer uses it.
     const direct = NodeLink.createNodeLinkExecutor({ nodeId: request.targetNodeId,
       peer: { sourceNodeId: request.sourceNodeId, targetNodeId: request.targetNodeId, authenticatedAt: fact.checkedAt },
       policy: { permissions: [], expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 }, authorize: async () => ({
@@ -95,8 +98,9 @@ test.each(fixtures)('preserves $method success, refusal, digest and authorizatio
     await store.load()
     try {
       const denied = new NodeReceiver('node-b', 'node-a', store, () => direct)
-      expect(JSON.stringify(await denied.receive(request))).toBe(fixture.refusalBytes)
-      expect(JSON.stringify(await direct.execute(request))).toBe(fixture.refusalBytes)
+      const refusalBytes = request.method === 'messages.send' ? fixture.absentBytes : fixture.refusalBytes
+      expect(JSON.stringify(await denied.receive(request))).toBe(refusalBytes)
+      expect(JSON.stringify(await direct.execute(request))).toBe(refusalBytes)
       const absent = new NodeReceiver('node-b', 'node-a', store, () => undefined)
       expect(JSON.stringify(await absent.receive(request))).toBe(fixture.absentBytes)
       const offline = new NodeRouter({ ...limits, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer',
