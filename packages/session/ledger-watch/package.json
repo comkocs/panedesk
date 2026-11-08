@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-ledger-watch",
   "description": "Independent ledger process watcher plugin scaffold",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publishConfig": {
     "access": "public"
   },
