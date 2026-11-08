@@ -9,7 +9,12 @@ export const name = 'tool-sql'
 export const inject = ['tools', 'databaseConnections']
 
 /** Output retention only; SQL authority is entirely the database account's permissions. */
-export interface Config { maxRows: number; maxCharacters: number }
+export interface Config {
+  /** Maximum result rows retained in the model-visible response. */
+  maxRows: number
+  /** Maximum response characters, including the result summary. */
+  maxCharacters: number
+}
 export const Config: schema<Config> = schema.object({
   maxRows: schema.number().step(1).min(1).default(200),
   maxCharacters: schema.number().step(1).min(1024).default(32000),

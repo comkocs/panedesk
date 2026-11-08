@@ -39,12 +39,18 @@ export interface OpenDatabaseConnection {
 }
 
 /** Location of the non-secret connection catalog. */
-export interface Config { filename: string }
+export interface Config {
+  /** Path to the non-secret saved connection catalog. */
+  filename: string
+}
 
 declare module '@panedesk/cordis' {
   interface Context { databaseConnections: DatabaseConnections }
   interface Events {
-    /** @mode emit Published after a catalog mutation commits. */
+    /**
+     * Published after a catalog mutation commits.
+     * @mode emit
+     */
     'database-connections/changed'(): void
   }
 }

@@ -20,7 +20,12 @@ const settingsSchema = z.object({
 }).strict()
 const defaults: StorageSettings = { backend: 'local', connectionId: '' }
 
-export interface Config { configPath: string; localRoot: string }
+export interface Config {
+  /** Path to the saved storage backend and connection selection. */
+  configPath: string
+  /** Local JSON storage directory used by explicit data migration. */
+  localRoot: string
+}
 
 declare module '@panedesk/cordis' {
   interface Context { postgresStorage: PostgresStorage }
