@@ -9,14 +9,12 @@ import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 
 /**
  * Prepare Desktop resources for its selected packaging target.
- * @param options - Signed Windows packaging defers execution until its supervised signing stage.
- * @returns Resolves after preparation and, unless deferred, native-target execution checks.
+ * @returns Resolves after preparation without executing runtime smoke checks.
  */
-export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = {}): Promise<void> {
+export async function preparePrimaryRuntime(): Promise<void> {
   const paths = resolveDesktopTargetBuildPaths()
   const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
   await preparePayload({ target: resolveDesktopBuildTarget(), output: paths.runtime, cache: paths.downloads, version })
-  if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 
 /**

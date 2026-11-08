@@ -14934,13 +14934,16 @@
     },
     {
       "id": "desktop-package-without-post-pack-smoke",
-      "description": "Package desktop installers without running the packaged-runtime smoke afterwards",
+      "description": "Package desktop installers without pre-pack or post-pack runtime smoke checks, except after signing",
       "origin": "Desktop packaging",
-      "reason": "package-target.ts no longer runs scripts/smoke-packaged-runtime.ts after electron-builder finishes the installer. Signing, notarization, the release record, and packaging-event recording stay in place. The Windows packaging workflow step names no longer say the packaged runtime is smoked. Pre-pack runtime checks are unchanged. The smoke script and its tests remain for separate use.",
+      "reason": "package-target.ts no longer runs scripts/smoke-packaged-runtime.ts after electron-builder finishes the installer or forwards the deferred-smoke flags. prepare-dsh.ts omits the primary and prepared runtime smokes and the post-smoke verification, while retaining static verifyDesktopRuntime checks. prepare-primary-runtime.ts prepares the payload without smoke execution or a deferSmoke option; prepare-runtime.ts no longer accepts or forwards the defer-primary-runtime-smoke option. Signing and its post-signing smokes, notarization, the release record, and packaging-event recording stay in place. The Windows packaging workflow step names no longer say the packaged runtime is smoked. The smoke functions, standalone smoke scripts, and tests remain for separate use.",
       "match": {
         "type": "behavior",
         "paths": [
           "apps/desktop/scripts/package-target.ts",
+          "apps/desktop/scripts/prepare-dsh.ts",
+          "apps/desktop/scripts/prepare-primary-runtime.ts",
+          "apps/desktop/scripts/prepare-runtime.ts",
           ".github/workflows/windows-package.yml"
         ]
       }
