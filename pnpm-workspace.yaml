@@ -33,6 +33,9 @@ peerDependencyRules:
 # default and only allow scripts we need. esbuild (native binary) and lefthook
 # (git hooks) genuinely need theirs.
 allowBuilds:
+  # PostgreSQL SSH forwarding uses the portable JS implementation, not optional native acceleration.
+  ssh2: false
+  cpu-features: false
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.

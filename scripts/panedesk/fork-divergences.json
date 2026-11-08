@@ -15100,7 +15100,7 @@
       "id": "panedesk-opening-session-names",
       "description": "Add Panedesk features in General Settings and date-stamped opening session names",
       "origin": "Panedesk product settings",
-      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
+      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open; Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -15439,6 +15439,29 @@
           "tsconfig.base.json",
           "tsconfig.host.json",
           "tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
+      "id": "database-connections-and-sql-tool",
+      "description": "Add PostgreSQL connection settings, credential-backed SSL/SSH connections and an opt-in built-in SQL tool",
+      "origin": "Panedesk V15-C13",
+      "reason": "Let users connect local or server PostgreSQL databases without MCP, expose enabled connections to models, and provide a host API for a separate storage adapter.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/database/db-connections/**",
+          "packages/database/tool-sql/**",
+          "packages/client/ui-database-connections/**",
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/base/package.json",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-workspace.yaml",
           "pnpm-lock.yaml"
         ]
       }

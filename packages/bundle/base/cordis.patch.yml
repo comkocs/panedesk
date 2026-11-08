@@ -13,6 +13,12 @@
 # driven); the grouping is for readers.
 
 - insert:
+    - id: db-connections
+      name: '@panedesk/dsh-db-connections'
+
+    - id: tool-sql
+      name: '@panedesk/dsh-tool-sql'
+
     - id: tool-plugin-manager
       name: '@panedesk/dsh-plugin-manager/tools'
       disabled: true

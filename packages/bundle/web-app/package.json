@@ -56,6 +56,7 @@
   },
   "dependencies": {
     "@panedesk/dsh-client-ui-storage": "workspace:*",
+    "@panedesk/dsh-client-ui-database-connections": "workspace:*",
     "@panedesk/dsh-agent-instructions": "workspace:*",
     "@panedesk/dsh-agent-preset": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
