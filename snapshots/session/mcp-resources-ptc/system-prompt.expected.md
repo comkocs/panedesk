@@ -482,12 +482,24 @@ interface ToolOutputMap {
     content: string;
   };
   subagent: {
+    model?: {
+      provider: string;
+      model: string;
+    };
     kind: "activation";
     subagentId: string;
+    ticketId?: string;
+    position?: number;
   };
   subagent_fork: {
+    model?: {
+      provider: string;
+      model: string;
+    };
     kind: "activation";
     subagentId: string;
+    ticketId?: string;
+    position?: number;
   };
   todo_write: {
     todos: ({
