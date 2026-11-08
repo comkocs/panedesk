@@ -162,7 +162,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const usage = values?.tokenUsage ?? summary?.projectionValues?.tokenUsage
     const elapsed = timing === undefined ? undefined : timing.settledMs + (timing.active === undefined ? 0
       : Math.max(0, (running ? now : timing.active.through) - timing.active.since))
-    const state = running ? 'ongoing' : timing?.lastTurnCompleted ? 'done' : 'idle'
+    const state = running ? 'ongoing' : 'idle'
     const status = branch.entry.mode === 'external' ? t('mode.external') : running ? t('activity.running')
       : timing?.lastTurnCompleted ? t('activity.completed') : t('activity.inactive')
     const metrics = [elapsed === undefined ? undefined : duration(elapsed, t), usage === undefined ? undefined
