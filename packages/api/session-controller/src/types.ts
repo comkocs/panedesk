@@ -188,6 +188,8 @@ export interface SessionSummary {
   /** Current for attached Sessions; otherwise the persistence format status when reported. */
   readonly formatStatus?: 'current' | 'migration-required'
   readonly sessionId: SessionId
+  /** Immutable creation time; absent on provisional Client entries before the Host summary arrives. */
+  readonly createdAt?: number
   readonly updatedAt: number
   readonly running: boolean
   readonly blank: boolean

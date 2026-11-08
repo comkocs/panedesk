@@ -4,7 +4,9 @@
  */
 
 import { Context, FiberState, Service, type Fiber, type Volatile } from '@panedesk/cordis'
-import { extractOpeningName } from './opening-name.ts'
+import { extractOpeningFolder, extractOpeningName } from './opening-name.ts'
+import type {} from '@panedesk/dsh-session-persistence'
+import type {} from '@panedesk/dsh-workspace'
 import z from '@panedesk/schemastery'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
@@ -62,7 +64,7 @@ export interface Config {
   readonly fallbackMaxBytes: number
   /** Maximum UTF-8 bytes in the title name, excluding the automatic creation-date suffix. */
   readonly maxTitleBytes: number
-  /** Saved opening-message anchors; absent means existing automatic titles plus the opening date. */
+  /** Saved opening-message anchors; absent uses the opening folder before model-generated titles. */
   readonly openingName?: Volatile<OpeningNamePattern | undefined>
 }
 
@@ -123,8 +125,9 @@ function openingDateSuffix(session: Session): string {
 /** Keep the date out of the provider's title comparison and model input. */
 function providerTitle(session: Session, title: SessionTitleSnapshot): SessionTitleSnapshot {
   const suffix = openingDateSuffix(session)
-  return isOpeningSession(session) && title.title.endsWith(suffix)
-    ? { ...title, title: title.title.slice(0, -suffix.length) }
+  const undecorated = title.title.replace(/\(\d+\)$/u, '')
+  return isOpeningSession(session) && title.source.kind !== 'user' && undecorated.endsWith(suffix)
+    ? { ...title, title: undecorated.slice(0, -suffix.length) }
     : title
 }
 
@@ -386,6 +389,7 @@ export class SessionTitleService extends Service {
   private readonly work = new Map<Session, SessionTitleWorkState>()
   private readonly lifetime = new AbortController()
   private readonly inFlight = new Set<Promise<unknown>>()
+  private naming: Promise<unknown> = Promise.resolve()
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sessionTitle')
@@ -479,7 +483,7 @@ export class SessionTitleService extends Service {
    * Accept an explicit user title. Appends a `session/title` event with the
    * `user` source, which pins the title: in-flight automatic generation is
    * superseded and later user messages schedule none (an explicit
-   * {@link SessionTitleService.refresh} remains the deliberate unpin).
+   * {@link SessionTitleService.refresh} can unpin only outside opening-name mode).
    * @param session - exact live session to rename.
    * @param title - raw user input; normalized before acceptance.
    * @returns the accepted title snapshot.
@@ -510,7 +514,7 @@ export class SessionTitleService extends Service {
 
   /**
    * Explicitly retry the registered provider, or materialize the built-in
-   * fallback when no provider is registered.
+   * fallback when no provider is registered. Opening-name mode preserves pinned titles.
    * @param session - exact live session to refresh.
    * @param signal - optional caller cancellation.
    * @returns latest accepted title, or `undefined` when no eligible text exists.
@@ -521,6 +525,7 @@ export class SessionTitleService extends Service {
     if (this.ctx.sessions.get(session.id) !== session) {
       throw new Error(`session "${session.id}" is not live in this store`)
     }
+    if (this.openingEnabled() && isOpeningSession(session) && isPinnedTitle(this.get(session))) return this.get(session)
     const registration = this.registration
     const input = this.titleInputOf(session)
     if (registration === undefined || registration.closing || input.lastSeq === null) {
@@ -604,42 +609,95 @@ export class SessionTitleService extends Service {
     return this.openingEnabled() && isOpeningSession(session) ? openingDateSuffix(session) : ''
   }
 
+  /** Serialize allocation and append together, including simultaneous session creation. */
+  private enqueueNaming<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.naming.then(task)
+    this.naming = run.catch(() => undefined)
+    return this.track(run)
+  }
+
+  private scheduleOpening(session: Session): void {
+    if (!this.openingEnabled() || !isOpeningSession(session)) return
+    this.defer(async () => {
+      try {
+        await this.enqueueNaming(() => this.acceptOpening(session))
+      } catch (error: unknown) {
+        if (this.serviceActive()) this.ctx.logger.warn(`session "${session.id}": opening title failed: ${String(error)}`)
+      }
+    })
+  }
+
+  /** Append only after the first human message, without waiting for a title provider. */
+  private async acceptOpening(session: Session): Promise<void> {
+    if (!this.serviceActive() || !this.openingEnabled() || !isOpeningSession(session)
+      || this.ctx.sessions.get(session.id) !== session) return
+    const current = this.get(session)
+    if (current !== undefined) return
+    // oxlint-disable-next-line typescript/no-deprecated -- Include empty and attachment-only first human messages.
+    const first = session.snapshotEvents().find(event => event.type === 'user/message' && event.data.source.kind === 'user')
+    if (first?.type !== 'user/message') return
+    const text = first.data.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    const pattern = this.openingPreferences === undefined ? this.openingName?.get() : this.openingPreferences.pattern()
+    const matched = (pattern === undefined ? undefined : extractOpeningName(text, pattern)) ?? extractOpeningFolder(text)
+    const name = normalizeSessionTitle(matched ?? (/\p{Script=Han}/u.test(text) ? '未命名' : 'Untitled'), this.config.maxTitleBytes)
+    const title = await this.automaticTitle(session, name)
+    if (!this.serviceActive() || !this.openingEnabled() || this.ctx.sessions.get(session.id) !== session
+      || this.get(session) !== undefined) return
+    if (matched !== undefined) this.supersede(this.stateFor(session), 'opening name pinned the title')
+    session.append('session/title', {
+      title,
+      messageSeqs: [first.seq],
+      source: matched === undefined ? { kind: 'fallback' } : { kind: 'provider', provider: OPENING_NAME_PROVIDER },
+    })
+  }
+
+  /** Include closed sessions and live titles; no await separates allocation from the caller's append. */
+  private async automaticTitle(session: Session, name: string): Promise<string> {
+    if (!this.openingEnabled() || !isOpeningSession(session)) return name
+    const base = name + openingDateSuffix(session)
+    const registry = this.ctx.get('workspaceRegistry')
+    const workspace = registry?.list().find(item => item.sessionIds.includes(session.id) || item.path === session.header.cwd)
+    const persistence = this.ctx.get('sessionPersistence')
+    const stored = persistence === undefined ? [] : await persistence.list()
+    const titlesBySession = new Map<Session['id'], string>()
+    const belongs = (header: Session['header']): boolean => header.id !== session.id
+      && header.parentSession === undefined && header.origin !== 'subagent'
+      && (workspace === undefined ? header.cwd === session.header.cwd
+        : workspace.sessionIds.includes(header.id) || header.cwd === workspace.path)
+    for (const { header } of stored) {
+      if (!belongs(header) || this.ctx.sessions.get(header.id) !== undefined || persistence === undefined) continue
+      await using reader = await persistence.open(header.id, 'read')
+      const title = foldSessionTitle((await reader.read()).events)?.title
+      if (title !== undefined) titlesBySession.set(header.id, title)
+    }
+    // Read live titles after storage awaits, including sessions opened during allocation.
+    for (const other of this.ctx.sessions.list()) {
+      if (!belongs(other.header)) continue
+      const title = this.get(other)?.title
+      if (title !== undefined) titlesBySession.set(other.id, title)
+    }
+    const titles = new Set(titlesBySession.values())
+    const current = this.get(session)?.title
+    if (current !== undefined && (current === base || current.startsWith(base + '(')
+      && /^\(\d+\)$/u.test(current.slice(base.length))) && !titles.has(current)) return current
+    let title = base
+    for (let number = 1; titles.has(title); number++) title = `${base}(${number})`
+    return title
+  }
+
   /** Schedule fallback creation and any provider cadence for one eligible event. */
   private onUserMessage(session: Session, event: Extract<SessionEvent, { type: 'user/message' }>): void {
     if (!this.serviceActive()) return
     if (event.data.source.kind !== 'user') return
     const current = this.get(session)
     if (isPinnedTitle(current)) return
-    const pattern = this.openingEnabled()
-      ? this.openingPreferences === undefined ? this.openingName?.get() : this.openingPreferences.pattern()
-      : undefined
-    if (isOpeningSession(session) && current === undefined && pattern !== undefined) {
-      // Empty or attachment-only first messages must not move selection to a later prompt.
-      // oxlint-disable-next-line typescript/no-deprecated -- Match only the first human event, including non-text input.
-      const first = session.snapshotEvents().find(item => item.type === 'user/message' && item.data.source.kind === 'user')
-      if (first?.seq === event.seq) {
-        const text = event.data.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
-        const matched = extractOpeningName(text, pattern)
-        if (matched !== undefined) {
-          const title = normalizeSessionTitle(matched, this.config.maxTitleBytes)
-          if (title.length > 0) {
-            this.supersede(this.stateFor(session), 'opening name pinned the title')
-            session.append('session/title', {
-              title: title + this.dateSuffix(session),
-              messageSeqs: [event.seq],
-              source: { kind: 'provider', provider: OPENING_NAME_PROVIDER },
-            })
-            return
-          }
-        }
-      }
-    }
+    if (this.openingEnabled() && isOpeningSession(session)) this.scheduleOpening(session)
     if (sessionTitleUserMessageOf(event) === undefined) return
     const registration = this.registration
     if (registration !== undefined && !registration.closing) {
       const count = this.titleInputOf(session).count
       const shouldSchedule = registration.provider.automatic === 'all-prompts'
-        || (session.header.parentSession === undefined && count === 1 && this.get(session) === undefined)
+        || (session.header.parentSession === undefined && count === 1 && (current === undefined || current.source.kind === 'fallback'))
       if (shouldSchedule) {
         const state = this.stateFor(session)
         const revision = this.supersede(state, 'newer user message superseded title generation')
@@ -772,14 +830,18 @@ export class SessionTitleService extends Service {
       if (result === undefined) return currentTitle
       this.assertCurrent(session, work)
       const accepted = this.validateResult(result, messages)
-      session.append('session/title', {
-        title: accepted.title + this.dateSuffix(session),
-        messageSeqs: [...accepted.messageSeqs],
-        source: {
-          kind: 'provider',
-          provider: work.registration.provider.id,
-          ...accepted.model === undefined ? {} : { model: accepted.model },
-        },
+      await this.enqueueNaming(async () => {
+        const title = await this.automaticTitle(session, accepted.title)
+        this.assertCurrent(session, work)
+        session.append('session/title', {
+          title,
+          messageSeqs: [...accepted.messageSeqs],
+          source: {
+            kind: 'provider',
+            provider: work.registration.provider.id,
+            ...accepted.model === undefined ? {} : { model: accepted.model },
+          },
+        })
       })
       return this.get(session)
     } finally {
@@ -967,6 +1029,10 @@ export class SessionTitleService extends Service {
     this.assertServiceActive()
     const current = this.get(session)
     if (current !== undefined) return current
+    if (this.openingEnabled() && isOpeningSession(session)) {
+      await this.enqueueNaming(() => this.acceptOpening(session))
+      return this.get(session)
+    }
     const first = this.titleInputOf(session).first
     if (first === null) return undefined
     const title = fallbackSessionTitle(

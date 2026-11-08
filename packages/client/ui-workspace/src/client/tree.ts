@@ -45,7 +45,9 @@ export interface SessionNode {
   id: SessionId
   /** Stored title, or empty; the renderer localizes blank and unnamed row labels. */
   title: string
-  /** The provisional blank session (renderer shows the localized New Session title). */
+  /** Display-only creation date and duplicate suffix for unnamed top-level rows. */
+  placeholderSuffix?: string
+  /** The provisional blank session. */
   blank: boolean
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
@@ -287,13 +289,11 @@ function sectionMembers(
 }
 
 /**
- * A blank session is the selected Workspace's provisional New Session row;
- * its canonical title never enters search (blank rows are query-excluded)
- * and the renderer localizes its display label. Unnamed history also yields an
- * empty title for localization and does not match a directory-name title search.
+ * Stored titles win even on provisional blanks; missing titles remain empty for localization.
+ * Blank rows are excluded from search independently of their stored titles.
  */
 function sessionTitle(session: SessionSummary): string {
-  return session.blank ? '' : (session.title?.trim() ?? '')
+  return session.title?.trim() ?? ''
 }
 
 /** Build one group without projecting session lineage into presentation. */
@@ -417,6 +417,29 @@ function sessionNode(
   }
 }
 
+/** Allocate display-only unnamed dates in list order, independently for each workspace. */
+function sessionNodes(
+  members: readonly SessionSummary[],
+  list: SessionListState,
+  statuses: SessionStatuses,
+  pinned: ReadonlySet<SessionId>,
+  archived: ReadonlySet<SessionId>,
+  groupOf: (session: SessionSummary) => string,
+): SessionNode[] {
+  const counts = new Map<string, number>()
+  return members.map(session => {
+    const node = sessionNode(session, list, statuses, pinned, archived)
+    if (node.title || session.parentId !== undefined || session.origin === 'subagent') return node
+    // Provisional create results carry only their admission timestamp until the Host summary arrives.
+    const date = new Date(session.createdAt ?? session.updatedAt)
+    const suffix = ` ${date.getMonth() + 1}-${date.getDate()}`
+    const key = JSON.stringify([groupOf(session), date.getFullYear(), suffix])
+    const number = counts.get(key) ?? 0
+    counts.set(key, number + 1)
+    return { ...node, placeholderSuffix: suffix + (number === 0 ? '' : `(${number})`) }
+  })
+}
+
 /**
  * Derive the workspace browser groups with every session as a top-level row.
  *
@@ -460,8 +483,7 @@ export function deriveGroups(
       expanded,
       containsCurrent: g.key === currentGroup,
       sessions: expanded
-        ? sectionMembers(g.sessions, pinned, archived)
-          .map(session => sessionNode(session, list, statuses, pinned, archived))
+        ? sessionNodes(sectionMembers(g.sessions, pinned, archived), list, statuses, pinned, archived, () => g.key)
         : [],
     })
   }
@@ -504,6 +526,7 @@ export function visibleSessionIds(
  * @param sessionIds - complete account members in the selected order, including hidden archives.
  * @param rowState - registry-global pin and archive sets plus the archived filter.
  * @param statuses - unified UI status by Session.
+ * @param workspaces - membership used to number unnamed placeholders independently per workspace.
  * @returns flat rows in sectioned order with current status indicators.
  */
 export function deriveFlat(
@@ -511,6 +534,7 @@ export function deriveFlat(
   sessionIds: readonly SessionId[],
   rowState: SessionRowState,
   statuses: SessionStatuses,
+  workspaces: readonly WorkspaceView[] = [],
 ): SessionNode[] {
   const archived = new Set(rowState.archivedSessionIds)
   const pinned = new Set(rowState.pinnedSessionIds)
@@ -521,8 +545,8 @@ export function deriveFlat(
       ? [session]
       : []
   })
-  return sectionMembers(members, pinned, archived)
-    .map(session => sessionNode(session, list, statuses, pinned, archived))
+  return sessionNodes(sectionMembers(members, pinned, archived), list, statuses, pinned, archived,
+    session => owningGroupKey(workspaces, session.id))
 }
 
 /**

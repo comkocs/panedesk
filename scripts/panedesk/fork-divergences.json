@@ -15034,12 +15034,22 @@
       "id": "panedesk-opening-session-names",
       "description": "Add Panedesk features in General Settings and date-stamped opening session names",
       "origin": "Panedesk product settings",
-      "reason": "Top-level automatic titles retain their local creation date; selected opening-prompt anchors can pin a matched name while manual renames remain authoritative. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
+      "reason": "Name top-level sessions immediately after the first human user/message: selected opening-prompt anchors win, then the containing folder, then an untitled fallback that the model may replace. Automatic names keep the local creation date and allocate duplicate suffixes serially within the workspace, including stored sessions; matched and manual names stay pinned. Before a title exists, sidebar placeholders show creation dates and list-order duplicate suffixes without writing the log. Session summaries carry creation time for this display and settings preview the default folder. This product-specific naming policy is not proposed upstream; no upstream PR is open.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/client/ui-settings-general/**",
           "packages/session/session-title/**",
+          "packages/client/ui-workspace/src/client/tree.ts",
+          "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+          "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+          "packages/client/ui-workspace/README*.md",
+          "packages/api/session-controller/src/types.ts",
+          "packages/api/session-controller/src/list.ts",
+          "packages/api/session-controller/src/client/sessions/lineage.ts",
+          "packages/api/session-controller/src/client/sessions/service.ts",
+          "packages/api/session-controller/src/client/sessions/manager.ts",
+          "packages/api/session-controller/README*.md",
           "pnpm-lock.yaml"
         ]
       }

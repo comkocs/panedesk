@@ -43,7 +43,9 @@
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
-    "@panedesk/dsh-session-projection": "workspace:*"
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   },
   "dependencies": {
     "@panedesk/dsh-util-values": "workspace:*",
@@ -58,6 +60,8 @@
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
-    "@panedesk/dsh-session-projection": "workspace:*"
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   }
 }
