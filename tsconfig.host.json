@@ -246,6 +246,8 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/database/db-connections" },
+    { "path": "./packages/database/tool-sql" },
     { "path": "./packages/client/hmr" },
     { "path": "./packages/seat/seat" },
     { "path": "./packages/seat/node-link" },

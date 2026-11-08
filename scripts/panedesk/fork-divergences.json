@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "database-connections-and-sql-tool",
+      "description": "Add PostgreSQL connection settings, credential-backed SSL/SSH connections and an opt-in built-in SQL tool",
+      "origin": "Panedesk V15-C13",
+      "reason": "Let users connect local or server PostgreSQL databases without MCP, expose enabled connections to models, and provide a host API for a separate storage adapter.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/database/db-connections/**",
+          "packages/database/tool-sql/**",
+          "packages/client/ui-database-connections/**",
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/base/package.json",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-workspace.yaml",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "settings-dsh-page-introductions",
       "description": "Clarify account and built-in plugin settings pages",
       "origin": "Panedesk settings usability",

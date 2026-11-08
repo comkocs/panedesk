@@ -313,6 +313,9 @@
     - id: skill-workflow-pack
       name: '@panedesk/dsh-skill-workflow-pack'
 
+    - id: ui-database-connections
+      name: '@panedesk/dsh-client-ui-database-connections'
+
     - id: ui-project-onboarding
       name: '@panedesk/dsh-client-ui-project-onboarding'
 

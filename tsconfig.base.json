@@ -28,6 +28,11 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@panedesk/dsh-db-connections": ["./packages/database/db-connections/src/index.ts"],
+      "@panedesk/dsh-db-connections/types": ["./packages/database/db-connections/src/types.ts"],
+      "@panedesk/dsh-tool-sql": ["./packages/database/tool-sql/src/index.ts"],
+      "@panedesk/dsh-client-ui-database-connections": ["./packages/client/ui-database-connections/src/index.ts"],
+      "@panedesk/dsh-client-ui-database-connections/client": ["./packages/client/ui-database-connections/src/client/index.ts"],
       "@panedesk/dsh-ledger-query/types": ["./packages/session/ledger-query/src/types.ts"],
       "@panedesk/dsh-host-bash-setup": ["./packages/host/host-bash-setup/src/index.ts"],
       "@panedesk/dsh-host-bash-setup/types": ["./packages/host/host-bash-setup/src/types.ts"],

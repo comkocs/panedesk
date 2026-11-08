@@ -34,6 +34,8 @@
     }
   },
   "dependencies": {
+    "@panedesk/dsh-db-connections": "workspace:*",
+    "@panedesk/dsh-tool-sql": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-message-delivery-local": "workspace:*",
     "@panedesk/dsh-instruction-subscriptions": "workspace:*",
