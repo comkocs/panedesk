@@ -58,8 +58,8 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
       const writes = engine.frozenWrites.register()
       let recovered = false
       let recovery: Promise<void> | undefined
-      const query = async (request: T.NodeWorkChainOperationRequest,
-        context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
+      const query = (request: T.NodeWorkChainOperationRequest,
+        context: T.SeatCallContext): T.NodeWorkChainOperationResult => {
         if (request.key.method !== 'engine.acceptFrozen' || context.principalId !== request.key.principalId
           || context.nodeId !== request.key.sourceNodeId && context.nodeId !== engine.options.nodeId) {
           return rejected('invalid-request', 'Frozen query does not match its caller')
@@ -77,7 +77,7 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
       query: (request, context) => {
         if (lifecycle.signal.aborted) return Promise.resolve(rejected('unavailable', 'Frozen query provider was revoked'))
         if (!recovered) return Promise.resolve({ status: 'pending', effectState: 'unknown' })
-        const work = query(request, context)
+        const work = Promise.resolve().then(() => query(request, context))
         pending.add(work)
         return work.finally(() => pending.delete(work))
       } }

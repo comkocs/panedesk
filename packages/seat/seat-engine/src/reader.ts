@@ -45,11 +45,6 @@ export class SeatEngineReader extends SeatEngineQueryService {
     }
     this.home = resolveDshHome(config.home)
     ctx.provide('seatAuthorizationQueries', {
-      query: request => observe(async () => {
-        void request
-        const { complete } = await this.snapshot()
-        return { facts: [], complete, watermark: 0, legacyAttribution: 'none' as const }
-      }),
       tasks: request => observe(async () => {
         const { projection, complete } = await this.snapshot()
         const result = queryTasks(projection.decisions, request)

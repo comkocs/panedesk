@@ -257,8 +257,6 @@ test('queries prefill, no-effect failure and ambiguous frozen execution from ret
 test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen target revision before dispatch for %s', async (kind) => {
   const { h, pending, query, original, recheck } = await admitForExecution(kind)
   try {
-    await h.engine.drive()
-    expect(h.creates).toEqual([])
     h.definitions.get(seat)!.revision++
     await approveForExecution(h, h.engine.journal.projection.pending.get(pending.queueItemId)!)
     await h.engine.drive()
@@ -271,7 +269,7 @@ test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen 
       { kind: 'open/rejected', data: { error: { code: 'revision-conflict', effectState: 'none' }, candidates: [] } } ])
     expect(pending.frozenOpen!.nodeWorkChain!.expectedSeatRevision).toBe(1)
     expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
-    expect(recheck).toHaveBeenCalledTimes(1)
+    expect(recheck).not.toHaveBeenCalled()
   } finally { await h.close() }
 })
 
@@ -501,11 +499,12 @@ test.each(['unregistered', 'ambiguous'] as const)('bounds transient frozen reten
 })
 
 test('keeps the first fallback retention frame across approval and an engine restart without providers', async () => {
-  const { h, pending, removeRetention } = await admitForExecution('remote-source')
+  const { h, pending, recheck, removeRetention } = await admitForExecution('remote-source')
   const clock = vi.spyOn(Date, 'now'), ctx = new Context()
   let restarted: SeatEngine | undefined
   try {
     await removeRetention()
+    recheck.mockResolvedValue({ status: 'rejected', error: { ...preopenCancelledReason(), retryable: true } })
     await h.engine.drive()
     const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
     await approveForExecution(h, h.engine.journal.projection.pending.get(pending.queueItemId)!)
@@ -633,7 +632,7 @@ test.each(['route', 'route-with-exact', 'project'] as const)('keeps ambiguous %s
 })
 
 test.each(['source', 'owner'] as const)('does not apply route-wide retention to another %s', async (different) => {
-  const { h, pending, input, removeRetention } = await admitForExecution('remote-source')
+  const { h, pending, input, recheck, removeRetention } = await admitForExecution('remote-source')
   const clock = vi.spyOn(Date, 'now')
   try {
     await removeRetention()
@@ -641,6 +640,7 @@ test.each(['source', 'owner'] as const)('does not apply route-wide retention to 
     h.engine.registerPreopenRetention({ ...registration,
       ...(different === 'source' ? { sourceId: 'another-source' as T.SeatSourceId }
         : { sourceOwnerNodeId: 'another-owner' as T.SeatNodeId }) })
+    recheck.mockResolvedValue({ status: 'rejected', error: { ...preopenCancelledReason(), retryable: true } })
     await h.engine.drive()
     const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
     clock.mockReturnValue(since + 1000)

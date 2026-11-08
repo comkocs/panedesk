@@ -192,7 +192,6 @@ export class SeatEngine extends SeatEngineService {
     this.wakeDeliveries = new WakeDeliveries(this.journal,
       options.config.frozenWakeContext ? options.config.maxSourceBytes : undefined)
     ctx.provide('seatAuthorizationQueries', {
-      query: async () => rejected('unavailable', 'Authorization queries are retired'),
       tasks: async (request) => { await this.ready(); return queryTasks(this.journal.projection.decisions, request) },
     })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
