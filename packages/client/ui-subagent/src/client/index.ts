@@ -17,6 +17,8 @@ import type {} from '@panedesk/dsh-client-ui-workspace/client'
 import { SubagentTaskFlow, SubagentTaskPreview } from './SubagentTaskPreview.tsx'
 import { AgentMap, type AgentMapInjected } from './AgentMap.tsx'
 import type {} from '@panedesk/dsh-api-job-controller/client'
+import type {} from '@panedesk/dsh-client-ui-subagent-tree/client'
+import type {} from '@panedesk/dsh-client-ui-subagent-tree/remote'
 import { en, NS, zh, type SubagentKey } from './locales.ts'
 
 declare module '@panedesk/dsh-client-ui-slots' {
@@ -34,7 +36,7 @@ export type {
 } from './SubagentReadOnlyComposer.tsx'
 
 /** Required services for subagent presentation and navigation. */
-export const inject = ['sessions', 'uiWorkspace', 'slots', 'locale', 'sidebarRight', 'jobs']
+export const inject = ['sessions', 'uiWorkspace', 'slots', 'locale', 'sidebarRight', 'jobs', 'subagentTreeUI', 'remote.subagentTree']
 
 /** Claim the composer for one-shot history or an unavailable continuation owner. */
 function selectReadOnlySubagent(owner: ComposerChainProps): SubagentReadOnlyMatch | null {
@@ -114,6 +116,23 @@ export function apply(ctx: ClientContext): void {
       hooks: { jobs: ctx.jobs.state },
       watchRows: id => ctx.jobs.watchRows(id),
       observe: (id, jobId) => ctx.jobs.observe(id, jobId),
+      treeAddress: ctx.subagentTreeUI.address,
+      modelColor: ctx.subagentTreeUI.modelColor,
+      isActive: ctx.subagentTreeUI.isActive,
+      stopAgent: async (id, parent, external) => {
+        if (external) {
+          const result = await ctx.remote.subagentTree.stopExternal({ sessionId: id })
+          if (!result.ok) throw result.error
+        } else {
+          const result = await ctx.remote.subagentTree.read({ sessionId: id })
+          if (!result.ok) throw result.error
+          await ctx.subagentTreeUI.stop({ ...result.value.root, parentSessionId: parent })
+        }
+      },
+      killJob: async (id, jobId) => {
+        const result = await ctx.jobs.kill(id, jobId)
+        if (!result.ok) throw result.error
+      },
     }),
   }, AgentMap))
   ctx.slots.inject(

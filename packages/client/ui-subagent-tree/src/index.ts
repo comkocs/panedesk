@@ -1,6 +1,6 @@
 /**
- * Host half of the subagent tree plugin: one owner-authorized read-only
- * Remote over the session ledger and per-session transcripts. The browser
+ * Host half of the subagent tree plugin: ledger and transcript reads,
+ * plus process-tree stops for registered external children. The browser
  * half in `src/client/` owns every contribution.
  *
  * @module @panedesk/dsh-client-ui-subagent-tree
@@ -17,7 +17,7 @@ import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-p
 import type { SubagentTreeRequest, SubagentTreeView } from './types.ts'
 import { assembleSubagentTree, subagentTreeSessions, type SubagentTranscriptFacts } from './tree.ts'
 import { foldTranscriptFacts } from './transcript.ts'
-import { externalRegistryNodes } from './external-registry.ts'
+import { externalRegistryNodes, stopExternalRegistryNode } from './external-registry.ts'
 
 /** Explicit subagent-tree availability and refresh cadence. */
 export interface Config {
@@ -35,7 +35,7 @@ declare module '@panedesk/cordis' {
   interface Context { subagentTree: SubagentTreeService }
 }
 
-/** No stop, write, export, or caller-supplied identity capability is exposed. */
+/** Tree monitoring and external dispatch control over the configured registry. */
 export default class SubagentTreeService extends TypertRemoteService {
   static inject = ['typert']
 
@@ -78,6 +78,16 @@ export default class SubagentTreeService extends TypertRemoteService {
     }
   }
 
+  /**
+   * Stop the process trees identified by an external child's latest registry record.
+   * @param request - external child session id.
+   * @returns after the terminal registry row is appended.
+   */
+  @Remote
+  async stopExternal(request: SubagentTreeRequest): Promise<void> {
+    await stopExternalRegistryNode(this.config.externalRegistryFile.get(), request.sessionId)
+  }
+
   /** Read one deduplicated ledger snapshot and per-session transcripts after authenticating the invocation owner.
    * @param request - the on-screen session whose descendant tree is requested.
    * @returns nested tree with monitoring columns and the deployment's refresh cadence.
@@ -118,8 +128,10 @@ export default class SubagentTreeService extends TypertRemoteService {
       }
     }
     if (this.cancelled()) throw new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {})
-    const children = [...root.children, ...externalRegistryNodes(text, request.sessionId, asOf)]
-    return { asOf, complete: snapshot.complete, root: { ...root, children }, externalRegistryUnreadable,
+    const withExternal = (node: typeof root): typeof root => ({ ...node,
+      children: [...node.children.map(withExternal), ...externalRegistryNodes(text, node.sessionId, asOf)],
+    })
+    return { asOf, complete: snapshot.complete, root: withExternal(root), externalRegistryUnreadable,
       refreshIntervalMs: this.config.refreshIntervalMs }
   }
 }

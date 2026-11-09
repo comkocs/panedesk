@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "agent-tree-map-status-model-stop",
+      "description": "Show activity dots, actual model families and direct stop controls in the agent tree and map.",
+      "origin": "Panedesk subagent monitoring and execution controls",
+      "reason": "Share transcript-backed models and five family colors, interrupt active descendants child-first, stop shell jobs, and terminate registered external process trees with append-only stop records.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent-tree/",
+          "packages/client/ui-subagent/",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",

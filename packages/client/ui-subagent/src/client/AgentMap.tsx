@@ -6,15 +6,21 @@ import type { SessionId } from '@panedesk/dsh-session/types'
 import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime, TranslateNS } from '@panedesk/dsh-client-ui-slots'
 import { IconBranchOutlineRegular, Modal, StateDot } from '@panedesk/dsh-client-ui-primitives'
 import type { SubagentCatalogInjected } from './SubagentHeaderLineage.tsx'
+import type { SubagentTreeUI, SubagentTreeNode } from '@panedesk/dsh-client-ui-subagent-tree/client'
 import type {} from '@panedesk/dsh-token-meter/client'
 import { NS } from './locales.ts'
 import css from './AgentMap.module.css'
 
-/** Registration-owned access to shared jobs; no execution controls. */
+/** Registration-owned tree facts, model styling and agent/job stop actions. */
 export interface AgentMapInjected extends SubagentCatalogInjected {
   hooks: { jobs: IJobs['state'] }
   watchRows: IJobs['watchRows']
   observe: IJobs['observe']
+  treeAddress: SubagentTreeUI['address']
+  modelColor: SubagentTreeUI['modelColor']
+  isActive: SubagentTreeUI['isActive']
+  stopAgent(id: SessionId, parent: SessionId | null, external: boolean): Promise<void>
+  killJob(sessionId: SessionId, jobId: JobView['id']): Promise<void>
 }
 
 type MapProps = PropsRuntime<'conversation.input.left'> & PropsRenderFactories
@@ -104,7 +110,25 @@ function jobStatus(job: JobView, t: TranslateNS<typeof NS>): string {
  * @returns The trigger and its dismissible map panel.
  */
 export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjection, useJobs, watchRows, observe,
-  refreshProjection, openChild, renderFactorySlot, t }: MapProps) {
+  refreshProjection, openChild, renderFactorySlot, useResource, treeAddress, modelColor, isActive, stopAgent, killJob, t }: MapProps) {
+  const resource = useResource<'subagenttree'>(treeAddress(sessionId))
+  const facts = useMemo(() => {
+    const result = new Map<SessionId, SubagentTreeNode>()
+    const visit = (node: SubagentTreeNode): void => {
+      result.set(node.sessionId, node)
+      node.children.forEach(visit)
+    }
+    if (resource.value) visit(resource.value.root)
+    return result
+  }, [resource.value])
+  const [stopError, setStopError] = useState(false)
+  const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
+  const stop = async (id: string, action: () => Promise<void>): Promise<void> => {
+    setStopError(false)
+    setStopping(ids => new Set(ids).add(id))
+    try { await action() } catch (_stopFailed) { setStopError(true) }
+    finally { setStopping(ids => new Set([...ids].filter(value => value !== id))) }
+  }
   const projections = useSessions(state => state.projectionsBySession)
   const summaries = useSessions(state => state.byId)
   const statuses = useSessionStatus(value => value)
@@ -113,7 +137,23 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
   const rows = useJobs(state => state.rows[sessionId])
   const observed = useJobs(state => state.observed)
   const jobs = useMemo(() => (rows ?? []).filter(job => job.kind === 'bash' || job.kind === 'pwsh'), [rows])
-  const tree = useMemo(() => branches(sessionId, projections), [sessionId, projections])
+  const tree = useMemo(() => {
+    const result = branches(sessionId, projections)
+    const merge = (items: Branch[], parent: SessionId): void => {
+      for (const node of facts.get(parent)?.children ?? []) {
+        if (items.some(item => item.entry.id === node.sessionId)) continue
+        items.push({ entry: node.external
+          ? { id: node.sessionId, mode: 'external', label: node.external.title, createdAt: node.external.startedAt ?? 0 }
+          : { id: node.sessionId, mode: 'unknown', createdAt: 0 }, parent, children: [], width: COLUMN })
+      }
+      for (const branch of items) {
+        if (branch.entry.mode !== 'external') merge(branch.children, branch.entry.id)
+        branch.width = Math.max(COLUMN, branch.children.reduce((sum, child) => sum + child.width, 0))
+      }
+    }
+    merge(result, sessionId)
+    return result
+  }, [sessionId, projections, facts])
   const graph = useMemo(() => layout(tree), [tree])
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<{ kind: 'agent'; id: SessionId } | { kind: 'job'; id: JobView['id'] }>()
@@ -157,21 +197,31 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
   const describe = (branch: Branch) => {
     const summary = summaries[branch.entry.id]
     const values = projections[branch.entry.id]?.values ?? summary?.projectionValues
-    const running = (statuses.get(branch.entry.id)?.running ?? summary?.running) === true
+    const fact = facts.get(branch.entry.id)
+    const running = fact?.external ? isActive(fact.status)
+      : fact?.status === 'waiting' || (statuses.get(branch.entry.id)?.running ?? summary?.running ?? (fact && isActive(fact.status))) === true
     const timing = values?.subagentTiming ?? summary?.projectionValues?.subagentTiming
     const usage = values?.tokenUsage ?? summary?.projectionValues?.tokenUsage
     const elapsed = timing === undefined ? undefined : timing.settledMs + (timing.active === undefined ? 0
       : Math.max(0, (running ? now : timing.active.through) - timing.active.since))
-    const state = running ? 'ongoing' : 'idle'
-    const status = branch.entry.mode === 'external' ? t('mode.external') : running ? t('activity.running')
-      : timing?.lastTurnCompleted ? t('activity.completed') : t('activity.inactive')
-    const metrics = [elapsed === undefined ? undefined : duration(elapsed, t), usage === undefined ? undefined
+    const state = running ? 'done' : 'idle'
+    const stopped = !running && (fact?.endReason === 'cancelled' || fact?.endReason === 'killed')
+    const status = stopped ? t('map.killed') : stopping.has(branch.entry.id) ? t('map.stopping')
+      : running ? t('activity.running') : timing?.lastTurnCompleted ? t('activity.completed') : t('activity.inactive')
+    const model = fact?.model ?? null
+    const metrics = [model ?? t('map.modelUnknown'), elapsed === undefined
+      ? fact?.elapsedMs === null || fact?.elapsedMs === undefined ? undefined : duration(fact.elapsedMs, t)
+      : duration(elapsed, t), usage === undefined ? undefined
       : t('tokens.total', { value: tokens(usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens) })].filter(Boolean).join(' · ')
-    return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics } as const
+    return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics, model, running, stopped } as const
   }
   const rootTitle = summaries[sessionId]?.displayTitle ?? sessionId
   const contextTokens = context?.projectedTokens ?? context?.pressureTokens
-  const rootMetrics = [selection?.next?.model ?? selection?.lastUsed?.model, contextTokens === undefined ? undefined
+  const rootFact = facts.get(sessionId)
+  const rootModel = rootFact?.model ?? selection?.lastUsed?.model ?? null
+  const rootRunning = rootFact?.status === 'waiting' || (statuses.get(sessionId)?.running ?? summaries[sessionId]?.running ?? (rootFact ? isActive(rootFact.status) : false))
+  const rootStopped = !rootRunning && (rootFact?.endReason === 'cancelled' || rootFact?.endReason === 'killed')
+  const rootMetrics = [rootModel ?? t('map.modelUnknown'), contextTokens === undefined ? undefined
     : t('map.context', { value: tokens(contextTokens) })].filter(Boolean).join(' · ')
   const selectedInfo = activeBranch === undefined ? undefined : describe(activeBranch)
   const count = graph.nodes.length + jobs.length
@@ -186,28 +236,36 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
       description={t('map.agents', { count: graph.nodes.length })} className={css.panel!} contentClassName={css.content!}>
       <div className={css.body}>
         <div className={css.main}>
+          {stopError && <p role="alert">{t('map.stopFailed')}</p>}
+          {resource.status === 'failed' && <p role="alert">{t('map.factsFailed')}</p>}
+          {resource.value?.externalRegistryUnreadable && <p role="alert">{t('map.registryFailed')}</p>}
           <div ref={viewport} className={css.viewport} aria-label={t('tree.aria')} tabIndex={0}>
             <div className={css.canvas} style={{ width: graph.width, height: graph.height }}>
               <svg className={css.connections} width={graph.width} height={graph.height} aria-hidden="true">
                 <path d={graph.paths.join(' ')} />
               </svg>
               <div data-map-root="" className={`${css.card} ${css.node} ${css.root}`}
-                style={{ left: graph.center.x - CARD_WIDTH / 2, top: graph.center.y - CARD_HEIGHT / 2 }} title={`${rootTitle} · ${rootMetrics}`}>
-                <span className={css.title}>{rootTitle}</span><span className={css.metrics}>{rootMetrics}</span>
+                style={{ left: graph.center.x - CARD_WIDTH / 2, top: graph.center.y - CARD_HEIGHT / 2, borderLeftColor: modelColor(rootModel) }} title={`${rootTitle} · ${rootMetrics}`}>
+                <span className={css.title}><StateDot className={css.statusDot} state={rootRunning ? 'done' : 'idle'} size={10} />{rootTitle}</span>
+                <span className={css.metrics}>{rootStopped ? t('map.killed') + ' · ' : ''}{rootMetrics}</span>
+                {rootRunning && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
+                  disabled={stopping.has(sessionId)} onClick={() => { void stop(sessionId, () => stopAgent(sessionId, null, false)) }}>■</button>}
               </div>
               {graph.nodes.map(({ branch, x, y }) => {
                 const info = describe(branch)
-                return <button key={branch.entry.id} type="button" className={`${css.card} ${css.node}`}
-                  style={{ left: x - CARD_WIDTH / 2, top: y - CARD_HEIGHT / 2 }}
-                  aria-pressed={selected?.kind === 'agent' && selected.id === branch.entry.id}
-                  title={[info.label, info.status, info.metrics].join(' · ')}
-                  onClick={() => setSelected({ kind: 'agent', id: branch.entry.id })}>
-                  <span className={css.title}>{info.label}</span>
-                  <span className={css.metrics}>
-                    {branch.entry.mode !== 'external' && <StateDot state={info.state} size={8} />}
-                    {info.metrics || info.status}
-                  </span>
-                </button>
+                return <div key={branch.entry.id} className={`${css.card} ${css.node}`}
+                  style={{ left: x - CARD_WIDTH / 2, top: y - CARD_HEIGHT / 2, borderLeftColor: modelColor(info.model) }}>
+                  <button type="button" className={css.cardSelect}
+                    aria-pressed={selected?.kind === 'agent' && selected.id === branch.entry.id}
+                    title={[info.label, info.status, info.metrics].join(' · ')}
+                    onClick={() => setSelected({ kind: 'agent', id: branch.entry.id })}>
+                    <span className={css.title}><StateDot className={css.statusDot} state={info.state} size={10} />{info.label}</span>
+                    <span className={css.metrics}>{info.stopped ? t('map.killed') + ' · ' : ''}{info.metrics}</span>
+                  </button>
+                  {info.running && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
+                    disabled={stopping.has(branch.entry.id)} onClick={() => { void stop(branch.entry.id,
+                      () => stopAgent(branch.entry.id, branch.parent, branch.entry.mode === 'external')) }}>■</button>}
+                </div>
               })}
             </div>
           </div>
@@ -221,20 +279,27 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
           })}
           {jobs.length > 0 && <section className={css.tasks}>
             <h3 className={css.heading}>{t('map.tasks', { count: jobs.length })}</h3>
-            <div className={css.taskCards}>{jobs.map(job => <button key={job.id} type="button" className={css.card}
-              aria-pressed={selected?.kind === 'job' && selected.id === job.id} title={job.label}
-              onClick={() => setSelected({ kind: 'job', id: job.id })}>
-              <span className={css.title}>{job.label}</span>
-              <span className={css.metrics} title={jobStatus(job, t)}>
-                <StateDot state={job.status === 'running' ? 'done' : job.status === 'failed' ? 'error' : 'idle'} size={8} />
-                {t('map.shell', { duration: duration((job.finishedAt ?? now) - job.startedAt, t) })}
-              </span>
-            </button>)}</div>
+            <div className={css.taskCards}>{jobs.map(job => <div key={job.id} className={css.card}>
+              <button type="button" className={css.cardSelect}
+                aria-pressed={selected?.kind === 'job' && selected.id === job.id} title={job.label}
+                onClick={() => setSelected({ kind: 'job', id: job.id })}>
+                <span className={css.title}><StateDot className={css.statusDot} state={isActive(job.status) ? 'done' : 'idle'} size={10} />{job.label}</span>
+                <span className={css.metrics} title={jobStatus(job, t)}>
+                  {jobStatus(job, t)} · {t('map.shell', { duration: duration((job.finishedAt ?? now) - job.startedAt, t) })}
+                </span>
+              </button>
+              {isActive(job.status) && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
+                disabled={stopping.has(job.id)} onClick={() => { void stop(job.id, () => killJob(sessionId, job.id)) }}>■</button>}
+            </div>)}</div>
           </section>}
         </div>
         {(activeBranch !== undefined || activeJob !== undefined) && <aside className={css.details}>
-          {activeBranch !== undefined && selectedInfo !== undefined && (activeBranch.entry.mode === 'external'
-            ? <><h3>{selectedInfo.label}</h3><p>{t('mode.external')}</p></>
+          {activeBranch !== undefined && selectedInfo !== undefined && <>
+            {selectedInfo.running && <button type="button" className={`${css.action} ${css.stopAction}`}
+              disabled={stopping.has(activeBranch.entry.id)} onClick={() => { void stop(activeBranch.entry.id,
+                () => stopAgent(activeBranch.entry.id, activeBranch.parent, activeBranch.entry.mode === 'external')) }}>{t('map.stop')}</button>}
+            {activeBranch.entry.mode === 'external'
+            ? <><h3>{selectedInfo.label}</h3><p>{selectedInfo.status}</p><p style={{ color: modelColor(selectedInfo.model) }}>{selectedInfo.metrics}</p></>
             : <>
               <button type="button" className={css.action} onClick={() => {
                 if (activeBranch.entry.mode === 'external') return
@@ -245,8 +310,11 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
                 address: { parentSessionId: activeBranch.parent, childSessionId: activeBranch.entry.id, mode: activeBranch.entry.mode },
                 label: selectedInfo.label, status: selectedInfo.status, metrics: selectedInfo.metrics,
               })}
-            </>)}
+            </>}
+          </>}
           {activeJob !== undefined && <>
+            {isActive(activeJob.status) && <button type="button" className={`${css.action} ${css.stopAction}`}
+              disabled={stopping.has(activeJob.id)} onClick={() => { void stop(activeJob.id, () => killJob(sessionId, activeJob.id)) }}>{t('map.stop')}</button>}
             <h3>{t('map.command')}</h3><pre className={css.output}>{activeJob.label}</pre>
             <p>{jobStatus(activeJob, t)}{activeJob.detail && ` · ${activeJob.detail}`}</p>
             <h3>{t('map.output')}</h3>

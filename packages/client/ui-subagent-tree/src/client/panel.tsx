@@ -8,6 +8,7 @@ import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SubagentTreeNode, SubagentTreeView } from '../types.ts'
 import type { SubagentTreeData } from './index.ts'
 import type { SubagentTreeKey } from './locales.ts'
+import { isActive, modelColor, type SubagentTreeUI } from './presentation.ts'
 import css from './panel.module.css'
 
 /** Registration-side face for opening the tree tab of one session. */
@@ -18,6 +19,8 @@ export interface SubagentTreeActions {
 
 /** Registration-side face for projecting session labels onto tree rows. */
 export interface SubagentTreeLabels {
+  /** Stop the node and its running descendants. */
+  stop: SubagentTreeUI['stop']
   /** Display label of one session; falls back to its id at the registration site. */
   labelOf(this: void, sessionId: SessionId): string
 }
@@ -78,9 +81,17 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
 /**
  * Right-sidebar tree tab: nested node rows plus the monitoring modal.
  * @param props - Framework tab props, localized copy, and the resource reader.
- * @returns The tree table with a per-row monitoring button; read-only, no stop control.
+ * @returns The tree table with per-row monitoring and active-node Stop controls.
  */
-export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: SubagentTreeTabProps) {
+export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: SubagentTreeTabProps) {
+  const [stopError, setStopError] = useState(false)
+  const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
+  const stopNode = async (node: SubagentTreeNode): Promise<void> => {
+    setStopError(false)
+    setStopping(ids => new Set(ids).add(node.sessionId))
+    try { await stop(node) } catch (_stopFailed) { setStopError(true) }
+    finally { setStopping(ids => new Set([...ids].filter(id => id !== node.sessionId))) }
+  }
   const { tab } = useTabInfo()
   const resource = useResource<'subagenttree'>(tab.contentId)
   const [monitoredId, setMonitoredId] = useState<string | null>(null)
@@ -97,6 +108,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: Subagen
     <p>{t('description')}</p>
     <p>{t('transcriptNote')}</p>
     <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(message)}</p>
+    {stopError && <p role="alert">{t('stopFailed')}</p>}
     {view?.externalRegistryUnreadable && <p role="alert">{t('registryError')}</p>}
     {view && <table className={css.table}>
       <caption className={css.caption}>{t('title')}</caption>
@@ -110,18 +122,20 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf }: Subagen
       </tr></thead>
       <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}>
         <td style={{ paddingLeft: `${8 + depth * 18}px` }}>
-          <StateDot state={node.status === 'running' ? 'ongoing' : node.status === 'waiting' ? 'warning' : node.endReason === 'error' ? 'error' : 'idle'} />
+          <StateDot className={css.statusDot} state={isActive(node.status) ? 'done' : 'idle'} />
           <span className={css.label}>{label}</span>
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
         <td>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
-        <td>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
+        <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
           {t('totalTokens')}: {number(node.tokens.inputTokens === null || node.tokens.outputTokens === null ? null : node.tokens.inputTokens + node.tokens.outputTokens)}
           {' · '}{number(node.tokens.inputTokens)} / {number(node.tokens.cacheReadTokens)} / {number(node.tokens.outputTokens)}
         </td>
         <td>{node.cacheHitRate === null ? t('unknown') : `${Math.round(node.cacheHitRate * 100)}%`}</td>
-        <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitoredId(nodeKey(node)) }}>{t('monitor')}</Button></td>
+        <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitoredId(nodeKey(node)) }}>{t('monitor')}</Button>
+          {isActive(node.status) && <Button variant="ghost" className={css.stop} disabled={stopping.has(node.sessionId)}
+            onClick={() => { void stopNode(node) }}>{t('stop')}</Button>}</td>
       </tr>)}</tbody>
     </table>}
     <Modal open={monitored !== undefined} onClose={() => { setMonitoredId(null) }}

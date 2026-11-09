@@ -1,3 +1,7 @@
+.stop { color: var(--dsw-alias-state-error-primary); }
+.statusDot[data-state='done'] { color: var(--status-good, #0ca30c); }
+.statusDot[data-state='idle'] { color: var(--dsw-alias-label-secondary); }
+
 .pill {
   min-height: 28px;
 }

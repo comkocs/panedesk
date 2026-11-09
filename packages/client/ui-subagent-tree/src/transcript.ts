@@ -23,14 +23,17 @@ export function foldTranscriptFacts(
   events: readonly SessionEvent[],
   inheritedEventCount: number,
 ): SubagentTranscriptFacts {
+  let activity: SubagentTranscriptFacts['activity']
   let model: string | null = null
   let lastToolCall: SubagentTranscriptFacts['lastToolCall'] = null
   for (let index = Math.max(0, inheritedEventCount); index < events.length; index += 1) {
     const event = events[index]
     if (event === undefined) continue
-    if (event.type === 'request/header') model = event.data.header.config.model
+    if (event.type === 'turn/start') activity = 'running'
+    else if (event.type === 'turn/end') activity = event.data.reason.kind === 'aborted' ? 'stopped' : 'idle'
+    else if (event.type === 'request/header') model = event.data.header.config.model
     else if (event.type === 'assistant/message') model = event.data.message.source.model
     else if (event.type === 'tool/call') lastToolCall = { name: event.data.name, time: event.time }
   }
-  return { model, modelSource: 'transcript', lastToolCall }
+  return { model, modelSource: 'transcript', lastToolCall, ...(activity === undefined ? {} : { activity }) }
 }

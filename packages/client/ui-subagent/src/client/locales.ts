@@ -6,6 +6,11 @@ export const NS = 'subagent'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'map.title': '子代理图',
+  'map.stop': '停止',
+  'map.stopFailed': '停止失败，请检查连接与节点状态后重试。',
+  'map.modelUnknown': '模型未知',
+  'map.factsFailed': '模型与状态读取失败，请检查子代理树服务。',
+  'map.registryFailed': '外部登记文件不可读，请检查配置路径。',
   'map.close': '关闭子代理图',
   'map.unavailable': '子会话目录暂不可用',
   'map.agents': '{count} 个子代理 · 点卡片看详情',
@@ -71,6 +76,11 @@ export const zh = {
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<SubagentKey, string> = {
   'map.title': 'Agent map',
+  'map.stop': 'Stop',
+  'map.stopFailed': 'Could not stop the node. Check the connection and node status, then retry.',
+  'map.modelUnknown': 'Unknown model',
+  'map.factsFailed': 'Could not read models and status. Check the subagent tree service.',
+  'map.registryFailed': 'Could not read the external registry. Check the configured path.',
   'map.close': 'Close agent map',
   'map.unavailable': 'Child session catalog is unavailable',
   'map.agents': '{count} subagents · click a card for details',
