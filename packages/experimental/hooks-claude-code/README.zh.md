@@ -27,7 +27,7 @@ kind: "package-reference"
 
 每个钩子事件开始时，钩子进程及其载荷中的 `cwd` 均使用 Session 的当前工作目录。未配置 `projectDir` 时，`CLAUDE_PROJECT_DIR` 同样使用该目录。`SubagentStop` 在子智能体释放后读取其最终已提交的目录；它不能恢复缺失目录或修改该 Session，停止钩子失败时会发出警告。
 
-挂载本包并把 `configPath` 指向你的钩子配置，你已有的钩子就会在 agent 运行中的对应时刻开始触发。在第一个钩子生效之前无需其他设置。
+挂载本包,你已有的钩子就会在 agent 运行中的对应时刻开始触发。不配置 `configPath` 时,每个 Session 工作目录会发现自己的项目 `.claude/settings.json` / `.claude/settings.local.json` 以及用户级 `~/.claude/settings.json`,并按该顺序合并。在第一个钩子生效之前无需其他设置。
 
 ### 何时选择
 
@@ -45,7 +45,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `configPath` | 必填 | `hooks.json` 或 `hooks` key 存放配置的 settings 文件路径 |
+| `configPath` | 可选 | `hooks.json` 或 `hooks` key 存放配置的 settings 文件路径；省略时每个 Session 工作目录自动发现项目与用户 settings |
 | `pluginRoot` | — | 替换命令字符串中的 `${CLAUDE_PLUGIN_ROOT}` |
 | `projectDir` | 会话工作区 | 替换 `${CLAUDE_PROJECT_DIR}` 并设置 `CLAUDE_PROJECT_DIR` 环境变量 |
 | `defaultTimeoutMs` | `600,000` | hook 未设置时的每 hook 超时（即 Claude Code 默认值） |
@@ -57,7 +57,7 @@ kind: "package-reference"
 
 | 你的钩子 | 运行时机 | 能做什么 |
 |---|---|---|
-| `SessionStart` | 会话开始时 | 附加该会话中模型可见的上下文 |
+| `SessionStart` | 会话开始时,以及压缩提交后以 source `compact` 再触发一次 | 附加该会话中模型可见的上下文 |
 | `UserPromptSubmit` | agent 收到提示词时 | 阻塞提示词，或附加上下文 |
 | `PreToolUse` | 工具运行前 | 阻塞工具，或在运行前请求批准 |
 | `PostToolUse` | 工具运行后 | 带反馈阻塞结果，或附加上下文 |
@@ -69,7 +69,7 @@ kind: "package-reference"
 
 - 钩子在 agent 的 Session 当前目录中运行；`pwd`、载荷中的 `cwd` 与相对路径保持一致。
 - 命令字符串中的 `${CLAUDE_PLUGIN_ROOT}` 与 `${CLAUDE_PROJECT_DIR}` 会按你的配置替换，且每个钩子进程都会设置 `CLAUDE_PROJECT_DIR`。
-- 一份配置应用于整个进程：启动时只读取一次，相对 `configPath` 从启动进程的目录解析。
+- 显式配置应用于整个进程：启动时只读取一次，相对 `configPath` 从启动进程的目录解析。不配置时,发现模式按工作目录解析一次该目录的 settings 文件。
 - 同一事件上的钩子按配置顺序逐个运行。
 - 如果配置无法读取或解析，桥接会记录警告且不运行任何钩子——agent 仍会启动。
 - 运行失败的钩子（命令错误或崩溃）会被记录，agent 继续运行。
@@ -180,7 +180,7 @@ hook 不返回上下文时没有成本。Hook 文本取决于数据，会被记�
 - **`SubagentStart` 与 `SubagentStop` 只支持部分功能**——两者均报告常量 `agent_type` `general-purpose`，并在 Claude Code 报告父会话的位置使用 child 会话 id。Start 上下文是尽力而为，且只能到达仍在运行的同进程 child；stop 只观测，无法阻塞 subagent 或向其提供上下文。Stop 省略 `agent_transcript_path`、`last_assistant_message`、`background_tasks` 与 `session_crons`，并始终报告 `stop_hook_active: false`。
 - **`Stop` 只支持部分功能**——阻塞会强制另一个模型轮次，但 `stop_hook_active` 始终为 `false`，会省略 `last_assistant_message`、`background_tasks` 与 `session_crons`，且未实现连续阻塞上限。因此，无条件阻塞 hook 会在每个步骤中强制 continuation，除非它自我限制。
 - **通用 payload 与输出字段只支持部分功能**——已映射事件会省略 Claude Code 原本会提供的 `prompt_id`、`permission_mode` 与 `effort`，且 `transcript_path` 永不填充：它始终为空字符串，因为持久化 seam 不暴露产物路径，且默认使用 Zstandard 压缩的会话日志无法被 hook 脚本读取。`systemMessage` 会被记录 + 警告但不呈现；`{"continue": false}` 会被记录但不会停止运行；`suppressOutput`、`stopReason` 与 `terminalSequence` 不会被应用。
-- **Handler 与配置只支持部分功能**——只运行 shell 形态 command handler。会跳过 `http`、`mcp_tool`、`prompt` 与 `agent` handler；`args`、`async`、`asyncRewake`、`shell`、`if`、`once` 与 `statusMessage` 等 command handler 选项不会被遵循。匹配 handler 串行运行且不去重，而 Claude Code 会并行运行并对相同 handler 去重。一个进程级 `configPath` 会在加载时解析一次；尚未实现 Claude Code 的分层项目、用户、插件与策略发现以及实时重新加载。
+- **Handler 与配置只支持部分功能**——只运行 shell 形态 command handler。会跳过 `http`、`mcp_tool`、`prompt` 与 `agent` handler；`args`、`async`、`asyncRewake`、`shell`、`if`、`once` 与 `statusMessage` 等 command handler 选项不会被遵循。匹配 handler 串行运行且不去重，而 Claude Code 会并行运行并对相同 handler 去重。显式 `configPath` 会在加载时解析一次；不配置时,按 Session 工作目录发现项目与用户 settings。插件层、策略层与实时重新加载尚未实现。
 
 <a id="dev-note"></a>
 ### 开发备注

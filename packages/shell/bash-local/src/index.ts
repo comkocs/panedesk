@@ -409,7 +409,10 @@ export class LocalBashExecutor extends ShellExecutor {
 export default LocalBashExecutor
 
 export {
-  WINDOWS_BASH_CONFIG_FILENAME, clearWindowsBashConfig, parseWindowsBashConfig, probeWindowsBash,
-  readWindowsBashConfig, windowsBashCandidates, windowsBashConfigPath, writeWindowsBashConfig,
+  WINDOWS_BASH_CONFIG_FILENAME, clearWindowsBashConfig, commitWindowsPowerShellSelection, parseWindowsBashConfig,
+  probeWindowsBash, readWindowsBashConfig, readWindowsBashSelection, resolveWindowsBashDefault,
+  windowsBashCandidates, windowsBashConfigPath, writeWindowsBashConfig,
 } from './windows-bash.ts'
-export type { WindowsBashCandidate, WindowsBashConfig, WindowsBashFs, WindowsBashSource, WindowsBashWriteFs } from './windows-bash.ts'
+export type {
+  WindowsBashCandidate, WindowsBashConfig, WindowsBashFs, WindowsBashSelection, WindowsBashSource, WindowsBashWriteFs,
+} from './windows-bash.ts'

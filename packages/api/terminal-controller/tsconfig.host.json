@@ -39,6 +39,9 @@
       "path": "../../session/session-projection"
     },
     {
+      "path": "../../shell/bash-local"
+    },
+    {
       "path": "../../session/working-directory"
     },
     {

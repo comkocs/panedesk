@@ -406,6 +406,12 @@
     - id: command-compact
       name: '@panedesk/dsh-command-compact'
 
+    # Claude Code command-hook bridge. No configPath: each session working
+    # directory discovers its project `.claude/settings.json` /
+    # `.claude/settings.local.json` plus the user-level `~/.claude/settings.json`.
+    - id: hooks-claude-code
+      name: '@panedesk/dsh-hooks-claude-code'
+
     - id: subagent
       name: '@panedesk/dsh-subagent'
       config:

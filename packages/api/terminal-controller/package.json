@@ -55,6 +55,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@panedesk/dsh-bash-local": "workspace:*",
     "@panedesk/dsh-deque": "workspace:*",
     "@panedesk/dsh-lazy-require": "workspace:*",
     "@panedesk/dsh-typert-protocol": "workspace:*",

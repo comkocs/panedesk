@@ -6,6 +6,7 @@
  * @module @panedesk/dsh-hooks-claude-code/config
  */
 
+import { join } from 'node:path'
 import { matcherDiagnostic, type MatcherGroup } from '@panedesk/dsh-hook-protocol'
 
 const CLAUDE_EVENTS = [
@@ -20,6 +21,33 @@ const CLAUDE_EVENTS = [
 
 /** A parsed CC config: event name → its matcher groups (command hooks only). */
 export type ClaudeCodeHookConfig = Record<string, MatcherGroup[]>
+
+/** Settings files one session working directory discovers, project-local before user-level. */
+export function claudeSettingsPaths(cwd: string, home: string): string[] {
+  return [
+    join(cwd, '.claude', 'settings.json'),
+    join(cwd, '.claude', 'settings.local.json'),
+    join(home, '.claude', 'settings.json'),
+  ]
+}
+
+/**
+ * Merge parsed settings files into one config: per-event matcher groups
+ * concatenate in the given file order and skipped entries accumulate.
+ * @param configs - parsed configs in discovery order.
+ * @returns the combined runnable groups and skipped entries.
+ */
+export function mergeClaudeCodeConfigs(configs: readonly ParsedClaudeConfig[]): ParsedClaudeConfig {
+  const config: ClaudeCodeHookConfig = {}
+  const skipped: SkippedHook[] = []
+  const events = new Set(configs.flatMap(parsed => Object.keys(parsed.config)))
+  for (const event of events) {
+    const groups = configs.flatMap(parsed => parsed.config[event] ?? [])
+    if (groups.length > 0) config[event] = groups
+  }
+  for (const parsed of configs) skipped.push(...parsed.skipped)
+  return { config, skipped }
+}
 
 /** A skipped non-command hook, surfaced so the bridge can warn about it. */
 export interface SkippedHook {

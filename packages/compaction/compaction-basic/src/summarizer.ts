@@ -115,6 +115,8 @@ export type SummaryResult = {
  * @param input - replayed conversation prefix (system, tools, and leading messages) to condense.
  * @param agent - supplies routed-model history, fallback model, and session id.
  * @param signal - optional cancellation forwarded to the adapter.
+ * @param compactInstructions - workspace `## Compact Instructions` sections appended
+ * verbatim after the fixed instruction, or undefined without any.
  * @returns safe text-only summary blocks and the exact call envelope and output.
  */
 export async function summarizeWithLlm(
@@ -123,6 +125,7 @@ export async function summarizeWithLlm(
   input: SummarizationInput,
   agent: Agent,
   signal?: AbortSignal,
+  compactInstructions?: string,
 ): Promise<SummaryResult> {
   const latest = agent.session.requestHeader()?.config
   const configured = config.summarizationProvider.length === 0
@@ -142,11 +145,14 @@ export async function summarizeWithLlm(
   }
 
   const assembler = new BlockAssembler()
+  const instruction = compactInstructions === undefined || compactInstructions.length === 0
+    ? COMPACTION_INSTRUCTION
+    : `${COMPACTION_INSTRUCTION}\n\n${compactInstructions}`
   const messages: RequestMessage[] = [
     ...input.messages,
     deepFreeze({
       role: 'user',
-      content: [{ type: 'text', text: COMPACTION_INSTRUCTION }],
+      content: [{ type: 'text', text: instruction }],
     }),
   ]
   const options: GenerateOptions = {

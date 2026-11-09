@@ -25,6 +25,7 @@ import type { ToolExecution, ToolExecutionResult, ToolExecutionToken } from '@pa
 import { Config, resolveConfig, workspaceBaselineIdentity, type ResolvedConfig } from './config.ts'
 import { findProjectRoot, loadBaselineInstructionSet } from './files.ts'
 import { trimmedInstructionDigest } from './digest.ts'
+import { loadClaudeMemoryFile } from './memory.ts'
 import {
   applyInstructionVersionUpdates,
   baselineInstructionState,
@@ -34,11 +35,22 @@ import {
   type InstructionVersionCache,
   type AgentInstructionSource,
 } from './state.ts'
-import { instructionCandidateGroup, instructionScopeKey, scopeForDisplayPath, type AgentInstructionChange } from './render.ts'
+import {
+  instructionCandidateGroup,
+  instructionScopeKey,
+  renderClaudeMemory,
+  scopeForDisplayPath,
+  type AgentInstructionChange,
+} from './render.ts'
 
 export { Config, name }
 /** Services required by workspace instruction projection. */
 export const inject = ['sessionProjections', 'workingDirectory']
+export { collectCompactInstructions, extractCompactInstructions } from './compact.ts'
+export {
+  CLAUDE_MEMORY_FILE, claudeMemoryPaths, encodeClaudeProjectsDirectory, loadClaudeMemoryFile,
+} from './memory.ts'
+export type { LoadedClaudeMemory } from './memory.ts'
 export {
   discoverBaselineInstructionFiles,
   loadBaselineInstructions,
@@ -246,6 +258,27 @@ export function apply(ctx: Context, config: Config): void {
           },
         }))
         desiredBaseline = true
+      }
+    }
+    // The Claude Code memory file rides the same baseline byte budget as the
+    // instruction chain and shares its message; reconciliation does not track it.
+    if (!keepVisibleBaseline) {
+      let memory: Awaited<ReturnType<typeof loadClaudeMemoryFile>>
+      try {
+        memory = await loadClaudeMemoryFile(
+          { cwd, maxSourceBytes: resolved.maxSourceBytes, signal },
+          fileSystem,
+        )
+      } catch (error: unknown) {
+        signal.throwIfAborted()
+        ctx.logger.warn('Claude memory load failed: %o', error)
+        memory = undefined
+      }
+      if (memory !== undefined) {
+        let baselineBytes = 0
+        for (const block of content) baselineBytes += Buffer.byteLength(block.type === 'text' ? block.text : '', 'utf8')
+        const text = renderClaudeMemory(memory, resolved.maxBytes - baselineBytes)
+        if (text !== undefined) content.push({ type: 'text', text })
       }
     }
     const update = await reconcileInstructionContext(

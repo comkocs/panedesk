@@ -21,7 +21,7 @@ First-run Git Bash discovery Remote: it probes the common Windows install locati
 
 ## Use this package
 
-Mount the gateway in a Web-facing profile; the Settings General row calls it over the generated `bashSetup` Remote face. `status` reports the host platform, the first probed Git Bash executable, the committed selection, and a `PANEDESK_BASH_PATH` override. `enable` commits one confirmed `{ enabled: true, bashPath }` document to `windows-bash.json` under the harness home; `disable` removes it, restoring the platform default. All filesystem facts and writes come from `@panedesk/dsh-bash-local`, which also owns the Loader expression the base profiles gate on.
+Mount the gateway in a Web-facing profile; the Settings General row calls it over the generated `bashSetup` Remote face. `status` reports the host platform, the first probed Git Bash executable, the committed selection, and a `PANEDESK_BASH_PATH` override. `enable` commits one confirmed `{ enabled: true, bashPath }` document to `windows-bash.json` under the harness home; `disable` commits `{ enabled: false }` instead, which overrides the detected-Bash default and keeps PowerShell. All filesystem facts and writes come from `@panedesk/dsh-bash-local`, which also owns the Loader expression the base profiles gate on.
 
 ### What a write means
 

@@ -31,6 +31,7 @@
   },
   "peerDependencies": {
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-compaction": "workspace:*",
     "@panedesk/dsh-hook-protocol": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
@@ -44,6 +45,7 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-compaction": "workspace:*",
     "@panedesk/dsh-shell": "workspace:*",
     "@panedesk/dsh-bash-local": "workspace:*",
     "@panedesk/dsh-subprocess-local": "workspace:*",

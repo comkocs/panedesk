@@ -79,7 +79,7 @@ Misconfiguration fails fast: unknown settings, duplicate per-model overrides, in
 
 ### What happens when condensation runs
 
-The oldest balanced span is replaced by one summary message and the recent tail stays verbatim; the conversation continues from the summary. The operation reports how many history items were condensed and the estimated tokens freed. If nothing can be condensed safely — for example the whole conversation is one indivisible unit — nothing changes and nothing is written to the session log. If no model is available to write the summary (no configured target and no routed request yet), condensation fails with a clear error telling you to configure the summarization provider and model or route one request.
+The summarization instruction appends the `## Compact Instructions` sections of the root-to-cwd `CLAUDE.md` chain (`collectCompactInstructions` in `@panedesk/dsh-agent-instructions`) verbatim, so workspace compaction guidance shapes the summary. The oldest balanced span is replaced by one summary message and the recent tail stays verbatim; the conversation continues from the summary. The operation reports how many history items were condensed and the estimated tokens freed. If nothing can be condensed safely — for example the whole conversation is one indivisible unit — nothing changes and nothing is written to the session log. If no model is available to write the summary (no configured target and no routed request yet), condensation fails with a clear error telling you to configure the summarization provider and model or route one request.
 
 ### On-demand condensation with /compact
 

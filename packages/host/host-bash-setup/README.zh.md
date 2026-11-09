@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-把网关挂进面向 Web 的档;「设置 → 通用」行经生成的 `bashSetup` 远端面调用。`status` 报告宿主平台、探测到的第一个 Git Bash 可执行文件、已提交的选择,以及 `PANEDESK_BASH_PATH` 覆盖。`enable` 把一份确认过的 `{ enabled: true, bashPath }` 文档提交到 harness 主目录下的 `windows-bash.json`;`disable` 移除它,恢复平台缺省。全部文件事实与写入都来自 `@panedesk/dsh-bash-local`,base 档门控读的 Loader 表达式也由它承载。
+把网关挂进面向 Web 的档;「设置 → 通用」行经生成的 `bashSetup` 远端面调用。`status` 报告宿主平台、探测到的第一个 Git Bash 可执行文件、已提交的选择,以及 `PANEDESK_BASH_PATH` 覆盖。`enable` 把一份确认过的 `{ enabled: true, bashPath }` 文档提交到 harness 主目录下的 `windows-bash.json`;`disable` 改为提交 `{ enabled: false }`,覆盖「探测到即用 Git Bash」的缺省,保持 PowerShell。全部文件事实与写入都来自 `@panedesk/dsh-bash-local`,base 档门控读的 Loader 表达式也由它承载。
 
 ### 一次写入意味着什么
 

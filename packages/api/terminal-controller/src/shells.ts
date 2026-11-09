@@ -1,9 +1,12 @@
 /** Shell selection and executable verification use the target execution provider. */
-import type { SubprocessRuntime } from '@panedesk/dsh-subprocess'
+import { resolveWindowsBashDefault } from '@panedesk/dsh-bash-local'
+import type { SubprocessTerminalEnvironment, SubprocessRuntime } from '@panedesk/dsh-subprocess'
 import type { TerminalShell } from './types.ts'
 
 /**
  * Resolve the configured shell or the execution environment's default shell.
+ * On Windows the default is a committed or probed Git Bash selection before
+ * the environment's own default (`ComSpec` / `cmd.exe`).
  * @param subprocess - target execution provider.
  * @param configured - optional profile overriding the environment's default shell.
  * @param signal - resolution cancellation.
@@ -15,10 +18,21 @@ export async function resolveShell(
   let shell = configured
   if (shell === undefined) {
     const environment = await subprocess.terminalEnvironment(signal)
-    shell = profile(environment.defaultShell ?? (environment.platform === 'windows' ? 'cmd.exe' : '/bin/sh'))
+    shell = profile(defaultShellPath(environment))
   }
   const path = await subprocess.resolveExecutable(shell.path, undefined, signal)
   return { ...shell, path }
+}
+
+/**
+ * The environment's default shell path, with the Windows Git Bash selection
+ * ahead of `ComSpec` while nothing overrode it.
+ * @param environment - target execution environment facts.
+ * @returns the executable path to run as the default shell.
+ */
+function defaultShellPath(environment: SubprocessTerminalEnvironment): string {
+  if (environment.platform !== 'windows') return environment.defaultShell ?? '/bin/sh'
+  return resolveWindowsBashDefault()?.bashPath ?? environment.defaultShell ?? 'cmd.exe'
 }
 
 function profile(path: string): TerminalShell {

@@ -22,9 +22,9 @@ export interface WindowsBashWriteFs {
 
 /**
  * Product-level Windows Bash selection written after the user confirms the
- * one-click setup. Base profiles stay on the PowerShell default until this
- * file enables the Bash rows, so `enabled: true` with a usable `bashPath` is
- * the only committed state; clearing the file restores the default.
+ * one-click setup. Base profiles run the Bash rows while this file enables
+ * them, so `enabled: true` with a usable `bashPath` is the committed Bash
+ * state.
  */
 export interface WindowsBashConfig {
   /** Whether the Windows product runs the Bash rows instead of the PowerShell rows. */
@@ -32,6 +32,12 @@ export interface WindowsBashConfig {
   /** Absolute path of the Bash executable passed to the executor as `bashPath`. */
   readonly bashPath: string
 }
+
+/**
+ * One committed selection document: either the Bash rows with their executable,
+ * or an explicit PowerShell choice that overrides the detected-Bash default.
+ */
+export type WindowsBashSelection = WindowsBashConfig | { readonly enabled: false }
 
 /** Filename of the product config under the DeepSeek Harness home. */
 export const WINDOWS_BASH_CONFIG_FILENAME = 'windows-bash.json'
@@ -50,11 +56,12 @@ export function windowsBashConfigPath(env: Record<string, string | undefined> = 
 /**
  * Parse one candidate config document. Unknown fields are ignored so a newer
  * product can extend the file; any shape the Bash gating could not act on is
- * absent, never a partial value.
+ * absent, never a partial value. An `enabled: false` document is the explicit
+ * PowerShell selection that overrides the detected-Bash default.
  * @param text File contents as read from disk.
- * @returns The config, or undefined when the document does not carry an enabled selection.
+ * @returns The committed selection, or undefined when the document carries no selection.
  */
-export function parseWindowsBashConfig(text: string): WindowsBashConfig | undefined {
+export function parseWindowsBashConfig(text: string): WindowsBashSelection | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
@@ -63,8 +70,28 @@ export function parseWindowsBashConfig(text: string): WindowsBashConfig | undefi
   }
   if (typeof parsed !== 'object' || parsed === null) return undefined
   const { enabled, bashPath } = parsed as Record<string, unknown>
+  if (enabled === false) return { enabled }
   if (enabled !== true || typeof bashPath !== 'string' || bashPath.length === 0) return undefined
   return { enabled, bashPath }
+}
+
+/**
+ * Read the committed selection document, explicit PowerShell included.
+ * @param fs Filesystem seam; defaults to `node:fs`.
+ * @param env Environment mapping used to locate the harness home.
+ * @returns The committed selection, or undefined when no selection was ever written.
+ */
+export function readWindowsBashSelection(
+  fs: WindowsBashFs = { existsSync, readFileSync },
+  env: Record<string, string | undefined> = process.env,
+): WindowsBashSelection | undefined {
+  const path = windowsBashConfigPath(env)
+  if (!fs.existsSync(path)) return undefined
+  try {
+    return parseWindowsBashConfig(fs.readFileSync(path, 'utf8'))
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -79,13 +106,27 @@ export function readWindowsBashConfig(
   fs: WindowsBashFs = { existsSync, readFileSync },
   env: Record<string, string | undefined> = process.env,
 ): WindowsBashConfig | undefined {
-  const path = windowsBashConfigPath(env)
-  if (!fs.existsSync(path)) return undefined
-  try {
-    return parseWindowsBashConfig(fs.readFileSync(path, 'utf8'))
-  } catch {
-    return undefined
-  }
+  const selection = readWindowsBashSelection(fs, env)
+  return selection !== undefined && selection.enabled ? selection : undefined
+}
+
+/**
+ * Resolve the effective Windows default: the committed selection wins, and a
+ * host that never selected anything runs a probed Git Bash. An explicit
+ * PowerShell selection and a probe that finds nothing both keep the platform
+ * default.
+ * @param fs Filesystem seam; defaults to `node:fs`.
+ * @param env Environment mapping used to locate the harness home and probe anchors.
+ * @returns The Bash selection to default to, or undefined to keep the PowerShell default.
+ */
+export function resolveWindowsBashDefault(
+  fs: WindowsBashFs = { existsSync, readFileSync },
+  env: Record<string, string | undefined> = process.env,
+): WindowsBashConfig | undefined {
+  const selection = readWindowsBashSelection(fs, env)
+  if (selection !== undefined) return selection.enabled ? selection : undefined
+  const probed = probeWindowsBash(fs, env)
+  return probed === undefined ? undefined : { enabled: true, bashPath: probed.bashPath }
 }
 
 /**
@@ -114,8 +155,21 @@ export async function writeWindowsBashConfig(
 }
 
 /**
- * Remove the product config, restoring the platform default (PowerShell on
- * Windows). This is the committed effect of the settings row's disable action.
+ * Commit the explicit PowerShell selection. This is the committed effect of the
+ * settings row's disable action: it overrides the detected-Bash default, so
+ * removing the file (which restores that default) is not the same choice.
+ * @param env Environment mapping used to locate the harness home.
+ */
+export async function commitWindowsPowerShellSelection(
+  env: Record<string, string | undefined> = process.env,
+): Promise<void> {
+  const path = windowsBashConfigPath(env)
+  await writeFileAtomic(path, `${JSON.stringify({ enabled: false }, undefined, 2)}\n`, { mode: 0o600 })
+}
+
+/**
+ * Remove the product config, restoring the detected-Bash default for a host
+ * that never chose PowerShell explicitly.
  * @param env Environment mapping used to locate the harness home.
  */
 export async function clearWindowsBashConfig(env: Record<string, string | undefined> = process.env): Promise<void> {

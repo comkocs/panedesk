@@ -18,6 +18,9 @@
       "path": "../../../vendor/schemastery"
     },
     {
+      "path": "../../compaction/compaction"
+    },
+    {
       "path": "../hook-protocol"
     },
     {

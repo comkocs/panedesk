@@ -56,6 +56,7 @@
     "@panedesk/dsh-compaction-tool-result-pruner": "workspace:*",
     "@panedesk/dsh-credentials-local": "workspace:*",
     "@panedesk/dsh-deepseek-llm-api-extensions": "workspace:*",
+    "@panedesk/dsh-hooks-claude-code": "workspace:*",
     "@panedesk/dsh-plugin-package-inventory-deepseek": "workspace:*",
     "@panedesk/dsh-fs-local": "workspace:*",
     "@panedesk/dsh-fs-observation-policy": "workspace:*",

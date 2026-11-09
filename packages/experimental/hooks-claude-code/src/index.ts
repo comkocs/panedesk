@@ -10,9 +10,11 @@
 
 import type {} from '@panedesk/dsh-working-directory'
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import type { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent, PreStepDecision, TurnBoundaryProjection } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-compaction'
 import type {} from '@panedesk/dsh-session-projection'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { ContextFormed } from '@panedesk/dsh-llm'
@@ -41,6 +43,11 @@ import {
 // start/end edges.
 import type { SubagentRunId } from '@panedesk/dsh-subagent'
 import { parseClaudeCodeConfig, type ClaudeCodeHookConfig } from './config.ts'
+import {
+  claudeSettingsPaths,
+  mergeClaudeCodeConfigs,
+  type ParsedClaudeConfig,
+} from './config.ts'
 
 export const name = 'hooks-claude-code'
 // `shell` runs hooks and `sessionProjections` supplies turn numbers; the rest
@@ -52,11 +59,12 @@ export interface Config {
   /**
    * Path to a `hooks.json` or a settings file whose `hooks` key holds the config.
    * Process-level: read once at load, a relative path resolves against the process
-   * launch cwd, so one config applies to the whole process.
-   * TODO(per-session-hook-config): per-session discovery of a project-local
-   * `hooks.json` from each `session/new.cwd`.
+   * launch cwd, so one config applies to the whole process. Omitted (the default
+   * mount): each session working directory discovers its project
+   * `.claude/settings.json`, `.claude/settings.local.json`, and the user-level
+   * `~/.claude/settings.json`, merged in that order per event.
    */
-  configPath: string
+  configPath?: string
   /**
    * Replaces `${CLAUDE_PLUGIN_ROOT}` in command strings (the plugin's root dir).
    */
@@ -76,7 +84,7 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  configPath: z.string().required(),
+  configPath: z.string(),
   pluginRoot: z.string(),
   projectDir: z.string(),
   defaultTimeoutMs: z.number().default(DEFAULT_HOOK_TIMEOUT_MS),
@@ -105,20 +113,82 @@ export function apply(ctx: Context, config: Config): void {
   assertPositiveInteger('stderrSummaryMaxChars', stderrSummaryMaxChars)
   const defaultTimeoutMs = config.defaultTimeoutMs ?? DEFAULT_HOOK_TIMEOUT_MS
   // Parse once at load. A read or parse failure logs and registers nothing.
-  let parsed: ClaudeCodeHookConfig = {}
-  try {
-    const raw: unknown = JSON.parse(readFileSync(config.configPath, 'utf8'))
-    const result = parseClaudeCodeConfig(raw, {
-      ...config.pluginRoot !== undefined ? { pluginRoot: config.pluginRoot } : {},
-      ...config.projectDir !== undefined ? { projectDir: config.projectDir } : {},
-    })
-    parsed = result.config
-    for (const s of result.skipped) {
-      ctx.logger.warn(`hooks-claude-code: skipping unsupported "${s.type}" hook on ${s.event} (only command hooks run)`)
+  let parsed: ClaudeCodeHookConfig | undefined
+  if (config.configPath !== undefined) {
+    try {
+      const raw: unknown = JSON.parse(readFileSync(config.configPath, 'utf8'))
+      const result = parseClaudeCodeConfig(raw, {
+        ...config.pluginRoot !== undefined ? { pluginRoot: config.pluginRoot } : {},
+        ...config.projectDir !== undefined ? { projectDir: config.projectDir } : {},
+      })
+      parsed = result.config
+      for (const s of result.skipped) {
+        ctx.logger.warn(`hooks-claude-code: skipping unsupported "${s.type}" hook on ${s.event} (only command hooks run)`)
+      }
+    } catch (error: unknown) {
+      ctx.logger.warn(`hooks-claude-code: could not load hook config "${config.configPath}": ${String(error)} — no hooks registered`)
+      return
     }
-  } catch (error: unknown) {
-    ctx.logger.warn(`hooks-claude-code: could not load hook config "${config.configPath}": ${String(error)} — no hooks registered`)
-    return
+  }
+
+  /** Discovered-mode cache: one parse per working directory, resolved at first use. */
+  const discoveredConfigs = new Map<string, ClaudeCodeHookConfig | undefined>()
+  const agentConfigs = new WeakMap<Agent, ClaudeCodeHookConfig | undefined>()
+  let processConfig: { cwd: string; config: ClaudeCodeHookConfig | undefined } | undefined
+
+  /** Whether a settings read failed because the file is absent (the normal case). */
+  function isMissingSettings(error: unknown): boolean {
+    return error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT'
+  }
+
+  /** Parse the settings files one working directory discovers; absent files are the normal case. */
+  function discoverClaudeHookConfig(cwd: string): ClaudeCodeHookConfig | undefined {
+    if (discoveredConfigs.has(cwd)) return discoveredConfigs.get(cwd)
+    let merged: ParsedClaudeConfig | undefined
+    for (const path of claudeSettingsPaths(cwd, homedir())) {
+      let raw: unknown
+      try {
+        raw = JSON.parse(readFileSync(path, 'utf8'))
+      } catch (error: unknown) {
+        if (!isMissingSettings(error)) {
+          ctx.logger.warn(`hooks-claude-code: could not read hook settings "${path}": ${String(error)}`)
+        }
+        continue
+      }
+      const result = parseClaudeCodeConfig(raw, { projectDir: cwd })
+      merged = merged === undefined ? result : mergeClaudeCodeConfigs([merged, result])
+      for (const s of result.skipped) {
+        ctx.logger.warn(`hooks-claude-code: skipping unsupported "${s.type}" hook on ${s.event} (only command hooks run)`)
+      }
+    }
+    const discovered = merged === undefined || Object.keys(merged.config).length === 0 ? undefined : merged.config
+    discoveredConfigs.set(cwd, discovered)
+    return discovered
+  }
+
+  /**
+   * The hook config one invocation runs against: the explicit file when
+   * configured, otherwise the session working directory's discovery.
+   */
+  async function hookConfigFor(agent: Agent | undefined, signal: AbortSignal): Promise<ClaudeCodeHookConfig | undefined> {
+    if (parsed !== undefined) return parsed
+    if (agent === undefined) {
+      if (processConfig === undefined || processConfig.cwd !== process.cwd()) {
+        processConfig = { cwd: process.cwd(), config: discoverClaudeHookConfig(process.cwd()) }
+      }
+      return processConfig.config
+    }
+    if (agentConfigs.has(agent)) return agentConfigs.get(agent)
+    let workdir: string | undefined
+    try {
+      workdir = await ctx.workingDirectory.ensure(agent, signal)
+    } catch (error: unknown) {
+      signal.throwIfAborted()
+      ctx.logger.warn(`hooks-claude-code: working directory unavailable, discovering hooks at the process cwd: ${String(error)}`)
+    }
+    const discovered = discoverClaudeHookConfig(workdir ?? process.cwd())
+    agentConfigs.set(agent, discovered)
+    return discovered
   }
 
   // Emit-shaped points run detached, so track their chains; disposal aborts
@@ -146,7 +216,7 @@ export function apply(ctx: Context, config: Config): void {
     payload: Record<string, unknown>,
     opts: { agent?: Agent; turn?: number; directory?: 'committed'; readonly signal: AbortSignal },
   ): Promise<MergedHookOutcome> {
-    const groups = selectHookGroups(parsed[point], matchQuery, 'claude-code')
+    const groups = selectHookGroups((await hookConfigFor(opts.agent, opts.signal))?.[point], matchQuery, 'claude-code')
     if (groups.length === 0) return mergeHookOutputs([])
     const outputs: HookOutput[] = []
     const workdir = opts.agent === undefined ? undefined
@@ -218,6 +288,22 @@ export function apply(ctx: Context, config: Config): void {
       })
     detached.track(run)
     await run
+  })
+
+  // A committed compaction restarts the session context, so the CC contract
+  // fires SessionStart with source "compact"; its output re-enters the session
+  // the same way the startup edge injects context.
+  ctx.on('compaction/committed', ({ session }) => {
+    const agent = ctx.get('agents')?.get(session.id)
+    if (agent === undefined) return
+    detached.track(runPoint('SessionStart', 'compact', sessionStartPayload(agent, 'compact'), { agent, turn: lastTurn(ctx, agent), signal: detached.signal })
+      .then((merged) => {
+        const context = contextFrom(merged)
+        if (context) agent.inject(context)
+      })
+      .catch((error: unknown) => {
+        ctx.logger.warn(`hooks-claude-code: SessionStart(compact) hook failed: ${String(error)}`)
+      }))
   })
 
   // --- UserPromptSubmit → PreStepDecision. The prompt text is the payload; no

@@ -15465,6 +15465,26 @@
           "pnpm-lock.yaml"
         ]
       }
+    },
+    {
+      "id": "v17-h-bash-default-compaction-memory",
+      "description": "Default Windows commands and terminals to a detected Git Bash, append CLAUDE.md '## Compact Instructions' sections to the compaction prompt, mount the Claude Code hook bridge by default with per-session settings discovery plus a post-compaction SessionStart, and load the Claude Code per-project MEMORY.md into the instruction baseline",
+      "origin": "Panedesk V17-H",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/shell/bash-local/**",
+          "packages/host/host-bash-setup/**",
+          "packages/client/ui-settings-bash/**",
+          "packages/api/terminal-controller/**",
+          "packages/context/agent-instructions/**",
+          "packages/compaction/compaction-basic/**",
+          "packages/experimental/hooks-claude-code/**",
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/base/package.json",
+          "packages/boot/app-boot/src/index.ts"
+        ]
+      }
     }
   ]
 }
