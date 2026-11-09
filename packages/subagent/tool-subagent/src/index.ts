@@ -389,6 +389,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             ...ready?.model === undefined ? {} : { model: ready.model } }
         },
       })
+      definition.guardName = 'subagent'
       const disposeTool = runtimeCtx.effect(() => {
         const unregister = runtimeCtx.tools.register(definition)
         delegationTools.add(definition)

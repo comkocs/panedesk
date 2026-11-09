@@ -76,6 +76,8 @@ Every exact live Agent can use `sendMessage()` with a direct continuable child; 
 
 ### Failure and recovery
 
+Failed local and SDK executions retain the provider diagnostic in their shared result and parent settlement notice, including an observed HTTP status and the first 500 characters of a redacted response body. The notice summary starts with the diagnostic; expanded content retains the complete excerpt. Persisted child terminal facts carry the same diagnostic for detail consumers. A later successful turn supersedes an earlier failure.
+
 Starting without the `agents` service rejects with `CONTINUATION_UNAVAILABLE`; an available runtime rejects a missing or replaced parent with `UNAUTHORIZED`. Providers implementing neither execution method are rejected at registration with `UNSUPPORTED_CAPABILITY`; unsupported requested capabilities reject creation with the same code. The caller signal cancels only unpublished work; after publication, `dispose()` cancels the exact activation and waits for its descendants, including pending startups, and their resource cleanup. `result` settles after teardown and notifications, carrying output, optional structured data, and a stop reason; capture failures reject it after teardown. Cleanup failures reject `dispose()` and mark the lifecycle end as failed; the result promise and parent notification retain the captured execution result.
 
 -----

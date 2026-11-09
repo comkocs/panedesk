@@ -7,6 +7,25 @@
 import { HarnessError } from './error.ts'
 import type { LlmFailure } from './types.ts'
 
+/** Redact only the configured credential and long sk-prefixed keys before truncation or persistence.
+ * @param text - provider-owned diagnostic text.
+ * @param apiKey - captured configured credential; omitted when none is configured.
+ * @returns diagnostic text with credential values removed.
+ */
+export function redactLlmDiagnostic(text: string, apiKey?: string): string {
+  return (apiKey ? text.replaceAll(apiKey, '***') : text).replace(/sk-[A-Za-z0-9_-]{16,}/g, 'sk-***')
+}
+
+/** Render provider facts without losing an observed HTTP status.
+ * @param failure - serializable provider failure with an already redacted message.
+ * @returns readable status and provider diagnostic.
+ */
+export function formatLlmFailure(failure: LlmFailure): string {
+  const message = redactLlmDiagnostic(failure.message)
+  return failure.status === undefined || message.startsWith(`HTTP ${failure.status}`)
+    ? message : `HTTP ${failure.status}: ${message}`
+}
+
 /**
  * Detach serializable provider facts from a value thrown by an adapter.
  * @param value - arbitrary value thrown during adapter dispatch or iteration.
@@ -22,7 +41,7 @@ export function normalizeLlmFailure(value: unknown): LlmFailure {
   const carried = ownFailureSnapshot(error)
   if (carried !== undefined && carried.code === ownErrorCode(error)) return carried
   return Object.freeze({
-    message: errorMessage(error),
+    message: redactLlmDiagnostic(errorMessage(error)),
     code: harnessErrorCode(error),
   })
 }
@@ -78,7 +97,7 @@ function failureSnapshot(value: unknown): LlmFailure | undefined {
       || (requestId !== undefined && (typeof requestId !== 'string' || requestId.length === 0))
       || (offloadImages !== undefined && (!Number.isSafeInteger(offloadImages) || offloadImages <= 0))) return undefined
     return Object.freeze({
-      message,
+      message: formatLlmFailure({ message, code, ...status === undefined ? {} : { status } }),
       code,
       ...status === undefined ? {} : { status },
       ...providerRetryAfterMs === undefined ? {} : { providerRetryAfterMs },

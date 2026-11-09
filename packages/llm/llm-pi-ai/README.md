@@ -120,6 +120,8 @@ The plugin answers "which models can this provider serve?" for a route a configu
 
 ### Failures and recovery
 
+For protocols supporting the SDK fetch hook, non-2xx responses retain their HTTP status and a 500-character body excerpt without consuming the SDK response. The configured API key and long `sk-` keys are redacted before truncation; SDK terminal messages use the same redaction. Google adapters reject custom fetch, and Bedrock does not expose it, so those routes retain only diagnostics exposed by their SDK.
+
 A route pi-ai does not ship needs `api`, `baseURL`, and a non-empty `models` list; an unserviceable profile is refused where it is written, naming the route and model. Failures carry stable codes: a credential that cannot be used fails with `INVALID_CREDENTIAL` naming the route and reference, a route whose `apiKeyEnv` reference resolves to nothing fails with `MISSING_CREDENTIAL`, an unconfigured model fails with `UNKNOWN_MODEL`, and terminal provider failures distinguish `QUOTA` from transient `RATE_LIMIT`. `GenerateOptions.stop` is rejected with `UNSUPPORTED_OPTION` because pi-ai's common streaming UI cannot guarantee it across providers.
 
 Config updates strictly validate changed providers. Initial loading retains stored catalog failures as editable provider diagnostics; unchanged failed providers do not block edits elsewhere. Serviceable models remain selectable, and unresolved models fail before network I/O. Repairing or deleting the offending configuration clears its diagnostic.

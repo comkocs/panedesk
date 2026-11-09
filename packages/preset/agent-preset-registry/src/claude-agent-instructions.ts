@@ -1,5 +1,6 @@
 /** Mounts one Claude Code agent's instruction body as its preset's persona section. */
 import type { Context } from '@panedesk/cordis'
+import { CLAUDE_TOOL_NAMES } from './claude-agents.ts'
 
 /** Cordis plugin name. */
 export const name = 'claude-agent-instructions'
@@ -13,6 +14,8 @@ export interface Config {
   text: string
   /** Mapped tool allowlist from the imported definition. */
   allowedTools: string[]
+  /** Permitted explicit child preset ids; omission leaves delegation types unrestricted. */
+  agentTypes?: string[]
 }
 
 /**
@@ -22,8 +25,18 @@ export interface Config {
  */
 export function apply(ctx: Context, config: Config): void {
   const allowed = new Set(config.allowedTools)
-  ctx.effect(() => ctx.tools.guard(exec => exec.name === 'run_code' || allowed.has(exec.name)
-    ? undefined : `Agent definition denies tool "${exec.name}"`))
+  const capabilities = new Set(Object.values(CLAUDE_TOOL_NAMES).flat())
+  ctx.effect(() => ctx.tools.guard((exec, capability) => {
+    if (!capabilities.has(capability)) return undefined
+    if (!allowed.has(capability)) return `Agent definition denies tool "${exec.name}"`
+    if (capability === 'subagent' && config.agentTypes !== undefined) {
+      const args = exec.arguments as { agent_preset?: string }
+      if (args.agent_preset === undefined || !config.agentTypes.includes(args.agent_preset)) {
+        return `Agent definition permits child types: ${config.agentTypes.join(', ')}; select one with agent_preset`
+      }
+    }
+    return undefined
+  }))
   ctx.effect(() => ctx.systemPrompt.section({
     name: 'claude-agent:instructions',
     order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'),

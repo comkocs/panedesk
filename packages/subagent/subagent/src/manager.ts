@@ -1304,9 +1304,7 @@ export class SubagentManager {
       }
     }
     try {
-      const accountingResult = activation.kind === 'local' && result.stopReason === 'error' && activation.diagnostic !== undefined
-        ? { ...result, diagnostic: activation.diagnostic } : result
-      const accounted = await activation.observer.complete?.(failures.length === 0 ? accountingResult : { ...accountingResult, stopReason: 'error', diagnostic: failures.map(item => detail(item)).join('; ') })
+      const accounted = await activation.observer.complete?.(failures.length === 0 ? result : { ...result, stopReason: 'error', diagnostic: failures.map(item => detail(item)).join('; ') })
       if (accounted?.deliveryState !== undefined) result = { ...result, deliveryState: accounted.deliveryState }
       if (accounted?.deliveryPaths !== undefined) result = { ...result, deliveryPaths: accounted.deliveryPaths }
     } catch (error: unknown) {

@@ -173,7 +173,7 @@ export function createSettlementMessage(
     source: {
       kind: 'subagent-settled' as const,
       form: 'notice' as const,
-      summary: boundContextSummary(summary),
+      summary: boundContextSummary(terminal.diagnostic === undefined ? summary : `${terminal.diagnostic} — ${summary}`),
       senderSessionId: childId,
       ...reportPaths !== undefined && reportPaths.length > 0 ? { reportPaths } : {},
     },

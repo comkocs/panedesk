@@ -9,12 +9,13 @@ import type { PresetDefinition } from './definition.ts'
 /** Instruction plugin, resolved through source aliases or the installed package export. */
 const INSTRUCTION_PLUGIN = '@panedesk/dsh-agent-preset-registry/claude-agent-instructions'
 
-/** Claude Code tool name to the Panedesk tool a running agent can call. */
-const CLAUDE_TOOL_NAMES: Readonly<Record<string, string>> = {
-  Read: 'read', Write: 'write', Edit: 'edit', MultiEdit: 'edit',
-  Bash: 'bash', Grep: 'grep', Glob: 'glob',
-  WebFetch: 'web_fetch', WebSearch: 'web_search',
-  TodoWrite: 'todo_write', Skill: 'skill', AskUserQuestion: 'ask_user_question',
+/** Claude Code tool names and the corresponding Panedesk execution capabilities. */
+export const CLAUDE_TOOL_NAMES: Readonly<Record<string, readonly string[]>> = {
+  Read: ['read'], Write: ['write'], Edit: ['edit'], MultiEdit: ['edit'],
+  Bash: ['bash', 'pwsh'], Grep: ['grep'], Glob: ['glob'],
+  WebFetch: ['web_fetch'], WebSearch: ['web_search'],
+  TodoWrite: ['todo_write'], Skill: ['skill'], AskUserQuestion: ['ask_user_question'],
+  Agent: ['subagent'],
 }
 
 /** One parsed agent definition file. */
@@ -58,7 +59,7 @@ async function readAgentFile(file: string): Promise<ClaudeAgentFile | undefined>
   const fields = parsed as Record<string, unknown>
   if (typeof fields['name'] !== 'string' || fields['name'].trim() === '') return undefined
   const tools = typeof fields['tools'] === 'string'
-    ? fields['tools'].split(',').map(name => name.trim()).filter(name => name !== '')
+    ? (fields['tools'].match(/(?:[^,()]|\([^)]*\))+/g) ?? []).map(name => name.trim()).filter(name => name !== '')
     : []
   return {
     name: fields['name'].trim(),
@@ -84,15 +85,23 @@ async function readAgentDir(dir: string): Promise<ClaudeAgentFile[]> {
 }
 
 /** Panedesk tool names for the listed Claude Code tools, plus the names that map to nothing. */
-function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: string[] } {
-  const allowed: string[] = []
+function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: string[]; agentTypes?: string[] } {
+  const allowed = new Set<string>()
   const unmapped: string[] = []
+  const agentTypes = new Set<string>()
+  let restrictedAgents = false
   for (const tool of tools) {
-    const mapped = CLAUDE_TOOL_NAMES[tool]
+    const agent = /^Agent\s*\(([^)]*)\)$/.exec(tool)
+    const mapped = CLAUDE_TOOL_NAMES[agent === null ? tool : 'Agent']
     if (mapped === undefined) unmapped.push(tool)
-    else if (!allowed.includes(mapped)) allowed.push(mapped)
+    else for (const name of mapped) allowed.add(name)
+    if (agent !== null) {
+      restrictedAgents = true
+      for (const type of (agent[1] ?? '').split(',').map(name => name.trim()).filter(Boolean)) agentTypes.add(type)
+    }
   }
-  return { allowed, unmapped }
+  return { allowed: [...allowed], unmapped,
+    ...restrictedAgents && !tools.includes('Agent') ? { agentTypes: [...agentTypes] } : {} }
 }
 
 /**
@@ -108,7 +117,7 @@ export async function claudeAgentPresets(_ctx: Context, sources: ClaudeAgentSour
   for (const file of await readAgentDir(join(home, '.claude', 'agents'))) byName.set(file.name, file)
   for (const file of await readAgentDir(join(workspace, '.claude', 'agents'))) byName.set(file.name, file)
   return [...byName.values()].map((file): ClaudeAgentPreset => {
-    const { allowed, unmapped } = mapTools(file.tools)
+    const { allowed, unmapped, agentTypes } = mapTools(file.tools)
     return {
       id: file.name,
       unmappedTools: unmapped,
@@ -116,7 +125,8 @@ export async function claudeAgentPresets(_ctx: Context, sources: ClaudeAgentSour
         id: file.name,
         ...file.description === '' ? {} : { description: file.description },
         ...file.model === '' ? {} : { model: file.model, reasoningEffort: file.effort },
-        plugins: [{ name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed } }],
+        plugins: [{ name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed,
+          ...agentTypes === undefined ? {} : { agentTypes } } }],
       },
     }
   })
