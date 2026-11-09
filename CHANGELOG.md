@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.8.3
+
+### Added
+
+- The agent map zooms around the cursor with the wheel, pans by dragging empty space, and has Fit / 100% / + / − controls.
+- Sidebar sessions can be multi-selected with Shift and Ctrl or Cmd to pin, unpin or archive them together, with one undo action for a batch archive.
+
+### Fixed
+
+- Stopping an agent from the agent map works the same way as from the agent tree.
+- Agent types start on providers that declare no reasoning efforts.
+- The protocol probe button responds, and probe and connection failures show the category, HTTP status and raw response with credentials masked.
+- Opening presets keep split names, support undo and clearer drag previews, and remain editable when the list is empty. Workflow entries can be changed or deleted with in-place save feedback, and the workflow trim tool prints UTF-8 output.
+
+### Changed
+
+- Workflow starters sit above the welcome title, which now reads Panedesk.
+- Claude Code agent types from `.claude/agents` are read only when the new setting is on (off by default), and the four built-in modes are listed as built-in modes.
+
 ## 1.8.2
 
 ### Fixed
