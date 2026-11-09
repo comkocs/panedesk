@@ -177,6 +177,7 @@
     "@panedesk/dsh-tool-fs": "workspace:*",
     "@panedesk/dsh-tool-fs-search": "workspace:*",
     "@panedesk/dsh-tool-goal": "workspace:*",
+    "@panedesk/dsh-tool-panedesk-settings": "workspace:*",
     "@panedesk/dsh-tool-jobs": "workspace:*",
     "@panedesk/dsh-tool-present": "workspace:*",
     "@panedesk/dsh-tool-pwsh": "workspace:*",

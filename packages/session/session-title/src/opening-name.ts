@@ -21,7 +21,7 @@ export function extractOpeningFolder(message: string): string | undefined {
 }
 
 /**
- * Find the first nonempty, whitespace-free value between the saved anchors.
+ * Find the first nonempty value between the saved anchors, trimming outer whitespace.
  * @param message - the first human message, unchanged.
  * @param pattern - sample and anchors selected in General Settings.
  * @returns the original matched text, or undefined when no candidate matches.
@@ -45,19 +45,19 @@ export function extractOpeningName(message: string, pattern: OpeningNamePattern)
   let from = 0
   while (from <= text.length) {
     const p = right.length === 0
-      ? (() => { const space = text.slice(from).search(/\s/u); return space < 0 ? text.length : from + space })()
+      ? text.length
       : text.indexOf(right, from)
     if (p < 0) return undefined
     let start: number
     if (left.length === 0) {
       start = p
-      while (start > 0 && !/[\s\\]/u.test(text[start - 1]!)) start--
+      while (start > 0 && !/[\\\r\n"'`]/u.test(text[start - 1]!)) start--
     } else {
       const anchor = text.slice(0, p).lastIndexOf(left)
       start = anchor < 0 ? p : anchor + left.length
     }
-    const value = message.slice(offsets[start], offsets[p])
-    if (value.length > 0 && !/\s/u.test(value)) return value
+    const value = message.slice(offsets[start], offsets[p]).trim()
+    if (value.length > 0) return value
     from = p + 1
   }
   return undefined

@@ -76,6 +76,11 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
           <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'open') }}>{t('openFile')}</Button>
           <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'reveal') }}>{t('openDirectory')}</Button>
         </div>
+      </>}
+      {pathFailure && <p role="alert">{t('pathError')}</p>}
+    </section>
+    <details className={css.choice}><summary>{t('advanced')}</summary>
+      {files && <>
         <h4>{t('catalogFile')}</h4>
         <p>{t('catalogHint')}</p>
         {catalogFile == null ? <p>{t('catalogUnavailable')}</p> : <>
@@ -91,6 +96,6 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
       <p role="status">{t('engineStatus')}: {inspection.status === 'ready' && files ? t(files.engine === 'unavailable' ? 'engineUnavailable' : files.engine) : t('engineUnknown')}</p>
       <Button disabled={inspection.status === 'loading'} onClick={() => { void refresh() }}>{t('refresh')}</Button>
       <p>{t('otherSettings')}</p>
-    </section>
+    </details>
   </div>
 }

@@ -1,5 +1,6 @@
 /** Typed copy for project guidance and settings. */
 export const zh = {
+  advanced: '高级(单机用不着)',
   title: '项目开窗设置', intro: '选择这个项目收到事件后的开窗方式。之后可在项目设置修改。',
   off: '关', remind: '只提醒', auto: '自动',
   offHint: '不接收触发；手动和远程开窗不受影响。',
@@ -37,6 +38,7 @@ export type ProjectOnboardingKey = keyof typeof zh
 
 /** English project guidance and settings copy. */
 export const en = {
+  advanced: 'Advanced (not needed on one machine)',
   title: 'Project opening settings', intro: 'Choose how this project opens windows after events. Change it later in project settings.',
   off: 'Off', remind: 'Remind only', auto: 'Automatic',
   offHint: 'Ignore triggers; manual and remote opening remain available.',

@@ -23,6 +23,7 @@ import type { ConnectionIndicatorState } from '@panedesk/dsh-client-ui-primitive
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
 import { DesktopUpdateIndicator } from './DesktopUpdateIndicator.tsx'
+import { PanedeskGuidance } from './PanedeskGuidance.tsx'
 
 const RECOVERY_CONFIRMATION_MS = 2_000
 
@@ -138,6 +139,7 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
             </button>
           </div>
           <div className={css.options}>
+            {activeGroup === 'panedesk' && active !== undefined && <PanedeskGuidance key={active} id={active} t={t} />}
             {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
           </div>
         </div>

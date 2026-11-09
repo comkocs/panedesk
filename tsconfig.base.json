@@ -595,6 +595,7 @@
       "@panedesk/dsh-tool-fs": ["./packages/fs/tool-fs/src"],
       "@panedesk/dsh-tool-fs-search": ["./packages/fs/tool-fs-search/src"],
       "@panedesk/dsh-tool-goal": ["./packages/goal/tool-goal/src"],
+      "@panedesk/dsh-tool-panedesk-settings": ["./packages/settings/tool-panedesk-settings/src"],
       "@panedesk/dsh-tool-jobs": ["./packages/jobs/tool-jobs/src"],
       "@panedesk/dsh-tool-lsp": ["./packages/lsp/tool-lsp/src"],
       "@panedesk/dsh-tool-present": ["./packages/deliverables/tool-present/src"],

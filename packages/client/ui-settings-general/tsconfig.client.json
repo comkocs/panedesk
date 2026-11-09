@@ -26,6 +26,7 @@
     { "path": "../shortcuts/tsconfig.client.json" },
     { "path": "../modules" },
     { "path": "../ui-layout" },
-    { "path": "../../session/session-title" }
+    { "path": "../../session/session-title" },
+    { "path": "../../typert/protocol" }
   ]
 }

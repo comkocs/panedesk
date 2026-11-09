@@ -420,6 +420,7 @@
     { "path": "./packages/interaction/commands" },
     { "path": "./packages/goal/goal" },
     { "path": "./packages/goal/tool-goal" },
+    { "path": "./packages/settings/tool-panedesk-settings" },
     { "path": "./packages/goal/goal-round-driver" },
     { "path": "./packages/goal/command-goal" },
     { "path": "./packages/feedback/command-feedback" },

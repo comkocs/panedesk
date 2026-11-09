@@ -27,6 +27,8 @@ A compact icon at `conversation.session.header.actions`, order 30, opens the cha
 
 Settings → Panedesk → Statistics explains the feature, enablement default, global scope and refresh interval. It shows the active profile configuration file and the local journal directory as absolute Host paths, with native opening buttons. `stats.locations()` remains readable while statistics are disabled. Unknown storage providers show no invented path. The local journal reads JSONL records below each node's `events` and `imports` directories; statistics does not modify them.
 
+Statistics uses recorded data. Database storage can hold a readable ledger copy, while local sessions remain on this computer; it is not live session synchronization. The shared Panedesk header provides a copyable `panedesk_settings` request for the refresh interval.
+
 Charts share one fixed-range snapshot. Existing workspace membership, session directories and parent relationships associate sessions with projects; unmatched sessions remain unlinked. Project and session selectors narrow number cards, model token bars and Beijing-aligned daily bars. The relationship section starts at the current or selected session and shows its recorded descendants, models, call intervals and measured call duration. Missing measurements remain unknown; incomplete scans and failed refreshes are labeled. Pause retains a snapshot and refresh retries explicitly.
 
 <a id="model-experience"></a>

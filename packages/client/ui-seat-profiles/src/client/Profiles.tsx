@@ -181,6 +181,7 @@ export function Profiles(props: ProfilesProps) {
     setEditing({ snapshot: data, definition }); actions.select(definition.seat); setImporting(false)
   }
   return <section className={css.page}><h2><IconPanedeskSeatProfile />{t('nav')}</h2>
+    <details><summary>{t('singleMachineAdvanced')}</summary>
     <div className={css.actions}><Button onClick={() => { actions.select(null); setEditing(undefined); setImporting(false) }}>{t('back')}</Button>
       <Button onClick={() => { setRefreshBase(data); refresh() }}>{t('refresh')}</Button>
       <Button onClick={() => { setImporting(!importing) }}>{t('import')}</Button></div>
@@ -203,5 +204,6 @@ export function Profiles(props: ProfilesProps) {
         : data.definitions.length === 0 ? <p>{t('empty')}</p>
           : <ul>{data.definitions.map(item => <li key={item.seat}><Button onClick={() => { select(item) }}>{item.seat}</Button></li>)}</ul>}
     </fieldset>
+    </details>
   </section>
 }

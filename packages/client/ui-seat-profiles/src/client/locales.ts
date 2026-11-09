@@ -1,5 +1,6 @@
 /** Locale-owned profile editor and table import copy. */
 export const en = {
+  singleMachineAdvanced: 'Advanced (not needed on one machine)',
   sourceOwned: 'This catalog is owned by its import source. Editing and deletion require an explicit transfer.',
   takeover: 'Transfer editing authority', confirmTakeover: 'Confirm transfer', takenOver: 'Editing authority transferred. Reload the profile before editing.',
   takeoverWarning:
@@ -151,6 +152,7 @@ export const en = {
 export type ProfileKey = keyof typeof en
 /** Chinese profile editor copy. */
 export const zh: Record<ProfileKey, string> = {
+  singleMachineAdvanced: '高级(单机用不着)',
   sourceOwned: '当前目录由导入源持有；编辑与删除前必须显式转交权限。',
   takeover: '转交编辑权限', confirmTakeover: '确认转交', takenOver: '编辑权限已转交，请重新加载档案后编辑。',
   takeoverWarning: '确认将整个目录从导入源转交给本地档案编辑？此授权会留存，所有定义版本均会递增；后续来源导入可能出现冲突。',

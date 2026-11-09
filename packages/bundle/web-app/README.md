@@ -15,6 +15,8 @@ Desktop analytics schedules partial batches every 30 seconds, with a 15-second e
 
 Run `dsh --profile web` for browser chat, model and settings management, and session history, with the same model access, tools, and safety defaults as other dsh surfaces. Startup prints a tokenized URL and normally opens the default browser; SSH sessions and `--no-open` require manual opening. You can change the port, allow extra authorities, bind one concrete local IP, and serve HTTPS from a certificate you supply; wildcard addresses are rejected. Remote access uses an advertised HTTP(S) URL behind a prefix-stripping proxy, listener TLS, or plain HTTP on a non-loopback bind. Use the headless profile for one-shot command-line tasks.
 
+All shipped presets include `panedesk_settings`, including minimal. Panedesk Settings pages share plain-language guidance and copyable AI requests; a built-in feature reference follows Panedesk features.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

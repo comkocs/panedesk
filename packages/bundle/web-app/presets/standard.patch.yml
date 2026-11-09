@@ -42,6 +42,8 @@
             name: '@panedesk/dsh-command-goal'
           - id: tool-goal
             name: '@panedesk/dsh-tool-goal'
+          - id: tool-panedesk-settings
+            name: '@panedesk/dsh-tool-panedesk-settings'
           - id: planning
             name: cordis:group
             group: true

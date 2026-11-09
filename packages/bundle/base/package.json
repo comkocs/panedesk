@@ -108,6 +108,7 @@
     "@panedesk/dsh-tool-fs": "workspace:*",
     "@panedesk/dsh-tool-fs-search": "workspace:*",
     "@panedesk/dsh-tool-goal": "workspace:*",
+    "@panedesk/dsh-tool-panedesk-settings": "workspace:*",
     "@panedesk/dsh-tool-pwsh": "workspace:*",
     "@panedesk/dsh-tool-skill": "workspace:*",
     "@panedesk/dsh-tool-subagent": "workspace:*",

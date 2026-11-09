@@ -27,7 +27,9 @@
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./typert": { "types": "./lib/typert.host.d.ts", "default": "./lib/typert.host.js" },
+    "./remote": { "types": "./lib/typert.remote-client.d.ts", "default": "./lib/typert.remote-client.js" }
   },
   "dsh": {
     "client": {
@@ -50,7 +52,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@panedesk/schemastery": "workspace:~"
+    "@panedesk/schemastery": "workspace:~",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"
@@ -82,6 +85,10 @@
     "locale/*.json",
     "lib/index.js",
     "lib/client.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
   ]
 }
