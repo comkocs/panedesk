@@ -9,22 +9,6 @@
 import type { SessionEvent } from '@panedesk/dsh-session'
 import type { SubagentTranscriptFacts } from './tree.ts'
 
-declare module '@panedesk/dsh-session/types' {
-  interface SessionEventMap {
-    /**
-     * A child started on a route that declares no reasoning efforts, so the
-     * requested effort was not sent. Written by the delegation tool before the
-     * first request header; the folded label shows it as "effort not applicable".
-     */
-    'subagent/effort-not-applicable': {
-      /** Provider route the child was started on. */
-      provider: string
-      /** Provider-owned model id the child was started on. */
-      model: string
-    }
-  }
-}
-
 /**
  * Fold a session log's own suffix for the monitoring view.
  *
@@ -36,7 +20,7 @@ declare module '@panedesk/dsh-session/types' {
  * @returns transcript-derived model and latest tool invocation, both `null` when unrecorded.
  */
 export function foldTranscriptFacts(
-  events: readonly SessionEvent[],
+  events: readonly (SessionEvent | { readonly type: 'subagent/effort-not-applicable' })[],
   inheritedEventCount: number,
 ): SubagentTranscriptFacts {
   let activity: SubagentTranscriptFacts['activity']
