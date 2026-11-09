@@ -3577,7 +3577,7 @@ export type Config = LedgerOptions
 export interface LedgerOptions {
   /** Explicit Harness home; otherwise the shared home-paths resolution applies. */
   dshHome?: string
-  /** Maximum native-lock contention wait in milliseconds. */
+  /** Maximum native-lock contention wait in milliseconds; defaults to 30000. */
   lockTimeoutMs?: number
   /** Delay between nonblocking native-lock attempts in milliseconds. */
   lockRetryMs?: number
