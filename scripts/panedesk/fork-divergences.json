@@ -15631,7 +15631,7 @@
       "id": "agent-map-panel",
       "description": "Add a compact composer agent map with background shell tasks",
       "origin": "Panedesk agent visibility",
-      "reason": "Show the current session between upper and lower descendant buses, reuse task previews, and expose read-only background shell commands and recent output from the composer.",
+      "reason": "Keep the main session above fixed-height descendant cards, derive parentage and Stop from the shared ledger tree, and use catalogs only for labels and modes. Support cursor-centered wheel zoom, blank-space dragging, Fit and 100% controls, preserve manually adjusted views, and report labeled stop failures with retry guidance. Reuse task previews and background shell commands and recent output from the composer.",
       "match": {
         "type": "behavior",
         "paths": [
