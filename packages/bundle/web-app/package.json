@@ -55,6 +55,8 @@
     }
   },
   "dependencies": {
+    "@panedesk/dsh-browser-use": "workspace:*",
+    "@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp": "workspace:*",
     "@panedesk/dsh-client-ui-storage": "workspace:*",
     "@panedesk/dsh-client-ui-database-connections": "workspace:*",
     "@panedesk/dsh-agent-instructions": "workspace:*",

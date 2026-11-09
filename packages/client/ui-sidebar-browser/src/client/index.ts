@@ -18,6 +18,10 @@ import type { BrowserPageFactory } from './browser/BrowserPage.ts'
 import { BROWSER_ID, browserDefinition } from './definition.tsx'
 import { en, zh } from './locales.ts'
 import { createBrowserStore } from './browser/store.ts'
+import { BrowserButton } from './view/BrowserButton.tsx'
+import { installBrowserAutomation } from './electron/automation.ts'
+import { ChromeSettings, type ChromePreferences } from './view/ChromeSettings.tsx'
+import type {} from '@panedesk/dsh-client-ui-settings/client'
 
 export type { BrowserBodyProps } from './view/BrowserBody.tsx'
 export type { BrowserControllerState, BrowserInjected, BrowserMountRequest } from './browser/BrowserController.ts'
@@ -64,6 +68,17 @@ export function apply(ctx: Context): void {
       /* jscpd:ignore-end */
     }), 'ui-sidebar-browser: shortcut')
   })
+  ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions', id: 'sidebar-browser', order: 35, locale: namespace,
+    inject: (sessionId) => ({ openBrowser: () => {
+      const tab = ctx.sidebarRight.tabsIn(sessionId).find(tab => tab.kind === 'browser')
+      if (tab === undefined) ctx.sidebarRight.openTabIn(sessionId, 'browser')
+      else {
+        ctx.sidebarRight.focus(tab.id)
+        if (!ctx.sidebarRight.isExpanded()) ctx.sidebarRight.toggleExpanded()
+      }
+    } }),
+  }, BrowserButton)), 'ui-sidebar-browser.header')
   const store = createBrowserStore()
   const openTabs = ctx.sidebarRight.openTabs
   const carrier = (globalThis as typeof globalThis & {
@@ -95,7 +110,14 @@ export function apply(ctx: Context): void {
     }, BrowserBody)), 'ui-sidebar-browser.body')
   }
   if (desktop === undefined) installFrames(ctx, () => createIframePage)
-  else ctx.inject(['workspaces'], (scope) => {
+  else ctx.inject(['workspaces', 'uiWorkspace', 'configForms'], (scope) => {
+    const preferences = scope.configForms.get<ChromePreferences>('chrome-devtools-browser')
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section', id: 'chrome-devtools-browser', group: 'panedesk', order: 75,
+      label: () => scope.locale.bind(namespace)('chrome.title'), locale: namespace,
+      inject: () => ({ hooks: { preferences }, setPreference: (field: keyof ChromePreferences, value: boolean | string) => preferences.set(field, value) }),
+    }, ChromeSettings))
+    scope.effect(() => installBrowserAutomation(scope, desktop), 'ui-sidebar-browser.automation')
     installFrames(scope, sessionId => options => createElectronPage(options, desktop,
       signal => browserWorkspace(scope.workspaces.list, sessionId, signal)))
   })

@@ -447,7 +447,11 @@ async function main(): Promise<void> {
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
       primaryRuntime,
-      resources, (next) => { platformView.setSession(next) })
+      resources, (next) => { platformView.setSession(next) },
+      (request, signal) => {
+        if (mainWindow === undefined || mainWindow.isDestroyed()) throw new Error('Desktop browser window is unavailable')
+        return browserGuests.automate(mainWindow.webContents, request, signal)
+      })
     return {
       start: async () => {
         const ready = await host.start()
@@ -706,6 +710,10 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown) => {
     assertProductSender(event)
     return browserGuests.acquire(event.sender, workspace)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserPrepared, (event, requestId: string, response: Parameters<DesktopBrowserGuests['prepared']>[2]) => {
+    assertProductSender(event)
+    browserGuests.prepared(event.sender, requestId, response)
   })
   ipcMain.handle(DESKTOP_IPC.browserRelease, (event, lease: unknown) => {
     assertProductSender(event)

@@ -7,10 +7,15 @@
   },
   "files": [
     "src/index.ts",
+    "src/host-browser.ts",
     "src/types.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
-    { "path": "../../util/brand" }
+    { "path": "../../util/brand" },
+    { "path": "../../core/tools" },
+    { "path": "../../core/session" },
+    { "path": "../../attachment/attachment" },
+    { "path": "../../llm/llm" }
   ]
 }

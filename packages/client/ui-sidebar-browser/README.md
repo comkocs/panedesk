@@ -25,7 +25,7 @@ Browse HTTP(S) pages, including loopback services, inside independent right-Side
 <a id="use-this-package"></a>
 ## Use this package
 
-Browser is disabled by default in Web profiles and enabled on Desktop. Enable the shipped entry through the Web profile patch to use it. Open **Browser** from the right-Sidebar guide and enter an HTTP(S) URL. Chat HTTP(S) links open here when the [link preference](../ui-chat/README.md) selects **In-App Sidebar**. A host name without a scheme becomes HTTPS. Public and loopback targets use the same default sandbox. Each guide action or delegated message-link activation creates another Browser tab.
+Browser is enabled in Web and Desktop profiles. Select **Browser** in the Session header to open or focus its right-Sidebar tab, or open another tab from the right-Sidebar guide and enter an HTTP(S) URL. Chat HTTP(S) links open here when the [link preference](../ui-chat/README.md) selects **In-App Sidebar**. A host name without a scheme becomes HTTPS. Public and loopback targets use the same default sandbox. Each guide action or delegated message-link activation creates another Browser tab.
 
 ### When to choose it
 
@@ -33,7 +33,7 @@ Choose Browser for a Web page that should remain beside the current Session. Cho
 
 ### Minimal configuration
 
-The package has no plugin configuration. A Web profile enables the shipped entry through its profile patch:
+The built-in browser has no plugin configuration. A profile can explicitly enable its shipped entry:
 
 ```yaml
 - id: ui-sidebar-browser
@@ -68,7 +68,7 @@ Web records toolbar submissions and typed tab opens. A navigation state machine 
 
 Each tab's `BrowserController` owns address validation, commands and explicit restoration. `BrowserFrame` supplies carrier-neutral navigation state; `IframeImpl` uses `BrowserNavigation`, while `ElectronWebViewImpl` observes Chromium history. `BrowserPresentation` owns physical DOM attachment. Slot injection supplies `useBrowserState` and plain callbacks, keeping provider objects and observables out of the React body.
 
-Desktop's main process approves guest leases and enforces attachment, navigation and permission policy. Preload exposes only scoped Browser operations. Shared declarations use the standard `/types` export with `import type`; the Host and Client compile through separate tsconfig files. Desktop Browser tabs declare `keepMounted`, so Sidebar preserves their DOM across tab changes, Session switches, collapse and floating.
+Desktop's main process approves guest leases and enforces attachment, navigation and permission policy. Host tools use the existing Node IPC channel and the main process's `webContents.debugger` CDP connection; no debugging port is opened. The preload carries JSON requests and cancellation identifiers, not Electron objects or AbortSignals across isolated worlds. Preload exposes only scoped Browser operations. Shared declarations use the standard `/types` export with `import type`; the Host and Client compile through separate tsconfig files. Desktop Browser tabs declare `keepMounted`, so Sidebar preserves their DOM across tab changes, Session switches, collapse and floating.
 
 The page refresh shortcut calls the same reload operation as the toolbar. Its tooltip and ARIA key combination follow the effective binding. Desktop routes accepted shortcuts from an approved guest through its owning window; the focused webview must still carry that guest’s lease. Web leaves browser-reserved combinations unchanged.
 
@@ -89,11 +89,19 @@ The page refresh shortcut calls the same reload operation as the toolbar. Its to
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as Browser tabs are user-facing presentation state and register no tool, prompt section, or Session event.
+### Visible browser tool
+
+#### What the model sees
+
+The `browser` tool accepts a `command` object: `navigate` with `url`; `read`, `screenshot`, or `tabs`; `click` with `x` and `y`; `type` with `text`; `scroll` with `x`, `y`, `deltaX`, and `deltaY`; or `switch` with `tabId`. Coordinates are viewport CSS pixels. Desktop opens the calling Session and its Browser tab before operating the same webview the user sees. Text and PNG image attachments use the normal persisted tool-result pipeline. Web returns a desktop-only notice.
+
+#### Token effect
+
+The tool definition adds a stable schema. Requested page text, tab lists, and screenshots enter conversation history; manual browsing alone adds no model input.
 
 #### KV Cache effect
 
-None; browsing does not enter a model request.
+Results append to history without changing the tool definition. Large page text and images increase subsequent request context.
 
 ## Known Limitations and Deferred Work
 

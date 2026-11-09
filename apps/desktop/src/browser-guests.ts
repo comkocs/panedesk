@@ -1,7 +1,7 @@
 /** Main-process ownership and fixed isolation policy for Sidebar webview guests. */
 import { randomUUID } from 'node:crypto'
 import { app, session, type BrowserWindow, type Session, type WebContents } from 'electron'
-import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReservation } from '@panedesk/dsh-client-ui-sidebar-browser/types'
+import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReservation, DesktopBrowserRequest, DesktopBrowserPrepared, DesktopBrowserResult } from '@panedesk/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
 
 interface GuestLease {
@@ -16,6 +16,11 @@ interface GuestLease {
 export class DesktopBrowserGuests {
   private readonly partitions = new Map<string, string>()
   private readonly leases = new Map<DesktopBrowserLeaseId, GuestLease>()
+  private readonly preparations = new Map<string, {
+    readonly owner: WebContents
+    readonly resolve: (value: DesktopBrowserPrepared) => void
+    readonly reject: (error: Error) => void
+  }>()
 
   /** @param hostUrl - current authenticated DSH Host, which guests cannot request. */
   constructor(private readonly hostUrl: () => string | undefined) {}
@@ -56,6 +61,7 @@ export class DesktopBrowserGuests {
     this.leases.delete(key)
     const guest = lease.guest
     if (guest !== undefined && !guest.isDestroyed()) {
+      if (guest.debugger.isAttached()) guest.debugger.detach()
       const destroyed = new Promise<void>((resolve) => { guest.once('destroyed', resolve) })
       guest.close({ waitForBeforeUnload: false })
       await destroyed
@@ -127,6 +133,9 @@ export class DesktopBrowserGuests {
       guest.on('login', (event, _details, _authInfo, callback) => { event.preventDefault(); callback() })
     })
     const releaseAll = (): void => {
+      for (const pending of this.preparations.values()) {
+        if (pending.owner === owner) pending.reject(new Error('Browser window closed'))
+      }
       for (const [id, lease] of this.leases) {
         if (lease.owner === owner) void this.release(owner, id).catch((error: unknown) => { console.error(error) })
       }
@@ -136,6 +145,95 @@ export class DesktopBrowserGuests {
     })
     owner.on('render-process-gone', releaseAll)
     owner.once('destroyed', releaseAll)
+  }
+
+  /** @param owner - authenticated window. @param requestId - echoed request. @param response - prepared page or failure. */
+  prepared(owner: WebContents, requestId: string, response: { result: DesktopBrowserPrepared; error?: string }): void {
+    const pending = this.preparations.get(requestId)
+    if (pending?.owner !== owner) return
+    if (response.error === undefined) pending.resolve(response.result)
+    else pending.reject(new Error(response.error))
+  }
+
+  /** @param owner - product window. @param request - Session action. @param signal - Host cancellation. @returns visible browser output. */
+  async automate(owner: WebContents, request: DesktopBrowserRequest, signal: AbortSignal): Promise<DesktopBrowserResult> {
+    signal.throwIfAborted()
+    const cancel = (): void => {
+      owner.send(DESKTOP_IPC.browserCancel, request.requestId)
+      this.preparations.get(request.requestId)?.reject(new Error('Browser operation cancelled'))
+    }
+    signal.addEventListener('abort', cancel, { once: true })
+    let prepared: DesktopBrowserPrepared
+    try {
+      prepared = await new Promise<DesktopBrowserPrepared>((resolve, reject) => {
+        this.preparations.set(request.requestId, { owner, resolve, reject })
+        owner.send(DESKTOP_IPC.browserPrepare, request)
+      })
+    } finally {
+      signal.removeEventListener('abort', cancel)
+      this.preparations.delete(request.requestId)
+    }
+    signal.throwIfAborted()
+    if (request.command.action === 'tabs') return { text: prepared.text }
+    const lease = prepared.lease === undefined ? undefined : this.leases.get(prepared.lease)
+    if (lease?.owner !== owner || lease.guest === undefined) throw new Error('Browser page is no longer open')
+    const guest = lease.guest
+    if (!guest.debugger.isAttached()) guest.debugger.attach('1.3')
+    const command = request.command
+    const send = async (method: string, params?: object): Promise<any> => { // Electron's CDP API has no typed response map.
+      signal.throwIfAborted()
+      const cancel = (): void => { if (!guest.isDestroyed() && guest.debugger.isAttached()) guest.debugger.detach() }
+      signal.addEventListener('abort', cancel, { once: true })
+      try { return await guest.debugger.sendCommand(method, params) }
+      finally { signal.removeEventListener('abort', cancel) }
+    }
+    switch (command.action) {
+      case 'navigate': {
+        const url = URL.canParse(command.url) ? command.url : `https://${command.url}`
+        if (!this.allowedNavigation(url)) throw new Error('Browser navigation requires an HTTP(S) page outside the application')
+        const result = await send('Page.navigate', { url }) as { errorText?: string }
+        if (result.errorText !== undefined) throw new Error(result.errorText)
+        if (guest.isLoadingMainFrame()) await new Promise<void>((resolve, reject) => {
+          const cleanup = (): void => {
+            guest.off('did-stop-loading', loaded)
+            guest.off('destroyed', closed)
+            signal.removeEventListener('abort', aborted)
+          }
+          const loaded = (): void => { cleanup(); resolve() }
+          const closed = (): void => { cleanup(); reject(new Error('Browser page closed')) }
+          const aborted = (): void => { cleanup(); guest.stop(); reject(new Error('Browser operation cancelled')) }
+          guest.once('did-stop-loading', loaded)
+          guest.once('destroyed', closed)
+          signal.addEventListener('abort', aborted, { once: true })
+          if (signal.aborted) aborted()
+        })
+        break
+      }
+      case 'read': {
+        const result = await send('Runtime.evaluate', { expression: 'document.body.innerText', returnByValue: true }) as { result: { value: string }; exceptionDetails?: object }
+        if (result.exceptionDetails !== undefined) throw new Error('Could not read page text')
+        return { text: `${guest.getTitle()}\n${guest.getURL()}\n${result.result.value}` }
+      }
+      case 'screenshot': {
+        const result = await send('Page.captureScreenshot', { format: 'png' }) as { data: string }
+        const size = await send('Runtime.evaluate', { expression: 'JSON.stringify({width:innerWidth,height:innerHeight,deviceScaleFactor:devicePixelRatio})', returnByValue: true }) as { result: { value: string } }
+        return { text: `${guest.getTitle()}\n${guest.getURL()}\nViewport CSS pixels: ${size.result.value}`, screenshot: result.data }
+      }
+      case 'click':
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: command.x, y: command.y, button: 'left', clickCount: 1 })
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: command.x, y: command.y, button: 'left', clickCount: 1 })
+        break
+      case 'type':
+        await send('Input.insertText', { text: command.text })
+        break
+      case 'scroll':
+        await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: command.x, y: command.y, deltaX: command.deltaX, deltaY: command.deltaY })
+        break
+      case 'switch':
+        break
+    }
+    signal.throwIfAborted()
+    return { text: `${guest.getTitle()}\n${guest.getURL()}` }
   }
 
   private configureSession(browserSession: Session): void {

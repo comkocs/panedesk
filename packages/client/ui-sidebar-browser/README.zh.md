@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Browser 在 Web profile 中默认禁用，在 Desktop 中默认启用。Web 用户可通过 profile patch 启用随附条目。可以从右侧 Sidebar guide 打开 **浏览器**并输入 HTTP(S) URL。Chat 的[链接偏好](../ui-chat/README.zh.md)选择**应用内侧边栏**时，HTTP(S) 链接会在此打开。不带 scheme 的主机名会补全为 HTTPS。公共目标与 loopback 目标使用相同的默认 sandbox。每次 guide 操作或委托到此的消息链接操作都会创建一个新的 Browser tab。
+Browser 在 Web 和 Desktop profile 中默认启用。点击会话顶栏的**浏览器**，打开或聚焦右栏标签页；也可以从右侧 Sidebar guide 再开一个标签页并输入 HTTP(S) URL。Chat 的[链接偏好](../ui-chat/README.zh.md)选择**应用内侧边栏**时，HTTP(S) 链接会在此打开。不带 scheme 的主机名会补全为 HTTPS。公共目标与 loopback 目标使用相同的默认 sandbox。每次 guide 操作或委托到此的消息链接操作都会创建一个新的 Browser tab。
 
 ### 何时选择
 
@@ -33,7 +33,7 @@ Browser 在 Web profile 中默认禁用，在 Desktop 中默认启用。Web 用�
 
 ### 最小配置
 
-本包没有插件配置字段。Web profile 通过其 profile patch 启用随附条目：
+内置浏览器没有插件配置字段。profile 可以显式启用随附条目：
 
 ```yaml
 - id: ui-sidebar-browser
@@ -68,7 +68,7 @@ Web 记录 toolbar 提交和 typed tab 打开。导航状态机把每个受控 r
 
 每个 tab 的 `BrowserController` 负责地址校验、命令和显式恢复。`BrowserFrame` 提供与载体无关的导航状态；`IframeImpl` 使用 `BrowserNavigation`，`ElectronWebViewImpl` 观察 Chromium history。`BrowserPresentation` 负责 DOM 的物理挂载。Slot injection 提供 `useBrowserState` 和普通 callback，React body 不接收 provider 对象或 observable。
 
-Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。preload 只暴露限定范围的 Browser 操作。共享声明通过标准 `/types` 出口配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop Browser tab 声明 `keepMounted`，Sidebar 因而在切 tab、切 Session、收起与浮动期间保留其 DOM。
+Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略。Host 工具经既有 Node IPC 通道调用主进程的 `webContents.debugger` CDP 连接，不开启调试端口。preload 只传递 JSON 请求和取消标识，不跨隔离世界传递 Electron 对象或 AbortSignal。preload 只暴露限定范围的 Browser 操作。共享声明通过标准 `/types` 出口配合 `import type` 引入；Host 与 Client 使用独立 tsconfig 编译。Desktop Browser tab 声明 `keepMounted`，Sidebar 因而在切 tab、切 Session、收起与浮动期间保留其 DOM。
 
 页面刷新快捷键调用工具栏使用的同一重载操作。其 Tooltip 和 ARIA 组合随有效绑定更新。Desktop 通过所属窗口路由已批准 guest 中的有效快捷键；获焦 webview 必须仍持有该 guest 的租约。Web 保留浏览器专用组合。
 
@@ -89,11 +89,19 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 <a id="model-experience"></a>
 ## 模型体验
 
-无。Browser tab 是用户侧呈现状态，不注册工具、prompt section 或 Session event。
+### 可见浏览器工具
+
+#### 模型可见内容
+
+`browser` 工具接收 `command` 对象：`navigate` 携带 `url`；`read`、`screenshot` 或 `tabs`；`click` 携带 `x`、`y`；`type` 携带 `text`；`scroll` 携带 `x`、`y`、`deltaX`、`deltaY`；`switch` 携带 `tabId`。坐标单位为视口 CSS 像素。Desktop 先打开调用方会话及其浏览器标签页，再操作用户可见的同一个 webview。文字和 PNG 图片附件通过常规工具结果流程持久化。Web 返回仅桌面版可用的提示。
+
+#### Token 影响
+
+工具定义增加固定 schema。按需读取的页面文字、标签页列表和截图进入会话历史；单纯手动浏览不增加模型输入。
 
 #### KV Cache 影响
 
-无；浏览内容不进入模型请求。
+结果追加到历史，不改变工具定义。较长页面文字和图片会增加后续请求上下文。
 
 ## 已知限制与延期工作
 

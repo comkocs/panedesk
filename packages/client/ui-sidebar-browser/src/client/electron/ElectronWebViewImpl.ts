@@ -57,8 +57,8 @@ export class ElectronWebViewImpl implements BrowserFrame {
     if (this.pending !== undefined) {
       this.store.set({ ...this.store.getSnapshot(), address: 'requested', loading: true,
         canGoBack: false, canGoForward: false, error: undefined })
-      this.initialize()
     }
+    this.initialize()
   }
 
   /** Invalidate pending attachment before the containing DOM is removed. */
@@ -158,6 +158,7 @@ export class ElectronWebViewImpl implements BrowserFrame {
     signal.addEventListener('abort', unsubscribeOpen, { once: true })
     element.addEventListener('dom-ready', () => {
       this.ready = true
+      element.dataset.sidebarBrowserReady = 'true'
       this.observe(this.store.getSnapshot().address !== 'requested')
       this.loadPending()
     }, { signal })

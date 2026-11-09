@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection before creation or resume completes and retains it across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. This published experimental package activates only when explicitly mounted.
+Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection before creation or resume completes and retains it across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. Desktop ships this experimental provider disabled; enable it under Settings → Connect your Chrome, save the debugging address, then create or resume a Session. The shipped entry uses attach mode and does not operate the sidebar webview.
 
 ## Table of Contents
 
@@ -31,6 +31,7 @@ Mount both entries before creating or resuming a Session, in a profile compositi
 - name: '@panedesk/dsh-browser-use'
 - name: '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp'
   config:
+    enabled: true
     mode: launch
     headless: true
 ```
@@ -39,11 +40,14 @@ Use `mode: attach` and set `endpoint` to an HTTP(S) debugging URL or WS(S) brows
 
 | Field | Default | Meaning |
 |---|---|---|
-| `mode` | required | `launch` or `attach`, fixed for this provider activation |
+| `enabled` | `false` | Activate the provider and register its tools for new or resumed Sessions |
+| `mode` | `attach` | `launch` or `attach`, fixed for this provider activation |
 | `headless` | `true` | Launch without a visible window |
 | `executablePath` | upstream discovery | Chromium executable for launch |
-| `endpoint` | required for attach | Existing browser debugging endpoint |
+| `endpoint` | `http://localhost:9222` | Existing browser debugging endpoint |
 | `toolCallTimeoutMs` | MCP client default | Per-call timeout in milliseconds |
+
+The enable switch and endpoint are live settings. Disabled providers start no MCP process and reject existing browser tool calls; retained connections close on Session disposal. Enablement and endpoint changes take effect for newly created or resumed Sessions. Existing connections retain their endpoint.
 
 The [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-experimental-browser-use-chrome-devtools-mcp) lists accepted fields. The profile or preset selects the browser mode.
 

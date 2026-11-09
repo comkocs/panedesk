@@ -299,10 +299,21 @@
     - id: ui-sidebar-documentpreview
       name: '@panedesk/dsh-client-ui-sidebar-documentpreview'
 
-    # Web profiles opt in; Desktop retains sandboxed HTTP(S) Browser tabs.
+    - id: browser-use
+      name: '@panedesk/dsh-browser-use'
+      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+
+    - id: chrome-devtools-browser
+      name: '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp'
+      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+      config:
+        enabled: false
+        mode: attach
+        endpoint: http://localhost:9222
+
+    # Desktop tools control retained webviews; Web tools report desktop-only availability.
     - id: ui-sidebar-browser
       name: '@panedesk/dsh-client-ui-sidebar-browser'
-      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
 
     - id: ui-sidebar-terminal
       name: '@panedesk/dsh-client-ui-sidebar-terminal'

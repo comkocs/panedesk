@@ -1,6 +1,12 @@
 /** Locale-owned Browser tab copy. */
 export const zh = {
   'type.label': '浏览器',
+  'chrome.title': '连接自己的 Chrome',
+  'chrome.description': '可选的 Chrome DevTools MCP，默认关闭。连接已开启远程调试的 Chrome；保存并启用后，新建或恢复会话。它与右栏内置浏览器分开。',
+  'chrome.enabled': '启用 Chrome DevTools MCP',
+  'chrome.endpoint': 'Chrome 调试地址',
+  'chrome.save': '保存地址',
+  'chrome.saveError': '保存失败，请检查地址和设置后重试。',
   'guide.title': '浏览器',
   'guide.description': '浏览网页',
   'shortcut.noSession': '请先打开一个会话',
@@ -34,6 +40,12 @@ export type SidebarBrowserKey = keyof typeof zh
 /** English dictionary with the same keys. */
 export const en = {
   'type.label': 'Browser',
+  'chrome.title': 'Connect your Chrome',
+  'chrome.description': 'Optional Chrome DevTools MCP, off by default. Attach to Chrome with remote debugging enabled; after saving and enabling, create or resume a session. It is separate from the built-in sidebar browser.',
+  'chrome.enabled': 'Enable Chrome DevTools MCP',
+  'chrome.endpoint': 'Chrome debugging address',
+  'chrome.save': 'Save address',
+  'chrome.saveError': 'Could not save. Check the address and settings, then try again.',
   'guide.title': 'Browser',
   'guide.description': 'Browse web pages',
   'shortcut.noSession': 'Open a session first',
