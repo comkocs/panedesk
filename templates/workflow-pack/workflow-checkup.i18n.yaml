@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for workflow-checkup.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write templates/workflow-pack/workflow-checkup.md
+/:
+  en: ade6e2e6ca8d2823
+  zh: 5fdc995bcf706b17
+/workflow-checkup-existing-projects:
+  en: 8bb124828ff4104a
+  zh: 7bcec246db899cde
+/workflow-checkup-existing-projects/choose-one-of-two-cases:
+  en: 57517b0f1b6d77cf
+  zh: 97317b6550105f52
+/workflow-checkup-existing-projects/record-the-original-request:
+  en: 4e486c5b571ff09a
+  zh: 565e0581be62597b
+/workflow-checkup-existing-projects/read-only-inventory:
+  en: daf7ca1aa5ce682c
+  zh: e8d7b071e0c64c5f
+/workflow-checkup-existing-projects/case-a-compare-rules-sentence-by-sentence:
+  en: 2a5e322c673f1d34
+  zh: e401f9b5696638a6
+/workflow-checkup-existing-projects/case-b-check-nine-kinds-of-problem:
+  en: 7b510e3d0bde1b04
+  zh: 8bf4a6c89ed3903d
+/workflow-checkup-existing-projects/one-screen-report:
+  en: 639c5acd1f765af1
+  zh: a88bf250aa8347e8
+/workflow-checkup-existing-projects/apply-after-approval:
+  en: bdeb08f5f46a87b0
+  zh: 3ea5aae2e31727be
+/workflow-checkup-existing-projects/when-to-repeat:
+  en: bcad613973bb5376
+  zh: 7fa424f424bbbdf4

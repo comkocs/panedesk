@@ -31,10 +31,10 @@ export function apply(ctx: Context, config: Config = {}): void {
   const directory = resolve(root)
   const locator = join(directory, 'getting-started.md')
   readFileSync(locator, 'utf8')
-  for (const resource of ['entries.jsonl', 'tools/trim.py', 'profiles']) statSync(join(directory, resource))
+  for (const resource of ['requirements-review.md', 'workflow-checkup.md', 'entries.jsonl', 'tools/trim.py', 'profiles']) statSync(join(directory, resource))
   const candidate: SkillCandidate = {
     name: 'workflow-pack',
-    description: 'Start a project by checking requirements and selecting a minimal collaboration rule set; read getting-started before generating any project files.',
+    description: 'Start or check a project\'s workflow: review product requirements, set up a workflow from getting-started, or check an existing workflow; read the matching guide before writing project files.',
     invocation: { modelInvocable: true, userInvocable: true },
     provider: 'dsh-workflow-pack', source: 'bundled', rank: BUNDLED_SKILL_RANK,
     resourceBase: { kind: 'directory', path: directory.split(sep).join('/') }, locator,

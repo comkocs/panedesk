@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-这个[技能子系统](../../../docs/subsystems/skills.zh.md)提供方注册可由用户和模型调用的 `workflow-pack`。正文是便携的[开局向导](../../../templates/workflow-pack/getting-started.zh.md)，完整包作为目录资源提供。向导先核需求再生成项目规则；加载技能不会写文件或启动模型。
+这个[技能子系统](../../../docs/subsystems/skills.zh.md)提供方注册可由用户和模型调用的 `workflow-pack`。正文是便携的[开局向导](../../../templates/workflow-pack/getting-started.zh.md)，完整包作为目录资源提供。按需选三个入口之一：[核对产品需求](../../../templates/workflow-pack/requirements-review.zh.md)设计产品、开局向导搭建工作流，或[优化工作流](../../../templates/workflow-pack/workflow-checkup.zh.md)体检已有项目。写项目文件前先读对应向导；加载技能不会写文件或启动模型。
 
 构建将 `templates/workflow-pack/` 复制到 `lib/workflow-pack/`，只维护模板源。绝对路径 `assetRoot` 可覆盖打包资源目录；资源不完整时插件激活失败。
 
@@ -37,7 +37,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-发现技能只向目录增加 `workflow-pack` 描述。调用时技能消费者返回 `getting-started.md` 开局向导和目录资源指导，不自动注入 215 条规则表。
+发现技能只向目录增加 `workflow-pack` 描述。调用时技能消费者返回 `getting-started.md` 开局向导和目录资源指导，不自动注入 225 条规则表。
 
 #### 令牌影响
 

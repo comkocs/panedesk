@@ -6241,10 +6241,12 @@
       "id": "workflow-pack-product-onboarding",
       "description": "Compose portable workflow guidance and saved first-entry project choices.",
       "origin": "Workflow pack and project onboarding integration",
-      "reason": "Integrate the portable bilingual workflow pack and per-workspace first-entry guidance through owned plugins, product settings, bundle declarations, compiler aggregates, and translation pairing scope. The generic pairing-scope regression is suitable for upstream contribution; product defaults remain downstream policy.",
+      "reason": "Integrate the portable bilingual 225-rule workflow pack with requirements-review, getting-started, and workflow-checkup entry guides, medium-or-larger software inference, and two-window medium-software defaults. Preserve per-workspace first-entry guidance through owned plugins, product settings, bundle declarations, compiler aggregates, and translation pairing scope. The generic pairing-scope regression is suitable for upstream contribution; product defaults remain downstream policy.",
       "match": {
         "type": "test-assertion",
         "paths": [
+          "templates/workflow-pack/",
+          "packages/skill/skill-workflow-pack/",
           "packages/bundle/full/package.json",
           "packages/bundle/web-app/package.json",
           "packages/bundle/web-app/cordis.patch.yml",

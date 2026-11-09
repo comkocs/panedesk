@@ -2,7 +2,7 @@
 
 English | [中文](entries.zh.md)
 
-Entries SHA-256: `a76e1de82b40b2b727a34b8ae62fe94dcb1ea95854ff5a60916d3dc98abe8480`
+Entries SHA-256: `969ac5bda43157982af3272466f86d7c6f4f4b3bf7436a67aec0b7e746fea117`
 
 Generated from `entries.jsonl`; edit the data before regenerating this table.
 
@@ -15,7 +15,7 @@ Layer: constitution; Scale: small–large; Features: ; Dependencies: ; Source co
 
 Restore condition: Keep when there is at least one task.
 
-**Act and report outside four exceptions**〔G-0002〕Ask first only about money, irreversible actions, secrets and safety, and {{决策者}}'s direction or aesthetics. Irreversible actions include permanent deletion, public release, and changes to {{规矩总件}}. Within current authorization, perform other reversible actions and report afterward; corrections are not grounds for blame. Record the action and reversal in {{留痕处}} without another approval step.
+**Act and report outside four exceptions**〔G-0002〕Ask first only about money, irreversible actions, secrets and safety, and {{决策者}}'s direction or aesthetics. Irreversible actions include permanent deletion, public release, and changes to {{规矩总件}}. Within current authorization, perform other reversible actions and report afterward; corrections are not grounds for blame. Record the action and reversal in {{留痕处}} without another approval step. Money means spending by the project itself (buying services, paid APIs, or external payments); charging features within the product are requirements. Public release means publication and listing for the public, not submitting applications to platform operators on behalf of {{决策者}}.
 > Rationale: Act independently where authorized, report afterward, and correct problems rather than waiting for permission on every action.
 
 Layer: constitution; Scale: small–large; Features: ; Dependencies: G-0049; Source count: 2.
@@ -34,7 +34,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: constitution; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Separate disclosure and distribution limits**〔G-0005〕Never disclose code, assets, credentials, or private materials explicitly marked confidential. Exclude content explicitly barred from distribution from the public {{成品}}; including it is a delivery failure.
 > Rationale: Prevent confidential or distribution-restricted content from crossing its permitted limits, as observed in the source project.
@@ -120,7 +120,21 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
+
+**Do not change an accepted result**〔G-0216〕Do not change a result that {{决策者}} personally inspected and explicitly accepted. For optimization, including performance, first explain in plain language what will change and how usage will differ; then start without waiting for approval. Stop or revert if {{决策者}} declines. If the result is worse, first recover the accepted version and use it as the reference. Internal rewrites that do not change appearance or feel do not count as changing the result.
+> Rationale: Later optimizations can silently damage an accepted result and make recovery harder than the original work. Explaining first lets the decision maker object without requiring approval.
+
+Layer: operations; Scale: small–large; Features: ; Dependencies: G-0012; Source count: 1.
+
+Restore condition: Keep when there is at least one task.
+
+**Estimate schedules in AI work time**〔G-0224〕Always estimate schedules in AI work time: first estimate traditional human-work days, divide by 15 (for example 150 days → 10 days), and state the conversion. Do not discourage a design on the basis of human engineering effort.
+> Rationale: Human-work estimates can turn a day of work into a reported two weeks and cause good designs to be rejected for excessive effort.
+
+Layer: operations; Scale: small–large; Features: ; Dependencies: ; Source count: 1.
+
+Restore condition: Keep when there is at least one task.
 
 ## Authority and completion
 
@@ -143,7 +157,7 @@ Restore condition: Restore when maintaining at least one code repository and cen
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 6.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Verify the actual delivery target**〔G-0019〕When delivering only a draft to {{决策者}}, check that it opens and is complete; publication is not required first. When delivering {{成品}} to {{受众}}, check acquisition and use through the agreed entry. Before claiming a file was saved, verify it exists and is nonempty; inventories and verbal claims do not replace inspection.
 > Rationale: Lists and active labels do not establish actual delivery, and a write notification alone does not establish a saved file.
@@ -157,14 +171,14 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Keep collaboration progress in one place**〔G-0021〕Maintain quantities, progress, and completion requirements only in {{留痕处}}, based on actual delivery. Elsewhere provide locations rather than copies. Use structured data only when software must read it; history is not current progress.
 > Rationale: Prevent contradictory progress copies or historical records being presented as current state, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 6.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Explain product integration at code delivery**〔G-0022〕Code delivery requires the agreed tests to pass and identifies integration into behavior perceptible to {{受众}}. Explicitly state when no such behavior exists. Purely internal tasks finish at merge.
 > Rationale: Prevent tested code from being delivered without integration into actual use, as observed in the source project.
@@ -185,14 +199,14 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Resolve copying differences against authority**〔G-0025〕Assignments containing values include a repeatable verification method. When drafting reveals a mismatch between a question and {{真源件}}, report each item rather than changing the question. During execution follow the authoritative source for copying discrepancies, recording them at delivery without adding a work-stoppage prerequisite.
 > Rationale: Prevent copying errors from replacing authoritative values or causing unnecessary stoppages, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Keep small-project delivery reports short**〔G-0026〕At small scale, verify and briefly report the deliverable and its location. Add remaining work, autonomous assumptions, or takeover operations only when they exist; do not complete three questions after every edit. Helpers may draft, but the responsible window verifies facts. Correct record-format errors without representing them as failed outputs.
 > Rationale: Delegating writing does not transfer verification responsibility, and procedural errors must not unnecessarily stop work.
@@ -206,7 +220,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 6.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Distinguish matches from actual reads**〔G-0028〕When surveying files, distinguish comment matches from actual reads and references. Registry entries and resource-root names follow the starting revision, not old reports presented as current facts.
 > Rationale: Prevent comment matches and obsolete reports from substituting for current consumption, as observed in the source project.
@@ -220,7 +234,7 @@ Restore condition: Restore when maintaining at least one code repository.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Leave unsettled values blank**〔G-0030〕When adding terms about rules or values, leave values blank during the placeholder stage; do not publish undecided values as formal content.
 > Rationale: Prevent unsettled values from becoming official definitions, as observed in the source project.
@@ -278,21 +292,21 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **The coordinator records rather than approves**〔G-0038〕{{总协调}} registers shared interfaces, writes shared rules and decisions, and coordinates direction without approving work. When absent, each role decides within existing limits and records one line in {{留痕处}}; adjust afterward if necessary.
 > Rationale: Shared bookkeeping is not permission to start; a coordinator's absence must not stop authorized work.
 
 Layer: constitution; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Respect shared protocol ownership**〔G-0039〕Roles must not change shared protocols without authority. Refer necessary changes to {{总协调}} or the role responsible for that protocol.
 > Rationale: Prevent unilateral shared-protocol changes from breaking collaboration, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code.
+Restore condition: Restore when programming starts.
 
 **One contact receives decisions per domain**〔G-0040〕One role receives {{决策者}}'s decisions for each domain, records original wording in {{留痕处}}, and assigns work according to impact. Other roles do not create separate definitions; send changes to the owning role.
 > Rationale: A decision in one domain should be told once to a contact who records and distributes it, not repeated to every role.
@@ -313,7 +327,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code.
+Restore condition: Restore when programming starts.
 
 **Main windows retain coordination and conclusions**〔G-0043〕The main window concentrates on dispatch, decisions, integration, and reporting to {{决策者}}. Delegate large-file reading and high-output commands to helpers, receiving verifiable conclusions rather than duplicating all raw output.
 > Rationale: Prevent raw output from crowding out main-window coordination and decisions, as observed in the source project.
@@ -348,7 +362,7 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Temporary tier changes do not alter defaults**〔G-0048〕Maintain helper types and default capability tiers centrally; individual roles do not create or modify them. State temporary overrides only in the current assignment, recording deviations in {{留痕处}} without changing shared defaults.
 > Rationale: Prevent temporary tier overrides from contaminating shared defaults, as observed in the source project.
@@ -356,6 +370,20 @@ Restore condition: Restore when (concurrent windows >=4, responsibility owners >
 Layer: operations; Scale: large–large; Features: ; Dependencies: G-0049; Source count: 1.
 
 Restore condition: Restore when concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4.
+
+**Optional read-only consultation window**〔G-0221〕When useful, open a consultation window with all memory that only reads and answers, allowing {{决策者}} to ask about status and align requirements at any time. It assigns no work and edits no files; pass resulting tasks to their responsible windows.
+> Rationale: The decision maker can understand the whole project without interrupting active windows or changing their work through conversation.
+
+Layer: methods; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
+
+**Two windows up to 200,000 lines**〔G-0222〕Software projects expected to contain no more than 200,000 lines default to only two windows. {{总协调}} handles planning and requirements checks. One technical lead owns all technical work: directly assigns implementation helpers, merges their work, and assigns independent audits. Add module leads only above 200,000 lines.
+> Rationale: One technical lead with helpers can finish these projects together. Separate frontend, backend, and test windows add handoffs and waiting.
+
+Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when programming starts.
 
 ## Records and channels
 
@@ -371,7 +399,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Execution windows comment only on their tasks**〔G-0051〕Execution windows, if any, comment only on tasks they handle and do not coordinate through unrelated task records.
 > Rationale: Prevent execution windows from coordinating unrelated tasks beyond their authority, as observed in the source project.
@@ -420,7 +448,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0121; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Keep detail outside the main report**〔G-0058〕Save detailed tables and subsidiary reports separately as data artifacts. Main reports and progress records contain paths and counts, not duplicated full text. Where a body limit exists, do not evade it by declaring appended sections uncounted.
 > Rationale: Prevent repeated detail from inflating main reports, as observed in the source project.
@@ -443,7 +471,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Assign cross-role diagnosis to sufficient capability**〔G-0061〕Cross-role diagnosis and ownership decisions belong to a role with sufficient capability; do not hand an undiagnosed problem directly to an insufficiently capable execution window, if such windows exist.
 > Rationale: Prevent unresolved cross-role problems from being handed to underqualified executors, as observed in the source project.
@@ -457,7 +485,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Save assignments before dispatch**〔G-0063〕Save a cross-window assignment first, then send its path with one instruction explicitly identifying the executor. Keep task, handover, and archival detail in the assignment; send opening instructions intended for {{决策者}} separately.
 > Rationale: Prevent verbal assignments without recoverable complete requirements, as observed in the source project.
@@ -506,7 +534,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Draft only from current authorities**〔G-0070〕Draft new assignments from the assignment requirements in {{作业件}} (G-0065, G-0069, G-0082), current facts and decisions, named {{真源件}}, and the role's responsibilities. Do not read entire old assignments, progress records, audits, or other roles' materials, or import unrelated original statements. Consult old similar tasks only for needed conclusions and remaining work.
 > Rationale: Prevent old task requirements and unrelated original wording from entering a new task, as observed in the source project.
@@ -534,14 +562,14 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Give helpers only necessary context**〔G-0074〕Give helpers the current task, named passages from {{作业件}}, and necessary materials rather than the entire {{规矩总件}}. Maintain shared behavior constraints only in helper definitions, not copied into assignments.
 > Rationale: Prevent irrelevant authorities from consuming context and creating copied rule sets, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Explain assignment difficulty with evidence**〔G-0075〕Before dispatch, list changed files, modules, repositories, and whether data migrates, then choose sufficiently capable executors. If difficulty tiers exist, include their numerical thresholds; otherwise state the actual difficulty without citing undefined tiers. Executors may request stronger capability and record it in {{留痕处}}, but cannot lower requirements.
 > Rationale: Prevent underestimated difficulty and capability without an explicit measure, as observed in the source project.
@@ -555,7 +583,7 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Record only verified model capabilities**〔G-0077〕Capability tables distinguish verified abilities, known limitations, and unverified states. Keep unverified claims marked unverified; related models' behavior and old dispatch order are not evidence for this model.
 > Rationale: Adding a path-writing instruction does not establish successful writing, and neighboring model results cannot substitute for a direct measurement.
@@ -576,14 +604,14 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Wake on events and end after handback**〔G-0080〕Wake work windows only for new tasks or collaboration events rather than periodic polling. Helpers rely on completion notifications, not sleep polling. Submit ruling questions and end the turn, resuming after answers; finish and return without background jobs merely waiting for messages.
 > Rationale: Background sleep tasks left after handback accumulate useless processes.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Adjust only the affected relay arrangement**〔G-0081〕When a task is expected to span owner-window replacement, or hallucination rework or a broken relay has occurred, adjust that task's execution levels and handover. Do not generalize a local rollback into a permanent process for all tasks.
 > Rationale: Prevent continued use of an ineffective arrangement after a broken relay, as observed in the source project.
@@ -611,7 +639,7 @@ Restore condition: Restore when delegating to at least two model providers.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Add large-project execution layers only when needed**〔G-0085〕Even large collaborations default to task owners directly assigning helpers and integrating delivery. Only when a task needs prolonged continuous relay and {{决策者}} is absent may its assignment add one person who actually organizes execution, never a relay-only layer. Helpers responsible for rewriting may delegate only read-only research.
 > Rationale: Prevent needless layers of task redistribution when relay is unnecessary, as observed in the source project.
@@ -639,7 +667,28 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: methods; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
+
+**Replace models within fixed slots**〔G-0219〕List available models in {{口径件}} under fixed slots, such as top tier, A, B, C, reading, and audit. Keep slot names stable and replace only model names. When a model exhausts its quota, record “<model> quota stopped <time>” in {{留痕处}} and switch to the next model in the same slot without asking {{决策者}} or editing the policy file.
+> Rationale: Daily quota changes must not halt dispatch while waiting for the decision maker or a complete reassignment table.
+
+Layer: operations; Scale: small–large; Features: multiple-models; Dependencies: G-0067; Source count: 1.
+
+Restore condition: Restore when assigning work to at least two model providers.
+
+**Request concise work from overdefensive models**〔G-0220〕When assigning implementation to models known to add defensive code, unrequested tests, or excessive wrappers, include: make only the requested changes; reuse existing functions; add no unrequested null checks, retries, fallback branches, wrapper layers, or tests; use existing validation for external input. When assigning audits to these models, include: missing defensive handling, missing fallbacks, and potential robustness improvements are not defects; report only incorrect functionality and actual errors.
+> Rationale: Some models turn small changes into extensive defensive code and extra tests, widening scope, breaking full test runs, and distracting the lead window.
+
+Layer: operations; Scale: small–large; Features: code; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when programming (code) starts.
+
+**One owner delivers each feature slice**〔G-0223〕Split implementation assignments by feature. One person delivers data, logic, interface, and tests together instead of splitting frontend and backend layers. Before dispatch, ask whether one person can finish it; if so, keep one assignment with one owner throughout.
+> Rationale: Layer-based assignments wait on each other and coordinate interfaces, yet may deliver every layer without producing a usable feature.
+
+Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when programming starts.
 
 ## Audit and acceptance
 
@@ -648,7 +697,7 @@ Restore condition: Restore when concurrent windows >=4, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Check outputs without adding procedures**〔G-0090〕Check only agreed outputs and necessary quality, such as draft-outline consistency or script-video consistency. Perform necessary self-checks and list unchecked items. Do not add reports, repeated reading, or duplicate checks as delivery prerequisites; one agreed reread means one without unjustified repetitions.
 > Rationale: Checks reject unfinished outputs rather than creating layers of obstacles; self-checking and substantive acceptance remain necessary.
@@ -683,7 +732,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 6.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Review large code tasks by risk**〔G-0095〕Fully audit high-risk code, deployments, data security, and validation-tool changes before delivery or integration, with capability suited to risk. Review ordinary code after integration with reduced scope, without blocking delivery, and repair discovered defects afterward. Low-risk tables, assets, documents, small single-file fixes, and test-only changes default to no audit unless named.
 > Rationale: Review actual risk rather than repeatedly auditing low-risk tasks or blocking delivery through added layers.
@@ -711,7 +760,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049, G-0094; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Rework addresses unmet outputs**〔G-0099〕Judge audits by agreed outputs and behavior. Correct harmless typos in process counts, times, line numbers, signatures, or paragraph formatting without classifying them as output defects or demanding rework. Still investigate false actual results and completion claims.
 > Rationale: Prevent harmless formatting errors from being classified as output defects, as observed in the source project.
@@ -853,21 +902,21 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Fix tools before creating rules after incidents**〔G-0119〕After one incident, fix tools or defaults rather than creating a permanent rule. Correct the erroneous item once and record it in the task, not enduring templates or memory. Consider a rule only after at least three similar incidents when automation is infeasible; first turn lessons into tools or a one-time task check.
 > Rationale: One mistake must not become a burden repeatedly imposed on all later tasks.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Automate executable constraints first**〔G-0120〕Use tools, automated checks, or defaults for constraints they can implement. Rules retain entry pointers rather than making execution windows repeatedly perform long written procedures.
 > Rationale: Prevent repeated manual performance of automatable checks, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Give temporary rules an expiry**〔G-0121〕{{口径件}} collects current decisions. New checks, locks, and trial rules state their purpose, expiry (seven days by default), and numerical removal condition, such as zero real problems caught before expiry. Expired rules lapse and archive unless renewed with measurements and a new date. Remove current-window instructions and task-local checks after use rather than waiting seven days. A few windows can use a section in existing records without a new review process.
 > Rationale: Limits need removal as well as addition; one incident does not justify a rule unless problems recur and tools cannot address them.
@@ -881,7 +930,7 @@ Restore condition: Keep when there is at least one task.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Current requirements do not become permanent rules**〔G-0123〕Record current requirements, exceptions, criteria, and local rollbacks only with current wording and time; remove them after use rather than applying them to other tasks or routines. Change enduring scope only when {{决策者}} explicitly makes it general, orders a complete rollback, or changes rules directly. Treat uncertain cases as task-local.
 > Rationale: One arrangement does not establish future default authority or requirements.
@@ -946,6 +995,13 @@ Layer: operations; Scale: large–large; Features: ; Dependencies: ; Source coun
 
 Restore condition: Restore when concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4.
 
+**Follow wording without creating rules**〔G-0217〕When {{决策者}} speaks in any window, that window records the wording verbatim and follows it within its responsibilities. Do not expand it into future, universal, or ask-first rules, or notify every role. A cross-role rule requires {{决策者}} to explicitly call it a rule or name a window to transcribe it verbatim; otherwise {{总协调}} writes it. Rules independently written by individual roles are invalid and must be removed when found.
+> Rationale: When each window expands a local instruction into a rule, rules accumulate and conflict until the actual original decision becomes unclear.
+
+Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0012; Source count: 1.
+
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
+
 ## Memory and handover
 
 **Use one handover entry at each level**〔G-0132〕Execution windows, if any, resume from task records; role owners resume from responsibilities and {{接管件}}, without parallel memories. Record current state, active work, omissions, existing defects, and next steps only in the corresponding handover location; use pointers elsewhere and keep history separate.
@@ -953,14 +1009,14 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0137; Source count: 15.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Memory does not establish rules**〔G-0133〕Memory holds facts and pointers within the window's responsibilities, not copied or newly established rules. Read current authorities for rules and treat shared memory as reference material rather than personal experience.
 > Rationale: Separate authoritative rules, this window's facts, and reference material to avoid false memories and conflicting rules.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Keep a one-page entry and read active assignments**〔G-0134〕Keep the main-window entry at most one page, naming identity, responsibilities, exclusions, and current-authority pointers. Read entry, {{规矩总件}}, {{作业件}}, and the current task in order. Execution windows read complete assignments and handovers rather than summaries. Temporary helpers read named authorities; consult history as needed and reread active authorities after compaction.
 > Rationale: Limiting entry size does not justify omitting execution authorities; this reflects experience in the source project.
@@ -981,7 +1037,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Update continuation records on events**〔G-0137〕{{接管件}} records current state, unfinished work, running helpers, and next steps; update on dispatch, return, or requirement changes and combine with existing records if useful. Record only locations and remaining work for out-of-scope issues. Window replacement is not completion: ensure the next window can continue, and never claim completion with work or helpers still active.
 > Rationale: Save state promptly rather than reconstructing it before compaction or calling a window replacement completion.
@@ -1002,7 +1058,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Review permanent shared memory by responsibility**〔G-0140〕Keep new shared-memory items temporary for seven days. If a review role exists, it checks sources, meaning, and duplicates before {{总协调}} confirms permanent inclusion; otherwise existing owners verify without creating roles. Remove unpromoted expired items from shared memory while retaining originals.
 > Rationale: Temporary storage followed by verification prevents unchecked long-term growth from every window's additions.
@@ -1018,6 +1074,13 @@ Layer: operations; Scale: large–large; Features: ; Dependencies: ; Source coun
 
 Restore condition: Restore when concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4.
 
+**Close idle windows independently**〔G-0218〕A window with no active work, work in transit, or unanswered requests closes itself. Add one line to {{留痕处}} recording closure and the next reopening condition, without waiting for {{决策者}}.
+> Rationale: Idle windows consume resources and otherwise require the decision maker to close each one.
+
+Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
+
 ## Cross-window collaboration
 
 **Role owners are not prior approvers**〔G-0142〕Role owners are not approvers. Other roles may make minimal reversible fixes within the owner's change area without prior permission; revert if the relevant owner disagrees on returning.
@@ -1025,35 +1088,35 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: constitution; Scale: medium–large; Features: ; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Coordinate directly before escalation**〔G-0143〕Relevant active windows align dependencies, overlapping changes, conflicting conclusions, and scope questions in the same turn, each recording one line in {{留痕处}}. Do not wait for contact or relay through {{总协调}}; ask for coordination only if agreement fails. If the other party is offline, record authorized reversible actions outside exceptions, follow the recommendation, and adjust after a reply.
 > Rationale: Direct communication avoids waiting, repeated relays, and misunderstandings in related work.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Record procedural corrections without blocking outputs**〔G-0144〕Deliver all agreed outputs; announce samples and remaining volume before partial delivery. Record harmless record-format, path-notation, and copy-update issues in {{留痕处}} for the owner to correct without stopping other work. Still address missing necessary authority, broken integration, and unmet outputs.
 > Rationale: Pending review and nonbusiness procedure must not become work-stoppage prerequisites, while real business defects still need repair.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 1.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Keep cross-role blocking fixes minimal and reversible**〔G-0145〕If a real out-of-scope defect blocks local work and a recommendation exists, make the smallest reversible repair and record it in both parties' {{留痕处}}; revert if the owner disagrees. Refer agreed-design questions or cases without recommendations to the owner rather than choosing for them.
 > Rationale: Prevent prolonged blocking waits and unauthorized choices on another role's behalf, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: G-0049, G-0142; Source count: 2.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code.
+Restore condition: Restore when programming starts.
 
 **Notify only affected parties of changes**〔G-0146〕Deliver changes to dispatched-task requirements, defaults, or active pointers to affected roles and record them in {{留痕处}}. Name module ownership when uptake is needed rather than distributing unrelated work. A local note alone is not delivery; do not broadcast unrelated windows.
 > Rationale: Prevent local records from being mistaken for delivered notifications, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: G-0049; Source count: 3.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Deliver usable interface materials**〔G-0147〕For inter-role code interfaces, supply usable, verifiable documentation or a minimum implementation using the agreed technology and timing, such as definitions, examples, or a stub. Deliver it to the agreed location and notify consumers. Do not require same-day branches universally or describe undelivered agreements as available.
 > Rationale: Prevent verbal agreements from being treated as usable interfaces, as observed in the source project.
@@ -1088,7 +1151,7 @@ Restore condition: Restore when concurrent windows >=7, responsibility owners >=
 
 Layer: operations; Scale: medium–large; Features: ; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment.
+Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
 **Give shared asset parameters one owner**〔G-0152〕One role changes asset parameters affecting several roles. Notify affected roles through {{留痕处}} before editing.
 > Rationale: Prevent simultaneous shared-parameter changes from overwriting one another, as observed in the source project.
@@ -1102,7 +1165,7 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: G-0049, G-0194; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Notify reporters after cross-role repairs**〔G-0154〕After fixing a code defect reported by another role, leave a repair receipt and notify the reporter through {{留痕处}}.
 > Rationale: Prevent reporters from remaining unaware of completed repairs, as observed in the source project.
@@ -1146,7 +1209,7 @@ Restore condition: Restore when maintaining at least one code repository.
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code.
+Restore condition: Restore when programming starts.
 
 **Get authorization before public pushes**〔G-0160〕Obtain explicit authorization from {{决策者}} before pushing changes to a public repository.
 > Rationale: Prevent public disclosure of changes without authorization, as observed in the source project.
@@ -1265,7 +1328,7 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 3.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code.
+Restore condition: Restore when programming starts.
 
 **Verify final small-project changes centrally**〔G-0177〕At small scale, the responsible window collects final changes, builds, and runs named tests once. No separate merge role is required and builds do not run concurrently in one workspace.
 > Rationale: Central final verification avoids intermediate-artifact conflicts and repeated builds.
@@ -1344,21 +1407,21 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 
 Layer: operations; Scale: medium–large; Features: code, deployment; Dependencies: ; Source count: 5.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code, deployment.
+Restore condition: Restore when programming and deployment are involved.
 
 **Never bypass release checks**〔G-0188〕Run established checks and parameter self-checks before release. Do not skip tests or remove checks to bypass failures.
 > Rationale: Prevent releasing failed versions by skipping established checks, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: code, deployment; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code, deployment.
+Restore condition: Restore when programming and deployment are involved.
 
 **Handle release failures according to reversibility**〔G-0189〕Stop release when builds or release checks fail; do not push past failures. Revert a deployed server only when it can be replaced safely immediately. Do not claim instantaneous rollback of clients already held by users; stop distribution, fix the next version, and state actual results.
 > Rationale: Prevent pushes after failure or false claims of safe rollback, as observed in the source project.
 
 Layer: operations; Scale: medium–large; Features: code, deployment; Dependencies: ; Source count: 2.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: code, deployment.
+Restore condition: Restore when programming and deployment are involved.
 
 **Use batch cutoffs only for batch releases**〔G-0190〕If batch releases are chosen, follow published cutoffs and move unready tasks to the next batch without ad hoc waiting or repeated questions about published times. On-demand projects follow their own release arrangements without an extra fixed batch system.
 > Rationale: Prevent unready tasks from delaying an established release batch, as observed in the source project.
@@ -1373,6 +1436,13 @@ Restore condition: Restore when (concurrent windows >=7, responsibility owners >
 Layer: operations; Scale: large–large; Features: code, deployment; Dependencies: ; Source count: 2.
 
 Restore condition: Restore when (concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4) and these features are enabled: code, deployment.
+
+**Deployment requires the decision maker's announcement**〔G-0225〕Only an announcement from {{决策者}} counts as formal deployment. Before that, external platform listings and public playtests follow development procedures; do not introduce approval requirements or checks solely because of them.
+> Rationale: Treating any external listing as deployed invites extra checks and approvals that delay development.
+
+Layer: operations; Scale: medium–large; Features: deployment; Dependencies: ; Source count: 1.
+
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and deployment is involved.
 
 ## Assets and naming
 
@@ -1395,14 +1465,14 @@ Restore condition: Restore when producing at least one type of asset in bulk.
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: G-0193; Source count: 8.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Keep asset sources and uses traceable**〔G-0195〕Register new asset sources and use locations centrally, tracing each file actually used in {{成品}} to its original source. Follow agreed handovers if production and organization have different owners; a single owner records and verifies independently without another role's approval as a prerequisite.
 > Rationale: Separate actual production assets from personal material and keep sources traceable without turning registration into extra approval.
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: G-0194; Source count: 2.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Register asset inputs before processing**〔G-0196〕Before bulk compression, packaging, or delivery, check inputs are active and included in the current inventory. Register newly generated assets before further processing; registration itself is exempt from that prerequisite. Do not consume personal reference material or retired files directly.
 > Rationale: Personal material needs proper placement first, while old files still used by production cannot be removed.
@@ -1416,7 +1486,7 @@ Restore condition: Restore when producing at least one type of asset in bulk.
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: G-0006, G-0194; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Commit only agreed deliverable assets**〔G-0198〕If a repository is designated for runtime/delivery assets only, commit only agreed delivery formats and sources. Keep source projects, candidates, and render intermediates in the agreed external archive. If a separate source-asset repository or joint editing is required, follow that repository's inclusion rules rather than universally excluding sources.
 > Rationale: Prevent intermediate source files from entering repositories intended only for runtime delivery, as observed in the source project.
@@ -1430,14 +1500,14 @@ Restore condition: Restore when maintaining at least one code repository and pro
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: G-0200; Source count: 1.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Decide aesthetics only under explicit authority**〔G-0200〕{{决策者}} decides asset direction. If explicitly delegated, the authorized person specifies style and references consistently and retains authority and confirmation records, without mandatory aesthetic/execution/coordination roles. Makers follow confirmed requirements. Check file specifications, visibility, and usability in {{成品}} separately; technical self-checks are not aesthetic approval and aesthetic rework has no extra round cap.
 > Rationale: Respect explicitly delegated aesthetic expertise without adding another aesthetic ruler; absent authority, do not decide on another's behalf.
 
 Layer: operations; Scale: medium–large; Features: assets; Dependencies: ; Source count: 8.
 
-Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, or repositories >=2 with deployment) and these features are enabled: assets.
+Restore condition: Restore when (concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts) and assets are involved.
 
 **Separate small-project aesthetics and specifications**〔G-0201〕At small scale, {{决策者}} confirms aesthetics directly or explicitly delegates to one person; makers and helpers do not change direction. When common style is agreed first, confirm samples before bulk production. Check specifications, visibility, and usability in {{成品}} separately. Self-checking does not replace aesthetic approval; do not cap aesthetic rework or add roles or freeze procedures.
 > Rationale: Confirm samples first and distinguish aesthetic authority from technical specifications; maker self-checking is not aesthetic approval.

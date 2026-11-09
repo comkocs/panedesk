@@ -1,10 +1,16 @@
 You are this project's first window. Check its needs using this guide before starting work.
 
-# Getting started
+# Getting started (workflow setup)
 
 English | [中文](getting-started.zh.md)
 
 Python 3.11 or later is required, with no third-party packages. Run the commands below from the workflow-pack directory. The project root is the folder containing the new project's main files. In the host application, invoke the bundled `workflow-pack` skill to read this guide; invoking it does not itself authorize writing project files.
+
+## ⓪ Route the project first
+
+This guide sets up new projects from scratch. For an operating project with its own rules and files, read `workflow-checkup.md` instead.
+
+Find product documents in three steps: ① use documents supplied by the decision maker or under the project root's `需求/`, in any format; ② otherwise scan the project directory and subdirectories read-only for names or contents suggesting product, requirements, development, PRD, or prototypes, and ask “Use this?” before adopting a discovery; ③ if none exist, ask just three questions: what to make, for whom, and what the first version must include. If the decision maker wants a complete requirements review first, mention the optional `requirements-review.md`, usable in any chat window; do not perform that full review in this window.
 
 ## ① Record the original request
 
@@ -12,7 +18,7 @@ Append the decision maker's first request verbatim to `资料/决策者原话.md
 
 ## ② Check requirements in one exchange
 
-Restate already clear answers without asking again. Ask the remaining questions from the following ten together, recommending an answer to each. Follow the recommendations if accepted. For anything not asked, use defaults, act, and report assumptions; never present guesses as original wording.
+If step ⓪ found product documents, derive and fill the ten answers directly from them instead of asking each question. Ask together only about missing details that affect scale selection. Without documents, restate already clear answers without asking again, then ask the remaining questions from the following ten together. Recommend an answer to each. Follow the recommendations if accepted. For anything not asked, use defaults, act, and report assumptions; never present guesses as original wording.
 
 | Question | Plain-language question | Recommended default | Requirement-card fields |
 | --- | --- | --- | --- |
@@ -39,9 +45,11 @@ List the profiles:
 python3 -X utf8 tools/trim.py profiles
 ```
 
-Copy the closest file from `profiles/` to `requirements.toml` at the pack root. Edit its values from the answers. Keep quotation marks around Chinese TOML table and key names, such as `["项目"]` and `"名"`, and keep the seven feature values as `true` or `false`. Choose `novel-writing`, `short-video`, `small-software`, `medium-software`, or `large-research` as appropriate.
+Copy the closest file from `profiles/` to `requirements.toml` at the pack root. Edit its values from the answers. Keep quotation marks around Chinese TOML table and key names, such as `["项目"]` and `"名"`, and keep the seven feature values as `true` or `false`. Choose `novel-writing.toml` for novels and `short-video.toml` for short videos. For programming projects up to 200,000 lines, choose `medium-software.toml`; choose `large-research.toml` above that size or for continuing development across many responsibilities. Use `small-software.toml` only when the decision maker explicitly requests one window throughout.
 
-Prefer `[规模] 档 = ""` for inferred scale. Check large first: concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4. Otherwise medium means windows >=4, owners >=2, or repositories >=2 with deployment. Everything else is small. Repositories may contain code or office materials. One window, one owner, two repositories with deployment is medium. Novel writing uses two windows and one owner; short video uses three and one; both are small. An explicit scale wins, with a warning when it differs from inference.
+Prefer `[规模] 档 = ""` for inferred scale. Check large first: concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4. Otherwise medium means windows >=4, owners >=2, repositories >=2 with deployment, or programming. Everything else is small. Repositories may contain code or office materials. One window, one owner, two repositories with deployment is medium. Novel writing uses two windows and one owner; short video uses three and one; both are small. An explicit scale wins, with a warning when it differs from inference.
+
+Programming projects start at medium scale. Up to 200,000 expected lines, use medium-software with only two windows by default: the coordinator handles planning and requirements checks, and one technical lead owns all technical work (G-0222). Above 200,000 lines, explicitly set `"档" = "大"` and add module leads. Set `"档" = "小"` only when the decision maker explicitly requests one window throughout.
 
 `[称呼]` accepts 项目名, 决策者, 总协调, 受众, 成品, 真源件, 留痕处, 口径件, 规矩总件, 作业件, and 接管件. Missing or blank values use defaults. Project name, audience, and output come from `[项目]`; the remaining defaults are 决策者, 总协调, 项目真源.md, 记录.md, 当日口径.md, 宪法.md, 作业规矩.md, and 接棒记录.md. These names substitute into prose, not fixed output filenames. Explain any mapping to differently named actual files.
 
@@ -72,7 +80,7 @@ Read `pending/裁剪记录.json` and `pending/拆掉清单.md`. Briefly explain 
 
 The first window may recommend at most five project-specific requirements based on current practice for that project type, explicitly labeled suggestions rather than original wording, each with a short reason. Examples include historical-source references, financial-data privacy and backups, or tenant isolation. Include suggestions in the report only. Append a suggestion to `本项目自定.md` only after individual approval, citing the decision maker's approval and system-derived time. Do not write rejected suggestions. If a suggestion overrides a generic rule, update `[手调] 减` as in step ②.
 
-Report using the following template and wait for approval or edits. Acceptance of recommendations means follow them. Change the card and regenerate rather than editing generated files.
+Present the complete selection report once using the following template and wait for approval or edits. Acceptance of recommendations means follow them. Change the card and regenerate rather than editing generated files.
 
 ### Message to the decision maker
 
@@ -80,12 +88,18 @@ Report using the following template and wait for approval or edits. Acceptance o
 本次规模与特征：……
 留下：……
 拆掉与加回时机：……
+预设与岗位：……（写程序的项目缺省两窗：总协调 + 技术主窗）
+工期：……（AI 工时，人类工时 ÷ 15；例：150 天 → 10 天）
 自主假设：……
 
 建议写进本项目自定（最多 5 条，无建议写“无”）：
 1. 建议(非原话)：……；为什么：……
 请逐条确认是否同意；点头的才写入本项目自定.md，出处记“决策者 <时刻> 同意第一窗建议”，不点头的不写。
+
+现在落地还是先停？
 ```
+
+For programming projects, after approval split the first assignments by feature: one person delivers data, logic, interface, and tests together. Record each assignment title, dependencies, and one acceptance sentence stating what users can see when opening the result (G-0223). Before dispatch, ask whether one person can finish it; if so, keep it as one assignment owned by one person.
 
 ## ⑥ Place the results and document the reading order
 
@@ -97,7 +111,7 @@ Create matching three-line `CLAUDE.md` and `AGENTS.md` entries in the project ro
 
 ## ⑦ Restore rules as the project grows
 
-Periodically consult restoration conditions in `拆掉清单.md`. Its summary for a fully removed module gives the most common condition only; consult the JSON record or [entries](entries.md) for individual conditions without inventing another threshold set. Recheck the card when specified counts or work change: four or seven windows, two or six owners, multiple repositories with deployment, at least four owners for the large deployment case, or newly enabled code, deployment, bulk assets, authoritative values, multiple models, review, or rule storage. Individual rule conditions determine restoration.
+Periodically consult restoration conditions in `拆掉清单.md`. Its summary for a fully removed module gives the most common condition only; consult the JSON record or [entries](entries.md) for individual conditions without inventing another threshold set. Recheck the card when specified counts or work change: four or seven windows, two or six owners, multiple repositories with deployment or starting programming for medium scale, at least four owners for the large deployment case, or newly enabled code, deployment, bulk assets, authoritative values, multiple models, review, or rule storage. Individual rule conditions determine restoration.
 
 Update counts, scale, and features, validate, and regenerate. Explain what is restored and why. Use reasoned manual additions only when a single rule is actually needed. Recheck shrinking projects too, rather than burdening them with obsolete large-project rules.
 

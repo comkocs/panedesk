@@ -349,7 +349,7 @@ class 裁剪测试(unittest.TestCase):
         文本 = 各件["拆掉清单.md"]
         self.assertIn("各组节首写加回门槛；条后仅括注与组门槛不同的加回条件。", 文本)
         self.assertIn("## 项目长到中档时加回(4 条)", 文本)
-        self.assertIn("门槛：同时窗 ≥4 或分工位 ≥2 或 仓 ≥2 且上线。", 文本)
+        self.assertIn("门槛：同时窗 ≥4 或分工位 ≥2 或 仓 ≥2 且上线 或写程序。", 文本)
         self.assertIn("## 长到大档时加回(2 条)", 文本)
         self.assertIn("门槛：同时窗 ≥7 或分工位 ≥6 或（仓 ≥2 且上线 且分工位 ≥4）。", 文本)
         中节 = 文本.split("## 项目长到中档时加回", 1)[1].split("## ", 1)[0]
@@ -515,7 +515,7 @@ class 裁剪测试(unittest.TestCase):
 
     def test_拆掉清单条件不同才括注且各组有门槛(self):
         组表 = (
-            ("中", {"最小规模": "中"}, "同时窗 ≥4 或分工位 ≥2 或 仓 ≥2 且上线。"),
+            ("中", {"最小规模": "中"}, "同时窗 ≥4 或分工位 ≥2 或 仓 ≥2 且上线 或写程序。"),
             ("大", {"最小规模": "大"}, "同时窗 ≥7 或分工位 ≥6 或（仓 ≥2 且上线 且分工位 ≥4）。"),
             ("代码", {"需要特征": ["代码"]}, "在需求卡中开启代码特征，再重裁。"),
             ("上线", {"需要特征": ["上线"]}, "在需求卡中开启上线特征，再重裁。"),
@@ -646,16 +646,46 @@ class 裁剪测试(unittest.TestCase):
                 错误 = io.StringIO()
                 with contextlib.redirect_stderr(错误):
                     卡 = 裁剪.读卡(裁剪.包目录 / "profiles" / f"{名}.toml")
-                self.assertEqual(错误.getvalue(), "")
                 self.assertEqual(卡["规模"], 应有)
-                self.assertEqual(裁剪.推算规模(**卡["数字"], 上线=卡["特征"]["上线"]), 应有)
+                推算 = 裁剪.推算规模(**卡["数字"], 上线=卡["特征"]["上线"], 代码=卡["特征"]["代码"])
+                if 名 == "small-software":
+                    self.assertEqual(推算, "中")
+                    self.assertEqual(len(错误.getvalue().splitlines()), 1)
+                else:
+                    self.assertEqual(错误.getvalue(), "")
+                    self.assertEqual(推算, 应有)
                 if 名 in ("novel-writing", "short-video"):
                     self.assertEqual(卡["数字"], {"同时窗数": 2 if 名 == "novel-writing" else 3, "分工位数": 1, "仓数": 0})
+
+    def test_推算规模写程序至少中档(self):
+        for 窗, 位, 仓, 上线, 代码, 应有 in (
+            (1, 1, 0, False, True, "中"),
+            (1, 1, 0, False, False, "小"),
+            (8, 1, 0, False, True, "大"),
+        ):
+            with self.subTest(窗=窗, 代码=代码):
+                self.assertEqual(裁剪.推算规模(窗, 位, 仓, 上线, 代码=代码), 应有)
+
+    def test_中型软件预设两窗推算为中不打提醒(self):
+        错误 = io.StringIO()
+        with contextlib.redirect_stderr(错误):
+            卡 = 裁剪.读卡(裁剪.包目录 / "profiles" / "medium-software.toml")
+        self.assertEqual(错误.getvalue(), "")
+        self.assertEqual(卡["规模"], "中")
+        self.assertEqual(裁剪.推算规模(**卡["数字"], 上线=卡["特征"]["上线"], 代码=卡["特征"]["代码"]), "中")
+
+    def test_小型软件预设明写小照用小(self):
+        错误 = io.StringIO()
+        with contextlib.redirect_stderr(错误):
+            卡 = 裁剪.读卡(裁剪.包目录 / "profiles" / "small-software.toml")
+        self.assertEqual(卡["规模"], "小")
+        self.assertEqual(len(错误.getvalue().splitlines()), 1)
+        self.assertIn("提醒", 错误.getvalue())
 
     def test_档案命令列五份(self):
         码, 输出, 错误 = self.调命令(["档案"])
         self.assertEqual(码, 0)
-        self.assertEqual(错误, "")
+        self.assertEqual(错误, "提醒：规模档为小，数字推算为中；本次使用档小。\n")
         self.assertEqual(len(输出.splitlines()), 5)
         self.assertIn("novel-writing.toml：规模=小；特征=无", 输出)
 
