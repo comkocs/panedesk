@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { IconPlusOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
-import { presetContextWindow } from '@panedesk/dsh-llm-pi-ai/src/context-presets.ts'
+import { presetContextWindow } from './context-presets.ts'
 import type { en } from './locales.ts'
 import { ModelRow } from './ModelRow.tsx'
 import styles from './ModelsSection.module.css'

@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
-import { presetContextWindow } from '@panedesk/dsh-llm-pi-ai/src/context-presets.ts'
+import { presetContextWindow } from './context-presets.ts'
 import { inferReasoningEfforts } from '@panedesk/dsh-llm-pi-ai/src/reasoning.ts'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
 import { contextSourceKey, formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
