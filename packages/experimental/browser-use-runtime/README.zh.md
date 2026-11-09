@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-浏览器提供方使用此库，在一个 Session 的多个轮次之间复用浏览器，并在该 Session 的运行时释放时关闭其资源。一个 Session 的操作按顺序运行，隔离的 Session 则可以独立推进。附加模式将一个外部浏览器保留给单个 Session。此库还连接提供方拥有的 MCP 服务器，并在 Session 首次模型请求前发现其工具。
+浏览器提供方使用此库，在一个 Session 的多个轮次之间复用浏览器，并在该 Session 的运行时释放时关闭其资源。一个 Session 的操作按顺序运行，隔离的 Session 则可以独立推进。附加模式将一个外部浏览器保留给单个 Session。此库还在后台连接提供方拥有的 MCP 服务器；浏览器工具在启动与发现完成后才可见。
 
 ## 目录
 
@@ -29,13 +29,13 @@ kind: "package-library"
 
 原生提供方从包根入口构造 `SessionResources`，提供资源获取与清理回调。调用向 `run()` 传递确切的实时 Agent；失效的所有者与独占附加的第二个所有者在获取资源前失败。取消资源获取等待不会终止初始化，同一 Session 的其他调用方仍可继续等待；释放 Session 会中止并等待该初始化结束。提供方将注册保留到 `dispose()` 完成。
 
-MCP 提供方使用 `@panedesk/dsh-experimental-browser-use-runtime/mcp` 中的 `mountSessionMcp`，提供固定服务器名称、可执行文件、参数与所有权策略。挂载上下文必须提供 `workingDirectory`。获取连接时通过[工作目录服务](../../session/working-directory/README.zh.md)验证或恢复当前目录，并将其设为 MCP 服务器进程的初始目录。Session 后续选择其他目录时，保留的服务器继续使用该目录。辅助库在每个后续 Agent 的 `agent/created` 事件中等待一次有作用域的客户端启动与发现尝试。Agent 创建或恢复在发现完成后结束，随后才运行排队输入；成功的客户端跨轮次归该 Session 所有。
+MCP 提供方使用 `@panedesk/dsh-experimental-browser-use-runtime/mcp` 中的 `mountSessionMcp`，提供固定服务器名称、可执行文件、参数与所有权策略。挂载上下文必须提供 `workingDirectory`。获取连接时通过[工作目录服务](../../session/working-directory/README.zh.md)验证或恢复当前目录，并将其设为 MCP 服务器进程的初始目录。Session 后续选择其他目录时，保留的服务器继续使用该目录。辅助库在每个后续 Agent 的 `agent/created` 事件中后台启动一次有作用域的客户端启动与发现尝试。Agent 创建、恢复与排队输入不等待发现完成；成功的客户端跨轮次归该 Session 所有。
 
-附加连接被占用时，本次激活永久跳过启动，但其他工作继续运行。连接释放不会触发被跳过激活的重试；新创建或恢复的 Agent 可以获取连接。启动失败会拒绝 Agent 创建或恢复，并触发包含客户端清理的创建回滚；提供方传入 `onStartupError` 时除外：清理后该回调报告失败，本次激活不带浏览器工具继续运行。取消仍会拒绝创建或恢复。重连已禁用。加载或重新加载提供方只作用于后续的 Agent 激活。
+附加连接被占用时，本次激活永久跳过启动，但其他工作继续运行。连接释放不会触发被跳过激活的重试；新创建或恢复的 Agent 可以获取连接。启动失败会清理客户端并继续隐藏浏览器工具，不拒绝 Agent 创建或恢复。MCP 客户端报告启动诊断；提供方传入 `onStartupError` 时，该回调报告清理后的失败。取消或 Agent 释放后到达的结果会被丢弃。重连已禁用。加载或重新加载提供方只作用于后续的 Agent 激活。
 
 提供方可以提供 `enabled` 回调，并在连接时计算启动参数。关闭时不创建新连接，已有工具调用也会被拒绝；已经打开的连接保留到会话释放。启用或修改端点作用于新建或恢复的激活，不接管已经活动的会话。
 
-调用方在等待 Agent 创建或恢复完成后，即可检查提示词组装和作用域工具定义。
+Agent 的客户端就绪前，提示词组装省略浏览器工具与服务器指导，工具执行也不可用。
 
 指向此服务器的浏览器工具调用与资源请求使用同一队列，且要求调用 Session 自己拥有连接。其他 MCP 服务器仍可使用。没有所有权时会省略继承的服务器指导；共享服务器名称目录保留常规作用域行为。
 
@@ -51,7 +51,7 @@ MCP 提供方使用 `@panedesk/dsh-experimental-browser-use-runtime/mcp` 中的 
 
 因释放而取消时，在 AgentHandle 等待空闲前开始资源清理。清理先关闭资源再等待运行中的操作，使连接清理能够中断不支持 abort 的上游 API。关闭失败会拒绝释放并保留所有权。Agent 作用域清理防止使用同一持久 id 恢复的 Session 继承之前的浏览器。
 
-[MCP 辅助库](src/mcp.ts)在串行 `agent/created` 中建立连接；[AgentLoop](../../core/agent-loop/README.zh.md#understand-the-implementation)保留排队输入并负责创建回滚。提示词组装读取已初始化的目录。辅助库在资源清理期间保留提供方注册，并通过 [MCP 客户端](../../mcp/mcp-client/README.zh.md)处理传输、schema 发现、结果转换与持久图像接纳。
+[MCP 辅助库](src/mcp.ts)从 `agent/created` 启动连接，不让 [AgentLoop](../../core/agent-loop/README.zh.md#understand-the-implementation)等待连接完成。按 Agent 设置的呈现遮罩在启动完成前隐藏浏览器工具；执行与服务器指导使用同一就绪状态。辅助库在资源清理期间保留提供方注册，并通过 [MCP 客户端](../../mcp/mcp-client/README.zh.md)处理传输、schema 发现、结果转换与持久图像接纳。
 
 </details>
 
@@ -69,7 +69,7 @@ MCP 提供方使用 `@panedesk/dsh-experimental-browser-use-runtime/mcp` 中的 
 <a id="model-experience"></a>
 ## 模型体验
 
-通过在模型请求组装前发现的提供方浏览器工具，以及[工作目录恢复](../../session/working-directory/README.zh.md)间接影响模型；提供方与 MCP 客户端拥有工具描述、schema、结果与图像行为，目录服务拥有目录上下文。
+通过后台发现后向后续模型请求开放的提供方浏览器工具，以及[工作目录恢复](../../session/working-directory/README.zh.md)间接影响模型；提供方与 MCP 客户端拥有工具描述、schema、结果与图像行为，目录服务拥有目录上下文。
 
 #### KV Cache 影响
 

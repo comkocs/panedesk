@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-通过 Chrome DevTools MCP 的上游工具检查网页并操作 Chromium。提供方在 Session 创建或恢复完成前初始化其 MCP 连接，并跨轮次保留连接。可以启动独立浏览器，也可以让一个 Session 接入已有浏览器，使用其现有标签页和登录状态。Desktop 随附本实验提供方，默认开启；在设置 → 连接自己的 Chrome 中配置或关闭，保存调试地址，然后创建或恢复会话。随附条目使用 attach 模式，不操作右栏 webview。
+通过 Chrome DevTools MCP 的上游工具检查网页并操作 Chromium。提供方在后台初始化 Session 的 MCP 连接，不延迟创建或恢复，就绪前隐藏浏览器工具，并跨轮次保留连接。可以启动独立浏览器，也可以让一个 Session 接入已有浏览器，使用其现有标签页和登录状态。Desktop 随附本实验提供方，默认开启；在设置 → 连接自己的 Chrome 中配置或关闭，保存调试地址，然后创建或恢复会话。随附条目使用 attach 模式，不操作右栏 webview。
 
 ## 目录
 
@@ -61,7 +61,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-提供方解析固定版本 npm 包的可执行入口，并使用当前 Node 启动。服务进程之前可能运行临时协议探测进程。[共享运行时](../browser-use-runtime/README.zh.md)负责等待 Agent 初始化、逐 Session 串行执行与清理；[MCP 客户端](../../mcp/mcp-client/README.zh.md)负责传输、发现和结果投影。
+提供方解析固定版本 npm 包的可执行入口，并使用当前 Node 启动。服务进程之前可能运行临时协议探测进程。[共享运行时](../browser-use-runtime/README.zh.md)负责后台 MCP 初始化、逐 Session 串行执行与清理；[MCP 客户端](../../mcp/mcp-client/README.zh.md)负责传输、发现和结果投影。
 
 只要活动 Session 保持连接，浏览器状态就会跨轮次保留。MCP 服务器在经验证的 Session 当前工作目录中启动；Session 后续改变目录时，服务器保留启动目录。销毁会等待服务器关闭，再释放资源。重新加载后恢复 Session 会创建新的浏览器运行状态；已保存的对话历史不会还原 Cookie 或页面。
 
@@ -102,7 +102,7 @@ kind: "package-reference"
 本集成保留固定版本服务器的浏览器与工具限制。
 
 - 仅支持 Chromium；不可选择 Firefox 或 WebKit。
-- MCP 启动失败会清理客户端、发出一句警告，并让 Session 在没有浏览器工具的情况下继续使用。取消仍会拒绝创建或恢复。Chrome 延迟到调用时连接；连接失败返回上游诊断，不阻挡其他工具。断开的客户端不会重试；修复原因后，创建新 Session，或卸载并恢复已有 Session。
+- MCP 启动失败会清理客户端、发出一句警告，并让 Session 在没有浏览器工具的情况下继续使用。取消或释放后到达的结果会被丢弃。Chrome 延迟到调用时连接；连接失败返回上游诊断，不阻挡其他工具。断开的客户端不会重试；修复原因后，创建新 Session，或卸载并恢复已有 Session。
 - 连接独占仅在此提供方实例内有效。其他进程与浏览器用户仍可修改相同页面。
 - 共享资源服务器目录可以显示继承的服务器名称，但不会授予对其他 Session 浏览器的访问权限。
 - 取消不会撤销已发送给浏览器的导航、点击或其他操作。

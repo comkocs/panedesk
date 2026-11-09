@@ -48,7 +48,7 @@ Admitted maintenance consumes provider input and bounded output tokens, recorded
 
 #### KV Cache effect
 
-Renewal can refresh supported provider cache evidence; expired or changed prefixes are not silently treated as reusable. Ordinary prefix reconstruction and interruption breakpoints remain active.
+Renewal can refresh supported provider cache evidence; expired or changed prefixes are not silently treated as reusable. Ordinary prefix reconstruction and interruption breakpoints remain active. Newly available native tools or a changed PTC SDK refresh the stable prefix on the next request, so background tool discovery is not frozen out of the catalog.
 
 ## Known Limitations and Deferred Work
 

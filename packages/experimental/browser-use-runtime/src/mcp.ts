@@ -82,7 +82,7 @@ export interface SessionMcpOptions {
   args: string[] | (() => string[])
   /** Optional live enablement for new connections and existing tool calls. */
   enabled?: () => boolean
-  /** Report a cleaned-up startup failure and continue without this browser; omission rejects Agent creation. */
+  /** Report a cleaned-up background startup failure; omission retains the MCP client's diagnostics. */
   onStartupError?: (error: unknown) => void
   /** Explicit overrides merged into the MCP client's scrubbed child environment. */
   env?: Record<string, string>
@@ -96,8 +96,8 @@ interface ClientState {
 }
 
 /**
- * Await one MCP client during each future Agent's creation.
- * A busy attachment or a startup failure handled by onStartupError leaves that activation without browser tools.
+ * Start each future Agent's MCP client in the background; browser tools stay hidden until ready.
+ * A busy attachment or a startup failure leaves that activation without browser tools.
  * Calls are serialized per Session; unload closes every server before releasing registration.
  * @param ctx - provider context supplying browser use, Agents, tools, prompt assembly, and working directories.
  * @param options - provider identity, attachment exclusivity, and executable configuration.
@@ -118,11 +118,10 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
     refreshingMasks = true
     try {
       for (const [agent, state] of clients) {
-        if (state.status !== 'blocked') continue
-        const inherited = ctx.tools.schemas(agent).filter(tool => tool.name.startsWith(toolPrefix))
-        if (inherited.length === 0) continue
-        state.mask ??= createScope(ctx, agent)
-        state.mask.ctx.tools.restrict({ deny: inherited.map(tool => tool.name) })
+        if (state.status !== 'blocked' || state.mask !== undefined) continue
+        state.mask = createScope(ctx, agent)
+        // Restrictions only hide inherited tools, not this Agent's arriving registrations.
+        state.mask.ctx.tools.filterPresentation((name, { scope }) => scope !== agent || state.status === 'ready' || !name.startsWith(toolPrefix))
       }
     } finally {
       refreshingMasks = false
@@ -182,28 +181,23 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
       clients.clear()
     }
   }, `${options.name}.sessions`)
-  ctx.on('agent/created', async ({ agent, signal }) => {
-    const state: ClientState = { status: options.enabled?.() !== false && resources.available(agent) ? 'ready' : 'blocked' }
+  ctx.on('agent/created', ({ agent, signal }) => {
+    const state: ClientState = { status: 'blocked' }
+    clients.set(agent, state)
     agent.ctx.effect(() => async () => {
       clients.delete(agent)
       await state.mask?.dispose()
     }, `${options.name}.activation`)
-    if (state.status === 'blocked') {
-      clients.set(agent, state)
+    refreshBlockedMasks()
+    if (options.enabled?.() === false || !resources.available(agent)) return
+    void resources.get(agent, signal).then(() => {
+      if (stopping || signal?.aborted === true || clients.get(agent) !== state || ctx.get('agents')?.get(agent.id) !== agent) return
+      state.status = 'ready'
       refreshBlockedMasks()
-      return
-    }
-    try {
-      await resources.get(agent, signal)
-    } catch (error) {
-      if (signal?.aborted === true || options.onStartupError === undefined) throw error
-      state.status = 'blocked'
-      clients.set(agent, state)
-      refreshBlockedMasks()
-      options.onStartupError(error)
-      return
-    }
-    clients.set(agent, state)
+    }, (error: unknown) => {
+      if (stopping || signal?.aborted === true || clients.get(agent) !== state || ctx.get('agents')?.get(agent.id) !== agent) return
+      options.onStartupError?.(error)
+    })
   }, { prepend: true })
   ctx.on('tools/change', refreshBlockedMasks)
   ctx.on('tools/execute', async (exec, next) => {
