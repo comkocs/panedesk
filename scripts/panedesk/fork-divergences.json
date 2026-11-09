@@ -16086,6 +16086,51 @@
           "pnpm-lock.yaml"
         ]
       }
+    },
+    {
+      "id": "ui-statistics-agent-model-composer-polish",
+      "description": "Improve narrow statistics layouts, agent usage cards and status colors, model diagnostics and labels, workflow reselection, context percentages, and naming selection feedback.",
+      "origin": "Panedesk UI polish",
+      "reason": "Keep these presentation changes on existing client data and actions without changing provider protocols or session persistence. Protocol failures expand the available sanitized reason and HTTP status; undeclared image input remains visibly distinct from a failed check.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/client/ui-stats/src/client/panel.module.css",
+          "packages/client/ui-stats/README.md",
+          "packages/client/ui-stats/README.zh.md",
+          "packages/client/ui-subagent/src/client/AgentMap.tsx",
+          "packages/client/ui-subagent/src/client/AgentMap.module.css",
+          "packages/client/ui-subagent/src/client/locales.ts",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md",
+          "packages/client/ui-subagent-tree/src/client/panel.tsx",
+          "packages/client/ui-subagent-tree/src/client/panel.module.css",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-settings-models/src/client/ProtocolProbe.tsx",
+          "packages/client/ui-settings-models/src/client/CustomProviderCard.tsx",
+          "packages/client/ui-settings-models/src/client/ProviderEditor.tsx",
+          "packages/client/ui-settings-models/src/client/locales.ts",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-model-selection/src/client/ModelSelect.tsx",
+          "packages/client/ui-model-selection/src/client/index.ts",
+          "packages/client/ui-model-selection/src/client/locales.ts",
+          "packages/client/ui-model-selection/README.md",
+          "packages/client/ui-model-selection/README.zh.md",
+          "packages/client/ui-project-onboarding/src/client/WorkflowStarters.tsx",
+          "packages/client/ui-project-onboarding/src/client/locales.ts",
+          "packages/client/ui-project-onboarding/README.md",
+          "packages/client/ui-project-onboarding/README.zh.md",
+          "packages/client/ui-conversation/src/client/skeleton/ContextMeter.tsx",
+          "packages/client/ui-conversation/src/client/locales.ts",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-settings-general/src/client/OpeningNameRow.tsx",
+          "packages/client/ui-settings-general/README.md",
+          "packages/client/ui-settings-general/README.zh.md"
+        ]
+      }
     }
   ]
 }

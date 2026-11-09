@@ -1,4 +1,6 @@
 .stop { color: var(--dsw-alias-state-error-primary); }
+.status[data-end-reason='completed'] { color: var(--dsw-alias-state-success-primary); }
+.status[data-end-reason='cancelled'], .status[data-end-reason='killed'] { color: var(--dsw-alias-state-warn-primary); }
 .statusDot[data-state='done'] { color: var(--status-good, #0ca30c); }
 .statusDot[data-state='idle'] { color: var(--dsw-alias-label-secondary); }
 

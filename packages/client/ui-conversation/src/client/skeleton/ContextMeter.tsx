@@ -97,7 +97,7 @@ export function ContextMeter({ useProjection, t, openToolSettings }: ContextMete
     { key: 'reserve', label: 'context.reserve', color: css.colorReserve, tokens: reserve },
     { key: 'free', label: 'context.free', color: css.colorFree, tokens: free },
   ] as const
-  const percent = (used / window * 100).toFixed(1)
+  const percent = context.percent
   const reading = `${percent}%`
   const percentage = (tokens: number): string => `${(tokens / window * 100).toFixed(1)}%`
 

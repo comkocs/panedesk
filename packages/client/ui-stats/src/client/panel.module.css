@@ -11,7 +11,7 @@
 .settings code { display: block; overflow-wrap: anywhere; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; align-items: center; }
 .field { display: grid; gap: 8px; max-inline-size: 360px; margin-block-start: 20px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-block: 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-block: 16px; }
 .cards article, .chart { padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-2); overflow-wrap: anywhere; }
 .cards h3, .agent h3 { margin-block: 0 8px; font-size: 14px; line-height: 20px; }
 .cards strong { font-size: 24px; line-height: 32px; font-variant-numeric: tabular-nums; }

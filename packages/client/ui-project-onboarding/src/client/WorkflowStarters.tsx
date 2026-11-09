@@ -22,17 +22,27 @@ export function insertWorkflow(actions: InputActions, text: string): boolean {
 
 /** Offer workflow drafts before the first edit or message in a new session.
  * @param props - Session input and the shared workflow configuration.
- * @returns Three optional starters, or nothing after editing or sending.
+ * @returns Three optional starters, a reset action after selection, or nothing after sending.
  */
 export function WorkflowStarters({ session, input, inputActions, useWorkflow, useWorkflowLocale, t }: WorkflowStarterProps) {
   const form = useWorkflow(value => value.value)
   const language = useWorkflowLocale(value => value.active === 'zh' ? 'zh' : 'en')
-  if (form?.showWorkflowStarters !== true || !session.blank || session.promptAttempted || input.draftRev !== 0 || input.phase !== 'plain') return null
+  const [starterRevision, setStarterRevision] = useState<number | null>(0)
+  if (form?.showWorkflowStarters !== true || !session.blank || session.promptAttempted || input.phase !== 'plain') return null
+  if (starterRevision === null) return <Button variant="outline" size="sm" onClick={() => {
+    inputActions.setDraft('')
+    inputActions.persistDraft()
+    inputActions.focus()
+    setStarterRevision(inputActions.captureInsertion().draftRev)
+  }}>{t('chooseAnother')}</Button>
+  if (input.draftRev !== starterRevision) return null
   return <section className={css.starters} aria-label={t('startersTitle')}>
     <p>{t('startersTitle')}</p>
     <div className={css.starterChoices}>
       {workflowChoices.map(([label, hint, key]) => <Button key={key} variant="outline"
-        className={css.starter} onClick={() => { insertWorkflow(inputActions, form[key][language]) }}>
+        className={css.starter} onClick={() => {
+          if (insertWorkflow(inputActions, form[key][language])) setStarterRevision(null)
+        }}>
         <span>{t(label)}</span><span className={css.starterHint}>{t(hint)}</span>
       </Button>)}
     </div>

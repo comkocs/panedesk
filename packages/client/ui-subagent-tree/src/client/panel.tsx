@@ -133,7 +133,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: S
           <span className={css.label}>{label}</span>
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
-        <td>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
+        <td className={css.status} data-end-reason={node.endReason}>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
         <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
           {node.contextTokens === undefined ? t('contextUnknown') : t('context', { value: new Intl.NumberFormat(undefined,

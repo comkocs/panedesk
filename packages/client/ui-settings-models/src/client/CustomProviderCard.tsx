@@ -280,7 +280,8 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         renderProtocolProbe={model => <ProtocolProbe
           target={{ settingsNs: NS, provider: route, baseURL: normalizedBaseURL, api: protocol,
             ...keyValue.length === 0 ? {} : { apiKey: keyValue } }}
-          model={model['id'] as string} operations={operations} t={t} disabled={profileDisabled}
+          model={model['id'] as string} imageDeclared={Array.isArray(model['input']) && model['input'].includes('image')}
+          operations={operations} t={t} disabled={profileDisabled}
           onBusyChange={setListBusy} onSaved={() => { props.onClose(true) }}
         />}
         onChange={setModels}

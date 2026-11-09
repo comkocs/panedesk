@@ -37,8 +37,8 @@ interface PlacedNode {
   x: number
   y: number
 }
-const CARD_WIDTH = 184
-const CARD_HEIGHT = 52
+const CARD_WIDTH = 240
+const CARD_HEIGHT = 76
 const COLUMN = CARD_WIDTH + 12
 const ROW = CARD_HEIGHT + 32
 
@@ -134,6 +134,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
   const statuses = useSessionStatus(value => value)
   const selection = useProjection('modelSelection')
   const context = useProjection('contextPressure')
+  const rootUsage = useProjection('tokenUsage')
   const rows = useJobs(state => state.rows[sessionId])
   const observed = useJobs(state => state.observed)
   const jobs = useMemo(() => (rows ?? []).filter(job => job.kind === 'bash' || job.kind === 'pwsh'), [rows])
@@ -211,14 +212,15 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const status = stopped ? t('map.killed') : stopping.has(branch.entry.id) ? t('map.stopping')
       : running ? t('activity.running') : timing?.lastTurnCompleted ? t('activity.completed') : t('activity.inactive')
     const model = fact?.model ?? null
-    const metrics = [model ?? t('map.modelUnknown'), elapsed === undefined
-      ? fact?.elapsedMs === null || fact?.elapsedMs === undefined ? undefined : duration(fact.elapsedMs, t)
-      : duration(elapsed, t), pressure === undefined ? t('map.contextUnknown') : t('map.context', { value: tokens(pressure) }),
-      usage === undefined ? fact?.tokens.inputTokens == null || fact.tokens.outputTokens === null ? undefined
+    const usageMetrics = [pressure === undefined ? t('map.contextUnknown') : t('map.context', { value: tokens(pressure) }),
+      usage === undefined ? fact?.tokens.inputTokens == null || fact.tokens.outputTokens === null ? t('map.totalUnknown')
         : t('map.total', { value: tokens(fact.tokens.inputTokens + fact.tokens.outputTokens + (fact.tokens.cacheReadTokens ?? 0)
           + (fact.tokens.cacheWriteTokens ?? 0) + (fact.tokens.cacheWriteShortTokens ?? 0) + (fact.tokens.cacheWriteLongTokens ?? 0)) })
-        : t('map.total', { value: tokens(usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens) })].filter(Boolean).join(' · ')
-    return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics, model, running, stopped } as const
+        : t('map.total', { value: tokens(usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens) })].join(' · ')
+    const metrics = [model ?? t('map.modelUnknown'), elapsed === undefined
+      ? fact?.elapsedMs === null || fact?.elapsedMs === undefined ? undefined : duration(fact.elapsedMs, t)
+      : duration(elapsed, t)].filter(Boolean).join(' · ')
+    return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics, usageMetrics, model, running, stopped } as const
   }
   const rootTitle = summaries[sessionId]?.displayTitle ?? sessionId
   const contextTokens = context?.pressureTokens
@@ -227,8 +229,11 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
   const rootRunning = rootFact !== undefined ? isActive(rootFact.status)
     : (statuses.get(sessionId)?.running ?? summaries[sessionId]?.running) === true
   const rootStopped = !rootRunning && (rootFact?.endReason === 'cancelled' || rootFact?.endReason === 'killed')
-  const rootMetrics = [rootModel ?? t('map.modelUnknown'), contextTokens === undefined ? undefined
-    : t('map.context', { value: tokens(contextTokens) })].filter(Boolean).join(' · ')
+  const rootMetrics = rootModel ?? t('map.modelUnknown')
+  const rootUsageMetrics = [contextTokens === undefined ? t('map.contextUnknown') : t('map.context', { value: tokens(contextTokens) }),
+    rootUsage === undefined ? t('map.totalUnknown') : t('map.total', {
+      value: tokens(rootUsage.uncachedInputTokens + rootUsage.outputTokens + rootUsage.cacheReadTokens + rootUsage.cacheWriteTokens),
+    })].join(' · ')
   const selectedInfo = activeBranch === undefined ? undefined : describe(activeBranch)
   const count = graph.nodes.length + jobs.length
   const close = (): void => { setOpen(false); setSelected(undefined) }
@@ -254,8 +259,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
                 style={{ left: graph.center.x - CARD_WIDTH / 2, top: graph.center.y - CARD_HEIGHT / 2, borderLeftColor: modelColor(rootModel) }} title={`${rootTitle} · ${rootMetrics}`}>
                 <span className={css.title}><StateDot className={css.statusDot} state={rootRunning ? 'done' : 'idle'} size={10} />{rootTitle}</span>
                 <span className={css.metrics}>{rootStopped ? t('map.killed') + ' · ' : ''}{rootMetrics}</span>
-                {rootRunning && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
-                  disabled={stopping.has(sessionId)} onClick={() => { void stop(sessionId, () => stopAgent(sessionId, null, false)) }}>■</button>}
+                <span className={css.metrics}>{rootUsageMetrics}</span>
               </div>
               {graph.nodes.map(({ branch, x, y }) => {
                 const info = describe(branch)
@@ -263,10 +267,11 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
                   style={{ left: x - CARD_WIDTH / 2, top: y - CARD_HEIGHT / 2, borderLeftColor: modelColor(info.model) }}>
                   <button type="button" className={css.cardSelect}
                     aria-pressed={selected?.kind === 'agent' && selected.id === branch.entry.id}
-                    title={[info.label, info.status, info.metrics].join(' · ')}
+                    title={[info.label, info.status, info.metrics, info.usageMetrics].join(' · ')}
                     onClick={() => setSelected({ kind: 'agent', id: branch.entry.id })}>
                     <span className={css.title}><StateDot className={css.statusDot} state={info.state} size={10} />{info.label}</span>
                     <span className={css.metrics}>{info.stopped ? t('map.killed') + ' · ' : ''}{info.metrics}</span>
+                    <span className={css.metrics}>{info.usageMetrics}</span>
                   </button>
                   {info.running && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
                     disabled={stopping.has(branch.entry.id)} onClick={() => { void stop(branch.entry.id,
@@ -305,7 +310,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
               disabled={stopping.has(activeBranch.entry.id)} onClick={() => { void stop(activeBranch.entry.id,
                 () => stopAgent(activeBranch.entry.id, activeBranch.parent, activeBranch.entry.mode === 'external')) }}>{t('map.stop')}</button>}
             {activeBranch.entry.mode === 'external'
-            ? <><h3>{selectedInfo.label}</h3><p>{selectedInfo.status}</p><p style={{ color: modelColor(selectedInfo.model) }}>{selectedInfo.metrics}</p></>
+            ? <><h3>{selectedInfo.label}</h3><p>{selectedInfo.status}</p><p style={{ color: modelColor(selectedInfo.model) }}>{selectedInfo.metrics} · {selectedInfo.usageMetrics}</p></>
             : <>
               <button type="button" className={css.action} onClick={() => {
                 if (activeBranch.entry.mode === 'external') return
@@ -314,7 +319,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
               }}>{t('map.open')}</button>
               {renderFactorySlot('subagent.task-preview', {
                 address: { parentSessionId: activeBranch.parent, childSessionId: activeBranch.entry.id, mode: activeBranch.entry.mode },
-                label: selectedInfo.label, status: selectedInfo.status, metrics: selectedInfo.metrics,
+                label: selectedInfo.label, status: selectedInfo.status, metrics: `${selectedInfo.metrics} · ${selectedInfo.usageMetrics}`,
               })}
             </>}
           </>}

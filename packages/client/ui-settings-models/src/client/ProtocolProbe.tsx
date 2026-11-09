@@ -11,6 +11,7 @@ import styles from './ModelsSection.module.css'
 export interface ProtocolProbeProps {
   target: ProbeTarget
   model: string
+  imageDeclared: boolean
   operations: ModelsOperations
   t: (key: ModelsKey) => string
   disabled: boolean
@@ -78,7 +79,11 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
             <th><label><input type="radio" name={`protocol-${target.provider ?? 'draft'}-${model}`} checked={selected === result.api} disabled={!passed || busy || props.disabled} onChange={() => { setSelected(result.api) }} />{protocolLabel(t, result.api)}</label></th>
             {capabilities.map(key => {
               const check = result[key]
-              return <td key={key}>{check.ok ? t('protocolPassed') : `${t(reasons[check.reason ?? 'other'])}${check.status === undefined ? '' : ` (HTTP ${String(check.status)})`}`}</td>
+              return <td key={key}>{key === 'image' && !props.imageDeclared ? t('protocolImageUndeclared')
+                : check.ok ? t('protocolPassed') : <details>
+                  <summary>{t(reasons[check.reason ?? 'other'])}</summary>
+                  <p>{t(reasons[check.reason ?? 'other'])}{check.status === undefined ? '' : ` (HTTP ${String(check.status)})`}</p>
+                </details>}</td>
             })}
           </tr>
         })}</tbody>
