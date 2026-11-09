@@ -698,6 +698,17 @@ class 裁剪测试(unittest.TestCase):
         self.assertLess(文本.index("本项目自定.md"), 文本.index("宪法.md"))
         self.assertLess(文本.index("宪法.md"), 文本.index("作业规矩.md"))
 
+    def test_开窗只读三样且目录只列作业层保留模块(self):
+        各件 = 裁剪.生成各件(self.条目, self.卡, "b" * 64)
+        记录 = json.loads(各件["裁剪记录.json"])
+        文本 = 各件["开窗必读.md"]
+        self.assertIn("作业规矩.md 不整读", 文本)
+        目录 = 文本.split("## 作业规矩目录\n\n", 1)[1]
+        保留 = set(记录["保留"])
+        应列 = {条["模块"] for 条 in self.条目 if 条["编号"] in 保留 and 条["层"] == "作业"}
+        已列 = {行[2:].split("：", 1)[0] for 行 in 目录.splitlines() if 行.startswith("- ")}
+        self.assertEqual(已列, 应列)
+
     def test_无本项目自定时只出样板(self):
         目录 = self.目录 / "输出"
         码, 输出, 错误 = self.调命令([
