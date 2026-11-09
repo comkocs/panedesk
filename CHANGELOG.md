@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.7.0
+
+### Added
+
+- Agents can open a session in any folder with a chosen model, permission level and opening message, rename sessions, list top-level sessions and send a message to another session. The message waits if that session is busy and shows which session sent it.
+- A Stop button in the agent map, its detail pane and the agent tree stops a running subagent together with its descendants, a background shell task, or a controllable externally registered agent. `interrupt_agent` can stop descendants with `includeDescendants` too.
+- A Browser button in the session header opens the sidebar browser, and agents can drive the same browser with a `browser` tool: open pages, read page text, take screenshots, click, type, scroll and switch tabs. Connecting your own Chrome through Chrome DevTools can be turned on in settings.
+- Model settings can test a model against the OpenAI Chat Completions, OpenAI Responses and Anthropic Messages protocols, checking text, streaming, tool calls and images, and save a protocol whose text check works.
+- Each Panedesk settings page starts with what it is for, whether you need to change anything, and a request to paste into a session where agent help is available. A built-in `panedesk_settings` tool reads and changes the editable preferences it lists and reports before and after values; owner-only management actions remain manual. A new Built-in features page lists what Panedesk does on its own.
+- New sessions read the Claude Code memory index for their folder from `~/.claude/projects/<folder>/memory/MEMORY.md`, when it exists.
+
+### Changed
+
+- Subagent types from `.claude/agents` map Claude Code tool names such as Read, Write, Edit, Bash, Grep, Glob, WebFetch and `Agent(...)` to Panedesk tools, and tools outside those capabilities are no longer refused for that reason.
+- When a subagent cannot reach its model, the parent session and recorded failure details in the agent map show available HTTP status and the start of the response, with keys masked.
+- Agent tree rows, agent map cards and sidebar sessions show a status dot, green while active and grey otherwise. Model names are colored by family, and subagent cards show the model actually used.
+- Right-clicking a session or folder in the sidebar opens its menu; folders also offer New session here.
+- Model recognition lists the models already added as checked, and Save adds the newly checked ones and removes the unchecked ones.
+- The opening-name setting accepts selections with spaces and has buttons for the folder name, the file name before `.md`, and everything after `.md`.
+- The statistics panel stays inside the window with a fixed header and filters, shows totals first, pages the call list and shows durations in minutes.
+- Compaction follows the Compact Instructions section of CLAUDE.md and CLAUDE.local.md files, and Claude Code hooks from project and user settings run by default, including SessionStart after compaction.
+- On Windows, Git Bash is used by default for commands and the terminal when it is found and PowerShell has not been chosen.
+
 ## 1.6.1
 
 ### Fixed
