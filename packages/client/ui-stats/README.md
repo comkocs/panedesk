@@ -27,7 +27,7 @@ A compact icon at `conversation.session.header.actions`, order 30, opens the cha
 
 Settings → Panedesk → Statistics explains the feature, enablement default, global scope and refresh interval. It shows the active profile configuration file and the local journal directory as absolute Host paths, with native opening buttons. `stats.locations()` remains readable while statistics are disabled. Unknown storage providers show no invented path. The local journal reads JSONL records below each node's `events` and `imports` directories; statistics does not modify them.
 
-Charts share one fixed-range snapshot. Existing workspace membership, session directories and parent relationships associate sessions with projects; unmatched sessions remain unlinked. Project and session selectors narrow number cards, model token bars and Beijing-aligned daily bars. The relationship section starts at the current or selected session and shows its recorded descendants, models, call intervals and measured call duration. Missing measurements remain unknown; incomplete scans and failed refreshes are labeled. Pause retains a snapshot and refresh retries explicitly.
+Charts share one fixed-range snapshot. Existing workspace membership, session directories and parent relationships associate sessions with projects; unmatched sessions remain unlinked. Project and session selectors narrow number cards, model token bars and Beijing-aligned daily bars. The modal stays inside the window: the description, filters and status row stay fixed while the data region scrolls, and durations display in minutes with two decimals. The relationship section starts at the current or selected session; per-call records stay collapsed behind a toggle and paginate at 30 calls per page, each bar's length matching that call's duration against the page's longest, with start and end times in the text and the hover tooltip. Missing measurements remain unknown; incomplete scans and failed refreshes are labeled. Pause retains a snapshot and refresh retries explicitly.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -52,7 +52,7 @@ The plugin neither changes model request prefixes nor refreshes caches.
 
 - Projects require existing workspace or session metadata; internal ledger attribution is not treated as a project.
 - Costs are reference estimates, not actual payments or subscription charges. Missing prices, tokens or duration remain unknown.
-- Timeline bars describe model calls, not full subagent lifetimes. Unfinished calls extend to the snapshot observation time without claiming a known duration; sessions without calls have no timing bar.
+- Record bars compare each call's measured duration with the longest call on the same page; they do not describe full subagent lifetimes. Unfinished calls have no known duration and show no bar; sessions without calls on the current page are not listed.
 - Filtering uses all call details from the selected snapshot. Large ranges can be expensive; selection is local to the open modal and there is no export workflow.
 
 <a id="dev-note"></a>

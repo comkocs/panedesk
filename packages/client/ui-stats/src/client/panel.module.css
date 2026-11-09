@@ -1,6 +1,12 @@
-.dialog { inline-size: min(1120px, calc(100vw - 48px)); max-inline-size: none; }
+/* Keep the modal inside the viewport: the card caps its height, the shared modal
+   content rows may shrink, and only the data region below the fixed header scrolls. */
+.dialog { inline-size: min(1120px, calc(100vw - 48px)); max-inline-size: none; max-block-size: 100%; }
+.dialogContent { min-block-size: 0; }
+.dialogContent > :last-child { min-block-size: 0; }
 .panel, .settings { color: var(--dsw-alias-label-primary); }
-.panel { min-inline-size: 0; }
+.panel { min-inline-size: 0; display: flex; flex-direction: column; min-block-size: 0; }
+.panelHeader { flex: none; }
+.panelBody { flex: 1 1 auto; min-block-size: 0; overflow: auto; padding: 0 8px 8px 0; }
 .settings { padding: 16px; }
 .settings code { display: block; overflow-wrap: anywhere; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; align-items: center; }
@@ -20,7 +26,8 @@
 .model[data-palette="amber"], .call[data-palette="amber"] { --chart-color: var(--dsw-alias-state-warn-primary); }
 .model[data-palette="pink"], .call[data-palette="pink"] { --chart-color: var(--dsw-alias-state-error-secondary); }
 .track { block-size: 12px; background: var(--dsw-alias-bg-layer-1); border-radius: var(--dsw-radius-sm); overflow: hidden; margin-block: 8px; }
-.bar { block-size: 100%; inline-size: var(--bar-width); margin-inline-start: var(--bar-start, 0); background: var(--chart-color); }
+.bar { block-size: 100%; inline-size: var(--bar-width); background: var(--chart-color); }
+.pager { display: flex; align-items: center; gap: 8px; margin-block-start: 12px; }
 .trend { display: flex; gap: 12px; overflow-x: auto; align-items: end; }
 .day { flex: 1 0 86px; display: grid; gap: 8px; text-align: center; font-size: 12px; line-height: 18px; }
 .columnTrack { block-size: 160px; display: flex; align-items: end; justify-content: center; }
