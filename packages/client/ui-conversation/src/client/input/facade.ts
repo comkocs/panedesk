@@ -26,6 +26,7 @@ import type { InputSubmitMode, MessageSubmission, MessageSubmissionState } from 
 import { SubmitMachine } from './machine.ts'
 import { resolveDraftInput, snapshotDraft } from '../draft.ts'
 import { DraftEditorRuntime } from './editor/runtime.ts'
+import { $selectDetectSpan } from './editor/span-map.ts'
 import type { EditorProjection } from './editor/projection.ts'
 
 /** Popup face the shell needs (dismissal only; typed structurally to avoid a value import). */
@@ -129,6 +130,7 @@ export class SessionInputShell implements SessionInput {
       return this.draftEditor.insertAsyncText(span, text)
     },
     setDraft: (text) => { this.setDraft(text) },
+    focus: selection => { this.focus(selection) },
     persistDraft: () => { this.persistCurrentDraft() },
     addAttachments: ids => this.addAttachments(ids),
     removeAttachment: (id) => { this.removeAttachment(id) },
@@ -595,8 +597,10 @@ export class SessionInputShell implements SessionInput {
    * Return the keyboard to the composer with the caret it last held. Lexical's
    * own focus restores its stored selection; a bare DOM focus on the
    * contenteditable would land the caret at the start instead.
+   * @param selection - optional detect-coordinate range to select instead of restoring the caret.
    */
-  focus(): void {
+  focus(selection?: Pick<TokenSpan, 'start' | 'end'>): void {
+    if (selection !== undefined) this.editor.update(() => { $selectDetectSpan(selection) }, { discrete: true })
     this.editor.getRootElement()?.focus({ preventScroll: true })
     this.editor.focus()
   }

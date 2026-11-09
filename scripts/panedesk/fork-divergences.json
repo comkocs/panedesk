@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "workflow-starters-and-finished-background-jobs",
+      "description": "Offer optional workflow starters on new sessions and distinguish finished background jobs",
+      "origin": "Panedesk workflow guidance and background job presentation",
+      "reason": "Prefill localized workflow-pack drafts without sending, provide a default-enabled feature preference, and show idle indicators and explicit finished counts when no jobs are running.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-project-onboarding/**",
+          "packages/client/ui-conversation/src/client/contract/input.ts",
+          "packages/client/ui-conversation/src/client/input/facade.ts",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-jobs/**",
+          "packages/client/ui-subagent/src/client/AgentMap.tsx",
+          "packages/client/ui-subagent/src/client/locales.ts"
+        ]
+      }
+    },
+    {
       "id": "claude-agent-capabilities-and-provider-diagnostics",
       "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
       "origin": "Panedesk typed subagent compatibility",

@@ -8,14 +8,15 @@ import contribution from '@panedesk/dsh-client-ui-project-onboarding/remote'
 import { ProjectPreferencesController } from './controller.ts'
 import { ProjectGuide } from './ProjectGuide.tsx'
 import { ProjectSettings } from './ProjectSettings.tsx'
+import { WorkflowStarters, WorkflowStartersSetting } from './WorkflowStarters.tsx'
 import { ProjectSettingsController } from './settings-controller.ts'
 import { en, zh } from './locales.ts'
-import type { GuideInjected, ProjectInjected, SettingsInjected } from './props.ts'
+import type { GuideInjected, ProjectInjected, SettingsInjected, WorkflowInjected } from './props.ts'
 
 /** Services used by the preferences projection and its slot contributions. */
 export const inject = ['slots', 'locale', 'remote', 'configForms']
 
-/** Register the project settings page and an overlay absent from the launch screen.
+/** Register project settings, optional workflow starters, and the project guidance overlay.
  * @param ctx Client plugin scope; no service objects reach React components.
  * @returns Asynchronous release of slots, listeners, and the mounted remote contribution.
  */
@@ -47,6 +48,19 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       hooks: { preferences: controller.state, inspection: settings.state },
       refresh: () => settings.load(), openPath: (path, action) => settings.openPath(path, action),
     })
+    const workflow = ctx.configForms.get<{ showWorkflowStarters: boolean }>('ui-project-onboarding')
+    const workflowFace = (): WorkflowInjected => ({
+      hooks: { workflow }, setEnabled: enabled => workflow.set('showWorkflowStarters', enabled),
+    })
+    ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+      name: 'conversation.input.dock', id: 'workflow-starters', order: 0,
+      locale: 'projectOnboarding', inject: workflowFace,
+    }, WorkflowStarters))
+    ctx.effect(() => ctx.configForms.whileServed(['ui-project-onboarding'], () =>
+      ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
+        name: 'settings.panedesk.item', id: 'workflow-starters', order: 30,
+        locale: 'projectOnboarding', inject: workflowFace,
+      }, WorkflowStartersSetting))))
     const welcome = ctx.configForms.get<Record<string, unknown>>('ui-settings-general')
     const guideFace = (): GuideInjected => ({ ...face(), hooks: { preferences: controller.state, welcome } })
     ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({

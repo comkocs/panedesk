@@ -9,12 +9,15 @@ import type { ProjectSelection } from './types.ts'
 
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Show optional workflow starters above the composer on new sessions. */
+  showWorkflowStarters: Volatile<boolean>
   /** Saved opening choices keyed by absolute workspace directory in product settings. */
   projects: Volatile<Record<string, ProjectSelection>>
 }
 
 /** Validate persisted per-workspace preferences. */
 export const Config = z.object({
+  showWorkflowStarters: z.boolean().default(true).volatile(),
   projects: z.dict(z.object({
     mode: z.union(['off', 'remind', 'auto']).default('remind'),
     chosen: z.boolean().default(false),

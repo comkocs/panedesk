@@ -28,5 +28,16 @@ export interface SettingsInjected extends ProjectInjected {
   openPath: (path: string, action: 'open' | 'reveal') => Promise<boolean>
 }
 
+/** Workflow starter visibility and its product settings writer. */
+export interface WorkflowInjected {
+  hooks: { workflow: import('@panedesk/dsh-client-ui-settings/client').ConfigForm<{ showWorkflowStarters: boolean }> }
+  setEnabled: (enabled: boolean) => Promise<boolean>
+}
+
+/** Optional starter entries above the new-session composer. */
+export type WorkflowStarterProps = PropsRuntime<'conversation.input.dock'> & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
+/** Panedesk feature preference for the starter entries. */
+export type WorkflowSettingsProps = PropsRuntime<'settings.panedesk.item'> & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
+
 /** Product settings page, available without a Session. */
 export type SettingsProps = PropsRuntime<'settings.section'> & InjectFace<SettingsInjected> & PropsLocale<'projectOnboarding'>

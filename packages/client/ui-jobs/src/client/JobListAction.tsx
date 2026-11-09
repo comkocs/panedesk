@@ -90,16 +90,13 @@ function assertNever(value: never): never {
   throw new Error(`unhandled job status: ${JSON.stringify(value)}`)
 }
 
-/**
- * Status marker semantics. `stopping` and `killed` share the attention color:
- * both mean the work ended (or is ending) on request rather than on its own.
- */
+/** Settled work is idle; failures retain their error marker. */
 function dotState(status: JobView['status']): StateDotState {
   switch (status) {
     case 'running': return 'ongoing'
-    case 'stopping': return 'warning'
-    case 'completed': return 'done'
-    case 'killed': return 'warning'
+    case 'stopping': return 'ongoing'
+    case 'completed': return 'idle'
+    case 'killed': return 'idle'
     case 'failed': return 'error'
     /* v8 ignore next -- closed wire status union */
     default: return assertNever(status)

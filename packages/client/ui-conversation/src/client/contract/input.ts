@@ -258,6 +258,8 @@ export interface InputActions {
   insertText(text: string, span: TokenSpan): boolean
   /** Replace the whole draft with plain text, removing inline reference chips. */
   setDraft(text: string): void
+  /** Focus the composer, restoring its caret or selecting the supplied detect-coordinate range. */
+  focus(selection?: Pick<TokenSpan, 'start' | 'end'>): void
   /** Write the current semantic document through the mounted persistence callback. */
   persistDraft(): void
   /** Append ordered browser-owned attachment ids; busy admission phases refuse. */

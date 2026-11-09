@@ -1,3 +1,40 @@
+.starters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.starters p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.starterChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.starter {
+  flex: 1 1 180px;
+  height: auto;
+  min-width: 0;
+  padding: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+
+.starterHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+}
+
 .page, .choice {
   display: flex;
   flex-direction: column;

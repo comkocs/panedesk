@@ -29,7 +29,7 @@ The owner-only `projectOpening.select` operation resolves matching seat projects
 
 With no matching seat, the preference is stored without starting an engine. A lifecycle-owned synchronous resolver reads saved workspace choices inside the engine's first admission transaction, including newly imported seats. The policy and admission or disabled refusal commit together; no notification repairs the first decision afterward. Explicit project policies take precedence. Conflicting saved choices among a seat's directories refuse admission rather than selecting an arbitrary directory. Disposing the plugin removes the resolver, not previously committed policy.
 
-The workflow-pack action inserts a getting-started request into the current composer and persists the draft. It never submits a message or writes project files. No new entry is added to the session launch screen.
+The workflow-pack action inserts the new-project `/workflow-pack` request into the current composer and persists the draft without submitting a message or writing project files. The new-session screen offers optional starters for a new project, a documented project, or an existing project between the brand mark and composer. Selecting one fills and focuses the composer; the documented-project starter selects its path placeholder. Starters hide when the user types or sends a message and never appear in conversations with messages. The Panedesk feature setting `ui-project-onboarding.showWorkflowStarters` controls their visibility and defaults to `true`.
 
 <a id="dev-note"></a>
 ## Dev Note

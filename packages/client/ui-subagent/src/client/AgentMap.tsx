@@ -278,7 +278,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
             return null
           })}
           {jobs.length > 0 && <section className={css.tasks}>
-            <h3 className={css.heading}>{t('map.tasks', { count: jobs.length })}</h3>
+            <h3 className={css.heading}>{t(jobs.some(job => job.status === 'running' || job.status === 'stopping') ? 'map.tasks' : 'map.tasksFinished', { count: jobs.length })}</h3>
             <div className={css.taskCards}>{jobs.map(job => <div key={job.id} className={css.card}>
               <button type="button" className={css.cardSelect}
                 aria-pressed={selected?.kind === 'job' && selected.id === job.id} title={job.label}
