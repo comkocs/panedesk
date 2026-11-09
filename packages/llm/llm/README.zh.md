@@ -92,7 +92,7 @@ const configure = (maxTokens: number): ConfigureCall =>
 
 `ctx.llm.probeModel(provider, model, signal?)` 经已注册适配器的 `probe` 方法发送无会话用户文本 `.`，并设置 `maxTokens: 1`，不经过普通模型解析中间件，也不重试。适配器默认实现委托给 `stream`；适配器可支持列表外标识符，而不改变普通目录准入。仅在收到非错误终止分片后返回成功，否则返回带代码的去敏失败。它仅保留终止分片，不暴露生成文本或凭据。远端探测要求调用身份是仍然存活的已认证所有者，并在联系适配器前拒绝已取消的调用。发现模型可带 Unix 秒数 `createdAt`；缺省表示列表未公布可用时间。
 
-`llm/probeModelProtocols` Remote 对同一地址、凭据与模型检测 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages。每种协议独立发送文字、SSE、强制 `ping` 工具调用、内嵌 1×1 PNG 请求，最多输出 64 token。宿主观察工具调用证据但不执行工具，采用 profile 配置的超时，仅返回各项结果与 HTTP 状态码，不返回提供方内容或凭据。`llm/saveModelProtocol` 修改 pi-ai 路由协议，或创建同地址单模型路由，保留已存凭据引用且不返回其值。固定协议适配器需要另建路由。
+`llm/probeModelProtocols` Remote 对同一地址、凭据与模型检测 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages。每种协议独立发送文字、SSE、强制 `ping` 工具调用、内嵌 1×1 PNG 请求，最多输出 64 token。宿主观察工具调用证据但不执行工具，采用 profile 配置的超时，返回各项结果、HTTP 状态码，以及失败回包正文前 2KB（凭据已去除）。`llm/saveModelProtocol` 修改 pi-ai 路由协议，或创建同地址单模型路由，保留已存凭据引用且不返回其值。固定协议适配器需要另建路由。
 
 ### 失败与恢复
 

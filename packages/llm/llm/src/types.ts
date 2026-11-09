@@ -335,14 +335,19 @@ declare module '@panedesk/dsh-typert-protocol' {
 /** Protocol identifiers supported by the compatibility probe. */
 export type LlmProbeProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 
-/** One independently observed compatibility check; no provider response text is exposed. */
+/** One independently observed compatibility check. */
 export interface LlmProtocolCheck {
   /** Whether the response contains the evidence required by this check. */
   readonly ok: boolean
-  /** Failure category without provider response text. */
+  /** Failure category. */
   readonly reason?: 'protocol' | 'auth' | 'model' | 'timeout' | 'other'
   /** HTTP status, when a response was received. */
   readonly status?: number
+  /**
+   * Failure response body as text, credentials removed and cut at 2KB.
+   * Absent when the check passed or no body was read.
+   */
+  readonly body?: string
 }
 
 /** Four minimal requests against one protocol on the same endpoint and model. */
@@ -365,6 +370,15 @@ export interface LlmModelProbeResult {
   readonly ok: boolean
   /** Adapter failure code when `ok` is false. */
   readonly code?: string
+  /** Failure category when `ok` is false. */
+  readonly reason?: 'protocol' | 'auth' | 'model' | 'timeout' | 'other'
+  /** HTTP status when the provider returned one. */
+  readonly status?: number
+  /**
+   * Failure response body as text, credentials removed and cut at 2KB.
+   * Absent when the probe succeeded or no body was observed.
+   */
+  readonly body?: string
   /** Failure text with credential-shaped substrings removed. */
   readonly message?: string
 }

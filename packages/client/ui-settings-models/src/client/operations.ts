@@ -33,6 +33,16 @@ export type ModelDiscoveryOutcome =
 /** Generated successful payload of the protocol probe Remote. */
 export type ProtocolResults = Extract<Awaited<ReturnType<ClientContext['remote']['llm']['probeModelProtocols']>>, { ok: true }>['value']
 
+/** What the one-shot connection attempt shows: category, HTTP status, and the leading failure body. */
+export interface ModelProbeOutcome {
+  readonly ok: boolean
+  readonly reason?: NonNullable<ProtocolResults[number]['text']['reason']> | undefined
+  readonly status?: number | undefined
+  /** Leading failure response text; absent when the attempt succeeded or no body was returned. */
+  readonly body?: string | undefined
+  readonly message?: string | undefined
+}
+
 /** The Host operations the Models page and its cards invoke. */
 export interface ModelsOperations {
   /**
@@ -74,8 +84,8 @@ export interface ModelsOperations {
    * @param model - model id, listed or typed by hand.
    * @returns success, or the host's failure.
    */
-  probeModel(provider: string, model: string): Promise<{ readonly ok: boolean; readonly message?: string | undefined }>
-  /** Probe text, streaming, tools, and images without returning provider diagnostics. */
+  probeModel(provider: string, model: string): Promise<ModelProbeOutcome>
+  /** Probe text, streaming, tools, and images, returning the leading failure body with each failed check. */
   probeModelProtocols(settingsNs: string, request: LlmModelDiscoveryRequest, model: string): Promise<ProtocolResults | undefined>
   /** Save a protocol on this route or a separate single-model route. */
   saveModelProtocol(settingsNs: string, request: LlmModelDiscoveryRequest, model: string, api: ProtocolResults[number]['api'], separate: boolean, revision: number | undefined): Promise<boolean>
@@ -119,10 +129,16 @@ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
     },
     probeModel: async (provider, model) => {
       const response = await ctx.remote.llm.probeModel(provider, model)
-      if (!response.ok) return { ok: false, message: response.error.message }
+      if (!response.ok) return { ok: false, reason: 'other', message: response.error.message, body: response.error.message }
       return response.value.ok
         ? { ok: true }
-        : { ok: false, message: response.value.message }
+        : {
+            ok: false,
+            ...response.value.reason === undefined ? {} : { reason: response.value.reason },
+            ...response.value.status === undefined ? {} : { status: response.value.status },
+            ...response.value.body === undefined ? {} : { body: response.value.body },
+            ...response.value.message === undefined ? {} : { message: response.value.message },
+          }
     },
   }
 }
