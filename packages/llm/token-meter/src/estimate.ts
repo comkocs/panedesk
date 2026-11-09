@@ -9,8 +9,21 @@
 import type { ContentBlock, Message } from '@panedesk/dsh-llm'
 import type { EpochHeader } from '@panedesk/dsh-session'
 
-/** Fixed text-density estimate used until exact tokenization is needed. */
-const CHARS_PER_TOKEN = 4
+/**
+ * Estimate CJK scripts and fullwidth punctuation at one token per character;
+ * other Unicode characters at four per token.
+ * @param text - text to price without mutation.
+ * @returns rounded-up heuristic text tokens.
+ */
+export function estimateText(text: string): number {
+  let cjk = 0
+  let other = 0
+  for (const character of text) {
+    if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿！-｠￠-￦]/u.test(character)) cjk++
+    else other++
+  }
+  return cjk + Math.ceil(other / 4)
+}
 
 /** Per-block structural overhead for JSON framing and type tags. */
 const BLOCK_OVERHEAD = 4
@@ -29,9 +42,9 @@ export const ROLE_OVERHEAD = 4
 export function estimateStructuralBlock(block: ContentBlock): number {
   if (block.type === 'image') {
     const { offloaded: _offloaded, ...reference } = block
-    return BLOCK_OVERHEAD + Math.ceil(JSON.stringify(reference).length / CHARS_PER_TOKEN)
+    return BLOCK_OVERHEAD + estimateText(JSON.stringify(reference))
   }
-  return BLOCK_OVERHEAD + Math.ceil(JSON.stringify(block).length / CHARS_PER_TOKEN)
+  return BLOCK_OVERHEAD + estimateText(JSON.stringify(block))
 }
 
 /**
@@ -45,11 +58,11 @@ export function estimateContent(blocks: readonly ContentBlock[]): number {
     switch (block.type) {
       case 'text':
       case 'reasoning':
-        tokens += Math.ceil(block.text.length / CHARS_PER_TOKEN) + BLOCK_OVERHEAD
+        tokens += estimateText(block.text) + BLOCK_OVERHEAD
         break
       case 'tool-call':
-        tokens += Math.ceil(block.name.length / CHARS_PER_TOKEN)
-          + Math.ceil(block.arguments.length / CHARS_PER_TOKEN)
+        tokens += estimateText(block.name)
+          + estimateText(block.arguments)
           + BLOCK_OVERHEAD
         break
       default:
@@ -72,11 +85,11 @@ export function estimateContent(blocks: readonly ContentBlock[]): number {
  */
 export function estimateSystemMessage(message: Message): number {
   if (message.content.length === 0) return 0
-  let characters = 0
+  let text = ''
   for (const block of message.content) {
-    characters += block.type === 'text' ? block.text.length : JSON.stringify(block).length
+    text += block.type === 'text' ? block.text : JSON.stringify(block)
   }
-  return Math.ceil(characters / CHARS_PER_TOKEN) + ROLE_OVERHEAD
+  return estimateText(text) + ROLE_OVERHEAD
 }
 
 /**
@@ -98,5 +111,5 @@ export function estimateMessage(message: Message): number {
  */
 export function estimateToolsTokens(header: EpochHeader | undefined): number {
   if (header?.tools === undefined || header.tools.length === 0) return 0
-  return Math.ceil(JSON.stringify(header.tools).length / CHARS_PER_TOKEN) + BLOCK_OVERHEAD
+  return estimateText(JSON.stringify(header.tools)) + BLOCK_OVERHEAD
 }

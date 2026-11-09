@@ -47,22 +47,45 @@ export interface ContextPressureProjection {
   contextWindow?: number
 }
 
-/**
- * Heuristic composition of the next request's context: what the prompt is
- * made of, not what it costs. All three figures use the meter's fixed
- * density estimate, so they will not sum to the provider-anchored
- * `projectedTokens`: the estimator systematically underprices CJK text and
- * JSON schemas, which is exactly the error the anchoring in
- * {@link ContextPressureProjection.projectedTokens} keeps out of the occupancy
- * figure. Present these as approximations of composition, never as a total.
- */
+/** One named prompt contribution; deferred tool definitions do not occupy context. */
+export interface ContextBreakdownItem {
+  name: string
+  tokens: number
+  deferred: boolean
+}
+
+/** Local composition and the composition captured before the latest provider usage sample. */
 export interface ContextBreakdownProjection {
-  /** Heuristic tokens of the last nonempty surviving system prompt in surface order; 0 when none exists. */
   systemTokens: number
-  /** Heuristic tokens of the newest request envelope's tool schemas; 0 before any request. */
+  /** Active tool schemas, retained for consumers of the aggregate. */
   toolsTokens: number
-  /** Heuristic tokens of every other visible surface node, including superseded system prompts. */
   messageTokens: number
+  mcpToolsTokens: number
+  builtinToolsTokens: number
+  skillsTokens: number
+  memoryTokens: number
+  agentsTokens: number
+  mcpInstructionsTokens: number
+  deferredMcpTokens: number
+  deferredBuiltinTokens: number
+  items: {
+    mcpTools: ContextBreakdownItem[]
+    builtinTools: ContextBreakdownItem[]
+    memory: ContextBreakdownItem[]
+    agents: ContextBreakdownItem[]
+    skills: ContextBreakdownItem[]
+  }
+  /** Local category weights at the provider's input sample, before its response joins the surface. */
+  sampled?: {
+    systemTokens: number
+    messageTokens: number
+    mcpToolsTokens: number
+    builtinToolsTokens: number
+    skillsTokens: number
+    memoryTokens: number
+    agentsTokens: number
+    mcpInstructionsTokens: number
+  } | undefined
 }
 
 declare module '@panedesk/dsh-session-projection/types' {
@@ -71,7 +94,9 @@ declare module '@panedesk/dsh-session-projection/types' {
     tokenUsage: TokenUsageProjection
     /** Newest request pressure paired with the newest known route capacity. */
     contextPressure: ContextPressureProjection
-    /** Heuristic system/tools/message composition of the next request. */
+    /** Provider-sampled category weights and current local contributions. */
     contextBreakdown: ContextBreakdownProjection
+    /** Configured automatic-compaction trigger reservation; absent without a contributing backend. */
+    contextCompaction: { reserveTokens: number }
   }
 }

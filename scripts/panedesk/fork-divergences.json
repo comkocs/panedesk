@@ -1,6 +1,31 @@
 {
   "divergences": [
     {
+      "id": "provider-aligned-context-category-panel",
+      "description": "Show provider-aligned context categories, deferred tools and expandable contribution lists",
+      "origin": "Panedesk context composition display",
+      "reason": "Expose eleven occupancy rows, five named contribution lists and configured compaction headroom without changing model requests; price CJK characters individually in the shared heuristic.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/llm/token-meter/**",
+          "packages/client/ui-conversation/src/client/skeleton/ContextMeter.tsx",
+          "packages/client/ui-conversation/src/client/skeleton/ContextMeter.module.css",
+          "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+          "packages/client/ui-conversation/src/client/locales.ts",
+          "packages/client/ui-conversation/src/client/apply.ts",
+          "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-conversation/README.i18n.yaml",
+          "packages/compaction/compaction-basic/src/index.ts",
+          "packages/compaction/compaction-basic/README.md",
+          "packages/compaction/compaction-basic/README.zh.md",
+          "packages/compaction/compaction-basic/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "claude-agent-capabilities-and-provider-diagnostics",
       "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
       "origin": "Panedesk typed subagent compatibility",

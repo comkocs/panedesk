@@ -11,6 +11,8 @@ import type { CompactionResult, CompactionTrigger } from '@panedesk/dsh-compacti
 import type { Session, SessionSeq } from '@panedesk/dsh-session'
 import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@panedesk/dsh-llm'
 import type { LlmCallConfig } from '@panedesk/dsh-llm'
+import { createContextCompactionProjection } from '@panedesk/dsh-token-meter'
+import type {} from '@panedesk/dsh-session-projection'
 import { assertNever } from '@panedesk/dsh-util-values'
 import type { Agent, PreStepDecision } from '@panedesk/dsh-agent'
 import { collectCompactInstructions } from '@panedesk/dsh-agent-instructions'
@@ -112,7 +114,7 @@ const modelPolicy: z<ModelCompactPolicyConfig> = z.object({
  * token meter.
  */
 export class BasicCompactionEngine extends CompactionEngine {
-  static inject = ['llm', 'tokenMeter', 'sessions']
+  static inject = ['llm', 'tokenMeter', 'sessions', 'sessionProjections']
 
   static Config: z<BasicCompactionConfig> = z.object({
     thresholdRatio: thresholdRatioSchema,
@@ -138,6 +140,9 @@ export class BasicCompactionEngine extends CompactionEngine {
   constructor(ctx: Context, config: BasicCompactionConfig = {}) {
     super(ctx)
     this.config = resolveConfig(config)
+    ctx.sessionProjections.register(createContextCompactionProjection(target => ({
+      ...resolveTargetPolicy(this.config, target), auto: this.config.auto,
+    })))
     if (this.config.auto) this._registerAutomaticCompaction()
   }
 
