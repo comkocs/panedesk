@@ -723,9 +723,16 @@ Source: [`packages/subagent/subagent/src/index.ts`](../../packages/subagent/suba
 
 ### `ctx.subagentTree` — `SubagentTreeService`
 
-No stop, write, export, or caller-supplied identity capability is exposed.
+Tree monitoring and external dispatch control over the configured registry.
 
 ```ts cordis-catalog
+/**
+ * Stop the process trees identified by an external child's latest registry record.
+ * @param request - external child session id.
+ * @returns after the terminal registry row is appended.
+ */
+@Remote async stopExternal(request: SubagentTreeRequest): Promise<void>
+
 /** Read one deduplicated ledger snapshot and per-session transcripts after authenticating the invocation owner.
  * @param request - the on-screen session whose descendant tree is requested.
  * @returns nested tree with monitoring columns and the deployment's refresh cadence.

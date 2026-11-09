@@ -1224,6 +1224,28 @@ async probeModel( provider: string, model: string, signal?: AbortSignal, ): Prom
  * @returns the probe result; transport failures stay transport failures.
  */
 @Remote('probeModel') async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>
+
+/**
+ * Check three wire protocols without changing the configured route or retaining provider content.
+ * @param settingsNs - provider settings owner.
+ * @param request - the current endpoint and optional one-shot key.
+ * @param model - exact model identifier.
+ * @param signal - Remote invocation cancellation.
+ * @returns independent text, streaming, tool, and image results for each protocol.
+ */
+@Remote('probeModelProtocols') async probeModelProtocols( settingsNs: string, request: LlmModelDiscoveryRequest, model: string, signal: AbortSignal, ): Promise<LlmProtocolProbeResult[]>
+
+/**
+ * Save a tested protocol, reusing credentials without exposing their values.
+ * @param settingsNs - source provider namespace.
+ * @param request - endpoint and one-shot key from the form.
+ * @param model - model to retain in a separate route.
+ * @param api - selected protocol.
+ * @param separate - create a route containing only this model.
+ * @param expectedRevision - source revision the editor opened at.
+ * @returns whether all requested writes completed.
+ */
+@Remote('saveModelProtocol') async saveModelProtocol( settingsNs: string, request: LlmModelDiscoveryRequest, model: string, api: LlmProbeProtocol, separate: boolean, expectedRevision: number | undefined, ): Promise<{ ok: boolean }>
 ```
 
 Types: [FileAttachmentRef](attachment.md) · [ImageAttachmentRef](attachment.md) · [ImageRequestTarget](attachment.md)

@@ -137,7 +137,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'async importClaudeAgents(sources: ClaudeAgentSources): Promise<void>',
-        description: 'Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset. A project definition overrides the user definition of the same name. Model preferences are resolved at delegation, not during import; a tool name with no Panedesk tool is recorded on the preset and left out of the allowlist. Files are read once, never watched or written.',
+        description: 'Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset. A project definition overrides the user definition of the same name. Model preferences are resolved at delegation, not during import; a tool name with no Panedesk tool is logged and left out of the allowlist. Files are read once, never watched or written.',
         parameters: [{ name: 'sources', description: 'home and workspace roots; omitted roots use the process home and cwd.' }],
       },
       {
@@ -1857,6 +1857,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Remote adapter for probeModel.',
         parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'model id to probe.' }, { name: 'signal', description: 'caller cancellation supplied by the Remote carrier.' }],
         returns: 'the probe result; transport failures stay transport failures.',
+      },
+      {
+        signature: '@Remote(\'probeModelProtocols\') async probeModelProtocols( settingsNs: string, request: LlmModelDiscoveryRequest, model: string, signal: AbortSignal, ): Promise<LlmProtocolProbeResult[]>',
+        description: 'Check three wire protocols without changing the configured route or retaining provider content.',
+        parameters: [{ name: 'settingsNs', description: 'provider settings owner.' }, { name: 'request', description: 'the current endpoint and optional one-shot key.' }, { name: 'model', description: 'exact model identifier.' }, { name: 'signal', description: 'Remote invocation cancellation.' }],
+        returns: 'independent text, streaming, tool, and image results for each protocol.',
+      },
+      {
+        signature: '@Remote(\'saveModelProtocol\') async saveModelProtocol( settingsNs: string, request: LlmModelDiscoveryRequest, model: string, api: LlmProbeProtocol, separate: boolean, expectedRevision: number | undefined, ): Promise<{ ok: boolean }>',
+        description: 'Save a tested protocol, reusing credentials without exposing their values.',
+        parameters: [{ name: 'settingsNs', description: 'source provider namespace.' }, { name: 'request', description: 'endpoint and one-shot key from the form.' }, { name: 'model', description: 'model to retain in a separate route.' }, { name: 'api', description: 'selected protocol.' }, { name: 'separate', description: 'create a route containing only this model.' }, { name: 'expectedRevision', description: 'source revision the editor opened at.' }],
+        returns: 'whether all requested writes completed.',
       },
     ],
   },
@@ -5366,9 +5378,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'subagentTree',
-    summary: 'No stop, write, export, or caller-supplied identity capability is exposed.',
-    description: 'No stop, write, export, or caller-supplied identity capability is exposed.',
+    summary: 'Tree monitoring and external dispatch control over the configured registry.',
+    description: 'Tree monitoring and external dispatch control over the configured registry.',
     methods: [
+      {
+        signature: '@Remote async stopExternal(request: SubagentTreeRequest): Promise<void>',
+        description: 'Stop the process trees identified by an external child\'s latest registry record.',
+        parameters: [{ name: 'request', description: 'external child session id.' }],
+        returns: 'after the terminal registry row is appended.',
+      },
       {
         signature: '@Remote async read(request: SubagentTreeRequest): Promise<SubagentTreeView>',
         description: 'Read one deduplicated ledger snapshot and per-session transcripts after authenticating the invocation owner.',
@@ -9241,6 +9259,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LlmNativeAuth {\n    env: readonly string[];\n    oauth: boolean;\n}',
   },
   {
+    name: 'LlmProbeProtocol',
+    declaration: 'export type LlmProbeProtocol = \'openai-completions\' | \'openai-responses\' | \'anthropic-messages\';',
+  },
+  {
+    name: 'LlmProtocolCheck',
+    declaration: 'export interface LlmProtocolCheck {\n    readonly ok: boolean;\n    readonly reason?: \'protocol\' | \'auth\' | \'model\' | \'timeout\' | \'other\';\n    readonly status?: number;\n}',
+  },
+  {
+    name: 'LlmProtocolProbeResult',
+    declaration: 'export interface LlmProtocolProbeResult {\n    readonly api: LlmProbeProtocol;\n    readonly text: LlmProtocolCheck;\n    readonly stream: LlmProtocolCheck;\n    readonly tool: LlmProtocolCheck;\n    readonly image: LlmProtocolCheck;\n}',
+  },
+  {
     name: 'LlmProviderInfo',
     declaration: 'export interface LlmProviderInfo {\n    id: string;\n    name: string;\n}',
   },
@@ -12774,7 +12804,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolDefinition',
-    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
+    declaration: 'export interface ToolDefinition extends ToolSchema {\n    guardName?: string;\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
   },
   {
     name: 'ToolDispatchExecution',
@@ -12818,7 +12848,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolGuard',
-    declaration: 'export type ToolGuard = (execution: Readonly<ToolExecution>) => string | undefined;',
+    declaration: 'export type ToolGuard = (execution: Readonly<ToolExecution>, capabilityName: string) => string | undefined;',
   },
   {
     name: 'ToolHistory',

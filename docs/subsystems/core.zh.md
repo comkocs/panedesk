@@ -517,7 +517,7 @@ Registry of YAML-declared presets and the revisions live Agents retain.
 /** Read `~/.claude/agents` and `<workspace>/.claude/agents` once and register each as a preset.
  * A project definition overrides the user definition of the same name. Model preferences are
  * resolved at delegation, not during import; a tool name with no Panedesk tool is
- * recorded on the preset and left out of the allowlist. Files are read once, never watched or written.
+ * logged and left out of the allowlist. Files are read once, never watched or written.
  * @param sources - home and workspace roots; omitted roots use the process home and cwd.
  */
 async importClaudeAgents(sources: ClaudeAgentSources): Promise<void>

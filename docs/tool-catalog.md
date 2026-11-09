@@ -32,6 +32,8 @@ This table connects model-visible tool names to the plugin package and service s
 | `@panedesk/dsh-tool-fs` | `edit`, `read`, `read_image`, `write` | `ctx.workingDirectory`, `ctx.tools`, `ctx.fs`, `ctx.systemPrompt`, `ctx.attachments (image-tool registration)`, `ctx.llm + an image-capable route (image-tool execution)` | `tool/call`, `fs/write-intent or fs/edit-intent for mutations`, `fs/observed after read presence/absence or successful file operation`, `durable attachment (read_image)`, `tool/result` | - | The read-before-write/edit policy is added by `@panedesk/dsh-fs-observation-policy` (an `fs/*` event-gate plugin, no schema change); a deployment that loads these tools is expected to also load it. The image tool is not registered without `ctx.attachments`; its schema is route-independent, and execution refuses unless the exact routed model declares image input. |
 | `@panedesk/dsh-tool-fs-search` | `glob`, `grep` | `ctx.workingDirectory`, `ctx.tools`, `ctx.subprocess`, `ctx.systemPrompt`, `ctx.sandboxPolicy` | `tool/call`, `tool/result` | - | glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. Restricted session policies require ctx.sandbox confinement before spawning; missing or failed confinement refuses execution. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments. |
 | `@panedesk/dsh-tool-terminal` | `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_send`, `terminal_signal` | `ctx.workingDirectory`, `ctx.tools`, `ctx.terminals`, `ctx.systemPrompt`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema. |
+| `@panedesk/dsh-tool-sql` | `sql` | `ctx.tools`, `ctx.databaseConnections` | `tool/call`, `database changes for SQL writes`, `tool/result` | - | The connection enum contains only owner-enabled connections. SQL authority follows the database account; the catalog collects schemas without opening a connection. |
+| `@panedesk/dsh-tool-panedesk-settings` | `panedesk_settings` | `ctx.tools`, `ctx.settings`, `ctx.configEditor` | `tool/call`, `profile settings for write`, `tool/result` | - | Read lists only editable Panedesk preferences; write uses the Settings writer and reports before and after. Owner-only operations remain manual. |
 | `@panedesk/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`, `ctx.agents`, `ctx.goals`, `ctx.systemPrompt`, `a calling Agent in an authorized open turn` | `tool/call`, `goal/change for mutations`, `tool/result` | - | create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
 | `@panedesk/dsh-tool-schedule` | `schedule_create`, `schedule_delete`, `schedule_list`, `schedule_update` | `ctx.tools`, `ctx.schedule` | `tool/call`, `Schedule storage domain create, update, or delete`, `tool/result` | - | A preset or Agent scope mounts this package; the preset decides which agents receive the four management tools. Each call acts on the calling Agent's Session. Accepts after_seconds, explicit absolute at, bounded fixed-rate every_seconds, daily and weekly local times in an explicit IANA zone, and cron as a five-field expression. Management uses the Host storage domain; due messages resume the original Session. |
 | `@panedesk/dsh-tool-lsp` | `lsp` | `ctx.workingDirectory`, `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@panedesk/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
@@ -41,6 +43,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@panedesk/dsh-tool-skill` | `skill` | `ctx.workingDirectory`, `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@panedesk/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
 | `@panedesk/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically. |
+| `@panedesk/dsh-tool-session-ops` | `session_list`, `session_new`, `session_rename`, `session_send` | `ctx.tools`, `ctx.sessionController`, `ctx.permissionPresets`, `ctx.sessionProjections`, `ctx.workingDirectory`, `ctx.settings`, `ctx.agentDefaultModel` | `tool/call`, `tool/result`, `ordinary Session events through existing Host services` | - | Session tools reuse the Host Session service. Web and Desktop presets include them; new sessions retain remembered defaults and normal naming unless explicitly overridden. Messages use next-step delivery and identify the sender. |
 | `@panedesk/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named discovery, interruption, and local-message tools over managed subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@panedesk/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands and PTY sends are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@panedesk/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/task`, `agent/inbox/spliced`, `user/message on inbox claim`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
@@ -1338,6 +1341,90 @@ Source: [`packages/experimental/tool-terminal/src/index.ts`](../packages/experim
 
 The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.
 
+<a id="panedeskdsh-tool-sql"></a>
+
+## `@panedesk/dsh-tool-sql`
+
+### `sql`
+
+Use a PostgreSQL connection enabled by the user. List schema.table names, describe columns/types/nullability/primary keys, or execute SQL. SQL can read or change data according to the database account permissions. Results report total rows and any truncation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "connection": {
+      "type": "string",
+      "description": "Enabled connection name.",
+      "enum": [
+        "catalog"
+      ]
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "list_tables",
+        "describe_table",
+        "execute_sql"
+      ]
+    },
+    "table": {
+      "type": "string",
+      "description": "For describe_table: schema.table, with SQL identifier quoting if needed."
+    },
+    "sql": {
+      "type": "string",
+      "description": "For execute_sql: SQL text. No extra statement restrictions are imposed."
+    }
+  },
+  "required": [
+    "connection",
+    "operation"
+  ]
+}
+```
+
+Source: [`packages/database/tool-sql/src/index.ts`](../packages/database/tool-sql/src/index.ts)
+
+The connection enum contains only owner-enabled connections. SQL authority follows the database account; the catalog collects schemas without opening a connection.
+
+<a id="panedeskdsh-tool-panedesk-settings"></a>
+
+## `@panedesk/dsh-tool-panedesk-settings`
+
+### `panedesk_settings`
+
+Read editable Panedesk settings and allowed values, or write one exact item name returned by read. Writes use the settings-page writer and return before and after. Items not listed are manual-only. Opening-name rules have sample, selected, left and right string fields. Read before writing; use the returned exact name, not a guessed namespace.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "read",
+        "write"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": "Exact item name returned by read; required for write."
+    },
+    "value": {
+      "description": "Replacement value; required for write."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+Source: [`packages/settings/tool-panedesk-settings/src/index.ts`](../packages/settings/tool-panedesk-settings/src/index.ts)
+
+Read lists only editable Panedesk preferences; write uses the Settings writer and reports before and after. Owner-only operations remain manual.
+
 <a id="panedeskdsh-tool-goal"></a>
 
 ## `@panedesk/dsh-tool-goal`
@@ -2606,7 +2693,7 @@ The five read-only tools hide provider cursors and authorize every result from t
 
 ### `list_subagent_models`
 
-Discover LLM routes for subagents without changing the current Agent. Call with no arguments to list registered providers, with `provider` to list its advertised models, or with `provider` and `model` to inspect that exact model and its reasoning efforts. Catalog membership is advisory: an adapter may accept an unlisted model id. Use the returned ids with a delegation tool's `provider`, `model`, and `reasoning_effort` fields.
+List all configured subagent models. Optionally filter by provider, or inspect a model and its reasoning efforts. A model name must identify one provider unless provider is supplied.
 
 ```json
 {
@@ -2614,11 +2701,11 @@ Discover LLM routes for subagents without changing the current Agent. Call with 
   "properties": {
     "provider": {
       "type": "string",
-      "description": "Registered LLM provider id. Omit to list providers."
+      "description": "Optional registered LLM provider id."
     },
     "model": {
       "type": "string",
-      "description": "Exact model id to inspect. Requires provider; omit to list that provider's advertised models."
+      "description": "Optional exact model id to inspect."
     }
   }
 }
@@ -2628,7 +2715,7 @@ Source: [`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subag
 
 ### `subagent`
 
-Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.
+Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes. Child LLM selection is optional. Omit `provider`, `model`, and `reasoning_effort` to use configured child defaults and inherit compatible missing values from the parent Agent. Supply `model` and optionally `provider` after using `list_subagent_models` to inspect advertised routes and efforts. Changing the effective route without naming an effort uses the selected model's default effort. Agent preset for this child. Omit to inherit the parent agent's current preset.
 
 ```json
 {
@@ -2645,6 +2732,22 @@ Delegate a self-contained task to a subagent (a separate agent that works in its
     "prompt": {
       "type": "string",
       "description": "The complete, self-contained task for the subagent. It does not share this conversation's context, so include everything it needs."
+    },
+    "agent_preset": {
+      "type": "string",
+      "description": "Agent preset for this child. Omit to inherit the parent agent's current preset."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Optional LLM provider id to disambiguate model. Requires model."
+    },
+    "model": {
+      "type": "string",
+      "description": "Exact model id from any configured provider. Overrides the preset model; omit to use preset, configured, or parent defaults."
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "description": "Optional adapter-owned reasoning effort for the selected model."
     }
   },
   "required": [
@@ -2658,13 +2761,117 @@ Source: [`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/to
 
 The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically.
 
+<a id="panedeskdsh-tool-session-ops"></a>
+
+## `@panedesk/dsh-tool-session-ops`
+
+### `session_list`
+
+List all top-level sessions, most recently active first, with each session id, name, working directory, running state, and model. Subagents are excluded; ordinary conversation forks remain top-level sessions.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts)
+
+### `session_new`
+
+Open a new top-level session in the current or another directory using the existing session service. Returns its session id and current name. An opening prompt starts work; without a name, normal automatic naming applies.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cwd": {
+      "type": "string",
+      "description": "Working directory for the new session. Omit to use your current working directory."
+    },
+    "model": {
+      "type": "string",
+      "description": "Exact name or id of an already configured model. Omit to use the remembered default model."
+    },
+    "permissionPreset": {
+      "type": "string",
+      "description": "Permission preset name. Omit to use the user's remembered preset."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Opening message to start work in the new session. Omit to leave it idle."
+    },
+    "name": {
+      "type": "string",
+      "description": "Explicit session name, overriding automatic naming. Omit to keep normal automatic naming."
+    }
+  }
+}
+```
+
+Source: [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts)
+
+### `session_rename`
+
+Rename your own session or another session by id using the existing session naming service.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Session id to rename. Omit to rename your own session."
+    },
+    "name": {
+      "type": "string",
+      "description": "New explicit session name."
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
+```
+
+Source: [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts)
+
+### `session_send`
+
+Send a message to a top-level session by id or exact name. Duplicate names select the most recently active session. The message identifies your session; a busy recipient queues it for the next step without interruption. Returns acceptance, not a reply.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": "string",
+      "description": "Recipient session id or exact session name. Use session_list to discover sessions."
+    },
+    "text": {
+      "type": "string",
+      "description": "Message text to deliver."
+    }
+  },
+  "required": [
+    "target",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts)
+
+Session tools reuse the Host Session service. Web and Desktop presets include them; new sessions retain remembered defaults and normal naming unless explicitly overridden. Messages use next-step delivery and identify the sender.
+
 <a id="panedeskdsh-tool-subagent-control"></a>
 
 ## `@panedesk/dsh-tool-subagent-control`
 
 ### `interrupt_agent`
 
-Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a local direct child's conversation later with send_message. External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.
+Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a local direct child's conversation later with send_message. External executions stop permanently and cannot receive follow-ups. Descendants keep running unless includeDescendants is true.
 
 ```json
 {
@@ -2673,6 +2880,10 @@ Ask a subagent to stop its current work. This call returns without waiting for i
     "agent_id": {
       "type": "string",
       "description": "The id of an agent created under you: your direct child or a deeper descendant."
+    },
+    "includeDescendants": {
+      "type": "boolean",
+      "description": "Also request interruption of every catalog-reachable descendant of this agent. Defaults to false."
     }
   },
   "required": [

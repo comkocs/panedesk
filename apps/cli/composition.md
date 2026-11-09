@@ -154,6 +154,8 @@ flowchart LR
   cfg --> plugin_dsh_base_compaction_basic
   plugin_dsh_base_command_compact["command-compact<br/>@panedesk/dsh-command-compact"]
   cfg --> plugin_dsh_base_command_compact
+  plugin_dsh_base_hooks_claude_code["hooks-claude-code<br/>@panedesk/dsh-hooks-claude-code"]
+  cfg --> plugin_dsh_base_hooks_claude_code
   plugin_dsh_base_subagent["subagent<br/>@panedesk/dsh-subagent"]
   cfg --> plugin_dsh_base_subagent
   plugin_dsh_base_subagent_spawn_in_process["subagent-spawn-in-process<br/>@panedesk/dsh-subagent-spawn-in-process"]
@@ -190,6 +192,8 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_todo
   plugin_dsh_base_tool_goal["tool-goal<br/>@panedesk/dsh-tool-goal"]
   cfg --> plugin_dsh_base_tool_goal
+  plugin_dsh_base_tool_panedesk_settings["tool-panedesk-settings<br/>@panedesk/dsh-tool-panedesk-settings"]
+  cfg --> plugin_dsh_base_tool_panedesk_settings
   plugin_dsh_base_repeat_tool_reminder["repeat-tool-reminder<br/>@panedesk/dsh-repeat-tool-reminder"]
   cfg --> plugin_dsh_base_repeat_tool_reminder
   plugin_dsh_base_web["web<br/>@panedesk/dsh-web"]
@@ -293,6 +297,7 @@ flowchart LR
 | `token-meter` | `@panedesk/dsh-token-meter` |
 | `compaction-basic` | `@panedesk/dsh-compaction-basic` |
 | `command-compact` | `@panedesk/dsh-command-compact` |
+| `hooks-claude-code` | `@panedesk/dsh-hooks-claude-code` |
 | `subagent` | `@panedesk/dsh-subagent` |
 | `subagent-spawn-in-process` | `@panedesk/dsh-subagent-spawn-in-process` |
 | `subagent-fork-in-process` | `@panedesk/dsh-subagent-fork-in-process` |
@@ -311,6 +316,7 @@ flowchart LR
 | `image-offload` | `@panedesk/dsh-compaction-image-offload` |
 | `tool-todo` | `@panedesk/dsh-tool-todo` |
 | `tool-goal` | `@panedesk/dsh-tool-goal` |
+| `tool-panedesk-settings` | `@panedesk/dsh-tool-panedesk-settings` |
 | `repeat-tool-reminder` | `@panedesk/dsh-repeat-tool-reminder` |
 | `web` | `@panedesk/dsh-web` |
 | `web-search-deepseek` | `@panedesk/dsh-web-search-deepseek` |
