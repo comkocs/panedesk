@@ -1,6 +1,31 @@
 {
   "divergences": [
     {
+      "id": "optional-claude-agent-types-and-panedesk-headline",
+      "description": "Make Claude Code agent types opt-in and name the welcome screen Panedesk",
+      "origin": "Panedesk agent type preferences",
+      "reason": "Default Claude Code agent imports to off, expose a restart-required switch in Panedesk features, separate built-in modes from imported types in context details, and document official cache parameter references without changing protocol behavior.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/preset/agent-preset-registry/src/index.ts",
+          "packages/preset/agent-preset-registry/src/preset.ts",
+          "packages/preset/agent-preset-registry/README.md",
+          "packages/preset/agent-preset-registry/README.zh.md",
+          "packages/client/ui-settings-general/src/client/ClaudeAgentTypesRow.tsx",
+          "packages/client/ui-settings-general/src/client/index.ts",
+          "packages/client/ui-settings-general/src/client/locales.ts",
+          "packages/client/ui-settings-general/README.md",
+          "packages/client/ui-settings-general/README.zh.md",
+          "packages/client/ui-conversation/src/client/skeleton/ContextMeter.tsx",
+          "packages/client/ui-conversation/src/client/locales.ts",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/llm/llm-pi-ai/src/adapter.ts"
+        ]
+      }
+    },
+    {
       "id": "window-bounded-dialogs",
       "description": "Keep dialogs inside the window with visible titles and footer actions",
       "origin": "Panedesk dialog layout",

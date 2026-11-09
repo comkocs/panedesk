@@ -43,6 +43,7 @@ import { CurrentVersionRow } from './CurrentVersionRow.tsx'
 import { OpeningNameRow, type OpeningNameRowInjected } from './OpeningNameRow.tsx'
 import type { OpeningNameSettings } from './OpeningNameRow.tsx'
 import { DeveloperToolsRow, type DeveloperToolsRowInjected } from './DeveloperToolsRow.tsx'
+import { ClaudeAgentTypesRow, type ClaudeAgentTypesRowInjected, type ClaudeAgentTypesSettings } from './ClaudeAgentTypesRow.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
@@ -121,6 +122,14 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }),
     }, ToolsSection))
   })
+  const claudeAgentTypesForm = ctx.configForms.get<ClaudeAgentTypesSettings>('agent-preset-registry')
+  ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
+    name: 'settings.panedesk.item', id: 'claude-agent-types', order: 30, locale: NS,
+    inject: (): ClaudeAgentTypesRowInjected => ({
+      hooks: { preferences: claudeAgentTypesForm },
+      setEnabled: enabled => claudeAgentTypesForm.set('readClaudeAgentTypes', enabled),
+    }),
+  }, ClaudeAgentTypesRow))
   const openingNameForm = ctx.configForms.get<OpeningNameSettings>('ui-settings-general')
   ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
     name: 'settings.panedesk.item', id: 'opening-auto-name', order: 10, locale: NS,

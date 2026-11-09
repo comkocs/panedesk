@@ -176,6 +176,7 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
             if (retention === 'none') delete block.cache_control
             else { block.cache_control = { type: 'ephemeral', ttl: retention }; marked = true }
           }
+          // Anthropic prompt caching docs, automatic caching: cache_control may be set at the request body level.
           if (retention !== 'none' && !marked) body.cache_control = { type: 'ephemeral', ttl: retention }
           if (session !== undefined) {
             const existing = payloadRecord(body.metadata)
@@ -198,6 +199,7 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
         onPayload: (payload) => {
           const body = payloadRecord(payload)
           if (body === undefined) throw new LlmError('Expected an OpenAI request payload', 'INVALID_CONFIG')
+          // OpenAI prompt caching docs, GPT-5.6 and later: prompt_cache_options.ttl replaces prompt_cache_retention.
           // The SDK's older retention field must not conflict with the explicit TTL.
           delete body.prompt_cache_retention
           body.prompt_cache_options = { ttl: retention }
