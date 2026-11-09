@@ -1,6 +1,6 @@
 /** Product-owned preset editing and selection without automatic submission. */
 import { useState } from 'react'
-import { Button, Menu, Modal, SettingsPageHeader } from '@panedesk/dsh-client-ui-primitives'
+import { Button, Menu, Modal, SettingsPageHeader, Toast } from '@panedesk/dsh-client-ui-primitives'
 import type { MenuEntry } from '@panedesk/dsh-client-ui-primitives'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { OpeningPreset } from '../types.ts'
@@ -10,7 +10,7 @@ import type { PresetsProps, PresetSettingsProps, PresetPickerProps, PresetQuickP
 import css from './OpeningPresets.module.css'
 
 /** Editable local rows are persisted atomically through the shared product form. */
-function Editor(props: PresetsProps & { initial: OpeningPreset[]; expandFirst?: boolean; revision: number | undefined; done: () => void }) {
+function Editor(props: PresetsProps & { initial: OpeningPreset[]; expandFirst?: boolean; revision: number | undefined; done: (count: number) => void }) {
   const { t } = props
   const [rows, setRows] = useState(() => props.initial.map((row, index) => ({ ...row, id: crypto.randomUUID(), expanded: Boolean(props.expandFirst && index === 0) })))
   const [split, setSplit] = useState<{ before: typeof rows; count: number }>()
@@ -108,7 +108,7 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; expandFirst?: 
           directories: row.directories.map(path => path.trim()).filter(Boolean),
           ...(row.model?.trim() ? { model: row.model.trim() } : {}), ...(row.permission?.trim() ? { permission: row.permission.trim() } : {}) }))
         if (!await props.savePresets(saved, props.revision)) throw new Error(t('presetSaveFailed'))
-        props.done()
+        props.done(saved.length)
       })}>{t('save')}</Button>
     {error && <p role="alert">{error}</p>}
   </div>
@@ -118,11 +118,13 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; expandFirst?: 
 function Management(props: PresetsProps) {
   const form = props.usePresets(value => value)
   const [editing, setEditing] = useState(false)
+  const [saved, setSaved] = useState<number>()
   return <>
-    <Button variant="outline" disabled={form.status !== 'ready' || !form.writable} onClick={() => setEditing(true)}>{props.t('editPresets')}</Button>
+    <Button variant="outline" disabled={form.status !== 'ready' || !form.writable} onClick={() => { setSaved(undefined); setEditing(true) }}>{props.t('editPresets')}</Button>
     <Modal className={css.modal!} open={editing} title={props.t('presetsTitle')} closeLabel={props.t('close')} onClose={() => setEditing(false)}>
-      {editing && <Editor {...props} initial={form.value?.openingPresets ?? []} revision={form.revision} done={() => setEditing(false)} />}
+      {editing && <Editor {...props} initial={form.value?.openingPresets ?? []} revision={form.revision} done={count => { setEditing(false); setSaved(count) }} />}
     </Modal>
+    {saved !== undefined && <Toast tone="success" text={props.t('presetSaved').replace('{count}', String(saved))} onDone={() => setSaved(undefined)} />}
   </>
 }
 
@@ -154,6 +156,7 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [saved, setSaved] = useState<number>()
   const form = props.usePresets(state => state)
   const matches = (preset: OpeningPreset) => props.currentDirectory !== undefined && preset.directories.includes(props.currentDirectory)
   const item = (preset: OpeningPreset, index: number) => ({ id: String(index), label: preset.name,
@@ -172,7 +175,7 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
       anchor={<Button variant="outline" size="sm" disabled={busy} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{props.t(props.quick ? 'presetsTitle' : 'opening')}</Button>}
       onSelect={id => {
         setOpen(false)
-        if (id === 'add') { setAdding(true); return }
+        if (id === 'add') { setSaved(undefined); setAdding(true); return }
         if (id === 'manage') { props.managePresets(); return }
         const [index, at] = id.split(':').map(Number)
         const preset = presets[index!]!
@@ -182,8 +185,9 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
       }} />
     <Modal className={css.modal!} open={adding} title={props.t('addPreset')} closeLabel={props.t('close')} onClose={() => setAdding(false)}>
       {adding && <Editor {...props} expandFirst initial={[{ name: '', prompt: '', directories: [] }, ...(form.value?.openingPresets ?? [])]}
-        revision={form.revision} done={() => setAdding(false)} />}
+        revision={form.revision} done={count => { setAdding(false); setSaved(count) }} />}
     </Modal>
+    {saved !== undefined && <Toast tone="success" text={props.t('presetSaved').replace('{count}', String(saved))} onDone={() => setSaved(undefined)} />}
     {error && <p role="alert">{error}</p>}
   </>
 }
