@@ -67,9 +67,9 @@ Use the following report. “Follow the recommendations” means execute the rec
 ## ⑥ Apply after approval
 
 1. Move complete originals into `_旧版/<date-time>/` under the project root before editing; delete none.
-2. For regeneration, follow `getting-started.md` ④⑥: update the card, run `python3 -X utf8 tools/trim.py validate`, then `python3 -X utf8 tools/trim.py generate --card requirements.toml --out pending`, and place generated files in the project root.
+2. For regeneration, follow `getting-started.md` ④⑥: update the card, run `python3 tools/trim.py validate`, then `python3 tools/trim.py generate --card requirements.toml --out pending`, and place generated files in the project root.
 3. Append missing lines only to `CLAUDE.md` and `AGENTS.md`, without replacing existing content.
-4. Run `python3 -X utf8 tools/trim.py validate` again and confirm zero errors.
+4. Run `python3 tools/trim.py validate` again and confirm zero errors.
 5. Add one work-record line describing the change and rollback by copying originals back from `_旧版/`.
 
 ## ⑦ When to repeat

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ProbeTarget } from './ModelListEditor.tsx'
-import type { ModelsOperations, ProtocolResults } from './operations.ts'
+import type { ModelProbeOutcome, ModelsOperations, ProtocolResults } from './operations.ts'
 import type { ModelsKey } from './locales.ts'
 import { protocolLabel } from './protocol-label.ts'
 import styles from './ModelsSection.module.css'
@@ -18,6 +18,52 @@ export interface ProtocolProbeProps {
   revision?: number | undefined
   onSaved: () => void
   onBusyChange?: ((busy: boolean) => void) | undefined
+}
+
+/** One failed check or connection attempt: category, HTTP status, and the leading response body. */
+interface ProbeFailure {
+  reason?: ProtocolResults[number]['text']['reason'] | undefined
+  status?: number | undefined
+  body?: string | undefined
+}
+
+/** How many leading lines of a failure body stay visible while the rest stays folded. */
+const FAILURE_BODY_LINES = 8
+
+/**
+ * Render one failure as category, HTTP status, and a folded response body.
+ * @param failure - facts the host returned for this check.
+ * @param t - page copy.
+ * @returns the three labeled facts.
+ */
+function ProbeFailureFacts(props: { failure: ProbeFailure; t: (key: ModelsKey) => string }): ReactNode {
+  const { failure, t } = props
+  const reason = failure.reason ?? 'other'
+  const lines = (failure.body ?? '').split(/\r?\n/).slice(0, FAILURE_BODY_LINES)
+  const body = lines.join('\n')
+  return <div>
+    <p>{t('protocolCategory')}: {t(PROBE_REASONS[reason])}</p>
+    <p>{t('protocolHttpStatus')}: {failure.status === undefined ? t('protocolStatusMissing') : `HTTP ${String(failure.status)}`}</p>
+    {body.length === 0
+      ? <p>{t('protocolRawBody')}: {t('protocolBodyMissing')}</p>
+      : <details>
+        <summary>{t('protocolRawBody')}</summary>
+        <pre>{body}</pre>
+      </details>}
+  </div>
+}
+
+const PROBE_REASONS = { protocol: 'protocolUnsupported', auth: 'protocolAuth', model: 'protocolModel', timeout: 'protocolTimeout', other: 'protocolOther' } as const
+
+/**
+ * Render a finished one-shot connection attempt with the same three facts.
+ * @param props - the attempt outcome and page copy.
+ * @returns the three facts, or null while the attempt is still running.
+ */
+export function ProbeAttemptFacts(props: { probe: ModelProbeOutcome | undefined; t: (key: ModelsKey) => string }): ReactNode {
+  const { probe, t } = props
+  if (probe === undefined || probe.ok) return null
+  return <ProbeFailureFacts failure={probe} t={t} />
 }
 
 /**
@@ -41,7 +87,6 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
   useEffect(() => { props.onBusyChange?.(busy) }, [busy, props.onBusyChange])
   const capabilities = ['text', 'stream', 'tool', 'image'] as const
   const labels = { text: 'modelInputText', stream: 'protocolStream', tool: 'protocolTool', image: 'modelInputImage' } as const
-  const reasons = { protocol: 'protocolUnsupported', auth: 'protocolAuth', model: 'protocolModel', timeout: 'protocolTimeout', other: 'protocolOther' } as const
   const probe = async (): Promise<void> => {
     setBusy(true)
     setFailed(false)
@@ -66,7 +111,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
     } finally { setBusy(false) }
   }
   return <div>
-    <button type="button" className={styles['linkButton']} disabled={props.disabled || busy || model.trim().length === 0} onClick={() => { void probe() }}>
+    <button type="button" className={styles['secondaryButton']} aria-busy={busy} disabled={props.disabled || busy || model.trim().length === 0} onClick={() => { void probe() }}>
       {t(busy ? 'protocolProbing' : 'protocolProbe')}
     </button>
     <span className={styles['advancedHint']}> {t('protocolCost')}</span>
@@ -80,10 +125,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
             {capabilities.map(key => {
               const check = result[key]
               return <td key={key}>{key === 'image' && !props.imageDeclared ? t('protocolImageUndeclared')
-                : check.ok ? t('protocolPassed') : <details>
-                  <summary>{t(reasons[check.reason ?? 'other'])}</summary>
-                  <p>{t(reasons[check.reason ?? 'other'])}{check.status === undefined ? '' : ` (HTTP ${String(check.status)})`}</p>
-                </details>}</td>
+                : check.ok ? t('protocolPassed') : <ProbeFailureFacts failure={check} t={t} />}</td>
             })}
           </tr>
         })}</tbody>

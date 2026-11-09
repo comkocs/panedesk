@@ -16152,6 +16152,32 @@
           "packages/client/ui-settings-general/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "protocol-probe-failure-body-and-trim-utf8",
+      "description": "Show protocol-probe and connection-attempt failures as category, HTTP status, and the leading response body, and print trim output as UTF-8.",
+      "origin": "Panedesk models page and workflow pack",
+      "reason": "The protocol probe and the one-shot connection attempt return the first 2KB of a failed response body with credentials removed, and the models page shows that body folded by default. trim.py resets standard output and standard error to UTF-8 at startup so a GBK console or a pipe keeps its text intact; the rest of trim.py is unchanged.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/llm/llm/src/types.ts",
+          "packages/llm/llm/src/index.ts",
+          "packages/llm/llm/README.md",
+          "packages/llm/llm/README.zh.md",
+          "packages/client/ui-settings-models/src/client/operations.ts",
+          "packages/client/ui-settings-models/src/client/ProtocolProbe.tsx",
+          "packages/client/ui-settings-models/src/client/RecognizeModels.tsx",
+          "packages/client/ui-settings-models/src/client/locales.ts",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "templates/workflow-pack/tools/trim.py",
+          "templates/workflow-pack/getting-started.md",
+          "templates/workflow-pack/getting-started.zh.md",
+          "templates/workflow-pack/workflow-checkup.md",
+          "templates/workflow-pack/workflow-checkup.zh.md"
+        ]
+      }
     }
   ]
 }

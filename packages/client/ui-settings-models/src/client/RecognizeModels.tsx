@@ -8,8 +8,9 @@ import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
 import { defaultRecognizedSelection } from './recognize.ts'
 import type { RecognizeOrderBasis } from './recognize.ts'
-import type { ModelsOperations } from './operations.ts'
+import type { ModelProbeOutcome, ModelsOperations } from './operations.ts'
 import type { en } from './locales.ts'
+import { ProbeAttemptFacts } from './ProtocolProbe.tsx'
 import styles from './ModelsSection.module.css'
 
 /** Copy keys this card renders. */
@@ -66,7 +67,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
   const [recognized, setRecognized] = useState<Recognized | undefined>(undefined)
   const [saved, setSaved] = useState<number | undefined>(undefined)
   const [manualId, setManualId] = useState('')
-  const [probe, setProbe] = useState<{ readonly ok: boolean; readonly message: string } | undefined>(undefined)
+  const [probe, setProbe] = useState<ModelProbeOutcome | undefined>(undefined)
 
   const recognize = async (): Promise<void> => {
     if (props.keyRequired === true) return
@@ -111,18 +112,16 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
   const tryOnce = async (): Promise<void> => {
     const model = manualId.trim()
     if (model.length === 0) {
-      setProbe({ ok: false, message: t('tryNeedsId') })
+      setProbe({ ok: false, reason: 'other', message: t('tryNeedsId'), body: t('tryNeedsId') })
       return
     }
     setBusy(true)
     setProbe(undefined)
     try {
-      const answer = await operations.probeModel(provider, model)
-      setProbe(answer.ok
-        ? { ok: true, message: t('trySucceeded') }
-        : { ok: false, message: answer.message ?? t('tryFailed') })
+      setProbe(await operations.probeModel(provider, model))
     } catch (error: unknown) {
-      setProbe({ ok: false, message: error instanceof Error ? error.message : String(error) })
+      const message = error instanceof Error ? error.message : String(error)
+      setProbe({ ok: false, reason: 'other', message, body: message })
     } finally {
       setBusy(false)
     }
@@ -192,12 +191,11 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
         {t('tryModelId')}
         <input value={manualId} disabled={disabled || busy} onChange={(event) => { setManualId(event.target.value) }} />
       </label>
-      <button type="button" className={styles['secondaryButton']} disabled={disabled || busy} onClick={() => { void tryOnce() }}>
-        {t('tryOnce')}
+      <button type="button" className={styles['secondaryButton']} aria-busy={busy} disabled={disabled || busy} onClick={() => { void tryOnce() }}>
+        {busy ? t('trying') : t('tryOnce')}
       </button>
-      {probe === undefined
-        ? null
-        : <p role="status">{probe.ok ? probe.message : `${t('tryFailed')}: ${probe.message}`}</p>}
+      {probe?.ok === true ? <p role="status">{t('trySucceeded')}</p> : null}
+      <ProbeAttemptFacts probe={probe} t={t} />
     </div>
   )
 }

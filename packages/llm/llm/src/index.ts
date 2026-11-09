@@ -43,7 +43,7 @@ import type { ProviderRequestId } from './brand.ts'
 import { callConfigEquals } from './call-config.ts'
 import type { ConfigureCall, LlmCallConfig, LlmCallConfigAdapterDefaults } from './call-config.ts'
 import { HarnessError, INVALID_CREDENTIAL_CODE } from './error.ts'
-import { normalizeLlmFailure } from './adapter-failure.ts'
+import { normalizeLlmFailure, redactLlmDiagnostic } from './adapter-failure.ts'
 import { normalizeApiKey } from './api-key.ts'
 import {
   contentHasFile, fileHandleText, projectFilesToText, projectToolUpdates,
@@ -1222,19 +1222,12 @@ export class LlmRuntime extends TypertRemoteService {
         if (chunk.type === 'finish') finish = chunk
       }
     } catch (error: unknown) {
-      const failure = normalizeLlmFailure(error)
-      return { ok: false, code: failure.code, message: failure.message }
+      return probeFailure(normalizeLlmFailure(error))
     }
-    if (finish?.type !== 'finish') return { ok: false, code: 'UNKNOWN', message: 'probe produced no finish' }
-    if (finish.reason.kind === 'error') {
-      return {
-        ok: false,
-        code: finish.reason.failure.code,
-        message: finish.reason.failure.message,
-      }
-    }
+    if (finish?.type !== 'finish') return { ok: false, code: 'UNKNOWN', reason: 'other', message: 'probe produced no finish' }
+    if (finish.reason.kind === 'error') return probeFailure(finish.reason.failure)
     if (finish.reason.kind === 'aborted') {
-      return { ok: false, code: 'ABORTED', message: 'probe aborted' }
+      return { ok: false, code: 'ABORTED', reason: 'other', message: 'probe aborted' }
     }
     return { ok: true }
   }
@@ -1281,15 +1274,17 @@ export class LlmRuntime extends TypertRemoteService {
       content?: { type?: string; text?: string; name?: string; input?: object }[]
       output?: { type?: string; name?: string; arguments?: string; content?: { type?: string; text?: string }[] }[]
     }
-    const failed = (reason: NonNullable<LlmProtocolCheck['reason']>, status?: number): LlmProtocolCheck =>
-      ({ ok: false, reason, ...status === undefined ? {} : { status } })
+    const failed = (reason: NonNullable<LlmProtocolCheck['reason']>, status?: number, info?: string): LlmProtocolCheck => {
+      const body = info === undefined ? undefined : failureBody(info, apiKey)
+      return { ok: false, reason, ...status === undefined ? {} : { status }, ...body === undefined ? {} : { body } }
+    }
     const classify = (status: number, info: string): LlmProtocolCheck => {
       const auth = status === 401 || status === 403 || /authentication_error|invalid_api_key|unauthorized/i.test(info)
       const missingModel = /model[^\n]*(?:not[_ -]found|does not exist|unknown|not exist)|(?:unknown|invalid)[_ -]model/i.test(info)
       const unsupported = status === 404 || status === 405 || status === 501
         || /unsupported[_ -](?:protocol|endpoint)|(?:protocol|endpoint)[^\n]*(?:not supported|not found)|cannot post/i.test(info)
       return failed(auth ? 'auth' : missingModel ? 'model' : status === 408 || status === 504 || /timeout|timed out/i.test(info) ? 'timeout'
-        : unsupported ? 'protocol' : 'other', status)
+        : unsupported ? 'protocol' : 'other', status, info)
     }
     let baseURL: string
     let apiKey: string | undefined
@@ -1387,8 +1382,8 @@ export class LlmRuntime extends TypertRemoteService {
         }
         if (streaming) {
           if (!response.headers.get('content-type')?.includes('text/event-stream')) {
-            await response.body?.cancel()
-            return failed('other', status)
+            const info = await response.text()
+            return failed('other', status, info)
           }
           const reader = response.body!.getReader()
           const decoder = new TextDecoder()
@@ -1417,7 +1412,7 @@ export class LlmRuntime extends TypertRemoteService {
           ? { ok: true } : failed('other', status))
       } catch (error: unknown) {
         const failure = normalizeLlmFailure(error)
-        return failed(timeoutOf(timer.signal) !== undefined || failure.code.includes('TIMEOUT') ? 'timeout' : 'other', status)
+        return failed(timeoutOf(timer.signal) !== undefined || failure.code.includes('TIMEOUT') ? 'timeout' : 'other', status, failure.message)
       }
     }
     return Promise.all(protocols.map(async api => ({
@@ -1509,6 +1504,41 @@ export class LlmRuntime extends TypertRemoteService {
       options,
       () => this.adapterStream(options, prepared),
     )
+  }
+}
+
+/** Failure response text returned to the Models page: credentials removed, first 2KB. */
+const FAILURE_BODY_LIMIT = 2048
+
+/**
+ * Keep the leading 2KB of one failure body after credential redaction.
+ * @param text - response body or adapter diagnostic.
+ * @param apiKey - one-shot or stored credential used for the request, when known.
+ * @returns the text the Models page shows, or undefined when nothing remains.
+ */
+function failureBody(text: string, apiKey?: string): string | undefined {
+  const redacted = redactLlmDiagnostic(text, apiKey).slice(0, FAILURE_BODY_LIMIT)
+  return redacted.length === 0 ? undefined : redacted
+}
+
+/**
+ * Turn one adapter failure into the one-shot probe result.
+ * @param failure - normalized adapter failure.
+ * @returns category, HTTP status, and the leading failure text.
+ */
+function probeFailure(failure: LlmFailure): LlmModelProbeResult {
+  const reason: NonNullable<LlmProtocolCheck['reason']> = failure.code === 'AUTH' || failure.code === 'MISSING_CREDENTIAL' || failure.code === 'INVALID_CREDENTIAL'
+    ? 'auth'
+    : failure.code.includes('TIMEOUT') ? 'timeout'
+      : failure.status === 404 || failure.status === 405 || failure.status === 501 ? 'protocol' : 'other'
+  const body = failureBody(failure.message)
+  return {
+    ok: false,
+    code: failure.code,
+    reason,
+    message: failure.message,
+    ...failure.status === undefined ? {} : { status: failure.status },
+    ...body === undefined ? {} : { body },
   }
 }
 
