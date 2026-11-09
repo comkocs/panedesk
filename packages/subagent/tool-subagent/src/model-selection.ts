@@ -64,11 +64,16 @@ const EFFORT_RANK: Readonly<Record<string, number>> = {
   max: 6,
 }
 
-/** One bare-name provider candidate plus why it cannot serve the requested effort. */
+/**
+ * One bare-name provider candidate.
+ * `efforts` is absent when the route declares no selectable efforts and therefore
+ * does not participate in effort filtering; `undefined` means its metadata could
+ * not be read. `skip` is set only when declared efforts omit the requested one.
+ */
 interface EffortCandidate {
   readonly route: AllowedModelRoute
-  /** Escalation-sorted selectable efforts, or nothing when the route offers none. */
-  readonly efforts: readonly ReasoningEffortId[] | undefined
+  /** Escalation-sorted selectable efforts; absent when the route declares none. */
+  readonly efforts?: readonly ReasoningEffortId[]
   readonly skip: string | undefined
 }
 
@@ -79,6 +84,11 @@ export interface PresetModelRoute {
   readonly effort?: ReasoningEffortId
   /** The effort actually served when no provider offers the requested level. */
   readonly loweredTo?: ReasoningEffortId
+  /**
+   * Set when the winning route declares no selectable efforts, so the requested
+   * effort is not sent. Cards show this as "effort not applicable".
+   */
+  readonly effortNotApplicable?: true
 }
 
 /**
@@ -110,10 +120,13 @@ function nearestEffort(efforts: readonly ReasoningEffortId[], requested: Reasoni
 }
 
 /**
- * Resolve a bare preset model name across its configured providers. Candidates
- * that can serve the requested reasoning effort win in Models settings order;
- * when none can, the first effort-capable route serves its nearest supported
- * effort. `provider/model` names bypass this selection by naming their route.
+ * Resolve a bare preset model name across its configured providers. The first
+ * route in Models settings order that serves the requested effort, or that
+ * declares no selectable efforts, wins. A route with no declared efforts is
+ * started without an effort and reported as not applicable. When every readable
+ * route declares efforts and none includes the requested one, the first of
+ * those serves its nearest supported effort. `provider/model` names bypass this
+ * selection by naming their route.
  * @param llm - Live LLM runtime owning exact-route metadata.
  * @param models - Live configured catalog in Models settings order.
  * @param model - Bare model id from the preset definition.
@@ -122,7 +135,7 @@ function nearestEffort(efforts: readonly ReasoningEffortId[], requested: Reasoni
  * @returns the selected route and its effective effort, or undefined when no
  *   configured provider advertises the model id.
  * @throws an error naming every candidate provider and why each was skipped,
- *   when none offers any selectable effort.
+ *   only when every candidate's model metadata is unreadable.
  */
 export async function resolvePresetModelRoute(
   llm: LlmRuntime,
@@ -141,16 +154,22 @@ export async function resolvePresetModelRoute(
     try {
       info = await llm.resolveModelInfo(route.provider, route.model, signal)
     } catch (error: unknown) {
-      candidates.push({ route, efforts: undefined, skip: `model metadata unavailable: ${error instanceof Error ? error.message : String(error)}` })
+      candidates.push({ route, skip: `model metadata unavailable: ${error instanceof Error ? error.message : String(error)}` })
       continue
     }
-    const efforts = info.reasoning?.efforts.map(row => row.id)
-    candidates.push(efforts === undefined
-      ? { route, efforts, skip: 'no selectable reasoning efforts' }
-      : { route, efforts, skip: efforts.includes(effort) ? undefined : `supports efforts ${efforts.join(', ')}` })
+    const declared = info.reasoning?.efforts.map(row => row.id)
+    // Empty and absent effort lists are the same "not configured" state: the
+    // route does not participate in effort filtering.
+    candidates.push(declared === undefined || declared.length === 0
+      ? { route, skip: undefined }
+      : { route, efforts: declared, skip: declared.includes(effort) ? undefined : `supports efforts ${declared.join(', ')}` })
   }
   const serving = candidates.find(candidate => candidate.skip === undefined)
-  if (serving !== undefined) return { route: serving.route, effort }
+  if (serving !== undefined) {
+    return serving.efforts === undefined
+      ? { route: serving.route, effortNotApplicable: true }
+      : { route: serving.route, effort }
+  }
   const lowerable = candidates.find(candidate => candidate.efforts !== undefined && candidate.efforts.length > 0)
   if (lowerable?.efforts !== undefined) {
     const nearest = nearestEffort(lowerable.efforts, effort)

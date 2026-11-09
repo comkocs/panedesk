@@ -164,13 +164,14 @@
     },
     {
       "id": "subagent-effort-capable-provider-picking",
-      "description": "Pick a preset model provider that supports the requested reasoning effort",
+      "description": "Pick a preset model provider that supports the requested reasoning effort, treating undeclared efforts as applicable",
       "origin": "Panedesk multi-provider model names",
-      "reason": "Filter bare preset model candidates by the requested effort before Models settings order, lower to the nearest supported effort with a start-result note, and reject with per-provider reasons when none can serve the request.",
+      "reason": "Filter bare preset model candidates by the requested effort before Models settings order. A route that declares no selectable efforts does not participate in the filter and starts without an effort, noted as not applicable; when every readable route declares efforts and none serves the request, lower to the nearest supported effort with a start-result note. Reject with per-provider reasons only when every candidate's model metadata is unreadable.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/subagent/tool-subagent/src/model-selection.ts",
+          "packages/subagent/tool-subagent/src/model-selection-state.ts",
           "packages/subagent/tool-subagent/src/index.ts",
           "packages/subagent/tool-subagent/README.md",
           "packages/subagent/tool-subagent/README.zh.md",

@@ -35,6 +35,7 @@ import type { AllowedModelRoute, DelegationModelRequest } from './model-selectio
 import { registerListSubagentModels } from './list-models.ts'
 import { SubagentPresetSelection, type PresetSelectionConfig, type PresetSelectionRequest } from './preset-selection.ts'
 import {
+  noteEffortNotApplicable,
   subagentModelSelectionProjectionDefinition,
 } from './model-selection-state.ts'
 
@@ -314,6 +315,9 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
                 selected = picked?.route
                 if (picked?.loweredTo !== undefined) {
                   effortLoweredTo = picked.loweredTo
+                }
+                if (picked?.effortNotApplicable === true && selected !== undefined) {
+                  noteEffortNotApplicable(runtimeCtx, parent, selected)
                 }
               } else {
                 selected = resolveModelRoute(models, definition.model.slice(separator + 1), definition.model.slice(0, separator))
