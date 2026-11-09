@@ -2,7 +2,7 @@
 
 English | [中文](entries.zh.md)
 
-Entries SHA-256: `969ac5bda43157982af3272466f86d7c6f4f4b3bf7436a67aec0b7e746fea117`
+Entries SHA-256: `9bbd18e6118c3f79f0beceb982dc5b20f90a309aa8f106e5252cb593e097da0e`
 
 Generated from `entries.jsonl`; edit the data before regenerating this table.
 
@@ -378,8 +378,8 @@ Layer: methods; Scale: medium–large; Features: ; Dependencies: ; Source count:
 
 Restore condition: Restore when concurrent windows >=4, responsibility owners >=2, repositories >=2 with deployment, or programming starts.
 
-**Two windows up to 200,000 lines**〔G-0222〕Software projects expected to contain no more than 200,000 lines default to only two windows. {{总协调}} handles planning and requirements checks. One technical lead owns all technical work: directly assigns implementation helpers, merges their work, and assigns independent audits. Add module leads only above 200,000 lines.
-> Rationale: One technical lead with helpers can finish these projects together. Separate frontend, backend, and test windows add handoffs and waiting.
+**Start with two windows; add only under strain**〔G-0222〕Projects default to only two windows: {{总协调}} (requirements window) handles planning, checks requirements with {{决策者}}, and evaluates delivery against what users can see when opening the result. One technical lead owns all technical work: directly assigns implementation helpers, merges their work, and assigns independent audits. Add windows only when strain signals appear: if the technical window routinely waits more than one hour for requirements, add a requirements-liaison window; if {{决策者}} reports the same kind of problem at least three times after personal testing, add a testing window; if a work category exceeds the technical window’s capacity, add a dedicated window for it. Merge added windows back to the two-window setup after a full week without work.
+> Rationale: Most projects can be completed by one requirements window and one technical lead. Splitting frontend, backend, and testing into separate windows from the start adds more handoffs and waiting than work; layers of approval requirements can then produce something the decision maker cannot understand.
 
 Layer: operations; Scale: medium–large; Features: code; Dependencies: ; Source count: 1.
 

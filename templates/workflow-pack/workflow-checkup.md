@@ -32,11 +32,11 @@ Compare the inventoried rules against `entries.md`, dividing them into four clas
 | Conflict | The wording differs from a generic rule | List the original sentence, generic identifier, different outcomes, and recommendation for the decision maker |
 | Missing | Applicable to the project's scale and features but absent from its rules | List it and add it through trimming after approval |
 
-Retain existing project terminology in the card's `[称呼]` table so generated prose uses those names. Fill `requirements.toml` from actual conditions using `getting-started.md` ③, generate into `pending/`, and present the result.
+Retain existing project terminology in the card's `[称呼]` table so generated prose uses those names. Fill `requirements.toml` from actual conditions using `getting-started.md` ③ (default to two windows: requirements and technical lead), generate into `pending/`, and present the result.
 
-## ④ Case B · Check nine kinds of problem
+## ④ Case B · Check ten kinds of problem
 
-Check every inventoried rule sentence for the following nine issues. List file:line, original sentence, recommendation (delete, replace with a pointer, choose one, or retain), and basis:
+Check every inventoried rule sentence for the following ten issues. List file:line, original sentence, recommendation (delete, replace with a pointer, choose one, or retain), and basis:
 
 1. Contradictory sentences: two statements disagree about the same matter; the decision maker chooses which remains.
 2. Duplicate sentences: retain one copy and replace the others with pointers to it.
@@ -47,6 +47,7 @@ Check every inventoried rule sentence for the following nine issues. List file:l
 7. Added approval requirements: recommend deleting “ask first,” “wait for approval,” or “must first” requirements outside the four safeguards: money, irreversible actions, secrets and security, and the decision maker's direction and aesthetics.
 8. Waiting on settled decisions: replace “undecided” when the decision maker has already decided.
 9. Changed scale: if project size or work type changed, update the requirement card, regenerate, and list rules to restore or remove.
+10. Too many windows: if three or more windows remain open long-term without the strain signals in G-0222, recommend merging back to two windows (requirements and technical lead), leaving the decision to the decision maker.
 
 Only move text, adjust pointers, and remove duplicates yourself. Whether a rule belongs and which conflicting sentence wins remain the decision maker's choices; recommend an answer for each.
 

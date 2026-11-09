@@ -45,11 +45,11 @@ List the profiles:
 python3 -X utf8 tools/trim.py profiles
 ```
 
-Copy the closest file from `profiles/` to `requirements.toml` at the pack root. Edit its values from the answers. Keep quotation marks around Chinese TOML table and key names, such as `["项目"]` and `"名"`, and keep the seven feature values as `true` or `false`. Choose `novel-writing.toml` for novels and `short-video.toml` for short videos. For programming projects up to 200,000 lines, choose `medium-software.toml`; choose `large-research.toml` above that size or for continuing development across many responsibilities. Use `small-software.toml` only when the decision maker explicitly requests one window throughout.
+Copy the closest file from `profiles/` to `requirements.toml` at the pack root. Edit its values from the answers. Keep quotation marks around Chinese TOML table and key names, such as `["项目"]` and `"名"`, and keep the seven feature values as `true` or `false`. Choose `novel-writing.toml` for novels and `short-video.toml` for short videos. Always choose `medium-software.toml` for programming projects (start with two windows). Use `small-software.toml` only when the decision maker explicitly requests one window throughout. `large-research.toml` is not a starting point; it is an upper reference for a project that has grown and added windows.
 
 Prefer `[规模] 档 = ""` for inferred scale. Check large first: concurrent windows >=7, responsibility owners >=6, or repositories >=2 with deployment and responsibility owners >=4. Otherwise medium means windows >=4, owners >=2, repositories >=2 with deployment, or programming. Everything else is small. Repositories may contain code or office materials. One window, one owner, two repositories with deployment is medium. Novel writing uses two windows and one owner; short video uses three and one; both are small. An explicit scale wins, with a warning when it differs from inference.
 
-Programming projects start at medium scale. Up to 200,000 expected lines, use medium-software with only two windows by default: the coordinator handles planning and requirements checks, and one technical lead owns all technical work (G-0222). Above 200,000 lines, explicitly set `"档" = "大"` and add module leads. Set `"档" = "小"` only when the decision maker explicitly requests one window throughout.
+Programming projects start at medium scale, always using the medium-software profile with two windows: the requirements window (coordinator) handles planning, checks requirements, and evaluates delivery against what users can see when opening the result; one technical lead owns all technical work (G-0222). Add windows only when the strain signals in G-0222 appear, not in advance based on line counts. Set `"档" = "小"` only when the decision maker explicitly requests one window throughout, and `"档" = "大"` only when they explicitly request long-term collaboration across several owners.
 
 `[称呼]` accepts 项目名, 决策者, 总协调, 受众, 成品, 真源件, 留痕处, 口径件, 规矩总件, 作业件, and 接管件. Missing or blank values use defaults. Project name, audience, and output come from `[项目]`; the remaining defaults are 决策者, 总协调, 项目真源.md, 记录.md, 当日口径.md, 宪法.md, 作业规矩.md, and 接棒记录.md. These names substitute into prose, not fixed output filenames. Explain any mapping to differently named actual files.
 
@@ -88,7 +88,7 @@ Present the complete selection report once using the following template and wait
 本次规模与特征：……
 留下：……
 拆掉与加回时机：……
-预设与岗位：……（写程序的项目缺省两窗：总协调 + 技术主窗）
+预设与岗位：……（缺省两窗：需求窗 + 技术主窗；吃力了再加窗）
 工期：……（AI 工时，人类工时 ÷ 15；例：150 天 → 10 天）
 自主假设：……
 
@@ -105,15 +105,17 @@ For programming projects, after approval split the first assignments by feature:
 
 After approval, save the requirement card and generated files under the project root. If the pack is elsewhere, retain it for future regeneration. Move existing same-named generated files into a new `_旧版/` subdirectory first, without overwriting or deleting them. Do not arbitrarily move the pack's documentation or materials, or move or overwrite the handwritten `本项目自定.md`.
 
-Every new window reads `开窗必读.md`, then `本项目自定.md` if present, `宪法.md`, and `作业规矩.md`; read `做法建议.md` when methods are needed and `当日口径.md` only if generated.
+Every new window starts by reading only three files under the project root: `开窗必读.md`, `本项目自定.md` if present, and `宪法.md`. Do not read all of `作业规矩.md`; consult sections as needed using the operational-rules section index in `开窗必读.md`. Read `做法建议.md` when methods are needed and `当日口径.md` only if generated.
 
-Create matching three-line `CLAUDE.md` and `AGENTS.md` entries in the project root so supported assistants can discover the reading order: address the decision maker in plain Chinese; first read `开窗必读.md` and follow its order; preserve timestamped decisions, cross-window values and time ranges, running helpers, and their waits during context compaction. Append those three lines to existing files without replacing their content. These entries contain pointers and compaction reminders, not another rule set. `拆掉清单.md` explains removals and restoration, while `裁剪记录.json` retains identifiers and input hashes.
+Create matching three-line `CLAUDE.md` and `AGENTS.md` entries in the project root so supported assistants can discover the reading order: address the decision maker in plain Chinese; first read `开窗必读.md` and follow its instruction to read only three files; preserve timestamped decisions, cross-window values and time ranges, running helpers, and their waits during context compaction. Append those three lines to existing files without replacing their content. These entries contain pointers and compaction reminders, not another rule set. `拆掉清单.md` explains removals and restoration, while `裁剪记录.json` retains identifiers and input hashes.
 
 ## ⑦ Restore rules as the project grows
 
 Periodically consult restoration conditions in `拆掉清单.md`. Its summary for a fully removed module gives the most common condition only; consult the JSON record or [entries](entries.md) for individual conditions without inventing another threshold set. Recheck the card when specified counts or work change: four or seven windows, two or six owners, multiple repositories with deployment or starting programming for medium scale, at least four owners for the large deployment case, or newly enabled code, deployment, bulk assets, authoritative values, multiple models, review, or rule storage. Individual rule conditions determine restoration.
 
 Update counts, scale, and features, validate, and regenerate. Explain what is restored and why. Use reasoned manual additions only when a single rule is actually needed. Recheck shrinking projects too, rather than burdening them with obsolete large-project rules.
+
+Windows also grow with the project: start with two and add the corresponding window only when G-0222 strain signals appear (the technical window routinely waits more than one hour for requirements, the decision maker reports the same kind of problem at least three times after personal testing, or a work category exceeds the technical window’s capacity). Merge an added window back after a full week without work. When adding or merging windows, update window and responsibility counts in the requirement card, regenerate, and tell the decision maker why and what was added.
 
 Append new enduring project-specific requirements with their original-wording references as in step ②, and update manual removals for generic rules they override.
 
