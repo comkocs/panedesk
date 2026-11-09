@@ -25,7 +25,7 @@ kind: "package-reference"
 
 Web 组合同时加载 Host 和 Client。`enabled` 默认 true，设为 false 时拒绝读取统计，但不停止记录会话。`refreshIntervalMs` 默认 10000，接受 1000 至 2147483647 的整数。两项都是可即时更新的配置字段，通过现成配置表单立即保存。读取不开放会话正文或模型操作。
 
-紧凑图标注册在 `conversation.session.header.actions`，顺序为 30，点击直接打开图表弹层，minimal 预设也可使用。不另设主区面板、工具子菜单、首页或侧栏入口。关闭弹层会释放统计资源，卸载会移除所有注册。
+紧凑的「统计」文字按钮注册在 `conversation.session.header.actions`，顺序为 30，点击直接打开图表弹层，minimal 预设也可使用。不另设主区面板、工具子菜单、首页或侧栏入口。关闭弹层会释放统计资源，卸载会移除所有注册。
 
 设置 → Panedesk → 统计说明功能、默认启用状态、全局适用范围及刷新间隔。页面显示当前配置文件和本地账本目录的宿主绝对路径，并提供系统打开按钮。关闭统计后仍可读取 `stats.locations()`。未知存储提供者不显示猜测路径。本地账本读取各节点 `events` 和 `imports` 目录内的 JSONL 记录，统计功能不会修改它们。
 

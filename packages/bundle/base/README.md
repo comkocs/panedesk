@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 Every base-backed `dsh --profile` surface runs on `dsh-base`, so those surfaces share a model connection, the full tool set, durable session history, and workspace safety defaults. The shipped `sdk-minimal` profile deliberately uses a complete standalone tree instead. You rarely touch this bundle directly — shipped base-backed profiles already include it, and a custom base-backed profile names it first. When you need different defaults, change your profile patch or add a later bundle; this package is not a library you import.
 
-The default tool set includes `panedesk_settings` for reading editable Panedesk preferences and writing one named item through the same writer as Settings, with before/after output. Unlisted operations remain manual-only. Its `disabledTools` preference omits seven optional tools from ordinary sessions by default; see the [settings tool](../../settings/tool-panedesk-settings/README.md). `exit_plan_mode` is advertised only in plan mode. Windows continues to mount only the selected Bash or PowerShell tools.
+The default tool set includes `panedesk_settings` for reading editable Panedesk preferences and writing one named item through the same writer as Settings, with before/after output. Unlisted operations remain manual-only. Its `disabledTools` preference omits six optional tools from ordinary sessions by default; see the [settings tool](../../settings/tool-panedesk-settings/README.md). `exit_plan_mode` is advertised only in plan mode. Windows continues to mount only the selected Bash or PowerShell tools.
 
 ## Table of Contents
 

@@ -33,7 +33,7 @@ export type StatsKey = keyof typeof en
 /** Chinese copy mirrors the English product labels. */
 export const zh = {
   title: '统计', close: '关闭', description: '查看项目中各会话和模型用了多少 token，以及子代理的执行情况。',
-  settingsDescription: '需要比较 token 用量或查看子代理进度时，点击会话顶栏的统计图标，不必离开当前对话。',
+  settingsDescription: '需要比较 token 用量或查看子代理进度时，点击会话顶栏的统计按钮，不必离开当前对话。',
   reference: '费用为参考美元估算，不是实付或订阅费用；缺失的数据显示未知。',
   loading: '正在读取统计…', empty: '所选范围暂无调用记录，可以扩大时间范围。',
   error: '无法读取统计，请检查连接后重试。', unauthorized: '需要所有者权限。',

@@ -343,7 +343,7 @@ function CatalogRows({
                     )}
                   <div className={css.clickarea}>
                     <span className={css.rowActivitySlot}>
-                      <StateDot state={entry.activity === 'running' ? 'ongoing' : 'idle'} />
+                      <StateDot state={entry.activity === 'running' ? 'done' : 'idle'} />
                     </span>
                     <span className={css.content}>
                       <span className={`${css.label} ${isCurrent ? css.currentLabel : ''}`}>{label}</span>

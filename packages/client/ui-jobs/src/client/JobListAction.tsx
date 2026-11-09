@@ -93,8 +93,8 @@ function assertNever(value: never): never {
 /** Settled work is idle; failures retain their error marker. */
 function dotState(status: JobView['status']): StateDotState {
   switch (status) {
-    case 'running': return 'ongoing'
-    case 'stopping': return 'ongoing'
+    case 'running': return 'done'
+    case 'stopping': return 'done'
     case 'completed': return 'idle'
     case 'killed': return 'idle'
     case 'failed': return 'error'
@@ -529,7 +529,7 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
           setOpen(current => !current)
         }}
       >
-        {liveRows.length > 0 ? <StateDot state="ongoing" className={css.triggerDot} /> : null}
+        {liveRows.length > 0 ? <StateDot state="done" className={css.triggerDot} /> : null}
         <span className={css.count}>{countLabel}</span>
         <IconChevronDownOutlineRegular size={12} className={open ? css.triggerOpen : undefined} />
       </button>

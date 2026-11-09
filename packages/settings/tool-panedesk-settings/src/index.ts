@@ -25,7 +25,7 @@ export interface Config {
 /** Defaults apply even when no preference has been saved. */
 export const Config = z.object({
   disabledTools: z.array(z.string()).default([
-    'subagent_fork', 'workflow', 'create_goal', 'update_goal', 'get_goal', 'present', 'ask_user_question',
+    'subagent_fork', 'workflow', 'create_goal', 'update_goal', 'get_goal', 'present',
   ]).volatile(),
   subagentsFullTools: z.boolean().default(false).volatile(),
 })

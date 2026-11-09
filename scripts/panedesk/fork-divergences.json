@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "dark-theme-default",
+      "description": "Use dark appearance when no theme preference has been saved",
+      "origin": "Panedesk appearance defaults",
+      "reason": "Share the dark default across the startup canvas and native theme while preserving saved user choices.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-theme/src/theme-settings.ts",
+          "packages/client/ui-theme/README.md",
+          "packages/client/ui-theme/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "new-session-workflow-settings-and-visible-actions",
       "description": "Provide adjacent new-session preset and workflow menus with editable workflow prompts",
       "origin": "Panedesk new-session and settings interaction",
@@ -15880,7 +15894,7 @@
       "id": "ordinary-session-tool-preferences",
       "description": "Trim default tool context and expose persisted Tools settings",
       "origin": "Panedesk tool context preferences",
-      "reason": "Omit seven optional tools by default, advertise plan exit only while planning, retain typed subagent capabilities, and let users or panedesk_settings enable tools with shared token estimates.",
+      "reason": "Omit six optional tools by default while retaining question cards, advertise plan exit only while planning, retain typed subagent capabilities, and let users or panedesk_settings enable tools with local token estimates.",
       "match": {
         "type": "behavior",
         "paths": [

@@ -25,7 +25,7 @@ The settings page's Refresh action uses the shared outlined button.
 
 The Web bundle loads Host and Client. `enabled` defaults to true; false refuses statistics reads without stopping session recording. `refreshIntervalMs` defaults to 10000 and accepts integers from 1000 through 2147483647. Both fields are volatile profile settings, saved immediately through the existing configuration forms. Reads expose neither transcript bodies nor model operations.
 
-A compact icon at `conversation.session.header.actions`, order 30, opens the chart modal directly, including for the minimal preset. There is no separate main-area panel, tools submenu, home-screen entry or sidebar contribution. Closing the modal releases its statistics resource; unloading removes all registrations.
+A compact Statistics text button at `conversation.session.header.actions`, order 30, opens the chart modal directly, including for the minimal preset. There is no separate main-area panel, tools submenu, home-screen entry or sidebar contribution. Closing the modal releases its statistics resource; unloading removes all registrations.
 
 Settings → Panedesk → Statistics explains the feature, enablement default, global scope and refresh interval. It shows the active profile configuration file and the local journal directory as absolute Host paths, with native opening buttons. `stats.locations()` remains readable while statistics are disabled. Unknown storage providers show no invented path. The local journal reads JSONL records below each node's `events` and `imports` directories; statistics does not modify them.
 

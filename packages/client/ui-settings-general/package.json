@@ -54,8 +54,7 @@
   "license": "MIT",
   "dependencies": {
     "@panedesk/schemastery": "workspace:~",
-    "@panedesk/dsh-typert-protocol": "workspace:*",
-    "@panedesk/dsh-token-meter": "workspace:*"
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"

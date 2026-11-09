@@ -17,7 +17,6 @@
     { "path": "../../settings/settings" },
     { "path": "../../core/tools" },
     { "path": "../../preset/agent-preset-registry" },
-    { "path": "../../llm/token-meter" },
     { "path": "../../session/session-title" },
     { "path": "../../typert/protocol" }
   ]

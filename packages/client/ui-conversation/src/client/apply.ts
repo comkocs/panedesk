@@ -468,7 +468,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     inject: (sessionId: SessionId | undefined): ComposerBarInjected => {
       if (sessionId === undefined) {
         return {
-          openToolSettings: () => { ctx.settingsNavigation.openSection('panedesk-tools') },
+          openToolSettings: () => { ctx.settingsNavigation.openSection('tools') },
           keyboard: undefined,
           addFiles: undefined,
           removeAttachment: undefined,
@@ -491,7 +491,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       const inputTriggers = inputHub.inputTriggers(sessionId)
       const bridge = hostPathBridge()
       return {
-        openToolSettings: () => { ctx.settingsNavigation.openSection('panedesk-tools') },
+        openToolSettings: () => { ctx.settingsNavigation.openSection('tools') },
         keyboard: shell,
         addFiles: (files, directories = new Set()) => {
           if (sessions.binding(sessionId) === undefined) return t('file.sessionUnavailable')

@@ -14,11 +14,17 @@ export const inject = ['browserUse', 'agents', 'tools', 'systemPrompt', 'working
 
 /** Fixed Chromium launch or existing-browser attachment settings. */
 export interface Config {
+  /** Whether Chrome DevTools tools are enabled for sessions. */
   enabled: Volatile<boolean>
+  /** Launch an isolated browser or attach to an existing browser. */
   mode: 'launch' | 'attach'
+  /** Browser debugging endpoint used in attach mode. */
   endpoint: Volatile<string>
+  /** Whether a launched browser runs without a visible window. */
   headless: boolean
+  /** Optional browser executable used in launch mode. */
   executablePath?: string
+  /** Optional timeout in milliseconds for each tool call. */
   toolCallTimeoutMs?: number
 }
 

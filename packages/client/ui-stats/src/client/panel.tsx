@@ -1,7 +1,6 @@
 /** Charts use existing ledger observations; project labels come from workspace metadata. */
 import { useState, type CSSProperties } from 'react'
-import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'
-import { Button, Input, Menu, Modal, Switch, Tooltip } from '@panedesk/dsh-client-ui-primitives'
+import { Button, Input, Menu, Modal, Switch } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { StatsSettingsActions, StatsData } from './index.ts'
 import type { StatsKey } from './locales.ts'
@@ -70,14 +69,14 @@ export function StatsSettings({ useResource, usePreferences, setPreference, open
   </section>
 }
 
-/** One icon opens the shared modal directly at the former inbox position.
+/** A text button opens the shared modal directly at the former inbox position.
  * @param props - Session-scoped framework hooks and localized labels.
  * @returns The compact trigger and charts, mounted only while open.
  */
 export function StatsTools(props: ToolsProps) {
   const [open, setOpen] = useState(false)
   return <>
-    <Tooltip label={props.t('title')}><Button variant="toolbar" size="sm" aria-label={props.t('title')} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(true) }}><IconPanedeskStats /></Button></Tooltip>
+    <Button variant="toolbar" size="sm" aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(true) }}>{props.t('title')}</Button>
     <Modal open={open} onClose={() => { setOpen(false) }} title={props.t('title')} closeLabel={props.t('close')} className={css.dialog!} contentClassName={css.dialogContent!}>
       {open && <StatsPanel {...props} />}
     </Modal>
