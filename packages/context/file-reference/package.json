@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-file-reference",
   "description": "File-reference discovery contract and shared @file grammar",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-brand-official",
   "description": "Official Panedesk brand occupants for the Web client's sidebar slots",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publishConfig": {
     "access": "public"
   },

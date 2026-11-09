@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-session-stats",
   "description": "Whole-log conversation counts and wall times projection (sessionStats) for the DeepSeek Harness",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publishConfig": {
     "access": "public"
   },

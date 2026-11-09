@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-client-ui-cot-translation",
   "description": "Optional machine translation of expanded reasoning, preserving original Session text",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-skill-filesystem",
   "description": "Local filesystem skill provider for the DeepSeek Harness",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "publishConfig": {
     "access": "public"
   },
