@@ -580,7 +580,7 @@ composedPreset(ctx: Context): string | undefined
  * @param ctx Agent context.
  * @returns Frozen policy metadata, or undefined when no preset is bound.
  */
-composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> | undefined
+composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort' | 'tools'> | undefined
 
 /** Read a service supplied inside an Agent's isolated preset group.
  * @param agent Agent whose composition is queried.

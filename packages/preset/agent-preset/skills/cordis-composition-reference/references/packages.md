@@ -71,11 +71,12 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-agent-preset` | no | Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor |
 | `@panedesk/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@panedesk/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
-| `@panedesk/dsh-client-ui-brand-official` | no | Official DeepSeek Harness brand occupants for the Web client's sidebar slots |
+| `@panedesk/dsh-client-ui-brand-official` | no | Official Panedesk brand occupants for the Web client's sidebar slots |
 | `@panedesk/dsh-client-ui-cache-pill` | no | Composer cache pill: remaining cache time for the window and its subagents, and an explicit-route tier switch that takes effect on the next request |
 | `@panedesk/dsh-client-ui-chat` | no | Chat Conversation target, node definitions, renderers, and details surface |
 | `@panedesk/dsh-client-ui-commands` | no | Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry |
 | `@panedesk/dsh-client-ui-conversation` | no | Target-neutral Conversation assembly, shell, composer, queue, and view navigation |
+| `@panedesk/dsh-client-ui-database-connections` | no | Panedesk settings for PostgreSQL connections, SSL, SSH and credentials |
 | `@panedesk/dsh-client-ui-deepseek-model-label-1017` | no | Temporary 1017 release badge for official DeepSeek Flash model labels |
 | `@panedesk/dsh-client-ui-deliverables` | no | Changed-files card with per-file comparison tabs, delivery cards, and clickable final-response file references for Web |
 | `@panedesk/dsh-client-ui-directory-picker-browse` | no | In-app directory browsing surface: the workspace directory-flow owner rendering the host's listing and creation primitives |
@@ -107,7 +108,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-settings-account` | yes | Manage DeepSeek login and open Platform billing pages |
 | `@panedesk/dsh-client-ui-settings-agent-loop` | no | Settings page of the agent loop on the panedesk web client's Plugins page: the parallel tool-call cap of the agent-loop namespace |
 | `@panedesk/dsh-client-ui-settings-bash` | no | Settings General row that probes the Windows Git Bash installation and commits the confirmed product selection the base profiles gate on |
-| `@panedesk/dsh-client-ui-settings-general` | no | Settings ownerless-copy and product onboarding plugin: the General section, shell trigger/header chrome content, settings dictionaries, and the versioned welcome notice |
+| `@panedesk/dsh-client-ui-settings-general` | yes | Settings ownerless-copy and product onboarding plugin: the General section, shell trigger/header chrome content, settings dictionaries, and the versioned welcome notice |
 | `@panedesk/dsh-client-ui-settings-models` | yes | Models settings and shared product-onboarding dialogs over existing settings and credential joins |
 | `@panedesk/dsh-client-ui-settings-plugin-inventory` | no | Read-only Cordis Loader inventory tab in Web Plugins settings |
 | `@panedesk/dsh-client-ui-settings-plugins` | no | Built-in plugins settings section for the panedesk web client: the Settings navigation entry and the tab chrome feature-owned tabs register into |
@@ -124,7 +125,8 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-sidebar-terminal` | no | Interactive shell tabs for the right Sidebar |
 | `@panedesk/dsh-client-ui-skill` | no | Web skill references and the dedicated skill tool row |
 | `@panedesk/dsh-client-ui-skills` | no | Read-only Skills settings section: built-in, user, and project skills with their source paths |
-| `@panedesk/dsh-client-ui-stats` | yes | Owner-authorized read-only session ledger statistics in five tabs |
+| `@panedesk/dsh-client-ui-stats` | yes | Graphical session statistics with profile-backed configuration |
+| `@panedesk/dsh-client-ui-storage` | no | Data storage settings for a user-owned PostgreSQL database |
 | `@panedesk/dsh-client-ui-subagent` | no | Subagent conversation catalog, continuation routing UI, and '@' reference source |
 | `@panedesk/dsh-client-ui-subagent-tree` | yes | Owner-authorized read-only subagent parent-child tree with per-node monitoring |
 | `@panedesk/dsh-client-ui-theme` | yes | Theme plugin: Host bootstrap for the pre-plugin palette; DOM-free ThemeRuntime for light/dark/system state; --dsw-* token styles and Appearance settings row |
@@ -181,6 +183,13 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-authorization` | no | Authorization seam (ctx.authorization): plugin-owned flows that obtain a credential through a conversation with the human |
 | `@panedesk/dsh-credentials-local` | yes | File-backed credentials provider ($PANEDESK_HOME/.env under the live process environment) for the DeepSeek Harness |
 | `@panedesk/dsh-deepseek-account-platform` | yes | Authorize DeepSeek accounts through browser PKCE |
+
+## database
+
+| Package | Config | Description |
+|---|---|---|
+| `@panedesk/dsh-db-connections` | yes | PostgreSQL connection catalog with credential storage and SSH forwarding |
+| `@panedesk/dsh-tool-sql` | yes | Built-in PostgreSQL table discovery, structure inspection and SQL execution |
 
 ## deliverables
 
@@ -407,6 +416,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-session-title-first-prompt-llm` | yes | First-message LLM provider plugin for DeepSeek Harness session titles |
 | `@panedesk/dsh-session-turn-outline` | no | Whole-log turn outline projection (turnOutline) for the DeepSeek Harness |
 | `@panedesk/dsh-tool-seat-messages` | no | Direct same-node seat messages and online seat observations |
+| `@panedesk/dsh-tool-session-ops` | no | Open, rename, list and message top-level sessions through existing Host services |
 | `@panedesk/dsh-tool-working-directory` | no | Read and change the active Session working directory |
 | `@panedesk/dsh-working-directory` | yes | Session working directories with durable changes and model context |
 
@@ -422,6 +432,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@panedesk/dsh-settings` | no | Abstract user-settings seam (ctx.settings) for the DeepSeek Harness |
+| `@panedesk/dsh-tool-panedesk-settings` | yes | Read and update editable Panedesk preferences through the settings-page writer |
 
 ## shell
 
@@ -471,6 +482,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-storage` | no | Storage hub (ctx.storage): named backend registry plus mounted data-form facilities for the DeepSeek Harness |
 | `@panedesk/dsh-storage-domain` | yes | Domain data form (ctx.storage.domain): schema-validated, event-emitting KV domains over storage backends for the DeepSeek Harness |
 | `@panedesk/dsh-storage-json` | yes | JSON file KV storage backend for the DeepSeek Harness storage hub |
+| `@panedesk/dsh-storage-postgres` | yes | User-owned PostgreSQL storage with local fallback and a ledger mirror |
 | `@panedesk/dsh-storage-sqlite` | yes | SQLite storage backend (kv facet) for the DeepSeek Harness storage hub |
 
 ## subagent

@@ -219,6 +219,13 @@ register(provider: SessionTitleProvider): () => Promise<void>
  * @returns disposer restoring the title service's own configuration.
  */
 configureOpeningName(preferences: OpeningNamePreferences): () => void
+
+/** Pin an explicitly chosen opening preset using the existing date and duplicate-name allocator.
+ * @param session - live new session receiving the preset draft.
+ * @param name - saved preset display name.
+ * @returns Completion after the title event is appended.
+ */
+async selectOpeningPreset(session: Session, name: string): Promise<void>
 ```
 
 Types: [Session](session.md)

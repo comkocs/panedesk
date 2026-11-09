@@ -195,7 +195,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Its preset id, if bound.',
       },
       {
-        signature: 'composedPolicy(ctx: Context): Pick<AgentPreset, \'executionPolicy\' | \'executionPolicyDigest\' | \'model\' | \'reasoningEffort\'> | undefined',
+        signature: 'composedPolicy(ctx: Context): Pick<AgentPreset, \'executionPolicy\' | \'executionPolicyDigest\' | \'model\' | \'reasoningEffort\' | \'tools\'> | undefined',
         description: 'Read execution metadata from the exact revision retained by an Agent.',
         parameters: [{ name: 'ctx', description: 'Agent context.' }],
         returns: 'Frozen policy metadata, or undefined when no preset is bound.',
@@ -2390,8 +2390,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'planMode',
-    summary: '`ctx.planMode`: owns logged plan state, applies and narrates selected state at step start, the `plan:policy` section, the `/plan` command, and the stable exit tool.',
-    description: '`ctx.planMode`: owns logged plan state, applies and narrates selected state at step start, the `plan:policy` section, the `/plan` command, and the stable exit tool. Client carriers expose the projection\'s cropped `{ active, pending }` view.',
+    summary: '`ctx.planMode`: owns logged plan state, applies and narrates selected state at step start, the `plan:policy` section, the `/plan` command, and the plan-only advertised exit tool.',
+    description: '`ctx.planMode`: owns logged plan state, applies and narrates selected state at step start, the `plan:policy` section, the `/plan` command, and the plan-only advertised exit tool. Client carriers expose the projection\'s cropped `{ active, pending }` view.',
     methods: [
       {
         signature: 'get(agent: Agent): { active: boolean; pending?: boolean }',
@@ -4802,6 +4802,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'preferences', description: 'current enablement and saved pattern readers.' }],
         returns: 'disposer restoring the title service\'s own configuration.',
       },
+      {
+        signature: 'async selectOpeningPreset(session: Session, name: string): Promise<void>',
+        description: 'Pin an explicitly chosen opening preset using the existing date and duplicate-name allocator.',
+        parameters: [{ name: 'session', description: 'live new session receiving the preset draft.' }, { name: 'name', description: 'saved preset display name.' }],
+        returns: 'Completion after the title event is appended.',
+      },
     ],
   },
   {
@@ -5712,6 +5718,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Register globally or in the calling agent scope. Scoped tools shadow globals; duplicates within one layer and the reserved `run_code` name fail.',
         parameters: [{ name: 'definition', description: 'tool schema, execution, and optional finalization/presentation callbacks.' }],
         returns: 'the exact disposer that unregisters the tool.',
+      },
+      {
+        signature: 'filterPresentation(filter: (name: string, context: AssembleContext) => boolean): () => void',
+        description: 'Filter advertised native schemas and PTC SDK entries without changing execution or child capabilities.',
+        parameters: [{ name: 'filter', description: 'Whether to advertise a tool in the current assembly.' }],
+        returns: 'The disposer that removes this presentation preference.',
       },
       {
         signature: 'restrict(filter: ToolRestriction): () => void',
@@ -7252,7 +7264,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPresetRow',
-    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly isDefault: boolean;\n    readonly importedAgent?: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentResolver',
@@ -7541,6 +7553,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CacheRoute',
     declaration: 'export interface CacheRoute {\n    provider: string;\n    modelFamily: string;\n    capability: \'anthropic\' | \'openai-responses\' | \'openai-chat\' | \'automatic\' | \'unsupported\';\n    retention?: RouteRetention;\n}',
+  },
+  {
+    name: 'CacheTier',
+    declaration: 'export type CacheTier = Exclude<CacheRetention, \'default\' | \'auto\'>;',
   },
   {
     name: 'CallbackId',
@@ -10172,7 +10188,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PresetDefinition',
-    declaration: 'export interface PresetDefinition {\n    readonly id: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly model?: string;\n    readonly reasoningEffort?: string;\n    readonly executionPolicy?: PresetExecutionPolicy;\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
+    declaration: 'export interface PresetDefinition {\n    readonly id: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly model?: string;\n    readonly reasoningEffort?: string;\n    readonly executionPolicy?: PresetExecutionPolicy;\n    readonly tools?: readonly string[];\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
   },
   {
     name: 'PresetExecutionPolicy',
@@ -12456,7 +12472,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentTreeNode',
-    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly external?: {\n        readonly title: string;\n        readonly type: string;\n        readonly startedAt: number | null;\n        readonly endedAt: number | null;\n    };\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
+    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly external?: {\n        readonly title: string;\n        readonly type: string;\n        readonly startedAt: number | null;\n        readonly endedAt: number | null;\n    };\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly contextTokens?: number;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
   },
   {
     name: 'SubagentTreeRequest',
@@ -12900,7 +12916,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolRuntime',
-    declaration: 'export class ToolRuntime extends Service {\n    static inject;\n    static Config: z<Config>;\n    readonly [TOOL_RUNTIME_SCHEDULER]: ToolRuntimeScheduler;\n    constructor(ctx: Context, config: Config = {});\n    presentAs(mode: ToolPresentationMode): () => void;\n    register(definition: ToolDefinition): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    guard(guard: ToolGuard): () => void;\n    get(name: string, scope?: ScopeKey): ToolDefinition | undefined;\n    schemas(scope?: ScopeKey): ToolSchema[];\n    executionMode(exec: ToolExecutionInput): ToolExecutionMode;\n    async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>;\n}',
+    declaration: 'export class ToolRuntime extends Service {\n    static inject;\n    static Config: z<Config>;\n    readonly [TOOL_RUNTIME_SCHEDULER]: ToolRuntimeScheduler;\n    constructor(ctx: Context, config: Config = {});\n    presentAs(mode: ToolPresentationMode): () => void;\n    register(definition: ToolDefinition): () => void;\n    filterPresentation(filter: (name: string, context: AssembleContext) => boolean): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    guard(guard: ToolGuard): () => void;\n    get(name: string, scope?: ScopeKey): ToolDefinition | undefined;\n    schemas(scope?: ScopeKey): ToolSchema[];\n    executionMode(exec: ToolExecutionInput): ToolExecutionMode;\n    async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>;\n}',
   },
   {
     name: 'ToolRuntimeScheduler',

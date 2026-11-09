@@ -530,6 +530,13 @@ presentAs(mode: ToolPresentationMode): () => void
 register(definition: ToolDefinition): () => void
 
 /**
+ * Filter advertised native schemas and PTC SDK entries without changing execution or child capabilities.
+ * @param filter - Whether to advertise a tool in the current assembly.
+ * @returns The disposer that removes this presentation preference.
+ */
+filterPresentation(filter: (name: string, context: AssembleContext) => boolean): () => void
+
+/**
  * Restrict global tools for the calling agent scope. Empty filters, unknown
  * names, scope-local names, and reserved transport names fail. Restrictions
  * intersect; scoped registrations remain visible.
@@ -595,7 +602,7 @@ executionMode(exec: ToolExecutionInput): ToolExecutionMode
 async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>
 ```
 
-Types: [ScopeKey](scope.zh.md)
+Types: [AssembleContext](system-prompt.zh.md) · [ScopeKey](scope.zh.md)
 
 Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index.ts)
 

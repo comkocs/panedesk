@@ -159,7 +159,7 @@ export type Config = PresetDefinition
 
 - `inject`: `loader` · `sessionProjections`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:22`](../packages/preset/agent-preset-registry/src/preset.ts)
+- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:24`](../packages/preset/agent-preset-registry/src/preset.ts)
 
 ```ts config-catalog
 /** Registry selection policy. */
@@ -621,13 +621,40 @@ export interface Config {
 
 - `inject`: `settings`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/client/ui-project-onboarding/src/index.ts:11`](../packages/client/ui-project-onboarding/src/index.ts)
+- `source`: [`packages/client/ui-project-onboarding/src/index.ts:13`](../packages/client/ui-project-onboarding/src/index.ts)
 
 ```ts config-catalog
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Localized requirements-review draft. */
+  workflowRequirementsPrompt: Volatile<WorkflowPrompts['workflowRequirementsPrompt']>
+  /** Localized workflow-setup draft. */
+  workflowSetupPrompt: Volatile<WorkflowPrompts['workflowSetupPrompt']>
+  /** Localized workflow-checkup draft. */
+  workflowCheckupPrompt: Volatile<WorkflowPrompts['workflowCheckupPrompt']>
+  /** Reusable opening drafts stored in the product profile. */
+  openingPresets: Volatile<OpeningPreset[]>
+  /** Show optional workflow starters above the composer on new sessions. */
+  showWorkflowStarters: Volatile<boolean>
   /** Saved opening choices keyed by absolute workspace directory in product settings. */
   projects: Volatile<Record<string, ProjectSelection>>
+}
+
+/** Three editable prompts, with independent English and Chinese text. */
+export type WorkflowPrompts = typeof workflowDefaults
+
+/** Product-owned opening text and its target directories; omitted overrides follow the current session. */
+export interface OpeningPreset {
+  /** Display name used by the opening-preset menu. */
+  name: string
+  /** Opening text inserted into the unsent session draft. */
+  prompt: string
+  /** Working directories offered by this preset. */
+  directories: string[]
+  /** Optional model selection overriding the current session choice. */
+  model?: string
+  /** Optional permission level overriding the current session choice. */
+  permission?: string
 }
 
 /** Absence means remind and not yet selected; chosen records explicit confirmation. */
@@ -728,7 +755,7 @@ export type OnboardingProcess = 'compact' | 'standard' | 'detailed'
 ## `@panedesk/dsh-client-ui-settings-general`
 
 - `refs`: `OpeningNamePattern` (`@panedesk/dsh-session-title/types`) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/client/ui-settings-general/src/index.ts:11`](../packages/client/ui-settings-general/src/index.ts)
+- `source`: [`packages/client/ui-settings-general/src/index.ts:13`](../packages/client/ui-settings-general/src/index.ts)
 
 ```ts config-catalog
 /** Runtime preferences projected to the browser. */
@@ -873,7 +900,7 @@ export type ThemePreference = typeof THEME_PREFERENCES[number]
 
 ## `@panedesk/dsh-compaction-basic`
 
-- `inject`: `llm` · `tokenMeter` · `sessions`
+- `inject`: `llm` · `tokenMeter` · `sessions` · `sessionProjections`
 - `source`: [`packages/compaction/compaction-basic/src/types.ts:40`](../packages/compaction/compaction-basic/src/types.ts)
 
 ```ts config-catalog
@@ -887,7 +914,7 @@ export interface BasicCompactionConfig extends CompactionPolicyConfig {
 
 /** Policy fields shared by the default policy and exact model overrides. */
 export interface CompactionPolicyConfig {
-  /** Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`. Defaults to `0.8`. */
+  /** Window fraction for pressure; capped at context window minus reserved output and `headroomTokens`. Defaults to `0.945`, so automatic compaction starts with 5.5% of the window left. */
   thresholdRatio?: number
   /** Additional pressure headroom beyond the routed output reservation. Non-negative integer; defaults to `65536`. */
   headroomTokens?: number
@@ -1108,12 +1135,25 @@ export interface Config {
 ## `@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp`
 
 - `inject`: `browserUse` · `agents` · `tools` · `systemPrompt` · `workingDirectory`
-- `refs`: `BrowserMcpConfig` (`@panedesk/dsh-experimental-browser-use-runtime/mcp`)
-- `source`: [`packages/experimental/browser-use-chrome-devtools-mcp/src/index.ts:15`](../packages/experimental/browser-use-chrome-devtools-mcp/src/index.ts)
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/experimental/browser-use-chrome-devtools-mcp/src/index.ts:16`](../packages/experimental/browser-use-chrome-devtools-mcp/src/index.ts)
 
 ```ts config-catalog
 /** Fixed Chromium launch or existing-browser attachment settings. */
-export type Config = BrowserMcpConfig
+export interface Config {
+  /** Whether Chrome DevTools tools are enabled for sessions. */
+  enabled: Volatile<boolean>
+  /** Launch an isolated browser or attach to an existing browser. */
+  mode: 'launch' | 'attach'
+  /** Browser debugging endpoint used in attach mode. */
+  endpoint: Volatile<string>
+  /** Whether a launched browser runs without a visible window. */
+  headless: boolean
+  /** Optional browser executable used in launch mode. */
+  executablePath?: string
+  /** Optional timeout in milliseconds for each tool call. */
+  toolCallTimeoutMs?: number
+}
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp -->
 
@@ -1704,7 +1744,7 @@ export interface HmrConfig extends ChokidarOptions {
 ## `@panedesk/dsh-hooks-claude-code`
 
 - `inject`: `shell` · `sessionProjections` · `workingDirectory`
-- `source`: [`packages/experimental/hooks-claude-code/src/index.ts:51`](../packages/experimental/hooks-claude-code/src/index.ts)
+- `source`: [`packages/experimental/hooks-claude-code/src/index.ts:58`](../packages/experimental/hooks-claude-code/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the CC hook config lives + substitution roots. */
@@ -1712,11 +1752,12 @@ export interface Config {
   /**
    * Path to a `hooks.json` or a settings file whose `hooks` key holds the config.
    * Process-level: read once at load, a relative path resolves against the process
-   * launch cwd, so one config applies to the whole process.
-   * TODO(per-session-hook-config): per-session discovery of a project-local
-   * `hooks.json` from each `session/new.cwd`.
+   * launch cwd, so one config applies to the whole process. Omitted (the default
+   * mount): each session working directory discovers its project
+   * `.claude/settings.json`, `.claude/settings.local.json`, and the user-level
+   * `~/.claude/settings.json`, merged in that order per event.
    */
-  configPath: string
+  configPath?: string
   /**
    * Replaces `${CLAUDE_PLUGIN_ROOT}` in command strings (the plugin's root dir).
    */
@@ -2202,7 +2243,7 @@ export interface Config extends ProtocolConfig {
 
 - `inject`: `llm`
 - `refs`: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/llm/llm-pi-ai/src/config.ts:210`](../packages/llm/llm-pi-ai/src/config.ts)
+- `source`: [`packages/llm/llm-pi-ai/src/config.ts:211`](../packages/llm/llm-pi-ai/src/config.ts)
 
 ```ts config-catalog
 /** Plugin configuration: the provider routes this instance owns. */
@@ -2253,9 +2294,10 @@ export interface PiAiProviderProfile {
    */
   compat?: PiAiCompatProfile
   /**
-   * Context capacity for a model this route lists that neither the entry nor
-   * the installed catalog sizes (default 262,144). A guess by construction, so
-   * a deployment whose gateway serves smaller models corrects it here.
+   * Context capacity for a model this route lists that the entry, the
+   * name-keyed preset table, and the installed catalog all leave unsized
+   * (default 262,144). A guess by construction, so a deployment whose gateway
+   * serves smaller models corrects it here.
    */
   defaultContextWindow?: number
   /**
@@ -2310,8 +2352,19 @@ export interface PiAiModelProfile {
   id: string
   /** Display name for selectors; defaults to the catalog name, then the id. */
   name?: string
-  /** Maximum combined request and response context in tokens. */
+  /**
+   * Maximum combined request and response context in tokens. Resolution order:
+   * this value, then the name-keyed preset table, then the installed catalog
+   * entry of the same id, then the route's `defaultContextWindow`.
+   */
   contextWindow?: number
+  /**
+   * Marker that {@link contextWindow} was stored by adopting an upstream
+   * listing, so the Models page can label the value "upstream" rather than
+   * "entered by hand". Absent keeps that hand-written reading and nothing in
+   * resolution reads this field; clearing `contextWindow` should clear it too.
+   */
+  contextWindowSource?: 'upstream'
   /**
    * Maximum output tokens. Configuring one also makes it this model's
    * per-request default; a value inherited from the installed catalog, or the
@@ -2928,7 +2981,7 @@ export interface Config {
 ## `@panedesk/dsh-plan-mode`
 
 - `inject`: `tools` · `systemPrompt` · `sessionProjections`
-- `source`: [`packages/plan/plan-mode/src/index.ts:69`](../packages/plan/plan-mode/src/index.ts)
+- `source`: [`packages/plan/plan-mode/src/index.ts:65`](../packages/plan/plan-mode/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-owned plan guidance. */
@@ -4726,6 +4779,26 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-tool-lsp -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-tool-panedesk-settings -->
+<a id="panedeskdsh-tool-panedesk-settings"></a>
+
+## `@panedesk/dsh-tool-panedesk-settings`
+
+- `inject`: `tools` · `settings` · `configEditor` · `systemPrompt`
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/settings/tool-panedesk-settings/src/index.ts:20`](../packages/settings/tool-panedesk-settings/src/index.ts)
+
+```ts config-catalog
+/** Tool names omitted from ordinary sessions; typed subagents keep their own tool mapping. */
+export interface Config {
+  /** Tool names hidden from new ordinary sessions. */
+  disabledTools: Volatile<string[]>
+  /** Whether new untyped subagents receive all available tools. */
+  subagentsFullTools: Volatile<boolean>
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-tool-panedesk-settings -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-tool-present -->
 <a id="panedeskdsh-tool-present"></a>
 
@@ -5072,7 +5145,7 @@ export interface Config {
 ## `@panedesk/dsh-tools`
 
 - `inject`: `systemPrompt`
-- `source`: [`packages/core/tools/src/index.ts:675`](../packages/core/tools/src/index.ts)
+- `source`: [`packages/core/tools/src/index.ts:684`](../packages/core/tools/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: how the registered tools are presented to the model. */
@@ -5459,7 +5532,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@panedesk/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
 | `@panedesk/dsh-client-ui-brand-official` | — | [`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts) |
-| `@panedesk/dsh-client-ui-cache-pill` | — | [`packages/client/ui-cache-pill/src/index.ts`](../packages/client/ui-cache-pill/src/index.ts) |
+| `@panedesk/dsh-client-ui-cache-pill` | `settings` | [`packages/client/ui-cache-pill/src/index.ts`](../packages/client/ui-cache-pill/src/index.ts) |
 | `@panedesk/dsh-client-ui-chat` | — | [`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts) |
 | `@panedesk/dsh-client-ui-commands` | — | [`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts) |
 | `@panedesk/dsh-client-ui-conversation` | — | [`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts) |
@@ -5497,7 +5570,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-settings-web-search` | — | [`packages/client/ui-settings-web-search/src/index.ts`](../packages/client/ui-settings-web-search/src/index.ts) |
 | `@panedesk/dsh-client-ui-shortcuts` | — | [`packages/client/ui-shortcuts/src/index.ts`](../packages/client/ui-shortcuts/src/index.ts) |
 | `@panedesk/dsh-client-ui-sidebar` | — | [`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts) |
-| `@panedesk/dsh-client-ui-sidebar-browser` | — | [`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts) |
+| `@panedesk/dsh-client-ui-sidebar-browser` | `tools` · `attachments` | [`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts) |
 | `@panedesk/dsh-client-ui-sidebar-files` | — | [`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts) |
 | `@panedesk/dsh-client-ui-sidebar-right` | — | [`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts) |
 | `@panedesk/dsh-client-ui-sidebar-terminal` | — | [`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts) |
@@ -5555,6 +5628,7 @@ export interface Config {
 | `@panedesk/dsh-tool-schedule` | `tools` | [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts) |
 | `@panedesk/dsh-tool-seat` | — | [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts) |
 | `@panedesk/dsh-tool-seat-messages` | — | [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts) |
+| `@panedesk/dsh-tool-session-ops` | `tools` · `sessionController` · `permissionPresets` · `sessionProjections` · `workingDirectory` · `settings` · `agentDefaultModel` · `workspaceRegistry` | [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts) |
 | `@panedesk/dsh-tool-subagent-control` | `tools` · `subagents` | [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts) |
 | `@panedesk/dsh-tool-working-directory` | `tools` · `workingDirectory` | [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts) |
 | `@panedesk/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
