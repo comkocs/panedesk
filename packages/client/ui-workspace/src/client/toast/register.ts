@@ -2,8 +2,8 @@
 import type { Context } from '@panedesk/cordis'
 import type { PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { RowToastActions, WorkspaceViewStoreHandle } from '../contract/slots.ts'
-import type { ArchiveToastInjected, ToastDisplayInjected } from '../contract/toast.ts'
-import { ArchiveToastEntry, ToastEntry, WorkspaceToast } from './Toast.tsx'
+import type { ArchivedManyToastInjected, ArchiveToastInjected, ToastDisplayInjected } from '../contract/toast.ts'
+import { ArchivedManyToastEntry, ArchiveToastEntry, ToastEntry, WorkspaceToast } from './Toast.tsx'
 
 /** Register notice presentations with their business-owned display fields and actions.
  * @param ctx - Workspace plugin context.
@@ -13,7 +13,7 @@ import { ArchiveToastEntry, ToastEntry, WorkspaceToast } from './Toast.tsx'
 export function registerToasts(
   ctx: Context,
   viewStore: WorkspaceViewStoreHandle,
-  actions: Pick<RowToastActions, 'undoArchive' | 'showArchived' | 'openForkSource'>,
+  actions: Pick<RowToastActions, 'undoArchive' | 'undoArchiveMany' | 'showArchived' | 'openForkSource'>,
 ): void {
   const archiveFilterAction: ArchiveToastInjected['filterAction'] = (t, dismiss) => ({
     prefix: t('toast.archivedOr'), label: t('toast.archivedFilter'),
@@ -100,5 +100,18 @@ export function registerToasts(
         filterAction: archiveFilterAction,
       }),
     }, ArchiveToastEntry)
+    yield ctx.slots.register({
+      name: 'workspace.toast', key: 'archivedMany', locale: 'workspace', store: viewStore,
+      inject: (): ArchivedManyToastInjected => ({
+        display: (notice, t, dismiss) => ({
+          text: t('toast.archivedMany', { n: notice.count }), tone: 'success', holdMs: 6000,
+          actions: [{
+            label: t('toast.archivedUndo'),
+            onClick: () => { dismiss(); actions.undoArchiveMany(notice.sessionIds) },
+          }],
+        }),
+        filterAction: archiveFilterAction,
+      }),
+    }, ArchivedManyToastEntry)
   })
 }

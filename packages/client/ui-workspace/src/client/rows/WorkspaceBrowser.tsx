@@ -18,6 +18,7 @@ import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useStat
 import clsx from 'clsx'
 import {
   Button, HoverCardGroup, IconArchiveCheckOutlineRegular, IconArchiveOffOutlineRegular, IconArchiveOutlineRegular,
+  IconPinFillRegular, IconPinOutlineRegular, MenuItemButton,
   IconChevronsUpDownOutlineRegular, IconClockOutlineRegular, IconCloseFillRegular,
   IconFlatListOutlineRegular, IconFolderCloseRegular, IconProjectAddOutlineRegular,
   IconQueueOutlineRegular, IconSearchOutlineRegular, IconSlidersTwoOutlineRegular,
@@ -271,6 +272,16 @@ type SessionTreeProps = Pick<
   ungroupedSessionIds: readonly SessionId[]
   /** Whether the current Workspace stream has a complete Host baseline. */
   workspaceReady: boolean
+  /** Session ids in the browser's multi-selection, in click order. */
+  selectedIds: ReadonlySet<SessionNode['id']>
+  /** Toggle one row, or replace the selection with the inclusive display range. */
+  onSelectClick: (id: SessionNode['id'], mode: 'toggle' | 'range') => void
+  /** Open the bulk menu on a right click inside the selection. */
+  onBulkMenu: (id: SessionNode['id'], pos: { x: number; y: number }) => void
+  /** Drop the multi-selection when the pointer lands on list padding. */
+  onListBackground: () => void
+  /** Report the Session rows this body paints, in display order. */
+  onDisplayed: (ids: readonly SessionId[]) => void
   /** Grouping, ordering, and filter changes replace the view without row motion. */
   animationResetKey: string
   /** Nest Workspaces under their nearest registered ancestors. */
@@ -297,7 +308,90 @@ type SessionTreeProps = Pick<
   onSessionRevealed: (sessionId: SessionId) => void
 }
 
-/** The list-empty placeholder — a glyph over the text; the archived-only view names its filter and offers the way back. */
+/** The three batch verbs that apply to the current selection, named for the bar and the menu. */
+function bulkActions({ ids, pinnedSessionIds, archivedSessionIds, pinSessions, unpinSessions, archiveSessions, onDone, t }: {
+  ids: readonly SessionId[]
+  pinnedSessionIds: readonly SessionId[]
+  archivedSessionIds: readonly SessionId[]
+  pinSessions: (ids: readonly SessionId[]) => void
+  unpinSessions: (ids: readonly SessionId[]) => void
+  archiveSessions: (ids: readonly SessionId[]) => void
+  /** Close the surface that offered the verb. */
+  onDone: () => void
+  t: WorkspaceBrowserProps['t']
+}): { key: string; icon: ReactNode; label: string; act: () => void }[] {
+  const pinned = new Set(pinnedSessionIds)
+  const archived = new Set(archivedSessionIds)
+  const pinnable = ids.filter(id => !archived.has(id) && !pinned.has(id))
+  const unpinnable = ids.filter(id => !archived.has(id) && pinned.has(id))
+  const archivable = ids.filter(id => !archived.has(id))
+  const run = (verb: (targets: readonly SessionId[]) => void, targets: readonly SessionId[]) => {
+    verb(targets)
+    onDone()
+  }
+  return [
+    pinnable.length > 0 && {
+      key: 'pin', icon: <IconPinOutlineRegular />, label: t('bulk.pin', { n: pinnable.length }),
+      act: () => { run(pinSessions, pinnable) },
+    },
+    unpinnable.length > 0 && {
+      key: 'unpin', icon: <IconPinFillRegular />, label: t('bulk.unpin', { n: unpinnable.length }),
+      act: () => { run(unpinSessions, unpinnable) },
+    },
+    archivable.length > 0 && {
+      key: 'archive', icon: <IconArchiveOutlineRegular />, label: t('bulk.archive', { n: archivable.length }),
+      act: () => { run(archiveSessions, archivable) },
+    },
+  ].filter(entry => entry !== false)
+}
+
+/** Strip above the list while more than one Session is selected. */
+function BulkBar({ ids, pinnedSessionIds, archivedSessionIds, pinSessions, unpinSessions, archiveSessions, onClear, t }: {
+  ids: readonly SessionId[]
+  pinnedSessionIds: readonly SessionId[]
+  archivedSessionIds: readonly SessionId[]
+  pinSessions: (ids: readonly SessionId[]) => void
+  unpinSessions: (ids: readonly SessionId[]) => void
+  archiveSessions: (ids: readonly SessionId[]) => void
+  onClear: () => void
+  t: WorkspaceBrowserProps['t']
+}) {
+  const entries = bulkActions({
+    ids, pinnedSessionIds, archivedSessionIds, pinSessions, unpinSessions, archiveSessions, onDone: onClear, t,
+  })
+  return (
+    <div className={css.bulkBar} role="toolbar" aria-label={t('bulk.bar.aria', { n: ids.length })}>
+      {entries.map(entry => (
+        <button key={entry.key} type="button" className={css.bulkButton} onClick={entry.act}>{entry.label}</button>
+      ))}
+      <button type="button" className={css.bulkButton} onClick={onClear}>{t('bulk.clear')}</button>
+    </div>
+  )
+}
+
+/** Pointer-anchored menu for a right click inside the selection. */
+function BulkMenu({ ids, pos, pinnedSessionIds, archivedSessionIds, pinSessions, unpinSessions, archiveSessions, onClose, t }: {
+  ids: readonly SessionId[]
+  pos: { x: number; y: number }
+  pinnedSessionIds: readonly SessionId[]
+  archivedSessionIds: readonly SessionId[]
+  pinSessions: (ids: readonly SessionId[]) => void
+  unpinSessions: (ids: readonly SessionId[]) => void
+  archiveSessions: (ids: readonly SessionId[]) => void
+  onClose: () => void
+  t: WorkspaceBrowserProps['t']
+}) {
+  const entries = bulkActions({
+    ids, pinnedSessionIds, archivedSessionIds, pinSessions, unpinSessions, archiveSessions, onDone: onClose, t,
+  })
+  return (
+    <Menu open onClose={onClose} portal getAnchorRect={() => new DOMRect(pos.x, pos.y, 0, 0)} anchor={<span />}>
+      {entries.map(entry => (
+        <MenuItemButton key={entry.key} icon={entry.icon} onSelect={entry.act}>{entry.label}</MenuItemButton>
+      ))}
+    </Menu>
+  )
+}
 function EmptySessions({ rowState, onLeaveArchivedOnly, t }: Pick<SessionTreeProps, 'rowState' | 'onLeaveArchivedOnly' | 't'>) {
   const archivedOnly = rowState.archivedFilter === 'only'
   return (
@@ -324,6 +418,7 @@ function SessionTree({
   nestWorkspaces, groupExpansion, setGroupExpanded,
   setSessionOrder, home, t,
   revealSessionId, onSessionRevealed, shortcuts,
+  selectedIds, onSelectClick, onBulkMenu, onListBackground, onDisplayed,
 }: SessionTreeProps) {
   const panelActive = usePanelInfo(info => info.activePanelId !== null)
   const statuses = useSessionStatus(s => s)
@@ -625,6 +720,9 @@ function SessionTree({
               key={node.id}
               node={node}
               currentId={current}
+              multiSelected={selectedIds.has(node.id)}
+              onSelectClick={onSelectClick}
+              onBulkMenu={onBulkMenu}
               now={now}
               onOpen={open}
               onRenameRequest={onSessionRenameRequest}
@@ -665,12 +763,15 @@ function SessionTree({
   }
 
   const groupRows = rootGroups.map(group => renderGroup(group, 0))
+  const displayedIds = rowKeys.flatMap(key => key.startsWith('session:') ? [key.slice('session:'.length) as SessionId] : [])
+  useEffect(() => { onDisplayed(displayedIds) }, [onDisplayed, displayedIds.join('\0')])
   return (
     <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
       {workspaceDropAtListStart && <span className={css.listTopDropIndicator} aria-hidden="true" />}
       <AnimatedRows
         className={clsx(css.list, workspaceDropAtListStart && css.listTopDropActive)}
         label={t('section.sessions')}
+        onBackgroundPointerDown={onListBackground}
         rowKeys={rowKeys}
         ready={list.phase === 'ready' && workspaceReady && !nativeDragActive}
         resetKey={JSON.stringify([animationResetKey, watermarkMotionKey])}
@@ -690,6 +791,7 @@ function FlatList({
   list, workspaces, sessionIds, rowState, onLeaveArchivedOnly, useSessionStatus, open, onSessionRenameRequest,
   usePanelInfo, setSessionOrder, workspaceReady, animationResetKey,
   revealSessionId, onSessionRevealed, renderSlot, t,
+  selectedIds, onSelectClick, onBulkMenu, onListBackground, onDisplayed,
 }: Pick<
   SessionTreeProps,
   | 'workspaces'
@@ -705,6 +807,11 @@ function FlatList({
   | 'onSessionRevealed'
   | 'rowState'
   | 'onLeaveArchivedOnly'
+  | 'selectedIds'
+  | 'onSelectClick'
+  | 'onBulkMenu'
+  | 'onListBackground'
+  | 'onDisplayed'
   | 't'
 > & {
   list: SessionListState
@@ -730,11 +837,14 @@ function FlatList({
     if (nextOrder !== undefined) setSessionOrder(FLAT_SESSION_ORDER_KEY, nextOrder)
   }
   const now = Date.now()
+  const displayedIds = rows.map(row => row.id)
+  useEffect(() => { onDisplayed(displayedIds) }, [onDisplayed, displayedIds.join('\0')])
   return (
     <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
       <AnimatedRows
         className={clsx(css.list, css.flatList)}
         label={t('section.sessions')}
+        onBackgroundPointerDown={onListBackground}
         rowKeys={rows.length === 0 ? ['empty'] : rows.map(row => `session:${row.id}`)}
         ready={list.phase === 'ready' && workspaceReady && drag === null}
         resetKey={animationResetKey}
@@ -751,6 +861,9 @@ function FlatList({
               key={node.id}
               node={node}
               currentId={currentId}
+              multiSelected={selectedIds.has(node.id)}
+              onSelectClick={onSelectClick}
+              onBulkMenu={onBulkMenu}
               now={now}
               onOpen={open}
               onRenameRequest={onSessionRenameRequest}
@@ -911,6 +1024,9 @@ export function WorkspaceBrowser({
   deleteWorkspace,
   insertWorkspaceBefore,
   unarchiveSession,
+  archiveSessions,
+  pinSessions,
+  unpinSessions,
   createWorkspace,
   searchSessions,
   searchResultLimit,
@@ -957,15 +1073,6 @@ export function WorkspaceBrowser({
   const archivedFilter = useStore(s => s.archivedFilter ?? 'default')
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
-  // Archived sessions are not openable: the row stays visible under the
-  // filter but a click explains instead of navigating.
-  const guardedOpen = (sessionId: SessionId): void => {
-    if (archivedSessionIds.includes(sessionId)) {
-      notifyArchivedNotOpenable()
-      return
-    }
-    open(sessionId)
-  }
   const leaveArchivedOnly = (): void => { actions.setArchivedFilter('default') }
   const workspaceReady = workspacePhase === 'ready' && workspaceStreamState !== 'loading'
   const mainSessionId = Object.values(list.byId)
@@ -1069,6 +1176,54 @@ export function WorkspaceBrowser({
   const saveSessionOrder = (accountKey: string, order: readonly string[]): void => {
     actions.setSessionOrder(accountKey, order, activeSessionOrders)
   }
+  // Multi-selection lives with the browser: the anchor is the last plain or
+  // toggle click, and a range click fills every displayed row between them.
+  const [selection, setSelection] = useState<{
+    ids: readonly SessionId[]
+    anchor: SessionId | undefined
+  }>({ ids: [], anchor: undefined })
+  const [bulkMenu, setBulkMenu] = useState<{ x: number; y: number } | null>(null)
+  const selectedSet = useMemo(() => new Set(selection.ids), [selection.ids])
+  // The two list bodies report the rows they actually paint, in display order,
+  // so a range follows folded groups and watermarks rather than full membership.
+  const [displayedSessionIds, setDisplayedSessionIds] = useState<readonly SessionId[]>([])
+  const reportDisplayed = (ids: readonly SessionId[]): void => {
+    setDisplayedSessionIds(current => current.length === ids.length && current.every((id, index) => id === ids[index])
+      ? current
+      : ids)
+  }
+  const selectClick = (sessionId: SessionId, mode: 'toggle' | 'range'): void => {
+    setSelection((current) => {
+      if (mode === 'range' && current.anchor !== undefined) {
+        const from = displayedSessionIds.indexOf(current.anchor)
+        const to = displayedSessionIds.indexOf(sessionId)
+        if (from !== -1 && to !== -1) {
+          const [start, end] = from <= to ? [from, to] : [to, from]
+          return { ids: displayedSessionIds.slice(start, end + 1), anchor: current.anchor }
+        }
+      }
+      const ids = current.ids.includes(sessionId)
+        ? current.ids.filter(id => id !== sessionId)
+        : [...current.ids, sessionId]
+      return { ids, anchor: sessionId }
+    })
+  }
+  const clearSelection = (): void => { setSelection({ ids: [], anchor: undefined }) }
+  const openBulkMenu = (_sessionId: SessionId, pos: { x: number; y: number }): void => { setBulkMenu(pos) }
+  const guardedOpen = (sessionId: SessionId): void => {
+    clearSelection()
+    if (archivedSessionIds.includes(sessionId)) {
+      notifyArchivedNotOpenable()
+      return
+    }
+    open(sessionId)
+  }
+  useEffect(() => {
+    if (selection.ids.length === 0) return
+    const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') clearSelection() }
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey) }
+  }, [selection.ids.length])
   // The query outlives the tree and the input (both wide-only) so collapsing
   // does not silently drop an in-progress filter.
   const [query, setQuery] = useState('')
@@ -1401,6 +1556,31 @@ export function WorkspaceBrowser({
       {/* Always-mounted seat keeps the region's flex slot while the list
           itself is wide-only. */}
       <div className={css.listArea}>
+        {wide && normalizedQuery === '' && selection.ids.length > 1 && (
+          <BulkBar
+            ids={selection.ids}
+            pinnedSessionIds={pinnedSessionIds}
+            archivedSessionIds={archivedSessionIds}
+            pinSessions={pinSessions}
+            unpinSessions={unpinSessions}
+            archiveSessions={archiveSessions}
+            onClear={clearSelection}
+            t={t}
+          />
+        )}
+        {bulkMenu !== null && selection.ids.length > 1 && (
+          <BulkMenu
+            ids={selection.ids}
+            pos={bulkMenu}
+            pinnedSessionIds={pinnedSessionIds}
+            archivedSessionIds={archivedSessionIds}
+            pinSessions={pinSessions}
+            unpinSessions={unpinSessions}
+            archiveSessions={archiveSessions}
+            onClose={() => { setBulkMenu(null) }}
+            t={t}
+          />
+        )}
         {wide && (normalizedQuery !== ''
           ? (
             <SearchResults
@@ -1422,6 +1602,11 @@ export function WorkspaceBrowser({
             ? (
               <FlatList
                 workspaces={workspaces}
+                selectedIds={selectedSet}
+                onSelectClick={selectClick}
+                onBulkMenu={openBulkMenu}
+                onListBackground={clearSelection}
+                onDisplayed={reportDisplayed}
                 usePanelInfo={usePanelInfo}
                 list={list}
                 sessionIds={orderedFlatSessionIds}
@@ -1441,6 +1626,11 @@ export function WorkspaceBrowser({
             )
             : (
               <SessionTree
+                selectedIds={selectedSet}
+                onSelectClick={selectClick}
+                onBulkMenu={openBulkMenu}
+                onListBackground={clearSelection}
+                onDisplayed={reportDisplayed}
                 usePanelInfo={usePanelInfo}
                 list={list}
                 shortcuts={shortcuts}

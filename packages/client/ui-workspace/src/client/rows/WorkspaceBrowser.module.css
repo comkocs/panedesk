@@ -295,6 +295,30 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+/* Batch verbs for a multi-selection; sits above the scrolling list. */
+.bulkBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
+.bulkButton {
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  padding: 2px 8px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.bulkButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
 /* List seat: always mounted so the shell foot never moves. */
 .listArea {
   flex: 1;

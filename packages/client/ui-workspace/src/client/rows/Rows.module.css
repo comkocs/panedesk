@@ -16,7 +16,8 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.sessionRow.selected {
+.sessionRow.selected,
+.sessionRow.multiSelected {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 

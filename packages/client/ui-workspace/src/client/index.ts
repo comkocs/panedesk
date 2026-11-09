@@ -211,6 +211,28 @@ export function apply(ctx: Context): void {
     },
     unarchiveSession,
   })
+  const batchInjected = (): Pick<WorkspaceBrowserInjected, 'archiveSessions' | 'pinSessions' | 'unpinSessions'> => ({
+    // A batch repeats the single-Session calls. One notice covers the whole
+    // batch, and its undo walks the same ids back out of the archive set.
+    archiveSessions: (sessionIds) => {
+      for (const sessionId of sessionIds) {
+        uiWorkspace.archiveSession(sessionId).catch((reason: unknown) => {
+          console.warn('session archive rejected:', reason)
+        })
+      }
+      notify({ kind: 'archivedMany', sessionIds: [...sessionIds], count: sessionIds.length })
+    },
+    pinSessions: (sessionIds) => {
+      for (const sessionId of sessionIds) {
+        uiWorkspace.pinSession(sessionId).catch(() => { notify({ kind: 'pinFailed' }) })
+      }
+    },
+    unpinSessions: (sessionIds) => {
+      for (const sessionId of sessionIds) {
+        uiWorkspace.unpinSession(sessionId).catch(() => { notify({ kind: 'unpinFailed' }) })
+      }
+    },
+  })
   installWorkspaceShortcuts(ctx, uiWorkspace, shortcutControls, archiveInjected().archiveSession,
     (reason) => { notify({ kind: 'shortcutForkFailed', reason }) })
   const archiveConfirmInjected = (): SessionArchiveConfirmInjected => ({
@@ -247,6 +269,9 @@ export function apply(ctx: Context): void {
   })
   const toastActions = {
     undoArchive: unarchiveSession,
+    undoArchiveMany: (sessionIds: readonly SessionId[]) => {
+      for (const sessionId of sessionIds) unarchiveSession(sessionId)
+    },
     showArchived: () => { viewInstance.actions.setArchivedFilter('show') },
     openForkSource: (sessionId: SessionId) => {
       if (workspaces.list.getSnapshot().archivedSessionIds.includes(sessionId)) {
@@ -276,6 +301,7 @@ export function apply(ctx: Context): void {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },
     unarchiveSession: async (sessionId) => { await uiWorkspace.unarchiveSession(sessionId) },
+    ...batchInjected(),
     createWorkspace: input => workspaces.create(input),
     requestSearch: shortcutControls.search,
     requestAddWorkspace: shortcutControls.add,

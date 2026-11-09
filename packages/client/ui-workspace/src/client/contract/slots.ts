@@ -270,6 +270,15 @@ export type WorkspaceBrowserInjected = {
   insertWorkspaceBefore: (workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>
   /** Remove a Session from the registry-global archived set (the search results' restore button). */
   unarchiveSession: (sessionId: SessionId) => Promise<void>
+  /**
+   * Archive each Session through the single-Session path, with no per-Session
+   * confirmation, then raise one notice for the whole batch.
+   */
+  archiveSessions: (sessionIds: readonly SessionId[]) => void
+  /** Pin each Session through the single-Session path. */
+  pinSessions: (sessionIds: readonly SessionId[]) => void
+  /** Unpin each Session through the single-Session path. */
+  unpinSessions: (sessionIds: readonly SessionId[]) => void
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
   createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
 }
@@ -292,6 +301,7 @@ export type SessionRowActionProps<Injected extends object = object> =
 /** One transient Workspace notice rendered by the overlay toast entry. */
 export type RowToast =
   | { kind: 'archived'; sessionId: SessionId }
+  | { kind: 'archivedMany'; sessionIds: readonly SessionId[]; count: number }
   | { kind: 'stoppedAndArchived'; sessionId: SessionId }
   | { kind: 'sessionIdCopied' }
   | { kind: 'sessionIdCopyFailed' }
@@ -437,6 +447,8 @@ export interface RowToastInjected {
 export interface RowToastActions {
   /** Undo an archive from its notice. */
   undoArchive: (sessionId: SessionId) => void
+  /** Undo a batch archive from its notice, one Session at a time. */
+  undoArchiveMany: (sessionIds: readonly SessionId[]) => void
   /** Switch the archived filter to "show" so the archived row is back in view. */
   showArchived: () => void
   /** Open the fork source without retrying the fork. */

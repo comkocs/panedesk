@@ -14,6 +14,8 @@ interface AnimatedRowsProps {
   ready: boolean
   /** Changes that replace the view or reveal hidden rows settle immediately. */
   resetKey: string
+  /** Pointer down on the scrolling list element itself, not one of its rows. */
+  onBackgroundPointerDown?: (() => void) | undefined
 }
 
 interface RowPosition {
@@ -172,6 +174,7 @@ export class AnimatedRows extends Component<AnimatedRowsProps> {
         className={this.props.className}
         role="tree"
         aria-label={this.props.label}
+        onPointerDown={(event) => { if (event.target === event.currentTarget) this.props.onBackgroundPointerDown?.() }}
         onPointerDownCapture={() => { this.armed = true }}
         onKeyDownCapture={() => { this.armed = true }}
       >
