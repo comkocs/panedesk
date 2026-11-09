@@ -716,7 +716,7 @@ export class Session implements SessionFace {
       if (changed || result.retireAttemptId !== undefined) this.notifier.markDirty()
     } else if (result?.type === 'transient') {
       this.eventSource.append(result.entry)
-      this.notifier.markDirty()
+      this.notifier.markFrameDirty()
     }
   }
 
