@@ -13,13 +13,13 @@ Four tools manage ordinary top-level Sessions without a Client or a separate lif
 
 ## Use this package
 
-Mount alongside `tools`, `sessionController`, `permissionPresets`, `sessionProjections`, `workingDirectory`, `settings`, and `agentDefaultModel`. The plugin has no configuration fields.
+Mount alongside `tools`, `sessionController`, `permissionPresets`, `sessionProjections`, `workingDirectory`, `settings`, `agentDefaultModel`, and `workspaceRegistry`. The plugin has no configuration fields.
 
 ```yaml
 - name: '@panedesk/dsh-tool-session-ops'
 ```
 
-- `session_new({ cwd?, model?, permissionPreset?, prompt?, name? })` opens a Session. `cwd` defaults to the caller's effective directory; `model` matches a configured model id or display name; omitted model and permission preset retain the existing remembered defaults. `prompt` is the optional opening message. An omitted `name` does not call rename and leaves ordinary automatic naming enabled. The result contains `sessionId` and the current `name`, using the id while no title exists.
+- `session_new({ cwd?, model?, permissionPreset?, prompt?, name? })` opens a Session. `cwd` defaults to the caller's effective directory. The existing directory is canonicalized through the Workspace registry: a matching folder group is reused, otherwise one is created before the Session is attached; relative, missing, and non-directory paths reject, as with manual folder registration; `model` matches a configured model id or display name; omitted model and permission preset retain the existing remembered defaults. `prompt` is the optional opening message. An omitted `name` does not call rename and leaves ordinary automatic naming enabled. The result contains `sessionId` and the current `name`, using the id while no title exists.
 - `session_rename({ sessionId?, name })` renames the given Session, or the calling Session when the id is omitted, through the same service used by the interface. It returns `sessionId` and the accepted name.
 - `session_list({})` returns all ordinary top-level Sessions, including ordinary forks but excluding delegated subagents. Each row contains `sessionId`, `name`, the effective `cwd` when available, `running`, and a `model` object with provider and model ids. Rows follow existing most-recent-activity ordering.
 - `session_send({ target, text })` resolves an exact Session id first, then an exact name; duplicate names select the most recently active Session. It submits a `next-step` message without interrupting the receiver and returns `sessionId`, `name`, and `accepted`, not a reply. English locale preference uses `[From <name>] `; Chinese and unavailable locale preference use `〔来自 <name>〕`.

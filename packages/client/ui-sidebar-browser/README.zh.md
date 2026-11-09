@@ -93,7 +93,7 @@ Desktop 主进程批准 guest 租约，并执行挂载、导航和权限策略�
 
 #### 模型可见内容
 
-`browser` 工具接收 `command` 对象：`navigate` 携带 `url`；`read`、`screenshot` 或 `tabs`；`click` 携带 `x`、`y`；`type` 携带 `text`；`scroll` 携带 `x`、`y`、`deltaX`、`deltaY`；`switch` 携带 `tabId`。坐标单位为视口 CSS 像素。Desktop 先打开调用方会话及其浏览器标签页，再操作用户可见的同一个 webview。文字和 PNG 图片附件通过常规工具结果流程持久化。Web 返回仅桌面版可用的提示。
+`browser` 工具接收 `command` 对象：`navigate` 携带 `url`；`read`、`screenshot` 或 `tabs`；`click` 携带 `x`、`y`；`type` 携带 `text`；`scroll` 携带 `x`、`y`、`deltaX`、`deltaY`；`switch` 携带 `tabId`。坐标单位为视口 CSS 像素。Desktop 先打开调用方会话及其浏览器标签页，再操作用户可见的同一个 webview。文字和 PNG 图片附件通过常规工具结果流程持久化。可用性以已连接的 Desktop 浏览器 IPC 通道为准，不依赖 Host 的 Node 可执行文件标记。Web 返回仅桌面版可用的提示。
 
 #### Token 影响
 

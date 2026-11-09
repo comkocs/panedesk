@@ -15599,7 +15599,7 @@
       "id": "host-session-tools-and-descendant-interruption",
       "description": "Manage top-level Sessions through Host tools and optionally interrupt subagent descendants.",
       "origin": "Panedesk Session orchestration tools",
-      "reason": "Reuse existing Session creation, model, permission, naming, listing and next-step prompt services; ship four tools in Web and Desktop presets without changing Client or subagent lifecycle ownership.",
+      "reason": "Reuse existing Session creation, model, permission, naming, listing and next-step prompt services; resolve or create the canonical directory's Workspace before attaching new Sessions; ship four tools in Web and Desktop presets without changing Client or subagent lifecycle ownership.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -15670,7 +15670,7 @@
       "id": "visible-sidebar-browser-tools",
       "description": "Open the sidebar browser from the Session header and let agents operate its visible desktop webview.",
       "origin": "Shared visible browser and optional external Chrome attachment",
-      "reason": "Reuse the existing desktop Host IPC and in-process Electron CDP for navigation, page text, screenshots, pointer input, text entry, scrolling and tab selection. Persist screenshots through ordinary image attachments. Ship the already-pinned Chrome DevTools MCP provider disabled with attach settings. Web exposes the entry and reports desktop-only tool availability. The interaction and transport integration are upstream-compatible; default delivery of the experimental provider is a downstream composition choice.",
+      "reason": "Reuse the existing desktop Host IPC and in-process Electron CDP for navigation, page text, screenshots, pointer input, text entry, scrolling and tab selection. Detect browser availability through the connected bridge explicitly wired by the main process. Persist screenshots through ordinary image attachments. Ship the already-pinned Chrome DevTools MCP provider enabled with attach settings and nonblocking startup warnings; retain immediate tool loading until initial-catalog activation supports deferred tools. Web exposes the entry and reports desktop-only tool availability. The interaction and transport integration are upstream-compatible; default delivery of the experimental provider is a downstream composition choice.",
       "match": {
         "type": "behavior",
         "paths": [

@@ -13,13 +13,13 @@ kind: "package-reference"
 
 ## 使用本包
 
-与 `tools`、`sessionController`、`permissionPresets`、`sessionProjections`、`workingDirectory`、`settings` 和 `agentDefaultModel` 一同挂载。本插件没有配置字段。
+与 `tools`、`sessionController`、`permissionPresets`、`sessionProjections`、`workingDirectory`、`settings`、`agentDefaultModel` 和 `workspaceRegistry` 一同挂载。本插件没有配置字段。
 
 ```yaml
 - name: '@panedesk/dsh-tool-session-ops'
 ```
 
-- `session_new({ cwd?, model?, permissionPreset?, prompt?, name? })` 新建会话。`cwd` 默认取调用方的有效目录；`model` 匹配已配置模型的 ID 或显示名；省略模型或权限档时沿用现有服务记住的默认值。`prompt` 是可选开窗词。省略 `name` 不调用改名，保留正常自动命名。结果包含 `sessionId` 和当前 `name`，尚无标题时使用会话号。
+- `session_new({ cwd?, model?, permissionPreset?, prompt?, name? })` 新建会话。`cwd` 默认取调用方的有效目录。工作区注册表规范化该现有目录，复用匹配的文件夹组；没有匹配时先建组，再附着新会话。与手动注册文件夹一致，相对路径、不存在的路径及非目录路径均拒绝；`model` 匹配已配置模型的 ID 或显示名；省略模型或权限档时沿用现有服务记住的默认值。`prompt` 是可选开窗词。省略 `name` 不调用改名，保留正常自动命名。结果包含 `sessionId` 和当前 `name`，尚无标题时使用会话号。
 - `session_rename({ sessionId?, name })` 通过与界面相同的服务改名；省略会话号时改当前调用会话。返回 `sessionId` 和已接受的名字。
 - `session_list({})` 返回所有普通顶层会话，包括普通 fork，不含委派子代理。每行包含 `sessionId`、`name`、可用时的有效 `cwd`、`running`，以及包含提供方和模型 ID 的 `model` 对象。顺序沿用现有最近活动排序。
 - `session_send({ target, text })` 先精确匹配会话号，再精确匹配名字；同名时选择最近活动的会话。消息按 `next-step` 提交，不打断接收方；返回 `sessionId`、`name` 和 `accepted`，不返回回复。英文语言偏好使用 `[From <name>] `；中文或无法取得语言偏好时使用 `〔来自 <name>〕`。

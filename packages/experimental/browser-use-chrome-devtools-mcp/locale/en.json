@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Browser Use (Chrome DevTools)",
-    "description": "Optionally connect your Chrome through Chrome DevTools MCP. Disabled by default on Desktop; configure its debugging address in Settings."
+    "description": "Connect your Chrome through Chrome DevTools MCP, enabled by default on Desktop. Configure its debugging address in Settings; connection failures leave other tools available."
   }
 }

@@ -200,7 +200,10 @@ export class DesktopHostProcess {
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
     ], {
       cwd: this.projectDir,
-      env: desktopNodeEnvironment(this.node, undefined, this.environment),
+      env: {
+        ...desktopNodeEnvironment(this.node, undefined, this.environment),
+        DSH_DESKTOP_BROWSER_IPC: this.onBrowserRequest === undefined ? '0' : '1',
+      },
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
     this.child = child

@@ -12,12 +12,13 @@ import type {} from '@panedesk/dsh-session-projection'
 import type {} from '@panedesk/dsh-session-title'
 import type {} from '@panedesk/dsh-settings'
 import type {} from '@panedesk/dsh-working-directory'
+import type {} from '@panedesk/dsh-workspace'
 import { en, zh } from './locales.ts'
 
 /** Cordis plugin name. */
 export const name = 'tool-session-ops'
 /** Existing Host services used by the tools. */
-export const inject = ['tools', 'sessionController', 'permissionPresets', 'sessionProjections', 'workingDirectory', 'settings', 'agentDefaultModel']
+export const inject = ['tools', 'sessionController', 'permissionPresets', 'sessionProjections', 'workingDirectory', 'settings', 'agentDefaultModel', 'workspaceRegistry']
 
 const identitySchema = {
   type: 'object', additionalProperties: false,
@@ -58,9 +59,8 @@ export function apply(ctx: Context): void {
     async execute(args, exec) {
       if (exec.agent === undefined) throw new Error(text().requiresAgent)
       exec.signal.throwIfAborted()
-      const { sessionId } = await ctx.sessionController.create({
-        cwd: args.cwd ?? ctx.workingDirectory.get(exec.agent.session),
-      })
+      const workspace = await ctx.workspaceRegistry.create(args.cwd ?? ctx.workingDirectory.get(exec.agent.session))
+      const { sessionId } = await ctx.sessionController.create({ workspaceId: workspace.id })
       if (args.model !== undefined) {
         const catalog = await ctx.sessionController.modelCatalog()
         const selection = catalog.groups.flatMap(group => group.models.map(model => ({ provider: group.id, model })))

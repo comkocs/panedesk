@@ -307,7 +307,7 @@
       name: '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp'
       disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
       config:
-        enabled: false
+        enabled: true
         mode: attach
         endpoint: http://localhost:9222
 

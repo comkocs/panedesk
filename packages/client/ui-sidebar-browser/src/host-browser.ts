@@ -10,7 +10,7 @@ import type { DesktopBrowserAction, DesktopBrowserResult, DesktopBrowserRequest 
  * @returns text and optional screenshot from the visible browser.
  */
 export async function requestBrowser(sessionId: string, command: DesktopBrowserAction, signal: AbortSignal): Promise<DesktopBrowserResult> {
-  if (process.send === undefined || process.env.DSH_DESKTOP_NODE_EXECUTABLE === undefined) {
+  if (!process.connected || process.send === undefined || process.env.DSH_DESKTOP_BROWSER_IPC !== '1') {
     return { text: 'Only available in the desktop app. / 只在桌面版可用。' }
   }
   signal.throwIfAborted()

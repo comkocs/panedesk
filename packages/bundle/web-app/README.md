@@ -33,7 +33,7 @@ All shipped presets, including minimal, inherit the single base `panedesk_settin
 
 Start the GUI, open your browser, and start talking to the agent. The flags fine-tune the invocation.
 
-The Session header opens the [sidebar Browser](../../client/ui-sidebar-browser/README.md). Its `browser` tool controls the same visible webview on Desktop and returns a desktop-only notice on Web. Desktop also ships the optional [Chrome DevTools MCP provider](../../experimental/browser-use-chrome-devtools-mcp/README.md), disabled by default, with an attach-mode switch and debugging address in Settings.
+The Session header opens the [sidebar Browser](../../client/ui-sidebar-browser/README.md). Its `browser` tool controls the same visible webview on Desktop and returns a desktop-only notice on Web. Desktop also ships the optional [Chrome DevTools MCP provider](../../experimental/browser-use-chrome-devtools-mcp/README.md), enabled by default, with an attach-mode switch and debugging address in Settings.
 
 ### Starting the Web GUI
 
