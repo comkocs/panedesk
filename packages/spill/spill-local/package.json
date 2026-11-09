@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-spill-local",
   "description": "Local-filesystem implementation of the DeepSeek Harness spill storage seam (private session-scoped files)",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

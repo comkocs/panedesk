@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-ptc-runtime-node",
   "description": "Node PTC execution with per-call sandboxed processes or in-memory REPL state",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

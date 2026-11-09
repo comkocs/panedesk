@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-store",
   "description": "React-free observable and snapshot-store contracts with the shared Zustand/Immer engine",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

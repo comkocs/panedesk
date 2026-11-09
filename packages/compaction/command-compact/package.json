@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-command-compact",
   "description": "Human-facing slash command for explicit session compaction",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

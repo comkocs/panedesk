@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-session-turn-outline",
   "description": "Whole-log turn outline projection (turnOutline) for the DeepSeek Harness",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

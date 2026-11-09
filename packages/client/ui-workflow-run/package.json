@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-workflow-run",
   "description": "Durable workflow-run Conversation Node and nested member disclosure for panedesk web",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

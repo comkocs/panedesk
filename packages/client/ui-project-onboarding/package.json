@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-project-onboarding",
   "description": "Once-per-project opening guidance and product-owned workspace preferences",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

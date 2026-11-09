@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-conversation",
   "description": "Target-neutral Conversation assembly, shell, composer, queue, and view navigation",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },

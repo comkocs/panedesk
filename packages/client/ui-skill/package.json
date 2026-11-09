@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-skill",
   "description": "Web skill references and the dedicated skill tool row",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "publishConfig": {
     "access": "public"
   },
