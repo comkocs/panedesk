@@ -66,9 +66,9 @@ export function SubagentTaskFlow({ label, status, metrics, useChat, useProjectio
   const running = useSession(value => value.running)
   const selection = useProjection('modelSelection')
   const latest = chat.timeline.turns.get(chat.timeline.turnOrder.at(-1) ?? -1)
-  const reason = latest?.end?.data.reason.kind
-  const activity = running ? t('activity.running') : reason === 'error' ? t('activity.failed')
-    : reason === 'completed' ? t('activity.completed') : status
+  const reason = latest?.end?.data.reason
+  const activity = running ? t('activity.running') : reason?.kind === 'error' ? t('activity.failed')
+    : reason?.kind === 'completed' ? t('activity.completed') : status
   const calls = useMemo(() => {
     const result: ToolCallBlock[] = []
     const append = (call: ToolCallBlock): void => {
@@ -85,6 +85,7 @@ export function SubagentTaskFlow({ label, status, metrics, useChat, useProjectio
   return (
     <section aria-label={t('preview.title')}>
       <PreviewHeading label={label} status={activity} metrics={metrics} model={selection?.lastUsed?.model} />
+      {!running && reason?.kind === 'error' && <div className={css.previewDiagnostic}>{reason.error.message}</div>}
       {open && <>
         {prompt && <div className={css.previewSummary}>{t('preview.prompt', { prompt })}</div>}
         <div className={css.previewSummary}>{t('preview.calls', { shown: recent.length, count: calls.length })}</div>

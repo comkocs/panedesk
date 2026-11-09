@@ -73,7 +73,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
       <table>
         <thead><tr><th>{t('customApi')}</th>{capabilities.map(key => <th key={key}>{t(labels[key])}</th>)}</tr></thead>
         <tbody>{results.map(result => {
-          const passed = capabilities.every(key => result[key].ok)
+          const passed = result.text.ok
           return <tr key={result.api}>
             <th><label><input type="radio" name={`protocol-${target.provider ?? 'draft'}-${model}`} checked={selected === result.api} disabled={!passed || busy || props.disabled} onChange={() => { setSelected(result.api) }} />{protocolLabel(t, result.api)}</label></th>
             {capabilities.map(key => {

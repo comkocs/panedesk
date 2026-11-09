@@ -391,6 +391,13 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+.previewDiagnostic {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .previewCalls {
   max-height: min(320px, calc(100vh - 220px));
   margin: 8px 0 0;
