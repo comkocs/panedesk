@@ -41,6 +41,7 @@
         "@panedesk/dsh-client-ui-sidebar",
         "@panedesk/dsh-client-shortcuts",
         "@panedesk/dsh-client-modules",
+        "@panedesk/dsh-client-resources",
         "@panedesk/dsh-client-ui-layout"
       ],
       "platform": "web"
@@ -53,7 +54,8 @@
   "license": "MIT",
   "dependencies": {
     "@panedesk/schemastery": "workspace:~",
-    "@panedesk/dsh-typert-protocol": "workspace:*"
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-token-meter": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"
@@ -65,6 +67,9 @@
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-modules": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-resources": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",
     "@panedesk/dsh-client-ui-layout": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",

@@ -1,4 +1,11 @@
-/** Type-only Electron update declarations shared by the settings UI and Desktop compatibility checks. */
+/** Type-only settings declarations shared by the Host and browser. */
+
+/** Registered tool summary and approximate description/parameter token cost. */
+export interface ToolCatalogEntry {
+  name: string
+  description: string
+  tokens: number
+}
 
 /** Classified failure copy selected by the Web locale without exposing raw updater diagnostics. */
 export type DesktopUpdateFailureKind =

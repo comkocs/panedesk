@@ -31,7 +31,10 @@ import type { ShortcutCommandId } from '@panedesk/dsh-client-shortcuts/client'
 import { createSettingsShellStore } from './shell-store.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { DesktopUpdateBadge } from './DesktopUpdateIndicator.tsx'
-import type { DesktopUpdateBridge } from '../types.ts'
+import type { DesktopUpdateBridge, ToolCatalogEntry } from '../types.ts'
+import type {} from '@panedesk/dsh-client-resources/client'
+import { ToolsSection, type ToolSettings, type ToolsSectionInjected } from './ToolsSection.tsx'
+import { en as toolsEn, zh as toolsZh, type ToolSettingsKey } from './tool-locales.ts'
 import { DesktopUpdateSource } from './desktop-update-source.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
@@ -65,7 +68,9 @@ declare module '@panedesk/dsh-client-ui-slots' {
     /** Shell chrome + shell-owned General section copy. */
     settings: SettingsKey
     productFeatures: ProductFeatureKey
+    toolSettings: ToolSettingsKey
   }
+  interface ResourceProtocolMap { 'tool-catalog': ToolCatalogEntry[] }
 }
 
 /** Dictionary namespace owned by this plugin (shell chrome + General copy). */
@@ -76,7 +81,7 @@ const NS = 'settings'
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'remote.session', 'configForms', 'shortcuts', 'modules']
+export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'remote.session', 'configForms', 'shortcuts', 'modules', 'resources']
 
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
@@ -100,6 +105,21 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         },
       }),
     }, ProductFeaturesSection))
+  })
+  const toolsUi = ctx.inject(['remote.toolCatalog'], scope => {
+    scope.effect(() => scope.locale.register('toolSettings', { en: toolsEn, zh: toolsZh }))
+    scope.effect(() => scope.resources.register<'tool-catalog'>({
+      protocol: 'tool-catalog', async *open() { yield await scope.remote.toolCatalog.list() },
+    }))
+    const form = scope.configForms.get<ToolSettings>('tool-panedesk-settings')
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section', id: 'tools', group: 'panedesk', order: 2,
+      label: () => scope.locale.bind('toolSettings')('title'), locale: 'toolSettings',
+      inject: (): ToolsSectionInjected => ({
+        hooks: { preferences: form }, save: disabledTools => form.set('disabledTools', disabledTools),
+        saveFullTools: enabled => form.set('subagentsFullTools', enabled),
+      }),
+    }, ToolsSection))
   })
   const openingNameForm = ctx.configForms.get<OpeningNameSettings>('ui-settings-general')
   ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
@@ -298,5 +318,5 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'host-release-change', locale: NS, inject: releasePromptInjected,
   }, HostReleasePrompt))
-  return disposeRemote
+  return async () => { await toolsUi.dispose(); await disposeRemote() }
 }

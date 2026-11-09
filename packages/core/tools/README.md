@@ -29,6 +29,8 @@ Each `run_code` program captures the Session's current working directory when it
 
 Mount `dsh-tools` wherever agents call tools: it provides `ctx.tools`, the registry every tool plugin registers into and the loop dispatches through. Registering a tool is enough to make it visible — the registry feeds its schemas into the system-prompt assembly automatically.
 
+Presentation preferences register through `filterPresentation((name, context) => boolean)`. Matching filters intersect for native schemas and generated PTC SDK entries; they do not change `schemas()`, lookup, execution permissions, or child capability mappings. The returned disposer removes the filter. Delegation can carry `AgentOptions.subagentExtraTools` for a presentation policy to include explicitly requested tools. Use `restrict` or execution guards for permission enforcement instead.
+
 ### Register a tool
 
 `defineTool` builds a typed tool definition: a model-facing name, description, and parameter schema, a canonical output declaration, and an `execute` body that returns only the declared JSON value. Model arguments are validated before execution; invalid input becomes a normal error result.

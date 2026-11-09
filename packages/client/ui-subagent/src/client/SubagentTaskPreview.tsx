@@ -84,7 +84,7 @@ export function SubagentTaskFlow({ label, status, metrics, useChat, useProjectio
   const prompt = chat.navigation.items().at(-1)?.prompt.replace(/\s+/g, ' ').slice(0, 160)
   return (
     <section aria-label={t('preview.title')}>
-      <PreviewHeading label={label} status={activity} metrics={metrics} model={selection?.lastUsed?.model} />
+      <PreviewHeading label={label} status={activity} metrics={metrics} model={selection?.lastUsed == null ? undefined : `${selection.lastUsed.provider} · ${selection.lastUsed.model}`} />
       {!running && reason?.kind === 'error' && <div className={css.previewDiagnostic}>{reason.error.message}</div>}
       {open && <>
         {prompt && <div className={css.previewSummary}>{t('preview.prompt', { prompt })}</div>}

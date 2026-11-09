@@ -13,7 +13,7 @@ export const inject = ['tools', 'attachments']
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.tools.register(defineTool({
     name: 'browser',
-    description: 'Control the visible browser shared with the user. Navigate, read page text, capture a screenshot, click, type into the focused field, scroll, list tabs, or switch tabs. Coordinates are viewport CSS pixels. Desktop only.',
+    description: 'Control the shared desktop browser: navigate, read, screenshot, click, type in the focused field, scroll, list or switch tabs. Coordinates use viewport CSS pixels.',
     parameters: {
       command: {
         required: true,

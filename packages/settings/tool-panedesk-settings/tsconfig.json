@@ -4,6 +4,11 @@
   "include": ["src"],
   "references": [
     { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../core/agent" },
+    { "path": "../../preset/agent-preset-registry" },
+    { "path": "../../core/session" },
+    { "path": "../../core/system-prompt" },
     { "path": "../../core/tools" },
     { "path": "../settings" },
     { "path": "../../boot/config-editor" },

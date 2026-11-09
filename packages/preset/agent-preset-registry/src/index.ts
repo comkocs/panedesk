@@ -34,9 +34,10 @@ declare module '@panedesk/cordis' {
   }
 }
 
-function policyMetadata(definition: PresetDefinition): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> {
+function policyMetadata(definition: PresetDefinition): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort' | 'tools'> {
   const policy = definition.executionPolicy
   return {
+    ...definition.tools === undefined ? {} : { tools: Object.freeze([...definition.tools]) },
     ...definition.model === undefined ? {} : { model: definition.model },
     ...definition.reasoningEffort === undefined ? {} : { reasoningEffort: definition.reasoningEffort },
     ...policy === undefined ? {} : executionPolicyMetadata(policy),
@@ -70,7 +71,7 @@ interface Generation {
   scope: Scope
   key: ScopeKey
   mount: PresetMount
-  policy: Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'>
+  policy: Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort' | 'tools'>
   users: number
   retired: boolean
 }
@@ -383,7 +384,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
    * @param ctx Agent context.
    * @returns Frozen policy metadata, or undefined when no preset is bound.
    */
-  composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort'> | undefined {
+  composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest' | 'model' | 'reasoningEffort' | 'tools'> | undefined {
     return this.generationFor(ctx)?.policy
   }
 

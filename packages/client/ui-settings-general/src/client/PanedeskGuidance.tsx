@@ -5,6 +5,7 @@ import type { SettingsRootComponentProps } from './shell-contract.ts'
 const pages = {
   'panedesk-features': 'features',
   'product-features': 'product',
+  tools: 'tools',
   'project-opening': 'project',
   'database-connections': 'database',
   'seat-profiles': 'profiles',

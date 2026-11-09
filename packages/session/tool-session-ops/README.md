@@ -40,7 +40,7 @@ The tools call the existing Host Session controller's create, model selection, p
 
 #### What the model sees
 
-Four English tool descriptions document every argument. Results are canonical JSON identities, Session rows, or delivery acceptance. A receiver sees the sender's current window name as a prefix on the delivered message.
+Four concise English tool descriptions summarize each operation; parameter descriptions retain argument details. Results are canonical JSON identities, Session rows, or delivery acceptance. A receiver sees the sender's current window name as a prefix on the delivered message.
 
 #### Token effect
 

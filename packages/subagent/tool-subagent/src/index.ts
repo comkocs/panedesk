@@ -126,10 +126,7 @@ function providerWording(inheritsConversation: boolean): { description: string; 
   }
   return {
     description:
-      'Delegate a self-contained task to a subagent (a separate agent that works in its own context) '
-      + 'to offload focused, independent work — research, a scoped '
-      + 'implementation, an analysis — so it does not consume this conversation\'s context. The subagent '
-      + 'returns its result, not its intermediate steps.',
+      'Delegate a self-contained task in a separate context; receive results, not intermediate steps.',
     promptDescription:
       'The complete, self-contained task for the subagent. It does not share this '
       + 'conversation\'s context, so include everything it needs.',
@@ -200,21 +197,21 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
       const wording = providerWording(subagentProvider.inheritsParentContext)
       const providerRouteDefaults = subagentProvider.agentRouteDefaults
       const selectionDescription = providerRouteDefaults !== undefined
-        ? ' Child LLM selection is optional. Omit `provider`, `model`, and `reasoning_effort` to use configured child defaults and this provider\'s route defaults. Supply `model` and optionally `provider` after using `list_subagent_models` to inspect advertised routes and efforts. Changing the effective route without naming an effort uses the selected model\'s default effort.'
-        : ' Child LLM selection is optional. Omit `provider`, `model`, and `reasoning_effort` to use configured child defaults and inherit compatible missing values from the parent Agent. Supply `model` and optionally `provider` after using `list_subagent_models` to inspect advertised routes and efforts. Changing the effective route without naming an effort uses the selected model\'s default effort.'
+        ? ' Omitted LLM selections use configured child and provider route defaults.'
+        : ' Omitted LLM selections use configured child defaults, inheriting compatible missing values from the parent.'
       const choiceDescription = selectionDescription
+          + ' Inspect routes and efforts with `list_subagent_models` before selecting. A changed route without an effort uses the model default.'
           + (subagentProvider.inheritsParentContext
             ? ' Changing the route can prevent provider-side reuse of the inherited conversation prefix.'
             : '')
       const definition = defineTool({
         name: toolName,
         description: wording.description
-          + ' This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes.'
+          + ' Returns its id immediately; completion is notified.'
           + (subagentProvider.prepareContinuable !== undefined
-            ? ' The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.'
-            : ' The completion notice includes its final answer. This backend does not accept follow-up messages.')
-          + choiceDescription
-          + ` ${presets.description}`,
+            ? ' Use `send_message` for child results, steering, or continuation after completion.'
+            : ' Completion includes the final answer; follow-up messages are unsupported.')
+          + choiceDescription,
         parameters: {
           cwd: {
             type: 'string',
@@ -236,6 +233,10 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             type: 'string',
             required: true,
             description: wording.promptDescription,
+          },
+          extra_tools: {
+            type: 'array', items: { type: 'string' },
+            description: 'Extra tool names for an untyped child, such as browser or exact Chrome DevTools MCP names. Omit for the working tool set; typed tool mappings are unchanged.',
           },
           agent_preset: {
             type: 'string',
@@ -299,14 +300,17 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             if (args.model !== undefined) {
               modelRequest = { ...args, ...resolveModelRoute(models, args.model, args.provider) }
             } else if (args.provider === undefined && definition?.model !== undefined) {
-              const available = models.some(candidate => candidate.id === definition.model)
-              const route = available
-                ? resolveModelRoute(models, definition.model)
+              const separator = definition.model.indexOf('/')
+              const selected = separator < 0
+                ? models.find(candidate => candidate.id === definition.model)
+                : resolveModelRoute(models, definition.model.slice(separator + 1), definition.model.slice(0, separator))
+              const route = selected !== undefined
+                ? { provider: selected.provider, model: 'id' in selected ? selected.id : selected.model }
                 : {
                     ...parentOptions.provider === undefined ? {} : { provider: parentOptions.provider },
                     ...parentOptions.model === undefined ? {} : { model: parentOptions.model },
                   }
-              const effort = args.reasoning_effort ?? (available ? definition.reasoningEffort : parentOptions.reasoningEffort)
+              const effort = args.reasoning_effort ?? (selected !== undefined ? definition.reasoningEffort : parentOptions.reasoningEffort)
               modelRequest = { ...route, ...effort === undefined ? {} : { reasoning_effort: effort } }
             }
           }
@@ -365,7 +369,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,
             ...agentPreset === undefined ? {} : { agentPreset },
-            ...requestedChildAgentOptions !== undefined ? { agentOptions: requestedChildAgentOptions } : {},
+            agentOptions: { ...requestedChildAgentOptions, subagentExtraTools: args.extra_tools ?? [] },
             ...maxDepth !== undefined ? { maxDepth } : {},
           }
 

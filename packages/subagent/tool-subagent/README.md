@@ -25,7 +25,7 @@ Use this package to give an agent a named tool that delegates work to a configur
 <a id="use-this-package"></a>
 ## Use this package
 
-The optional `cwd` argument selects the child's initial working directory. Relative paths resolve against the caller's current directory; omission inherits it. Existing children retain their own directories when the caller changes directory.
+The optional `extra_tools` argument lists additional tool names for an untyped local child, including `browser` or exact Chrome DevTools MCP names; omission uses the default working set. Typed mappings remain authoritative. The optional `cwd` argument selects the child's initial working directory. Relative paths resolve against the caller's current directory; omission inherits it. Existing children retain their own directories when the caller changes directory.
 
 Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it. Every instance retains the `subagent` execution capability for imported Claude Code `Agent` restrictions, including `Agent(x, y)` child-type lists, regardless of its configured name.
 
@@ -67,7 +67,7 @@ Every backend’s completion notice carries its final answer. Local Spawn and Fo
 
 Set `agentPreset` to choose an independent child preset by default. The optional `agent_preset` argument offers all usable registered presets, including imported `.claude/agents` types, without an allowlist switch. Independent preset composition requires in-process spawn; fork and external backends reject explicit preset selection.
 
-The configured default must name a usable preset. Preset descriptions are read during Agent initialization, independently of backend registration order, and choices are validated again at delegation. Omission uses the configured default or inherits the parent composition. Explicit selection mounts the current revision. Imported model preferences resolve at dispatch; missing model names inherit the parent route and the start result reports the actual provider/model. An explicit `model` overrides the imported preference.
+The configured default must name a usable preset. Preset descriptions are read during Agent initialization, independently of backend registration order, and choices are validated again at delegation. Omission uses the configured default or inherits the parent composition. Explicit selection mounts the current revision. Imported model preferences resolve at dispatch: `provider/model` selects that exact route; a bare model name selects the first matching provider in Models settings order (declared custom routes first, other routes next, official DeepSeek last). Missing bare model names inherit the parent route, and the start result reports the actual provider/model. An explicit `model` overrides the imported preference.
 
 Compose persona and tools in the [preset plugin list](../../preset/agent-preset-registry/README.md). Tool configuration containing `persona` or `toolFilter` fails at load with a migration error. Local children use the shared [preset restoration rules](../subagent/README.md#restoring-child-composition).
 
@@ -101,7 +101,7 @@ The canonical tool result is `{ kind: 'activation', subagentId }`. It contains n
 
 ### Context-sensitive wording
 
-The tool's description derives from `provider.inheritsParentContext`: a fresh child gets "it does not see this conversation" wording, a forked child gets "it does not see the current in-flight turn" wording, so the model never restates or omits context that does not exist.
+The concise tool description derives from `provider.inheritsParentContext`: a fresh child works in a separate context, while a fork does not see the current in-flight turn. Route defaults and continuation support remain explicit; preset descriptions appear once in `agent_preset`, not again in the tool overview.
 
 ### Source map
 

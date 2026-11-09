@@ -11,7 +11,7 @@ kind: "package-bundle"
 
 每个基于 base 的 `dsh --profile` 表层都运行在 `dsh-base` 上，因此这些表层共享模型连接、完整工具集、持久会话历史和 workspace 安全默认值。随附的 `sdk-minimal` profile 刻意改用完整的独立配置树。你通常不直接操作本组合包——随发行版交付的基于 base 的 profile 已经包含它，自定义的基于 base 的 profile 则把它放在第一位。需要其他默认值时，应修改自己的 profile patch 或添加后续组合包；本包不是供导入的库。
 
-缺省工具集包含 `panedesk_settings`，用于读取可改的 Panedesk 偏好，并按项名通过设置页同一写口修改、回显前后值。未列出的操作仍只能手动。
+缺省工具集包含 `panedesk_settings`，用于读取可改的 Panedesk 偏好，并按项名通过设置页同一写口修改、回显前后值。未列出的操作仍只能手动。其 `disabledTools` 偏好默认不向普通会话提供七个可选工具，详见[设置工具](../../settings/tool-panedesk-settings/README.zh.md)。`exit_plan_mode` 仅在计划模式提供。Windows 继续只挂载选定的 Bash 或 PowerShell 工具。
 
 ## 目录
 

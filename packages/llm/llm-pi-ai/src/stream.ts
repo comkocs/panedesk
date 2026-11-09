@@ -83,13 +83,37 @@ export class PiResponseEvidence {
    */
   enrich(chunk: StreamChunk, metadata: Omit<Partial<FinishChunk>, 'type' | 'reason' | 'replayState'>, apiKey?: string): StreamChunk {
     if (chunk.type === 'usage') {
-      this.translatedUsage = chunk.usage
+      const usage = { ...chunk.usage }
+      const raw = this.reportedUsage
+      const read = raw.cache_read_input_tokens ?? raw['input_tokens_details.cached_tokens']
+        ?? raw['prompt_tokens_details.cached_tokens'] ?? raw.prompt_cache_hit_tokens
+      const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
+        ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
+      if (read !== undefined) usage.cacheReadTokens = read
+      if (write !== undefined) usage.cacheWriteTokens = write
+      else if (this.cacheWriteAccounting === 'not-applicable') usage.cacheWriteTokens = 0
+      if (this.api === 'anthropic-messages') {
+        if (raw.input_tokens !== undefined) usage.inputTokens = raw.input_tokens
+        if (raw.output_tokens !== undefined) usage.outputTokens = raw.output_tokens
+      } else {
+        const prompt = raw.prompt_tokens ?? raw.input_tokens
+        if (prompt !== undefined) usage.inputTokens = prompt - (usage.cacheReadTokens ?? 0) - (usage.cacheWriteTokens ?? 0)
+        if (raw.prompt_cache_miss_tokens !== undefined) usage.inputTokens = raw.prompt_cache_miss_tokens
+        const completion = raw.completion_tokens ?? raw.output_tokens
+        if (completion !== undefined) usage.outputTokens = completion
+        const reasoning = raw['completion_tokens_details.reasoning_tokens'] ?? raw.reasoning_tokens
+        if (prompt !== undefined && completion !== undefined && reasoning !== undefined
+          && prompt + completion + reasoning === raw.total_tokens) usage.outputTokens = completion + reasoning
+      }
+      usage.totalTokens = usage.inputTokens + usage.outputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
       const long = this.api === 'anthropic-messages' ? this.longWrites
-        : metadata.cacheWriteTiering?.kind === 'tiered' && chunk.usage.cacheWriteTokens !== undefined
-          ? metadata.cacheRetention === '12h' ? chunk.usage.cacheWriteTokens
-            : metadata.cacheRetention === '30m' ? 0 : undefined
+        : metadata.cacheWriteTiering?.kind === 'tiered' && usage.cacheWriteTokens !== undefined
+          ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? usage.cacheWriteTokens
+            : (this.reportedCacheRetention ?? metadata.cacheRetention) === '30m' ? 0 : undefined
           : undefined
-      return long === undefined ? chunk : { ...chunk, usage: { ...chunk.usage, cacheWriteLongTokens: long } }
+      if (long !== undefined) usage.cacheWriteLongTokens = long
+      this.translatedUsage = usage
+      return { ...chunk, usage }
     }
     if (chunk.type !== 'finish') return chunk
     let reason = chunk.reason
@@ -115,27 +139,6 @@ export class PiResponseEvidence {
     const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
       ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
     const inapplicable = write === undefined && this.cacheWriteAccounting === 'not-applicable'
-    if (usage !== undefined) {
-      const read = raw.cache_read_input_tokens ?? raw['input_tokens_details.cached_tokens']
-        ?? raw['prompt_tokens_details.cached_tokens'] ?? raw.prompt_cache_hit_tokens
-      if (read !== undefined) usage.cacheReadTokens = read
-      if (write !== undefined) usage.cacheWriteTokens = write
-      else if (inapplicable) usage.cacheWriteTokens = 0
-      const long = this.api === 'anthropic-messages' ? this.longWrites
-        : write !== undefined && metadata.cacheWriteTiering?.kind === 'tiered'
-          ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? write
-            : (this.reportedCacheRetention ?? metadata.cacheRetention) === '30m' ? 0 : undefined
-          : undefined
-      if (long !== undefined) usage.cacheWriteLongTokens = long
-      const prompt = raw.prompt_tokens
-      const completion = raw.completion_tokens
-      const reasoning = raw['completion_tokens_details.reasoning_tokens'] ?? raw.reasoning_tokens
-      if (prompt !== undefined && completion !== undefined && reasoning !== undefined
-        && prompt + completion + reasoning === raw.total_tokens) {
-        usage.outputTokens = completion + reasoning
-        usage.totalTokens = raw.total_tokens
-      }
-    }
     LlmAdapter.ledgerEvidence?.set(finish, {
       ...inapplicable ? { cacheWriteAccounting: 'not-applicable' as const } : {},
       ...usage === undefined ? {} : { usage },

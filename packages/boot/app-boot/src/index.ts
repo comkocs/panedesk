@@ -1307,7 +1307,8 @@ export async function boot(
   try {
     ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
     ctx.provide('dshHomePath', dshHomePath)
-    ctx.provide('windowsBashConfig', () => resolveWindowsBashDefault())
+    const windowsBashConfig = resolveWindowsBashDefault()
+    ctx.provide('windowsBashConfig', () => windowsBashConfig)
     // Fiber.update() discards the restart promise. Observe it before the
     // waterfall returns; activation audits still report the failed fiber.
     ctx.on('internal/update', (_config, _noSave, next: () => unknown) => {

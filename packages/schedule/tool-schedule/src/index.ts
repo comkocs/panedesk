@@ -181,10 +181,9 @@ const UPDATE_OUTPUT_SCHEMA = {
 } as const
 
 const CREATE_DESCRIPTION =
-  'Create a reminder in the current session that delivers prompt when it becomes due. '
-  + 'Supply exactly one timing parameter: after_seconds, at, every_seconds, daily, weekly, or cron. '
-  + 'Local times that do not exist in the zone are skipped; repeated local times fire once, at the earlier instant. '
-  + 'After downtime, a recurring reminder delivers only its latest missed occurrence. Delivery can repeat after a crash.'
+  'Deliver prompt when due in this session. Choose exactly one: after_seconds, at, every_seconds, daily, weekly, cron. '
+  + 'Skip nonexistent local times; fire repeated times once at the earlier instant. '
+  + 'After downtime deliver only the latest missed recurrence. A crash may repeat delivery.'
 
 const LIST_DESCRIPTION = 'List the active reminders in the current session.'
 
@@ -192,16 +191,13 @@ const DELETE_DESCRIPTION =
   'Delete a reminder in the current session, active or inactive. Deletion does not retract a reminder message that is already queued.'
 
 const UPDATE_DESCRIPTION =
-  'Change a reminder in place, keeping its id. Supply a new title, prompt, or at most one timing parameter; '
-  + 'omitted fields keep their stored values. To change a relative delay, create a new reminder.'
+  'Update title, prompt, or at most one timing parameter; keep id and omitted values. '
+  + 'For a new relative delay, create a reminder.'
 
 const CREATE_TITLE_DESCRIPTION =
-  `Concise task name in the user's language, at most ${MAX_TITLE_LENGTH} characters. `
-  + 'Name only the core action and subject; keep essential target identifiers such as PR numbers and branch names. '
-  + 'Do not include execution frequency (e.g. daily, hourly), scheduled dates/times, time zones, task status, '
-  + 'or configuration and execution details (e.g. read-only mode, profile-tag filters), even when embedded in the requested or existing title. '
-  + 'Do not append parenthetical notes. '
-  + 'Put scheduling information in the timing parameters and execution instructions in prompt.'
+  `Task name in the user's language, at most ${MAX_TITLE_LENGTH} characters: action, subject, essential target identifiers. `
+  + 'Exclude frequency, dates/times, zones, status, configuration, execution details, and parenthetical notes, even from supplied titles. '
+  + 'Put scheduling in timing parameters and instructions in prompt.'
 
 /** Deterministic model content for every canonical Schedule value. */
 function renderValue(_args: unknown, value: unknown): ContentBlock[] {

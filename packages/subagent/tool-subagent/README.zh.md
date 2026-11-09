@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-可选参数 `cwd` 选择子级的初始工作目录。相对路径以调用者当前目录解析；省略时继承该目录。调用者切换目录时，已有子级保留自己的目录。
+可选参数 `extra_tools` 列出无类型本地子代理额外需要的工具名，包括 `browser` 或 Chrome DevTools MCP 的精确名称；省略时使用缺省干活工具集，类型映射仍然有效。可选参数 `cwd` 选择子级的初始工作目录。相对路径以调用者当前目录解析；省略时继承该目录。调用者切换目录时，已有子级保留自己的目录。
 
 每个委派目标挂载一个实例，且每个实例的 `toolName` 必须不同。工具与其提供方同时存在、同时消失，因此同级加载顺序与提供方重新加载都不会让工具悬空。无论配置名称是什么，每个实例均保留 `subagent` 执行能力，用于导入的 Claude Code `Agent` 限制，包括 `Agent(x, y)` 子级类型名单。
 
@@ -67,7 +67,7 @@ kind: "package-reference"
 
 设置 `agentPreset` 可指定独立子级预设默认值。可选参数 `agent_preset` 提供所有可用注册预设，包括导入的 `.claude/agents` 类型，不需要白名单开关。独立预设组合要求进程内 spawn；fork 与外部后端拒绝显式预设选择。
 
-配置的默认值必须引用可用预设。Agent 初始化时读取预设描述，不依赖后端注册顺序；派遣时再次验证可选项。省略选择会使用配置的默认值或继承父级组合；显式选择挂载当前版本。导入类型的模型偏好在派遣时解析，模型名缺失时继承父级路由，启动结果报告实际 provider/model。显式 `model` 优先于导入偏好。
+配置的默认值必须引用可用预设。Agent 初始化时读取预设描述，不依赖后端注册顺序；派遣时再次验证可选项。省略选择会使用配置的默认值或继承父级组合；显式选择挂载当前版本。导入类型的模型偏好在派遣时解析：`provider/model` 选择该精确路由；仅给模型名时按模型设置页提供方顺序取首个匹配项（已声明自定义路由优先，其他路由其次，官方 DeepSeek 最后）。裸模型名未命中时继承父级路由，启动结果报告实际 provider/model。显式 `model` 优先于导入偏好。
 
 在 [preset 插件列表](../../preset/agent-preset-registry/README.zh.md)中配置 persona 与工具。包含 `persona` 或 `toolFilter` 的工具配置在加载时会报迁移错误。本地子级采用共享的 [preset 恢复规则](../subagent/README.zh.md#restoring-child-composition)。
 
@@ -101,7 +101,7 @@ kind: "package-reference"
 
 ### 随上下文变化的措辞
 
-工具描述源自 `provider.inheritsParentContext`：全新子 agent 得到「it does not see this conversation」措辞，fork 子 agent 得到「it does not see the current in-flight turn」措辞，因此模型既不会复述、也不会省略并不存在的上下文。
+精简后的工具描述源自 `provider.inheritsParentContext`：全新子 agent 使用独立上下文，fork 子 agent 看不到当前进行中的轮次。路由默认值与续聊支持仍明确说明；预设说明仅放在 `agent_preset` 参数，不再重复放进工具概述。
 
 ### 源码地图
 
