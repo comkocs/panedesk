@@ -4,4 +4,5 @@
 export const ON_DEMAND_BUNDLES: readonly string[] = [
   '@panedesk/dsh-subagent-claude-code',
   '@panedesk/dsh-subagent-codex',
+  '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp',
 ]

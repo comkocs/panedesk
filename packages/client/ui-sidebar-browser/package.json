@@ -45,15 +45,23 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-tools": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-api-workspace-controller": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-client-ui-workspace": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-shortcuts": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-ui-conversation": "workspace:*",
     "@panedesk/dsh-client-ui-dockkit": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-renderer": "workspace:*",

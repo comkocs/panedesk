@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-通过 Chrome DevTools MCP 的上游工具检查网页并操作 Chromium。提供方在 Session 创建或恢复完成前初始化其 MCP 连接，并跨轮次保留连接。可以启动独立浏览器，也可以让一个 Session 接入已有浏览器，使用其现有标签页和登录状态。本包以实验状态发布，仅在显式挂载后启用。
+通过 Chrome DevTools MCP 的上游工具检查网页并操作 Chromium。提供方在 Session 创建或恢复完成前初始化其 MCP 连接，并跨轮次保留连接。可以启动独立浏览器，也可以让一个 Session 接入已有浏览器，使用其现有标签页和登录状态。Desktop 随附本实验提供方，默认关闭；在设置 → 连接自己的 Chrome 中启用并保存调试地址，然后创建或恢复会话。随附条目使用 attach 模式，不操作右栏 webview。
 
 ## 目录
 
@@ -31,6 +31,7 @@ kind: "package-reference"
 - name: '@panedesk/dsh-browser-use'
 - name: '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp'
   config:
+    enabled: true
     mode: launch
     headless: true
 ```
@@ -39,11 +40,14 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `mode` | 必填 | `launch` 或 `attach`，在本次提供方激活期间固定 |
+| `enabled` | `false` | 激活提供方，为新建或恢复的 Session 注册工具 |
+| `mode` | `attach` | `launch` 或 `attach`，在本次提供方激活期间固定 |
 | `headless` | `true` | 启动时不显示窗口 |
 | `executablePath` | 上游发现 | 启动使用的 Chromium 可执行文件 |
-| `endpoint` | attach 时必填 | 已有浏览器调试端点 |
+| `endpoint` | `http://localhost:9222` | 已有浏览器调试端点 |
 | `toolCallTimeoutMs` | MCP 客户端默认值 | 单次调用超时，单位为毫秒 |
+
+开关和端点是实时配置。关闭时不启动 MCP 进程，已有浏览器工具调用也会被拒绝；保留的连接在会话释放时关闭。启用和端点变更作用于新建或恢复的会话；已有连接保留其端点。
 
 [配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-experimental-browser-use-chrome-devtools-mcp)列出接受的字段。浏览器模式由 profile 或 preset 选择。
 

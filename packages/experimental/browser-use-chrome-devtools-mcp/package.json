@@ -30,6 +30,7 @@
   "license": "MIT",
   "dependencies": {
     "@panedesk/dsh-experimental-browser-use-runtime": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "chrome-devtools-mcp": "1.9.0"
   },
   "peerDependencies": {

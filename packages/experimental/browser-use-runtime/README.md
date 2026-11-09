@@ -33,6 +33,8 @@ MCP providers use `mountSessionMcp` from `@panedesk/dsh-experimental-browser-use
 
 A busy attachment skips startup permanently for that live activation while its other work continues. Releasing the attachment does not retry skipped activations; a newly created or resumed Agent can acquire it. Startup failure or cancellation rejects Agent creation or resume and triggers creation rollback, including client cleanup. Reconnection is disabled. Loading or reloading a provider applies only to future Agent activations.
 
+Providers may supply an `enabled` callback and compute arguments at connection time. Disabled providers skip new connections and reject their existing tool calls; they retain already-open connections until Session disposal. Enabling or changing an endpoint applies to newly created or resumed activations, not already-active Sessions.
+
 Callers can inspect prompt assembly and scoped tool definitions after awaited Agent creation or resume completes.
 
 Browser tools and resource requests targeting this server use the same queue and require the calling Session's own connection. Other MCP servers remain usable. Inherited server instructions are omitted without ownership; the shared server-name inventory keeps its normal scope behavior.

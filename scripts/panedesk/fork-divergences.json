@@ -15595,6 +15595,43 @@
           "packages/llm/llm/"
         ]
       }
+    },
+    {
+      "id": "visible-sidebar-browser-tools",
+      "description": "Open the sidebar browser from the Session header and let agents operate its visible desktop webview.",
+      "origin": "Shared visible browser and optional external Chrome attachment",
+      "reason": "Reuse the existing desktop Host IPC and in-process Electron CDP for navigation, page text, screenshots, pointer input, text entry, scrolling and tab selection. Persist screenshots through ordinary image attachments. Ship the already-pinned Chrome DevTools MCP provider disabled with attach settings. Web exposes the entry and reports desktop-only tool availability. The interaction and transport integration are upstream-compatible; default delivery of the experimental provider is a downstream composition choice.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-sidebar-browser/**",
+          "apps/desktop/src/browser-guests.ts",
+          "apps/desktop/src/host-process.ts",
+          "apps/desktop/src/ipc.ts",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/src/preload-browser.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml",
+          "packages/experimental/browser-use-chrome-devtools-mcp/**",
+          "packages/experimental/browser-use-runtime/src/mcp.ts",
+          "packages/experimental/browser-use-runtime/README.md",
+          "packages/experimental/browser-use-runtime/README.zh.md",
+          "packages/experimental/browser-use-runtime/README.i18n.yaml",
+          "packages/boot/app-boot/src/official-bundle-packages.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "packages/bundle/web-app/README.md",
+          "packages/bundle/web-app/README.zh.md",
+          "packages/bundle/web-app/README.i18n.yaml",
+          "scripts/package-dependency-policy.ts",
+          "scripts/verify-package-readme-model-experience.ts",
+          "pnpm-lock.yaml"
+        ]
+      }
     }
   ]
 }

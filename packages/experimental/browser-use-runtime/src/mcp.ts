@@ -79,7 +79,9 @@ export interface SessionMcpOptions {
   /** Executable used to start the installed MCP server. */
   command: string
   /** Arguments passed directly without a shell. */
-  args: string[]
+  args: string[] | (() => string[])
+  /** Optional live enablement for new connections and existing tool calls. */
+  enabled?: () => boolean
   /** Explicit overrides merged into the MCP client's scrubbed child environment. */
   env?: Record<string, string>
   /** Per-call timeout override; omission retains the MCP client default. */
@@ -149,7 +151,7 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
             transport: 'stdio',
             serverName: options.name,
             command: options.command,
-            args: options.args,
+            args: typeof options.args === 'function' ? options.args() : options.args,
             ...options.env === undefined ? {} : { env: options.env },
             cwd: await workingDirectory.ensure(agent, signal),
             ...options.toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs: options.toolCallTimeoutMs },
@@ -179,7 +181,7 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
     }
   }, `${options.name}.sessions`)
   ctx.on('agent/created', async ({ agent, signal }) => {
-    const state: ClientState = { status: resources.available(agent) ? 'ready' : 'blocked' }
+    const state: ClientState = { status: options.enabled?.() !== false && resources.available(agent) ? 'ready' : 'blocked' }
     agent.ctx.effect(() => async () => {
       clients.delete(agent)
       await state.mask?.dispose()
@@ -198,6 +200,7 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
       && typeof exec.arguments === 'object' && exec.arguments !== null
       && (exec.arguments as { server?: unknown }).server === options.name
     if (!exec.name.startsWith(toolPrefix) && !ownResource) return next()
+    if (options.enabled?.() === false) throw new Error(`${options.name}: browser tools are disabled`)
     const agent = exec.agent
     if (agent === undefined || clients.get(agent)?.status !== 'ready') {
       throw new Error(`${options.name}: browser tool belongs to another Session`)

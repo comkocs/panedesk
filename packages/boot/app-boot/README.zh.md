@@ -27,6 +27,8 @@ kind: "package-library"
 
 用此包启动应用是一个小而显式的入口：你给它一个配置文件，它运行整个启动过程。本节说明你能做什么、能得到什么；每个结果背后的 helper 调用记录在下方可折叠的实现章节中。
 
+共享的官方 bundle 准入清单包含 Chrome DevTools MCP，用于离线目录与发布排序。Desktop 装配提供默认关闭的 attach 模式条目；[提供方](../../experimental/browser-use-chrome-devtools-mcp/README.zh.md)负责配置与会话行为。
+
 ### 何时使用
 
 在实现共享 `dsh` launcher 或嵌入其低层启动 helper 时使用它。产品功能应放入 profile 组合包，而不是新增应用 bin；只向已运行应用添加插件的代码直接挂载插件即可。

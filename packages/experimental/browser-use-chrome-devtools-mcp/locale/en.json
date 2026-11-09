@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Browser Use (Chrome DevTools)",
-    "description": "Let the model inspect and operate web pages through Chrome DevTools MCP in a launched Chrome."
+    "description": "Optionally connect your Chrome through Chrome DevTools MCP. Disabled by default on Desktop; configure its debugging address in Settings."
   }
 }

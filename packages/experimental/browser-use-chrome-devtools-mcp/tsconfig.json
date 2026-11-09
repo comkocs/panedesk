@@ -15,6 +15,9 @@
       "path": "../browser-use-runtime"
     },
     {
+      "path": "../../../vendor/schemastery"
+    },
+    {
       "path": "../../session/working-directory"
     }
   ]

@@ -2,6 +2,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
+import type { DesktopBrowserRequest, DesktopBrowserResult } from '@panedesk/dsh-client-ui-sidebar-browser/types'
 import type { PlatformSession } from '@panedesk/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
 
@@ -177,7 +178,10 @@ export class DesktopHostProcess {
     private readonly packageManager?: { readonly pnpm: string; readonly nodeBin: string },
 
     private readonly onPlatformSession?: (session: PlatformSession | null) => void,
+    private readonly onBrowserRequest?: (request: DesktopBrowserRequest, signal: AbortSignal) => Promise<DesktopBrowserResult>,
   ) {}
+
+  private readonly browserRequests = new Map<string, AbortController>()
 
   /**
    * Start this child once and await its Web application URL.
@@ -204,6 +208,27 @@ export class DesktopHostProcess {
     child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
     child.stdout?.pipe(process.stdout)
     child.on('message', (message: unknown) => {
+      if (typeof message === 'object' && message !== null && 'type' in message) {
+        if (message.type === 'sidebar-browser-cancel' && 'requestId' in message) {
+          this.browserRequests.get(String(message.requestId))?.abort()
+          return
+        }
+        if (message.type === 'sidebar-browser') {
+          const request = message as DesktopBrowserRequest
+          const controller = new AbortController()
+          this.browserRequests.set(request.requestId, controller)
+          void (async () => {
+            try {
+              if (this.onBrowserRequest === undefined) throw new Error('Desktop browser is unavailable')
+              const result = await this.onBrowserRequest(request, controller.signal)
+              if (child.connected) child.send({ type: 'sidebar-browser-result', requestId: request.requestId, result })
+            } catch (error) {
+              if (child.connected) child.send({ type: 'sidebar-browser-result', requestId: request.requestId, error: error instanceof Error ? error.message : String(error) })
+            } finally { this.browserRequests.delete(request.requestId) }
+          })().catch((error: unknown) => { console.error('Desktop browser response failed', error) })
+          return
+        }
+      }
       if (!isDesktopHostEvent(message)) {
         this.fail(new Error('dsh desktop host sent an invalid IPC event'))
         child.kill('SIGTERM')
@@ -289,6 +314,7 @@ export class DesktopHostProcess {
     const child = this.child
     if (child === undefined) return
     this.stopping = true
+    for (const controller of this.browserRequests.values()) controller.abort()
     this.onPlatformSession?.(null)
     if (child.connected) child.send({ type: 'shutdown' }, (error) => { if (error !== null) this.fail(error) })
     const exited = this.exitPromise ?? Promise.resolve()
@@ -308,6 +334,8 @@ export class DesktopHostProcess {
   }
 
   private fail(error: Error): void {
+    for (const controller of this.browserRequests.values()) controller.abort()
+    this.browserRequests.clear()
     this.onPlatformSession?.(null)
     this.readyReject(error)
     for (const request of this.controlRequests.values()) request.reject(error)
