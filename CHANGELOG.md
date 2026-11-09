@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.2
+
+### Fixed
+
+- Saved opening presets show up again in the editor and the new-session menu.
+- New sessions no longer wait for the browser MCP client, repeated clicks do not create extra sessions, and eligible empty sessions are reused.
+- Agent types pick a provider that supports their effort and explain why others were skipped, including when a lower effort is used.
+- The workflow pack is unpacked so its tools can run in the desktop app.
+
+### Changed
+
+- Statistics cards wrap in narrow windows; subagent cards separate current context from cumulative usage, identify the parent session, and distinguish stopped from completed agents; context percentages use consistent rounding and clearer estimate labels.
+- Protocol probes can expand failure details and explain undeclared image support; model lists have clearer names and identify providers for duplicate models; the first-screen workflow entry can be changed; opening-name extraction highlights the selected option.
+
 ## 1.8.1
 
 ### Fixed
