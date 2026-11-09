@@ -42,7 +42,7 @@
 先看有哪些预设：
 
 ```text
-python3 tools/trim.py profiles
+python3 -X utf8 tools/trim.py profiles
 ```
 
 从 `profiles/` 拷最接近的一份到包根，命名为 `requirements.toml`。按核对结果改值；保留中文节名、键名两侧的引号，例如 `["项目"]` 和 `"名"`，这是 TOML 格式的要求；保留七个特征的 `true` 或 `false` 写法。小说选 `novel-writing.toml`，短视频选 `short-video.toml`；写程序的项目一律选 `medium-software.toml`（两窗起步），决策者点名「一窗到底」才选 `small-software.toml`。大型研发不作起点，是项目长大、窗口加多后对照的上限。
@@ -64,8 +64,8 @@ python3 tools/trim.py profiles
 ## ④ 校验并裁剪
 
 ```text
-python3 tools/trim.py validate
-python3 tools/trim.py generate --card requirements.toml --out pending
+python3 -X utf8 tools/trim.py validate
+python3 -X utf8 tools/trim.py generate --card requirements.toml --out pending
 ```
 
 旧中文命令 `出`、`校验`、`表`、`档案` 和参数 `--条目`、`--卡`、`--出` 保持兼容。工具缺省读包根的 `entries.jsonl`；验证其他条目表可加 `--entries file.jsonl`。`table --entries file.jsonl` 会在该条目表旁生成 [条目表](entries.zh.md)，供人阅读。

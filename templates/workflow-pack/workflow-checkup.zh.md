@@ -67,9 +67,9 @@
 ## ⑥ 点头后落地
 
 1. 改前的原件整份挪进项目根 `_旧版/<日期时刻>/`,不删除。
-2. 需要重裁的照《getting-started.md》④⑥ 执行:改需求卡,跑 `python3 tools/trim.py validate`,再 `python3 tools/trim.py generate --card requirements.toml --out pending`,生成件放项目根。
+2. 需要重裁的照《getting-started.md》④⑥ 执行:改需求卡,跑 `python3 -X utf8 tools/trim.py validate`,再 `python3 -X utf8 tools/trim.py generate --card requirements.toml --out pending`,生成件放项目根。
 3. `CLAUDE.md` 与 `AGENTS.md` 只在末尾追加缺的行,不覆盖原内容。
-4. 重跑 `python3 tools/trim.py validate`,确认 0 错。
+4. 重跑 `python3 -X utf8 tools/trim.py validate`,确认 0 错。
 5. 工作记录写一行:做了什么、怎么回退(从 `_旧版/` 拷回)。
 
 ## ⑦ 什么时候再跑

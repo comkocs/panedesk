@@ -42,7 +42,7 @@ Extract project-specific requirements into the handwritten `本项目自定.md` 
 List the profiles:
 
 ```text
-python3 tools/trim.py profiles
+python3 -X utf8 tools/trim.py profiles
 ```
 
 Copy the closest file from `profiles/` to `requirements.toml` at the pack root. Edit its values from the answers. Keep quotation marks around Chinese TOML table and key names, such as `["项目"]` and `"名"`, and keep the seven feature values as `true` or `false`. Choose `novel-writing.toml` for novels and `short-video.toml` for short videos. Always choose `medium-software.toml` for programming projects (start with two windows). Use `small-software.toml` only when the decision maker explicitly requests one window throughout. `large-research.toml` is not a starting point; it is an upper reference for a project that has grown and added windows.
@@ -64,8 +64,8 @@ Programming projects start at medium scale, always using the medium-software pro
 ## ④ Validate and generate
 
 ```text
-python3 tools/trim.py validate
-python3 tools/trim.py generate --card requirements.toml --out pending
+python3 -X utf8 tools/trim.py validate
+python3 -X utf8 tools/trim.py generate --card requirements.toml --out pending
 ```
 
 The default input is `entries.jsonl` at the pack root. Use `--entries file.jsonl` to select another input. `table --entries file.jsonl` produces [a readable table](entries.md) beside that input. Chinese commands `出`, `校验`, `表`, and `档案`, and arguments `--条目`, `--卡`, and `--出`, remain available for existing callers.

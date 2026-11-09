@@ -16172,11 +16172,7 @@
           "packages/client/ui-settings-models/src/client/locales.ts",
           "packages/client/ui-settings-models/README.md",
           "packages/client/ui-settings-models/README.zh.md",
-          "templates/workflow-pack/tools/trim.py",
-          "templates/workflow-pack/getting-started.md",
-          "templates/workflow-pack/getting-started.zh.md",
-          "templates/workflow-pack/workflow-checkup.md",
-          "templates/workflow-pack/workflow-checkup.zh.md"
+          "templates/workflow-pack/tools/trim.py"
         ]
       }
     }
