@@ -16,8 +16,13 @@ import type {
   ResolvedTargetPolicy,
 } from './types.ts'
 
-/** Default request-pressure fraction for every routed model. */
-const DEFAULT_THRESHOLD_RATIO = 0.8
+/**
+ * Default request-pressure fraction for every routed model. Automatic
+ * compaction therefore starts once 5.5% of the context window remains, and the
+ * capacity checks below move the trigger earlier when the compaction request
+ * itself would not fit in that remainder.
+ */
+const DEFAULT_THRESHOLD_RATIO = 0.945
 
 /** Default verbatim-tail fraction for every routed model. */
 const DEFAULT_RETAIN_RATIO = 0.16

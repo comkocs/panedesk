@@ -29,6 +29,7 @@ import type {
   Provider,
   ThinkingLevelMap,
 } from '@earendil-works/pi-ai'
+import { presetContextWindow } from './context-presets.ts'
 import { inferReasoningEfforts } from './reasoning.ts'
 
 /**
@@ -604,8 +605,19 @@ export interface PiAiModelProfile {
   id: string
   /** Display name for selectors; defaults to the catalog name, then the id. */
   name?: string
-  /** Maximum combined request and response context in tokens. */
+  /**
+   * Maximum combined request and response context in tokens. Resolution order:
+   * this value, then the name-keyed preset table, then the installed catalog
+   * entry of the same id, then the route's `defaultContextWindow`.
+   */
   contextWindow?: number
+  /**
+   * Marker that {@link contextWindow} was stored by adopting an upstream
+   * listing, so the Models page can label the value "upstream" rather than
+   * "entered by hand". Absent keeps that hand-written reading and nothing in
+   * resolution reads this field; clearing `contextWindow` should clear it too.
+   */
+  contextWindowSource?: 'upstream'
   /**
    * Maximum output tokens. Configuring one also makes it this model's
    * per-request default; a value inherited from the installed catalog, or the
@@ -654,7 +666,7 @@ export interface RouteCatalogRequest {
   modelOverrides?: Readonly<Record<string, PiAiModelOverride>>
   /** Route-level wire-compatibility switches, landing on each model whose protocol declares them; entries override per field. */
   compat?: PiAiCompatProfile
-  /** Context capacity for a model neither the entry nor the catalog sizes. */
+  /** Context capacity for a model the entry, the name presets, and the catalog all leave unsized. */
   defaultContextWindow: number
   /** Output capability for a model neither the entry nor the catalog sizes. */
   defaultMaxTokens: number
@@ -924,8 +936,13 @@ export function resolveRouteModels(
     // Capacities fall back to the route's own defaults, so a model listing that
     // discloses nothing but ids still yields a serviceable route. The fallback
     // is a guess by construction, which is why it is a configurable route field
-    // rather than a constant buried here.
-    const contextWindow = entry.contextWindow ?? base?.contextWindow ?? request.defaultContextWindow
+    // rather than a constant buried here. The name-keyed preset table sits
+    // between the entry and the installed catalog because a gateway listing
+    // that sizes nothing still deserves the family's real window.
+    const contextWindow = entry.contextWindow
+      ?? presetContextWindow(entry.id)
+      ?? base?.contextWindow
+      ?? request.defaultContextWindow
     if (!Number.isInteger(contextWindow) || contextWindow <= 0) {
       invalid(provider, `model "${entry.id}" contextWindow must be a positive integer`)
     }

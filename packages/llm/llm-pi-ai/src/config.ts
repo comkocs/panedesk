@@ -117,9 +117,10 @@ export interface PiAiProviderProfile {
    */
   compat?: PiAiCompatProfile
   /**
-   * Context capacity for a model this route lists that neither the entry nor
-   * the installed catalog sizes (default 262,144). A guess by construction, so
-   * a deployment whose gateway serves smaller models corrects it here.
+   * Context capacity for a model this route lists that the entry, the
+   * name-keyed preset table, and the installed catalog all leave unsized
+   * (default 262,144). A guess by construction, so a deployment whose gateway
+   * serves smaller models corrects it here.
    */
   defaultContextWindow?: number
   /**
@@ -291,6 +292,10 @@ const reasoningEfforts = z.dict(
 const modelFields = {
   name: z.string(),
   contextWindow: z.number().step(1).min(1),
+  // Marker, not a capacity: it records that `contextWindow` came from adopting
+  // an upstream listing so the Models page can label the value's source. The
+  // only value is 'upstream'; absence keeps the hand-written reading.
+  contextWindowSource: z.const('upstream'),
   maxTokens: z.number().step(1).min(1),
   // No explicit default, unlike the route's `defaultInput`: schemastery
   // materializes `[]` for an absent array, and resolution reads that as "no
