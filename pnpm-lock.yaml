@@ -13263,6 +13263,12 @@ importers:
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@panedesk/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@panedesk/dsh-launch-environment':
+        specifier: workspace:*
+        version: link:../../util/launch-environment
       '@panedesk/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout

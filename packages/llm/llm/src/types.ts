@@ -332,6 +332,33 @@ declare module '@panedesk/dsh-typert-protocol' {
   }
 }
 
+/** Protocol identifiers supported by the compatibility probe. */
+export type LlmProbeProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages'
+
+/** One independently observed compatibility check; no provider response text is exposed. */
+export interface LlmProtocolCheck {
+  /** Whether the response contains the evidence required by this check. */
+  readonly ok: boolean
+  /** Failure category without provider response text. */
+  readonly reason?: 'protocol' | 'auth' | 'model' | 'timeout' | 'other'
+  /** HTTP status, when a response was received. */
+  readonly status?: number
+}
+
+/** Four minimal requests against one protocol on the same endpoint and model. */
+export interface LlmProtocolProbeResult {
+  /** Protocol sent on the wire. */
+  readonly api: LlmProbeProtocol
+  /** Non-streaming text response. */
+  readonly text: LlmProtocolCheck
+  /** Text deltas and a successful SSE termination. */
+  readonly stream: LlmProtocolCheck
+  /** An actual ping call, never executed by the probe. */
+  readonly tool: LlmProtocolCheck
+  /** Text response to an inline PNG input. */
+  readonly image: LlmProtocolCheck
+}
+
 /** What one shortest generation probe answered. */
 export interface LlmModelProbeResult {
   /** Whether the model produced or cleanly finished a one-token generation. */

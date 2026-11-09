@@ -33,6 +33,7 @@ import { ApiKeyInput } from './ApiKeyInput.tsx'
 import { EditorFooter } from './EditorFooter.tsx'
 import { validateDeepSeekModels } from './DeepSeekModelsEditor.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
+import { ProtocolProbe } from './ProtocolProbe.tsx'
 import type { ModelDraft } from './ModelListEditor.tsx'
 import { validateReasoningEfforts } from './ModelReasoningEfforts.tsx'
 import { deriveKeyRef } from './store.ts'
@@ -123,7 +124,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
    */
   const [committedRoute, setCommittedRoute] = useState<string | undefined>(undefined)
   const committed = committedRoute !== undefined
-  const disabled = props.readOnly || busy
+  const disabled = props.readOnly || busy || listBusy
   /** Everything but the key stops being editable once the provider exists. */
   const profileDisabled = disabled || committed
 
@@ -276,6 +277,12 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       </div>
       <ModelListEditor
         models={models}
+        renderProtocolProbe={model => <ProtocolProbe
+          target={{ settingsNs: NS, provider: route, baseURL: normalizedBaseURL, api: protocol,
+            ...keyValue.length === 0 ? {} : { apiKey: keyValue } }}
+          model={model['id'] as string} operations={operations} t={t} disabled={profileDisabled}
+          onBusyChange={setListBusy} onSaved={() => { props.onClose(true) }}
+        />}
         onChange={setModels}
         onRowEdited={(index) => { setTouched(current => new Set(current).add(index)) }}
         onRowRemoved={(index) => {

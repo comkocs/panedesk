@@ -35,6 +35,7 @@ import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import { ProviderEditor, type ProviderEditorProps } from './ProviderEditor.tsx'
 import { RecognizeModels } from './RecognizeModels.tsx'
+import { modelDrafts } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
@@ -586,6 +587,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 endpoint={storedEndpoint(schema, namespace, row.entry.settingsPath)}
                 keyRequired={row.entry.provider === 'deepseek-official' && !credentialConfigured}
                 modelCount={configuredModelCount(schema, namespace, [...row.entry.settingsPath, 'models'])}
+                configuredModels={modelDrafts(schema.getPath(namespace.value, [...target.settingsPath, 'models']))
+                  .map(model => ({ id: model['id'] as string, ...typeof model['name'] === 'string' ? { name: model['name'] } : {} }))}
                 operations={operations}
                 t={t}
                 disabled={!state.writable || state.status !== 'ready'}
@@ -605,7 +608,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       ? { input: [...model.inputModalities] }
                       : { inputModalities: [...model.inputModalities] },
                   }))
-                  const outcome = await operations.writeSettings(target.settingsNs, [{ op: 'set', path, value: [...existing, ...additions] }], namespace.revision)
+                  const selected = new Set(models.map(model => model.id))
+                  const retained = existing.filter(value => value !== null && typeof value === 'object'
+                    && 'id' in value && typeof value.id === 'string' && selected.has(value.id))
+                  const outcome = await operations.writeSettings(target.settingsNs, [{ op: 'set', path, value: [...retained, ...additions] }], namespace.revision)
                   if (outcome.kind !== 'written') return outcome.message
                   await controller.load()
                   return undefined
