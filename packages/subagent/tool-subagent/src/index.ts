@@ -25,12 +25,13 @@ import type { SubagentProvider } from '@panedesk/dsh-subagent'
 import {
   configuredModels,
   resolveModelRoute,
+  resolvePresetModelRoute,
   hasConfiguredLlmSelection,
   hasDelegationModelRequest,
   preflightChildLlmRoute,
   requestedAgentOptions,
 } from './model-selection.ts'
-import type { DelegationModelRequest } from './model-selection.ts'
+import type { AllowedModelRoute, DelegationModelRequest } from './model-selection.ts'
 import { registerListSubagentModels } from './list-models.ts'
 import { SubagentPresetSelection, type PresetSelectionConfig, type PresetSelectionRequest } from './preset-selection.ts'
 import {
@@ -265,6 +266,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
               model: { type: 'object', additionalProperties: false, properties: {
                 provider: { type: 'string', required: true }, model: { type: 'string', required: true },
               } },
+              effortLoweredTo: { type: 'string' },
               kind: admissionEnabled
                 ? { type: 'string', required: true, enum: ['activation', 'queued'] }
                 : { type: 'string', required: true, const: 'activation' },
@@ -273,11 +275,12 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
               position: { type: 'number' },
             },
           },
-          render: (_args, value) => [{ type: 'text', text: value.kind === 'queued'
+          render: (_args, value) => [{ type: 'text', text: (value.kind === 'queued'
             ? value.position === undefined
               ? `queued subagent ${value.ticketId}; register a wait for this ticket and end the turn instead of retrying`
               : `queued subagent ${value.ticketId} at position ${value.position}; continue other work or close an idle child to free capacity`
-            : `started subagent ${value.subagentId}${value.model === undefined ? '' : `; model ${value.model.provider}/${value.model.model}`}` }],
+            : `started subagent ${value.subagentId}${value.model === undefined ? '' : `; model ${value.model.provider}/${value.model.model}`}`)
+            + (value.effortLoweredTo === undefined ? '' : `; effort lowered to ${value.effortLoweredTo} / 档位降为 ${value.effortLoweredTo}`) }],
         },
         isConcurrencySafe: () => true,
         async execute(args, exec) {
@@ -293,6 +296,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const registry = parent.ctx.get('agentPresets')
           const definition = agentPreset === undefined ? undefined : await registry?.resolve(agentPreset)
           let modelRequest: DelegationModelRequest = args
+          let effortLoweredTo: string | undefined
           if (args.model !== undefined || definition?.model !== undefined) {
             const llm = runtimeCtx.get('llm')
             if (llm === undefined) throw new Error('cannot resolve the selected child LLM route because the `llm` service is unavailable')
@@ -301,16 +305,25 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
               modelRequest = { ...args, ...resolveModelRoute(models, args.model, args.provider) }
             } else if (args.provider === undefined && definition?.model !== undefined) {
               const separator = definition.model.indexOf('/')
-              const selected = separator < 0
-                ? models.find(candidate => candidate.id === definition.model)
-                : resolveModelRoute(models, definition.model.slice(separator + 1), definition.model.slice(0, separator))
-              const route = selected !== undefined
-                ? { provider: selected.provider, model: 'id' in selected ? selected.id : selected.model }
-                : {
-                    ...parentOptions.provider === undefined ? {} : { provider: parentOptions.provider },
-                    ...parentOptions.model === undefined ? {} : { model: parentOptions.model },
-                  }
-              const effort = args.reasoning_effort ?? (selected !== undefined ? definition.reasoningEffort : parentOptions.reasoningEffort)
+              let selected: AllowedModelRoute | undefined
+              if (separator < 0) {
+                const effort = args.reasoning_effort !== undefined ? ReasoningEffortId(args.reasoning_effort)
+                  : definition.reasoningEffort !== undefined ? ReasoningEffortId(definition.reasoningEffort)
+                  : undefined
+                const picked = await resolvePresetModelRoute(llm, models, definition.model, effort, exec.signal)
+                selected = picked?.route
+                if (picked?.loweredTo !== undefined) {
+                  effortLoweredTo = picked.loweredTo
+                }
+              } else {
+                selected = resolveModelRoute(models, definition.model.slice(separator + 1), definition.model.slice(0, separator))
+              }
+              const route = selected ?? {
+                ...parentOptions.provider === undefined ? {} : { provider: parentOptions.provider },
+                ...parentOptions.model === undefined ? {} : { model: parentOptions.model },
+              }
+              const effort = effortLoweredTo ?? args.reasoning_effort
+                ?? (selected !== undefined ? definition.reasoningEffort : parentOptions.reasoningEffort)
               modelRequest = { ...route, ...effort === undefined ? {} : { reasoning_effort: effort } }
             }
           }
@@ -384,13 +397,15 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             ? runtimeCtx.subagents.startActivation(spec)
             : runtimeCtx.subagents.requestActivation(spec))
           if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId,
-            ...started.position === undefined ? {} : { position: started.position } }
+            ...started.position === undefined ? {} : { position: started.position },
+            ...effortLoweredTo === undefined ? {} : { effortLoweredTo } }
           const ready = await started.ready
           if (ready?.failureStage !== undefined) {
             throw new SubagentError(`subagent ${started.childId} failed during ${ready.failureStage}`, 'SUBAGENT_START_FAILED')
           }
           return { kind: 'activation' as const, subagentId: started.childId,
-            ...ready?.model === undefined ? {} : { model: ready.model } }
+            ...ready?.model === undefined ? {} : { model: ready.model },
+            ...effortLoweredTo === undefined ? {} : { effortLoweredTo } }
         },
       })
       definition.guardName = 'subagent'

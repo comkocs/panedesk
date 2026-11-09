@@ -33,7 +33,7 @@ export function foldTranscriptFacts(
     else if (event.type === 'turn/end') activity = event.data.reason.kind === 'aborted' ? 'stopped' : 'idle'
     else if (event.type === 'request/header') {
       const config = event.data.header.config
-      model = `${config.provider} · ${config.model}`
+      model = [config.provider, config.model, config.reasoningEffort].filter(Boolean).join(' · ')
     } else if (event.type === 'assistant/message') {
       const source = event.data.message.source
       model = `${source.provider} · ${source.model}`
