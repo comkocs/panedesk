@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm-replay",
   "description": "Replay LLM plugin: short-circuits llm/stream with model chunks reconstructed from a recorded session JSONL (keyless snapshot tests)",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "publishConfig": {
     "access": "public"
   },

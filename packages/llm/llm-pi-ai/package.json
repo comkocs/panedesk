@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm-pi-ai",
   "description": "pi-ai-backed DeepSeek adapter for the DeepSeek Harness LLM seam (design-verification twin of dsh-llm-deepseek)",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "publishConfig": {
     "access": "public"
   },

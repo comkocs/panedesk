@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-hmr",
   "description": "Web client graph synchronization and rebuilt-bundle reload transport",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "publishConfig": {
     "access": "public"
   },

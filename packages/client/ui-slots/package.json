@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-slots",
   "description": "Slot registry pure core: typed ordinary Slots and reusable Component Factories, derived props, Store seats, and renderer installation",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "publishConfig": {
     "access": "public"
   },
