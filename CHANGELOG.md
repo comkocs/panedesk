@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.1
+
+### Fixed
+
+- Dialogs stay inside the window, keep their title and buttons visible and scroll their content.
+
 ## 1.8.0
 
 ### Added
