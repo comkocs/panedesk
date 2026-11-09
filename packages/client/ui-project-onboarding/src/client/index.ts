@@ -16,7 +16,8 @@ import { importPresets, openingPresetName } from './preset-import.ts'
 import { ProjectPreferencesController } from './controller.ts'
 import { ProjectGuide } from './ProjectGuide.tsx'
 import { ProjectSettings } from './ProjectSettings.tsx'
-import { WorkflowStarters, WorkflowSettings, WorkflowQuick } from './WorkflowStarters.tsx'
+import { WorkflowStarters, WorkflowReset, WorkflowSettings, WorkflowQuick } from './WorkflowStarters.tsx'
+import { createWorkflowStore } from './workflow-store.ts'
 import { ProjectSettingsController } from './settings-controller.ts'
 import { en, zh } from './locales.ts'
 import type { GuideInjected, ProjectInjected, SettingsInjected, WorkflowInjected } from './props.ts'
@@ -132,10 +133,15 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       setPrompt: (key, language, text) => workflow.mutate([{ op: 'set', path: [key, language], value: text }]),
       manageWorkflow: () => ctx.settingsNavigation.openSection('workflow'),
     })
-    ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
-      name: 'conversation.input.dock', id: 'workflow-starters', order: 0,
-      locale: 'projectOnboarding', inject: workflowFace,
+    const workflowSelection = createWorkflowStore()
+    ctx.slots.inject('conversation.hero.starters', () => ctx.slots.register({
+      name: 'conversation.hero.starters', id: 'workflow-starters', order: 0,
+      locale: 'projectOnboarding', inject: workflowFace, store: workflowSelection,
     }, WorkflowStarters))
+    ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+      name: 'conversation.input.dock', id: 'workflow-reset', order: 0,
+      locale: 'projectOnboarding', inject: workflowFace, store: workflowSelection,
+    }, WorkflowReset))
     ctx.slots.inject('conversation.hero.actions', () => ctx.slots.register({
       name: 'conversation.hero.actions', id: 'workflow', order: 20,
       locale: 'projectOnboarding', inject: workflowFace,

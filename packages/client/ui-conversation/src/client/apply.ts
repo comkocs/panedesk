@@ -347,6 +347,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.actions': { kind: 'list', scope: 'session-maybe' },
+      'conversation.hero.starters': { kind: 'list', scope: 'session' },
       'conversation.hero.opening': { kind: 'single', scope: 'session-maybe' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'session-maybe' },
       'conversation.hero.seat': { kind: 'single', scope: 'session-maybe' },

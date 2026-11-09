@@ -10,7 +10,7 @@ import { presetName } from '../preset-name.ts'
  * @returns A name of at most twenty characters.
  */
 export function openingPresetName(prompt: string, pattern?: OpeningNamePattern): string {
-  return presetName((pattern ? extractOpeningName(prompt, pattern) : undefined) ?? extractOpeningFolder(prompt) ?? '')
+  return presetName((pattern ? extractOpeningName(prompt, pattern) : undefined) ?? extractOpeningFolder(prompt) ?? prompt)
 }
 
 /** Parse multiline sentences or a markdown table into editable, not yet persisted rows.
