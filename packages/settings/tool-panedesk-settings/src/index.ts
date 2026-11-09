@@ -18,7 +18,9 @@ export const inject = ['tools', 'settings', 'configEditor', 'systemPrompt']
 
 /** Tool names omitted from ordinary sessions; typed subagents keep their own tool mapping. */
 export interface Config {
+  /** Tool names hidden from new ordinary sessions. */
   disabledTools: Volatile<string[]>
+  /** Whether new untyped subagents receive all available tools. */
   subagentsFullTools: Volatile<boolean>
 }
 
