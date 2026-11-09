@@ -3,11 +3,14 @@
  * all data and callbacks arrive via props. Hover swaps (folder->chevron,
  * time->ellipsis, action buttons) are CSS-only, and a session row's clipped
  * title marquees programmatically while the row is hovered. Workspace row
- * menus are visual-only except Rename/Delete. A Session row's "..." menu and
+ * menus are visual-only except New session here, Rename, and Delete. A Session
+ * row's "..." menu and
  * its hover buttons are the `sidebar.workspaces.session.menu.item` and
  * `sidebar.workspaces.session.row.action` lists, rendered through the
  * browser's `renderSlot` with the menu's open state as the occurrence's hook
- * context; this package's own actions are entries like any plugin's. The
+ * context; this package's own actions are entries like any plugin's.
+ * Right-clicking a session or workspace row opens that row's "..." menu at the
+ * pointer through the same component and entries. The
  * session and workspace hover cards are suppressed while a menu is open.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -31,16 +34,13 @@ import css from './Rows.module.css'
 type RowTranslate = WorkspaceBrowserProps['t']
 
 /**
- * Child-seat renderer threaded from the browser root: the row's action lists,
- * its leading decoration, and its hover-card section. The leading seat is
- * rendered only while the row's primary state is idle, so a status dot and a
- * leading occupant never share the row; the hover seat only while the row's
- * card is open.
+ * Child-seat renderer threaded from the browser root: the row's action lists
+ * and its hover-card section. The hover seat renders only while the row's card
+ * is open.
  */
 type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.workspaces.session.menu.item'
   | 'sidebar.workspaces.session.row.action'
-  | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
 >['renderSlot']
 
@@ -207,7 +207,9 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /**
  * Project (workspace) header row: folder + title;
  * hover reveals the chevron and create button, and dwelling on a real
- * Workspace shows its hover card (the ungrouped bucket has none).
+ * Workspace shows its hover card (the ungrouped bucket has none). Right-clicking
+ * a real Workspace row opens its "..." menu at the pointer; that menu also
+ * offers New session here, which takes the hover button's create path.
  * `containsCurrent` arrives on the node (derivation fact, no renderer scan).
  * @param props.group - derived group node.
  * @param props.containsCurrentDescendant - highlight an ancestor even when its subtree is collapsed.
@@ -237,7 +239,10 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
   const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const active = containsCurrentDescendant || (group.expanded && group.containsCurrent)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Where a right click last opened the menu; null means the anchored button owns it.
+  const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null)
   const workspaceMenuItems = [
+    { id: 'create', label: t('actions.newSessionHere'), icon: <IconNewChatOutlineRegular /> },
     { id: 'rename', label: t('rename'), icon: <IconEditOutlineRegular /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutlineRegular />, danger: true },
   ]
@@ -248,6 +253,15 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
       role="treeitem"
       aria-expanded={row.expanded}
       onClick={onToggle}
+      // The ungrouped bucket has no menu; right-clicking a real Workspace row
+      // opens the same "..." menu at the pointer.
+      onContextMenu={actions === undefined
+        ? undefined
+        : (e) => {
+          e.preventDefault()
+          setContextPos({ x: e.clientX, y: e.clientY })
+          setMenuOpen(true)
+        }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
         ? undefined
@@ -277,19 +291,23 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
               setMenuOpen(false)
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
-              /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
-              if (id !== 'rename' && id !== 'delete') return
-              if (id === 'rename') actions.rename()
+              /* v8 ignore next -- Menu can emit only the create, rename, and delete rows supplied above. */
+              if (id !== 'create' && id !== 'rename' && id !== 'delete') return
+              if (id === 'create') onCreate()
+              else if (id === 'rename') actions.rename()
               else actions.delete()
             }}
             portal
-            closeOnPointerLeave
+            closeOnPointerLeave={contextPos === null}
+            {...(contextPos === null
+              ? {}
+              : { getAnchorRect: () => new DOMRect(contextPos.x, contextPos.y, 0, 0) })}
             anchor={(
               <button
                 type="button"
                 className={css.iconButton}
                 aria-label={t('actions.workspace.aria', { name: label })}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                onClick={(e) => { e.stopPropagation(); setContextPos(null); setMenuOpen(v => !v) }}
               >
                 <IconEllipsisOutlineRegular />
               </button>
@@ -399,11 +417,20 @@ function sessionStatuses(
   return [{ state: 'idle', label: t('status.idle') }]
 }
 
-/** Primary status dot plus every status's screen-reader label, shared by the search and session rows. */
+/**
+ * The row's run dot plus every status's screen-reader label, shared by the
+ * search and session rows: solid green while the row's primary status is live
+ * activity (an own run or a running descendant), the secondary-label gray
+ * otherwise. The row cell carries only whether the Session is working; the
+ * per-status colors stay on the hover card.
+ */
 function SessionStatusDots({ statuses }: { statuses: readonly [SessionStatus, ...SessionStatus[]] }) {
   return (
     <>
-      <StateDot state={statuses[0].state} />
+      <span
+        className={clsx(css.runDot, statuses[0].state === 'ongoing' && css.runDotRunning)}
+        aria-hidden="true"
+      />
       {statuses.map(status => (
         <span className={css.visuallyHidden} key={status.label}>{status.label}</span>
       ))}
@@ -525,20 +552,18 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
 }
 
 /**
- * One top-level 32px session row: leading 16px cell (status dot, or the
- * leading seat while the row's primary state is idle), title, relative time or
- * compact pending label, and the row actions menu. A row that owns a state dot
- * keeps that cell and renders no seat, so an ambient automation mark never
- * appears beside the row's own state dot. An archived row keeps the cell blank:
- * neither marker renders there, and its live status stays on the hover card.
+ * One top-level 32px session row: leading 16px cell (the run dot every row
+ * carries — green while the Session works, gray otherwise), title, relative
+ * time or compact pending label, and the row actions menu. Right-clicking the
+ * row opens the same "..." menu at the pointer.
  * @param props.node - derived session node.
  * @param props.currentId - selected session id (row highlight).
  * @param props.now - epoch ms for relative-time formatting.
  * @param props.onOpen - open a session by id.
  * @param props.onRenameRequest - open the rename dialog from a title double-click (id + current title).
  * @param props.renderSlot - child-seat renderer for the row's action lists
- * (`sidebar.workspaces.session.menu.item` / `sidebar.workspaces.session.row.action`),
- * its leading decoration, and its hover-card section.
+ * (`sidebar.workspaces.session.menu.item` / `sidebar.workspaces.session.row.action`)
+ * and its hover-card section.
  * @param props.onReveal - scroll this row into view after search navigation, then acknowledge it.
  * @param props.drag - optional row-drag target wiring; blank rows cannot start a drag.
  * @param props.t - the browser root's locale seat.
@@ -561,7 +586,6 @@ export function SessionNodeItem({
 } & PropsRenderSlots<
   | 'sidebar.workspaces.session.menu.item'
   | 'sidebar.workspaces.session.row.action'
-  | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
 >) {
   const row = node
@@ -569,12 +593,13 @@ export function SessionNodeItem({
   const selected = node.id === currentId
   const statuses = sessionStatuses(node, t)
   const primaryStatus = statuses[0]
-  const showStatus = primaryStatus.state !== 'idle'
   // Archived rows hold their in-place grayed slot, so manual reorder cannot
   // move them. Pinned rows drag within the pinned block: the browser gates
   // their drop targets to fellow pinned rows.
   const draggable = drag !== undefined && !row.blank && !row.archived
   const [menuOpen, setMenuOpen] = useState(false)
+  // Where a right click last opened the menu; null means the anchored button owns it.
+  const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null)
   // The menu's open state, bound into the row entries' `useMenuOpenState` hook.
   const menuOpenState = useMemo((): MenuOpenState => [menuOpen, setMenuOpen], [menuOpen])
   const rowRef = useRef<HTMLDivElement>(null)
@@ -599,6 +624,15 @@ export function SessionNodeItem({
       aria-selected={selected}
       aria-description={row.archived ? t('toast.archivedNotOpenable') : undefined}
       onClick={() => { onOpen(node.id) }}
+      // A blank placeholder has no menu; right-clicking any other row opens
+      // the same "..." menu at the pointer.
+      onContextMenu={row.blank
+        ? undefined
+        : (e) => {
+          e.preventDefault()
+          setContextPos({ x: e.clientX, y: e.clientY })
+          setMenuOpen(true)
+        }}
       onPointerEnter={marquee.enter}
       onPointerLeave={marquee.leave}
       draggable={draggable}
@@ -626,15 +660,12 @@ export function SessionNodeItem({
           drag.drop(rowHalf(e))
         }}
     >
-      {/* Pending interaction and own or descendant activity outrank the
-          finished-but-unviewed reminder, which returns after activity stops
-          and is cleared by opening the session. Archived rows keep the slot
-          blank — the grayed row carries the archived look — and their live
-          status stays on the hover card only. */}
+      {/* Every row carries the run dot: green while the Session works (an
+          own run or a running descendant), gray otherwise — including pending
+          interaction, finished-but-unviewed, blank, and archived rows. The
+          per-status colors stay on the hover card. */}
       <span className={css.slot}>
-        {!row.archived && !row.blank && (showStatus
-          ? <SessionStatusDots statuses={statuses} />
-          : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
+        <SessionStatusDots statuses={statuses} />
       </span>
       <span
         ref={titleRef}
@@ -669,13 +700,16 @@ export function SessionNodeItem({
             open={menuOpen}
             onClose={() => { setMenuOpen(false) }}
             portal
-            closeOnPointerLeave
+            closeOnPointerLeave={contextPos === null}
+            {...(contextPos === null
+              ? {}
+              : { getAnchorRect: () => new DOMRect(contextPos.x, contextPos.y, 0, 0) })}
             anchor={(
               <button
                 type="button"
                 className={css.iconButton}
                 aria-label={t('actions.session.aria', { name: title })}
-                onClick={() => { setMenuOpen(v => !v) }}
+                onClick={() => { setContextPos(null); setMenuOpen(v => !v) }}
               >
                 <IconEllipsisOutlineRegular />
               </button>

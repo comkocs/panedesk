@@ -11,7 +11,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包让用户浏览分组或扁平的 Session 列表、为新 Session 选择 Workspace，并通过添加、重命名、重排序、搜索、fork、归档和删除 Workspace 来管理 Workspace 与 Session；Session 行菜单及其悬停按钮是可由客户端插件扩展的 slot 列表。待处理交互显示为警告点，subagent 来源的 Session 则保持隐藏。处于空闲状态且未归档、其 Session 有活动定时任务的 Session 行会显示时钟标记，其悬浮卡片会列出这些任务。规范化后仍有差异的文件夹路径会保留为独立 Workspace。添加 Workspace 需要组合目录选择器；没有目录选择器时，添加操作不可用。
+本包让用户浏览分组或扁平的 Session 列表、为新 Session 选择 Workspace，并通过添加、重命名、重排序、搜索、fork、归档和删除 Workspace 来管理 Workspace 与 Session；Session 行菜单及其悬停按钮是可由客户端插件扩展的 slot 列表。右键 Session 行或 Workspace 行会在指针处打开与其“···”按钮相同的菜单。每条 Session 行都带一个运行圆点——Session 在跑时为绿色，其余为灰色；待处理交互的警告点显示在悬浮详情中，subagent 来源的 Session 则保持隐藏。有活动定时任务的行会在其悬浮卡片上列出这些任务。规范化后仍有差异的文件夹路径会保留为独立 Workspace。添加 Workspace 需要组合目录选择器；没有目录选择器时，添加操作不可用。
 
 ## 目录
 
@@ -53,7 +53,7 @@ kind: "package-reference"
 
 Session 行“...”菜单的最后一个内置项为“复制 Session ID”。点击后关闭菜单并直接复制完整 ID，不打开对话框。复制成功或失败通过全局提示反馈；失败时可从菜单重试。复制不会 retain 会话、加载历史或调用 Host。
 
-Session 行内的 Rename 操作打开一个以该行显示标题预填的对话框；确认未修改的标题是有意允许的——这正是把当前自动标题钉住、不再被重新生成覆盖的手势。双击标题也会打开 Rename；对于未归档 Session，先发生的点击会打开其对话。Rename 使用临时 `workspaceOperation` reference，并等待首次历史打开。行内 Fork 正常读取普通冷历史。Host 报告源会话需要迁移时，应用级 Toast 提供打开该会话的操作；该操作仅导航，不重试 fork。成功的 fork 在源会话最后一个已完成轮次处创建分支，通过 Session Controller 递增继承的持久化标题，不 retain 子会话、不打开其历史，也不改变选择。Workspace 行内的 Delete 操作会打开确认框，说明保留边界；成功后该分组被移除，其 Session 则留在 Ungrouped 下。Pin、Rename、Fork、Archive 和复制 Session ID 本身就是 `sidebar.workspaces.session.menu.item` 列表的条目（pin 与 archive 同时也是 `sidebar.workspaces.session.row.action` 的条目），因此客户端插件的 action 由其 `order` 决定落在哪个位置。
+Session 行内的 Rename 操作打开一个以该行显示标题预填的对话框；确认未修改的标题是有意允许的——这正是把当前自动标题钉住、不再被重新生成覆盖的手势。双击标题也会打开 Rename；对于未归档 Session，先发生的点击会打开其对话。Rename 使用临时 `workspaceOperation` reference，并等待首次历史打开。行内 Fork 正常读取普通冷历史。Host 报告源会话需要迁移时，应用级 Toast 提供打开该会话的操作；该操作仅导航，不重试 fork。成功的 fork 在源会话最后一个已完成轮次处创建分支，通过 Session Controller 递增继承的持久化标题，不 retain 子会话、不打开其历史，也不改变选择。Workspace 行的菜单提供“在此新建会话”——经同一回调走悬停新建按钮的创建路径——以及重命名和删除；右键该行会在指针处打开此菜单。Workspace 行内的 Delete 操作会打开确认框，说明保留边界；成功后该分组被移除，其 Session 则留在 Ungrouped 下。Pin、Rename、Fork、Archive 和复制 Session ID 本身就是 `sidebar.workspaces.session.menu.item` 列表的条目（pin 与 archive 同时也是 `sidebar.workspaces.session.row.action` 的条目），因此客户端插件的 action 由其 `order` 决定落在哪个位置。
 
 对静止的 Session，Archive 不经确认对话框直接提交，并保留 Session 的记账位置。仍有工作在跑的 Session 是唯一会先询问的情形：Host 拒绝普通归档并列出这些工作，侧栏随即打开"停止并归档"对话框，按固定族顺序列出——进行中的回合、运行中的子代理、后台任务、定时提醒，各带名称，随后按收到的顺序列出扩展族——并写明恢复路径；确认后请 Host 按停止按钮同样的方式停止这些工作，归档集合持久化后即完成归档，停止在后台收敛；取消则让 Session 继续运行并保持可见。视图选项以一组显式三选一控制显隐：隐藏已归档（默认项）隐藏已归档 Session，全部对话（显示已归档）将其纳入列表，仅显示已归档则隐藏普通 Session，并丢弃没有归档 Session 的 Workspace；树形分组下，被丢弃 Workspace 的子级挂到最近一个仍显示的祖先下。可见的归档行置灰，并提供无障碍说明，告知取消归档后才能打开；Rename、Fork 与取消归档仍然可用。归档成功后的提示提供"撤销"动作，并在归档行仍被隐藏时附带"筛选已归档会话"动作，后者直接把筛选切到全部对话（显示已归档）；停止并归档显示同样的提示但措辞不同，撤销只恢复 Session，不会让被停止的工作继续。取消归档移除归档标记，但不恢复置顶，也不改变保存的位置。列表为空时显示居中的"图标在上、文字在下"占位；仅显示已归档视图用自己的文案（暂无已归档会话），并附"查看其他会话"文字按钮，点击把筛选切回隐藏已归档。
 
@@ -63,11 +63,11 @@ Session 行内的 Rename 操作打开一个以该行显示标题预填的对话�
 
 ### 待处理交互
 
-Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**等待审批**，计划审阅显示**计划待审**，普通问题显示**等待回答**。交互待处理期间，该行使用共享 warning 橙点，并以**待批准**、**计划待审**或**待回答**替换尾部更新时间；悬停详情仍保留完整状态和相对时间。待处理交互的优先级高于共享 ongoing loading；已完成但未查看的 Session 使用 done，idle 在行内不显示点，在悬停详情中使用共享 idle 灰点。 行首 seat 仅在该行的主状态为 idle 时渲染——没有待处理交互、没有自身或后代活动、也没有未查看的完成提醒——因此该处的占用方不会与行自身的状态点同时出现。归档行该格整体留空：既不显示状态点也不挂 seat，其活动状态只出现在悬浮卡片上。
+Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**等待审批**，计划审阅显示**计划待审**，普通问题显示**等待回答**。交互待处理期间，该行保持灰色运行圆点，并以**待批准**、**计划待审**或**待回答**替换尾部更新时间；悬停详情仍保留完整状态、warning 橙点和相对时间。每条行首格只承载一个运行圆点：Session 在干活时为实心绿点——自身在跑或有在跑的后代，此前行内显示的是共享 ongoing loading——其余情形为界面次要文字的灰色，包括已完成但未查看的 Session 以及空白行、归档行。各状态各自的配色只出现在悬浮卡片上。
 
 ### 活动 Schedule 标识
 
-当成组的与平铺的 Session 行所对应的 Session 存在活动定时任务时，该行显示时钟标记。它是行首 `sidebar.session.row.leading` seat 的占用方，因此仅在该行主状态为 idle 时渲染，绝不与行自身的状态点同时出现；归档行该格同样留空，搜索结果没有该 seat，也不显示标记。它不是按钮，没有 Tab stop，点击其所在区域不会打开整行。标记自身的读取及其「活动」条件的确切含义由 [ui-schedule](../ui-schedule/README.zh.md) 负责。
+成组与平铺的 Session 行不再在行内显示定时任务时钟标记：每条行的行首格由运行圆点占用。活动定时任务仍在该行的悬浮卡片上列出；标记自身的读取及其「活动」条件的确切含义由 [ui-schedule](../ui-schedule/README.zh.md) 负责。
 
 -----
 
@@ -91,7 +91,7 @@ Workspace 和 Session 的启动基线均就绪后，空安装环境调用 `works
 
 本包是一条组合：两个目标 slot 都由其他插件声明，因此 `apply` 使用 `slots.inject()` 在各自的声明生命周期内完成注册，并在目标 slot 的声明恢复后重新注册。
 
-浏览器入口还为每个 Session 行声明两个 root 作用域的 `list` 子 slot：`sidebar.session.row.leading` 仅在该行主状态为 idle 时渲染、归档行留空，`sidebar.session.row.hover` 仅在该行的悬浮卡片打开时挂载。两者只接收行的 Session 身份，占用方据此读取自己的数据；Session 作用域的 slot 会强制建立 Session 绑定，从而激活并保留列表中每个 Session。
+浏览器入口还为每个 Session 行声明两个 root 作用域的 `list` 子 slot：`sidebar.session.row.leading` 当前不渲染（每条行的行首格由运行圆点占用），`sidebar.session.row.hover` 仅在该行的悬浮卡片打开时挂载。两者只接收行的 Session 身份，占用方据此读取自己的数据；Session 作用域的 slot 会强制建立 Session 绑定，从而激活并保留列表中每个 Session。
 
 客户端调用方可以在 `uiWorkspace.startSession` 的第二参数中传入 `prompt` 与 `clearPreviousDraft`。提示词仅接受普通文字；结构化草稿由内部恢复和工作区携带流程处理。不清空时保留已有文字或附件；显式清空只替换目标 Session 的文字和内联引用，不删除附件。在异步创建前捕获选项值，在导航提交前应用到准确保留的 binding。已被后续操作取代的导航不写内容；输入处于提交阻塞状态时拒绝准备并保留原选择。不传选项时按当前 Agent 预设定义创建新的 Session。工作区重连和显式草稿准备仍可复用已有空 Session。[草稿初始化决策](../../../.agents/notes/implemented/architecture/2026-09-30-structured-draft-initialization.zh.md)说明输入 owner 的数据流。
 
@@ -178,7 +178,7 @@ export function apply(ctx: Context): void {
 
 Workspace 基线就绪后，浏览器持久化的展开状态和 Session 顺序记录只保留当前 Workspace id、Ungrouped 和单列表记账。`WorkspaceView.sessionIds` 提供真实 Workspace 的成员关系，而不提供 Session 显示顺序。视图操作接收完整记账顺序，而不是筛选后的行。尚无 Session 摘要的新成员会等待摘要，已保存的位置则在摘要暂时缺失时保留。归档显隐仅在派生行时应用。置顶和拖拽写入完整顺序，普通派生不执行写入。当前选中的空白 Session 仍是一次显式位置写入；Workspace 重连时同样如此，此时保留其他已保存成员，直到基线确定成员关系。侧边栏收成窄栏或搜索替代列表主体时，排序仍保持挂载。最近更新从当前摘要派生，不读取已保存位置；时间相同时按 Session id 稳定排序。
 
-侧边栏隐藏持久化摘要中带有 `origin: 'subagent'` 的行。可见普通行的共享 ongoing loading 来自其已加载 parent 目录中正在运行的直接 child，绝不来自摘要谱系。Child 活动状态使用最新 UI status，尚无该状态时使用 Session 摘要。
+侧边栏隐藏持久化摘要中带有 `origin: 'subagent'` 的行。可见普通行的绿色运行圆点来自其已加载 parent 目录中正在运行的直接 child，绝不来自摘要谱系。Child 活动状态使用最新 UI status，尚无该状态时使用 Session 摘要。
 
 行动画由 [AnimatedRows](src/client/rows/AnimatedRows.tsx) 负责。它仅在 React 提交改变行成员或顺序时读取更新前后的位置，并使用浏览器原生位移与透明度动画。被移除的行以不可交互的副本在滚动列表外淡出，不会延迟 React 卸载，也不会扩大列表的滚动范围。初始加载、拖拽提交、展开其余会话和视图选项变化直接完成。动画组件不使用布局观察器或轮询，也不会因仅内容更新或滚动而测量位置。
 
