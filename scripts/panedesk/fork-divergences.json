@@ -125,6 +125,27 @@
       }
     },
     {
+      "id": "subagent-effort-capable-provider-picking",
+      "description": "Pick a preset model provider that supports the requested reasoning effort",
+      "origin": "Panedesk multi-provider model names",
+      "reason": "Filter bare preset model candidates by the requested effort before Models settings order, lower to the nearest supported effort with a start-result note, and reject with per-provider reasons when none can serve the request.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/subagent/tool-subagent/src/model-selection.ts",
+          "packages/subagent/tool-subagent/src/index.ts",
+          "packages/subagent/tool-subagent/README.md",
+          "packages/subagent/tool-subagent/README.zh.md",
+          "packages/client/ui-subagent/src/client/SubagentTaskPreview.tsx",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md",
+          "packages/client/ui-subagent-tree/src/transcript.ts",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "claude-agent-capabilities-and-provider-diagnostics",
       "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
       "origin": "Panedesk typed subagent compatibility",

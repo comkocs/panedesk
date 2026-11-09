@@ -1,7 +1,7 @@
 /** Child LLM route selection for the subagent tool. */
 
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
-import type { LlmRuntime, LlmModelInfo } from '@panedesk/dsh-llm'
+import type { LlmRuntime, LlmModelInfo, LlmResolvedModelInfo } from '@panedesk/dsh-llm'
 import type { AgentOptions } from '@panedesk/dsh-agent'
 import z from '@panedesk/schemastery'
 
@@ -46,6 +46,121 @@ export interface AllowedModelRoute {
   readonly provider: string
   /** Provider-owned exact model id. */
   readonly model: string
+}
+
+/**
+ * Escalation rank of the reasoning-effort ids adapters declare, used only to
+ * pick the nearest supported effort when no provider serves the requested one.
+ * Efforts outside this set keep their relative order from the route's own
+ * escalation-sorted list and never outrank a known effort.
+ */
+const EFFORT_RANK: Readonly<Record<string, number>> = {
+  off: 0,
+  minimal: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+  xhigh: 5,
+  max: 6,
+}
+
+/** One bare-name provider candidate plus why it cannot serve the requested effort. */
+interface EffortCandidate {
+  readonly route: AllowedModelRoute
+  /** Escalation-sorted selectable efforts, or nothing when the route offers none. */
+  readonly efforts: readonly ReasoningEffortId[] | undefined
+  readonly skip: string | undefined
+}
+
+/** A preset model name resolved to one provider route and its effective effort. */
+export interface PresetModelRoute {
+  readonly route: AllowedModelRoute
+  /** Effective effort for the resolved route, including a lowered one. */
+  readonly effort?: ReasoningEffortId
+  /** The effort actually served when no provider offers the requested level. */
+  readonly loweredTo?: ReasoningEffortId
+}
+
+/**
+ * The effort closest to the requested level on an escalation-sorted list.
+ * Ties resolve downward: a request between two supported efforts picks the
+ * lower one, and an unknown requested id keeps the route's highest effort.
+ * @param efforts - selectable efforts from least to greatest.
+ * @param requested - effort the preset or caller asked for.
+ * @returns the list entry nearest the request.
+ */
+function nearestEffort(efforts: readonly ReasoningEffortId[], requested: ReasoningEffortId): ReasoningEffortId {
+  const requestedRank = EFFORT_RANK[requested]
+  let best = efforts[0]!
+  let bestDistance = requestedRank === undefined
+    ? Number.POSITIVE_INFINITY
+    : Math.abs((EFFORT_RANK[best] ?? Number.POSITIVE_INFINITY) - requestedRank)
+  for (const candidate of efforts.slice(1)) {
+    if (requestedRank === undefined) {
+      best = candidate
+      continue
+    }
+    const distance = Math.abs((EFFORT_RANK[candidate] ?? Number.POSITIVE_INFINITY) - requestedRank)
+    if (distance < bestDistance) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+/**
+ * Resolve a bare preset model name across its configured providers. Candidates
+ * that can serve the requested reasoning effort win in Models settings order;
+ * when none can, the first effort-capable route serves its nearest supported
+ * effort. `provider/model` names bypass this selection by naming their route.
+ * @param llm - Live LLM runtime owning exact-route metadata.
+ * @param models - Live configured catalog in Models settings order.
+ * @param model - Bare model id from the preset definition.
+ * @param effort - Effort the definition or the caller requested, if any.
+ * @param signal - Tool-call cancellation signal.
+ * @returns the selected route and its effective effort, or undefined when no
+ *   configured provider advertises the model id.
+ * @throws an error naming every candidate provider and why each was skipped,
+ *   when none offers any selectable effort.
+ */
+export async function resolvePresetModelRoute(
+  llm: LlmRuntime,
+  models: readonly LlmModelInfo[],
+  model: string,
+  effort: ReasoningEffortId | undefined,
+  signal: AbortSignal,
+): Promise<PresetModelRoute | undefined> {
+  const matches = models.filter(candidate => candidate.id === model)
+  if (matches.length === 0) return undefined
+  if (effort === undefined) return { route: { provider: matches[0]!.provider, model } }
+  const candidates: EffortCandidate[] = []
+  for (const match of matches) {
+    const route: AllowedModelRoute = { provider: match.provider, model: match.id }
+    let info: LlmResolvedModelInfo
+    try {
+      info = await llm.resolveModelInfo(route.provider, route.model, signal)
+    } catch (error: unknown) {
+      candidates.push({ route, efforts: undefined, skip: `model metadata unavailable: ${error instanceof Error ? error.message : String(error)}` })
+      continue
+    }
+    const efforts = info.reasoning?.efforts.map(row => row.id)
+    candidates.push(efforts === undefined
+      ? { route, efforts, skip: 'no selectable reasoning efforts' }
+      : { route, efforts, skip: efforts.includes(effort) ? undefined : `supports efforts ${efforts.join(', ')}` })
+  }
+  const serving = candidates.find(candidate => candidate.skip === undefined)
+  if (serving !== undefined) return { route: serving.route, effort }
+  const lowerable = candidates.find(candidate => candidate.efforts !== undefined && candidate.efforts.length > 0)
+  if (lowerable?.efforts !== undefined) {
+    const nearest = nearestEffort(lowerable.efforts, effort)
+    return { route: lowerable.route, effort: nearest, loweredTo: nearest }
+  }
+  const rows = candidates.map(candidate => `${candidate.route.provider} (${candidate.skip})`).join(', ')
+  throw new Error(
+    `no provider of model "${model}" can serve reasoning effort "${effort}": tried ${rows} `
+    + `/ 无法为模型 "${model}" 选出支持推理档位 "${effort}" 的提供商：已尝试 ${rows}`,
+  )
 }
 
 /** Schema shared by the Host setting and its deployment base. */
