@@ -11,7 +11,7 @@ const MODEL_COLORS = {
  * @returns the family color shared by the tree and map.
  */
 export function modelColor(model: string | null): string {
-  const name = model?.toLowerCase() ?? ''
+  const name = model?.split(' · ').at(-1)?.toLowerCase() ?? ''
   const family = /claude|opus|sonnet|haiku/.test(name) ? 'claude'
     : /gpt|sol|astra|terra|luna/.test(name) ? 'gpt'
     : name.includes('glm') ? 'glm' : name.includes('deepseek') ? 'deepseek' : 'other'

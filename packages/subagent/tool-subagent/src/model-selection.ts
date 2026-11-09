@@ -6,12 +6,23 @@ import type { AgentOptions } from '@panedesk/dsh-agent'
 import z from '@panedesk/schemastery'
 
 /**
- * Read all models from the currently configured providers.
+ * Read configured models in the provider order shown by Models settings.
  * @param llm - Live LLM runtime.
  * @returns Advertised models with their provider ids.
  */
 export async function configuredModels(llm: LlmRuntime): Promise<LlmModelInfo[]> {
-  return (await Promise.all(llm.listProviders().map(provider => llm.listModels(provider.id)))).flat()
+  const registered = llm.listProviders()
+  const active = new Set(registered.map(provider => provider.id))
+  const directory = llm.listConfigurableProviders()
+  const declared = new Set(directory.map(entry => entry.provider))
+  const providers = [
+    ...directory.filter(entry => active.has(entry.provider)),
+    ...registered.filter(provider => !declared.has(provider.id)).map(provider => ({ provider: provider.id, declared: false })),
+  ]
+  const rank = (entry: (typeof providers)[number]): number =>
+    entry.provider === 'deepseek-official' ? 2 : entry.declared === true ? 0 : 1
+  return (await Promise.all(providers.toSorted((left, right) => rank(left) - rank(right))
+    .map(entry => llm.listModels(entry.provider)))).flat()
 }
 
 /**

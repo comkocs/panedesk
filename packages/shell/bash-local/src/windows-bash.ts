@@ -57,7 +57,8 @@ export function windowsBashConfigPath(env: Record<string, string | undefined> = 
  * Parse one candidate config document. Unknown fields are ignored so a newer
  * product can extend the file; any shape the Bash gating could not act on is
  * absent, never a partial value. An `enabled: false` document is the explicit
- * PowerShell selection that overrides the detected-Bash default.
+ * PowerShell selection that overrides the detected-Bash default. Documents
+ * without `selectionVersion: 1` predate explicit selection and are ignored.
  * @param text File contents as read from disk.
  * @returns The committed selection, or undefined when the document carries no selection.
  */
@@ -69,7 +70,8 @@ export function parseWindowsBashConfig(text: string): WindowsBashSelection | und
     return undefined
   }
   if (typeof parsed !== 'object' || parsed === null) return undefined
-  const { enabled, bashPath } = parsed as Record<string, unknown>
+  const { enabled, bashPath, selectionVersion } = parsed as Record<string, unknown>
+  if (selectionVersion !== 1) return undefined
   if (enabled === false) return { enabled }
   if (enabled !== true || typeof bashPath !== 'string' || bashPath.length === 0) return undefined
   return { enabled, bashPath }
@@ -146,7 +148,7 @@ export async function writeWindowsBashConfig(
     throw new Error('windows-bash: config must carry enabled true and a nonempty bashPath')
   }
   const path = windowsBashConfigPath(env)
-  const document = JSON.stringify({ enabled: config.enabled, bashPath: config.bashPath }, undefined, 2) + '\n'
+  const document = JSON.stringify({ selectionVersion: 1, enabled: config.enabled, bashPath: config.bashPath }, undefined, 2) + '\n'
   if (fs !== undefined) {
     fs.writeFileSync(path, document, 'utf8')
     return
@@ -164,7 +166,7 @@ export async function commitWindowsPowerShellSelection(
   env: Record<string, string | undefined> = process.env,
 ): Promise<void> {
   const path = windowsBashConfigPath(env)
-  await writeFileAtomic(path, `${JSON.stringify({ enabled: false }, undefined, 2)}\n`, { mode: 0o600 })
+  await writeFileAtomic(path, `${JSON.stringify({ selectionVersion: 1, enabled: false }, undefined, 2)}\n`, { mode: 0o600 })
 }
 
 /**

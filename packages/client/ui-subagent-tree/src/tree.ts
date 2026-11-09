@@ -50,7 +50,7 @@ export interface SubagentSessionFacts {
 export interface SubagentTranscriptFacts {
   /** Latest own turn activity; absent when no turn event was observed. */
   readonly activity?: 'running' | 'idle' | 'stopped'
-  /** Latest observed request or response model from the session's own log; `null` stays unknown. */
+  /** Latest observed provider/model display label from the session's own log; `null` stays unknown. */
   readonly model: string | null
   /** Why `model` is absent, when it is. */
   readonly modelSource: 'transcript' | 'unavailable' | 'unreadable'

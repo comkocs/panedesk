@@ -106,16 +106,20 @@ function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: stri
 
 /**
  * Read both definition trees. A project file overrides a user file of the same `name`.
- * @param _ctx - owning runtime; model lookup is deferred until delegation.
+ * @param ctx - owning runtime supplying the composed standard preset; model lookup is deferred until delegation.
  * @param sources - home and workspace roots; omitted roots fall back to the process home and cwd.
  * @returns one preset per distinct name, project copy winning.
  */
-export async function claudeAgentPresets(_ctx: Context, sources: ClaudeAgentSources = {}): Promise<ClaudeAgentPreset[]> {
+export async function claudeAgentPresets(ctx: Context, sources: ClaudeAgentSources = {}): Promise<ClaudeAgentPreset[]> {
   const home = sources.home ?? homedir()
   const workspace = sources.workspace ?? process.cwd()
   const byName = new Map<string, ClaudeAgentFile>()
   for (const file of await readAgentDir(join(home, '.claude', 'agents'))) byName.set(file.name, file)
   for (const file of await readAgentDir(join(workspace, '.claude', 'agents'))) byName.set(file.name, file)
+  if (byName.size === 0) return []
+  const standard = [...ctx.loader.entries()].find(entry => entry.options.id === 'preset-standard')
+    ?.options.config as PresetDefinition | undefined
+  if (standard === undefined) throw new Error('Claude agent definitions require the standard preset')
   return [...byName.values()].map((file): ClaudeAgentPreset => {
     const { allowed, unmapped, agentTypes } = mapTools(file.tools)
     return {
@@ -125,7 +129,7 @@ export async function claudeAgentPresets(_ctx: Context, sources: ClaudeAgentSour
         id: file.name,
         ...file.description === '' ? {} : { description: file.description },
         ...file.model === '' ? {} : { model: file.model, reasoningEffort: file.effort },
-        plugins: [{ name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed,
+        plugins: [...standard.plugins, { name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed,
           ...agentTypes === undefined ? {} : { agentTypes } } }],
       },
     }

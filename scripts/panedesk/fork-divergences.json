@@ -1,6 +1,47 @@
 {
   "divergences": [
     {
+      "id": "typed-agent-standard-tools-and-model-routing",
+      "description": "Compose imported agent types over Standard tools and resolve their actual model provider",
+      "origin": "Panedesk typed subagent compatibility",
+      "reason": "Keep imported tool restrictions at execution time, select explicit provider/model routes or the first matching provider in Models settings order, and display observed provider/model labels without changing model-family colors.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/preset/agent-preset-registry/src/claude-agents.ts",
+          "packages/preset/agent-preset-registry/README.md",
+          "packages/preset/agent-preset-registry/README.zh.md",
+          "packages/subagent/tool-subagent/src/index.ts",
+          "packages/subagent/tool-subagent/src/model-selection.ts",
+          "packages/subagent/tool-subagent/README.md",
+          "packages/subagent/tool-subagent/README.zh.md",
+          "packages/client/ui-subagent-tree/src/transcript.ts",
+          "packages/client/ui-subagent-tree/src/tree.ts",
+          "packages/client/ui-subagent-tree/src/types.ts",
+          "packages/client/ui-subagent-tree/src/client/presentation.ts",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-subagent/src/client/SubagentTaskPreview.tsx",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md"
+        ]
+      }
+    },
+    {
+      "id": "versioned-windows-shell-selection",
+      "description": "Default to detected Git Bash instead of unversioned shell choices",
+      "origin": "Panedesk Windows shell selection",
+      "reason": "Both explicit shell choices write selectionVersion 1; older documents are treated as no choice so the existing shared probe decides the default for boot, tools, and terminals.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/shell/bash-local/src/windows-bash.ts",
+          "packages/shell/bash-local/README.md",
+          "packages/shell/bash-local/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "ordinary-session-tool-preferences",
       "description": "Trim default tool context and expose persisted Tools settings",
       "origin": "Panedesk tool context preferences",

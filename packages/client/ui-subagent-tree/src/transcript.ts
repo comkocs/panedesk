@@ -1,5 +1,5 @@
 /**
- * Transcript-only facts for one subagent node: the model id and the most
+ * Transcript-only facts for one subagent node: the provider/model label and the most
  * recent tool invocation, both read strictly from a session's own log suffix.
  * The ledger's effective or requested model is never a fallback.
  *
@@ -31,8 +31,13 @@ export function foldTranscriptFacts(
     if (event === undefined) continue
     if (event.type === 'turn/start') activity = 'running'
     else if (event.type === 'turn/end') activity = event.data.reason.kind === 'aborted' ? 'stopped' : 'idle'
-    else if (event.type === 'request/header') model = event.data.header.config.model
-    else if (event.type === 'assistant/message') model = event.data.message.source.model
+    else if (event.type === 'request/header') {
+      const config = event.data.header.config
+      model = `${config.provider} · ${config.model}`
+    } else if (event.type === 'assistant/message') {
+      const source = event.data.message.source
+      model = `${source.provider} · ${source.model}`
+    }
     else if (event.type === 'tool/call') lastToolCall = { name: event.data.name, time: event.time }
   }
   return { model, modelSource: 'transcript', lastToolCall, ...(activity === undefined ? {} : { activity }) }

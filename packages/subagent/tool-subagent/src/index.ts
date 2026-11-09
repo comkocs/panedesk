@@ -296,14 +296,17 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             if (args.model !== undefined) {
               modelRequest = { ...args, ...resolveModelRoute(models, args.model, args.provider) }
             } else if (args.provider === undefined && definition?.model !== undefined) {
-              const available = models.some(candidate => candidate.id === definition.model)
-              const route = available
-                ? resolveModelRoute(models, definition.model)
+              const separator = definition.model.indexOf('/')
+              const selected = separator < 0
+                ? models.find(candidate => candidate.id === definition.model)
+                : resolveModelRoute(models, definition.model.slice(separator + 1), definition.model.slice(0, separator))
+              const route = selected !== undefined
+                ? { provider: selected.provider, model: 'id' in selected ? selected.id : selected.model }
                 : {
                     ...parentOptions.provider === undefined ? {} : { provider: parentOptions.provider },
                     ...parentOptions.model === undefined ? {} : { model: parentOptions.model },
                   }
-              const effort = args.reasoning_effort ?? (available ? definition.reasoningEffort : parentOptions.reasoningEffort)
+              const effort = args.reasoning_effort ?? (selected !== undefined ? definition.reasoningEffort : parentOptions.reasoningEffort)
               modelRequest = { ...route, ...effort === undefined ? {} : { reasoning_effort: effort } }
             }
           }
