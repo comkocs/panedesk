@@ -40,25 +40,25 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
     {status?.error && <p role="alert">{status.active === 'local' && status.settings.backend === 'postgres' ? t('fallback') : t('failed')} {status.error}</p>}
     <h3>{t('configuration')}</h3><code>{status?.configPath ?? t('loading')}</code>
     <div className={css.controls}>
-      <Button disabled={busy || !status} onClick={() => { void perform(async () => { if (!await open(status!.configPath, false)) throw new Error(t('error')) }) }}>{t('open')}</Button>
-      <Button disabled={busy || !status} onClick={() => { void perform(async () => { if (!await open(status!.configPath, true)) throw new Error(t('error')) }) }}>{t('openFolder')}</Button>
+      <Button variant="outline" disabled={busy || !status} onClick={() => { void perform(async () => { if (!await open(status!.configPath, false)) throw new Error(t('error')) }) }}>{t('open')}</Button>
+      <Button variant="outline" disabled={busy || !status} onClick={() => { void perform(async () => { if (!await open(status!.configPath, true)) throw new Error(t('error')) }) }}>{t('openFolder')}</Button>
     </div>
     <h3>{t('scope')}</h3><p>{t('scopeHint')}</p>
     <div className={css.controls}>
-      <Button disabled={busy || !settings} onClick={() => { void perform(async () => {
+      <Button variant="primary" disabled={busy || !settings} onClick={() => { void perform(async () => {
         const result = await save(input())
         if (!result.ok) throw new Error(result.error.message)
         setDraft(null); setRevision(value => value + 1); setMessage(t('saved'))
       }) }}>{t('save')}</Button>
-      <Button disabled={busy || settings?.backend !== 'postgres'} onClick={() => { void perform(async () => {
+      <Button variant="outline" disabled={busy || settings?.backend !== 'postgres'} onClick={() => { void perform(async () => {
         const result = await test(input())
         if (!result.ok) throw new Error(result.error.message)
         setMessage(result.value.connected ? t('connected') : `${t('failed')}: ${result.value.error}`)
       }) }}>{t('test')}</Button>
-      <Button disabled={busy} onClick={() => { setRevision(value => value + 1) }}>{t('refresh')}</Button>
+      <Button variant="outline" disabled={busy} onClick={() => { setRevision(value => value + 1) }}>{t('refresh')}</Button>
     </div>
     <p>{t('migrationHint')}</p>
-    <Button disabled={busy || status?.settings.backend !== 'postgres' || draft !== null} onClick={() => { void perform(async () => {
+    <Button variant="outline" disabled={busy || status?.settings.backend !== 'postgres' || draft !== null} onClick={() => { void perform(async () => {
       const result = await migrate()
       if (!result.ok) throw new Error(result.error.message)
       setMessage(t('copied', { count: result.value })); setRevision(value => value + 1)

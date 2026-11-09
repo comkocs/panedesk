@@ -1,5 +1,6 @@
 /** Session-free skill discovery, scan directories, and global provider controls. */
 import { useState } from 'react'
+import { Button } from '@panedesk/dsh-client-ui-primitives'
 import type { ReactNode } from 'react'
 import type { WorkspaceId, WorkspaceSnapshot } from '@panedesk/dsh-api-workspace-controller/client'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
@@ -100,7 +101,7 @@ export function SkillsSection(props: Pick<PropsRuntime<'settings.section'>, 'clo
           {workspaces.map(workspace => <option key={workspace.workspaceId} value={workspace.workspaceId}>{workspace.title}</option>)}
         </select>
       </label>
-      <button type="button" disabled={phase.kind === 'loading' || saving} onClick={() => { void load(workspaceId) }}>{t('load')}</button>
+      <Button variant="outline" type="button" disabled={phase.kind === 'loading' || saving} onClick={() => { void load(workspaceId) }}>{t('load')}</Button>
       {phase.kind === 'loading' ? <p role="status">{t('loading')}</p> : null}
       {phase.kind === 'unavailable' ? <p role="status">{t('unavailable')}</p> : null}
       {phase.kind === 'disabled' ? <p role="status">{t('disabled')}</p> : null}
@@ -117,8 +118,8 @@ export function SkillsSection(props: Pick<PropsRuntime<'settings.section'>, 'clo
               <legend>{setting.ns}</legend>
               <p>{t('globalControls')}</p>
               <p>{t('configPath')}: <span>{setting.path}</span></p>
-              <button type="button" onClick={() => { void open(setting.path) }}>{t('openConfig')}</button>
-              <button type="button" onClick={() => { void open(setting.path, 'reveal') }}>{t('reveal')}</button>
+              <Button variant="outline" type="button" onClick={() => { void open(setting.path) }}>{t('openConfig')}</Button>
+              <Button variant="outline" type="button" onClick={() => { void open(setting.path, 'reveal') }}>{t('reveal')}</Button>
               <label>
                 <input type="checkbox" checked={setting.value.enabled} onChange={(event) => { void save(setting.ns, { enabled: event.target.checked }) }} />
                 {t('enabled')}
@@ -156,7 +157,7 @@ export function SkillsSection(props: Pick<PropsRuntime<'settings.section'>, 'clo
                 <strong>{directory.source}</strong> <span>{directory.provider}</span>
                 <p className={styles['path']}>{directory.path}</p>
                 <p>{directory.exists ? t('exists') : t('missing')} · {t('skillCount')}: {directory.count}</p>
-                <button type="button" disabled={!directory.exists} onClick={() => { void open(directory.path) }}>{t('openDirectory')}</button>
+                <Button variant="outline" type="button" disabled={!directory.exists} onClick={() => { void open(directory.path) }}>{t('openDirectory')}</Button>
               </li>
             ))}
           </ul>
@@ -172,8 +173,8 @@ export function SkillsSection(props: Pick<PropsRuntime<'settings.section'>, 'clo
                         <strong>{entry.name}</strong>
                         <p>{entry.description}</p>
                         <p className={styles['path']}>{t('sourcePath')}: {entry.path}</p>
-                        <button type="button" onClick={() => { void open(entry.path) }}>{t('open')}</button>
-                        <button type="button" onClick={() => { void open(entry.path, 'reveal') }}>{t('reveal')}</button>
+                        <Button variant="outline" type="button" onClick={() => { void open(entry.path) }}>{t('open')}</Button>
+                        <Button variant="outline" type="button" onClick={() => { void open(entry.path, 'reveal') }}>{t('reveal')}</Button>
                       </li>
                     ))}
                   </ul>

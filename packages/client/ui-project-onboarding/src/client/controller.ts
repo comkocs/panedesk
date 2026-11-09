@@ -98,7 +98,7 @@ export class ProjectPreferencesController {
 
   /** Persist a selected mode for exactly one workspace path.
    * @param path Workspace directory, used verbatim as one dictionary key.
-   * @param mode Explicit human selection; remind is the initial default.
+   * @param mode Explicit human selection; automatic is the initial default.
    * @returns Whether the authoritative write succeeded.
    */
   async select(path: string, mode: ProjectSelection['mode']): Promise<boolean> {

@@ -71,3 +71,19 @@
   overflow-wrap: anywhere;
   white-space: normal;
 }
+
+.promptField {
+  display: grid;
+  gap: 8px;
+}
+
+.promptField textarea {
+  min-height: 96px;
+  padding: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-base);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}

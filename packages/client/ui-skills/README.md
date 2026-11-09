@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Use the **Skills** settings section to see the skills this deployment can use. The skill list is read-only; global filesystem-provider scanning controls save through the existing profile configuration editor. Each row shows the skill name, its description, and the source path, and **Open source file** hands that path to the host's existing file opener.
 
+Refresh and configuration, directory, and source-file actions use shared outlined buttons.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

@@ -9,13 +9,14 @@ import type {} from '@panedesk/dsh-client-ui-workspace/client'
 import type {} from '@panedesk/dsh-api-workspace-controller/client'
 import type { OpeningNamePattern } from '@panedesk/dsh-session-title/client'
 import type { OpeningPreset } from '../types.ts'
+import type { WorkflowPrompts } from '../workflow-defaults.ts'
 import type { PresetsInjected } from './preset-props.ts'
 import { OpeningPresetSettings, OpeningPresetPicker, OpeningPresetQuick } from './OpeningPresets.tsx'
 import { importPresets, openingPresetName } from './preset-import.ts'
 import { ProjectPreferencesController } from './controller.ts'
 import { ProjectGuide } from './ProjectGuide.tsx'
 import { ProjectSettings } from './ProjectSettings.tsx'
-import { WorkflowStarters, WorkflowStartersSetting } from './WorkflowStarters.tsx'
+import { WorkflowStarters, WorkflowSettings, WorkflowQuick } from './WorkflowStarters.tsx'
 import { ProjectSettingsController } from './settings-controller.ts'
 import { en, zh } from './locales.ts'
 import type { GuideInjected, ProjectInjected, SettingsInjected, WorkflowInjected } from './props.ts'
@@ -98,8 +99,8 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     ctx.slots.inject('conversation.hero.opening', () => ctx.slots.register({
       name: 'conversation.hero.opening', locale: 'projectOnboarding', inject: presetFace,
     }, OpeningPresetPicker))
-    ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
-      name: 'conversation.session.header.actions', id: 'opening-presets', order: 21, locale: 'projectOnboarding', inject: presetFace,
+    ctx.slots.inject('conversation.hero.actions', () => ctx.slots.register({
+      name: 'conversation.hero.actions', id: 'opening-presets', order: 10, locale: 'projectOnboarding', inject: presetFace,
     }, OpeningPresetQuick))
     const controller = new ProjectPreferencesController({
       describe: async () => {
@@ -124,21 +125,28 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       hooks: { preferences: controller.state, inspection: settings.state },
       refresh: () => settings.load(), openPath: (path, action) => settings.openPath(path, action),
     })
-    const workflow = ctx.configForms.get<{ showWorkflowStarters: boolean }>('ui-project-onboarding')
+    const workflow = ctx.configForms.get<WorkflowPrompts & { showWorkflowStarters: boolean }>('ui-project-onboarding')
     const workflowFace = (): WorkflowInjected => ({
-      hooks: { workflow }, setEnabled: enabled => workflow.set('showWorkflowStarters', enabled),
+      hooks: { workflow, workflowLocale: ctx.locale },
+      setEnabled: enabled => workflow.set('showWorkflowStarters', enabled),
+      setPrompt: (key, language, text) => workflow.mutate([{ op: 'set', path: [key, language], value: text }]),
+      manageWorkflow: () => ctx.settingsNavigation.openSection('workflow'),
     })
     ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
       name: 'conversation.input.dock', id: 'workflow-starters', order: 0,
       locale: 'projectOnboarding', inject: workflowFace,
     }, WorkflowStarters))
-    ctx.effect(() => ctx.configForms.whileServed(['ui-project-onboarding'], () =>
-      ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
-        name: 'settings.panedesk.item', id: 'workflow-starters', order: 30,
-        locale: 'projectOnboarding', inject: workflowFace,
-      }, WorkflowStartersSetting))))
+    ctx.slots.inject('conversation.hero.actions', () => ctx.slots.register({
+      name: 'conversation.hero.actions', id: 'workflow', order: 20,
+      locale: 'projectOnboarding', inject: workflowFace,
+    }, WorkflowQuick))
+    ctx.slots.inject('settings.section', () => ctx.slots.register({
+      name: 'settings.section', id: 'workflow', group: 'panedesk', order: 27,
+      label: () => ctx.locale.bind('projectOnboarding')('workflowTitle'),
+      locale: 'projectOnboarding', inject: workflowFace,
+    }, WorkflowSettings))
     const welcome = ctx.configForms.get<Record<string, unknown>>('ui-settings-general')
-    const guideFace = (): GuideInjected => ({ ...face(), hooks: { preferences: controller.state, welcome } })
+    const guideFace = (): GuideInjected => ({ ...face(), ...workflowFace(), hooks: { ...workflowFace().hooks, preferences: controller.state, welcome } })
     ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
       name: 'conversation.input.overlay', id: 'project-onboarding', order: 1,
       locale: 'projectOnboarding', inject: guideFace,

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Adds a secondary Nodes section to Settings in the [Web client](../../../docs/subsystems/web-client.md). The [host administration provider](../../host/host-admin/README.md) owns node observations and existing operator execution; this plugin exposes only authenticated-owner reads and confirmed local actions.
 
+Settings actions use shared outlined buttons; confirmation uses the primary style.
+
 ## Table of Contents
 
 - [Configuration and use](#configuration-and-use)

@@ -4,6 +4,8 @@ Adds **Settings → Panedesk → Data storage** with Local (default) and saved d
 
 The shared Panedesk header explains the local default and database prerequisites. Only some application data moves; local session journals remain on this computer, and another computer reads database-backed data after restart rather than receiving live synchronization.
 
+Page actions use shared outlined buttons; Save uses the primary style.
+
 ## Model Experience
 
 No model-facing tools, prompts, token usage or KV-cache changes. The page only calls owner-authenticated settings methods.

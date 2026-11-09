@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 This optional plugin adds Seat profiles to Settings without adding a cold-start sidebar entry. The authenticated owner can inspect and edit the local [seat](../../seat/seat-local/README.md) catalog, confirm definition deletion, and preview selected rows from a mapped Markdown or CSV source.
 
+Settings actions use shared outlined buttons; Save and import commit use the primary style.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

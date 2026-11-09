@@ -68,7 +68,7 @@ export function RegistrySettingsRow({ useRegistry, useDocument, save, setEnabled
           .catch(() => { setNotice('registrySaveFailed') })
       }} /></label>
     <div>
-      {chooseFile && <Button disabled={!writable} onClick={() => {
+      {chooseFile && <Button variant="outline" disabled={!writable} onClick={() => {
         void run(async () => {
           const selected = await chooseFile()
           if (selected === null) return null
@@ -76,10 +76,10 @@ export function RegistrySettingsRow({ useRegistry, useDocument, save, setEnabled
           return persist(selected)
         }, 'registryActionFailed')
       }}>{t('registryChoose')}</Button>}
-      <Button disabled={busy || path === ''} onClick={() => {
+      <Button variant="outline" disabled={busy || path === ''} onClick={() => {
         void run(() => openPath(path, 'open'), 'registryActionFailed')
       }}>{t('registryOpenFile')}</Button>
-      <Button disabled={busy || path === ''} onClick={() => {
+      <Button variant="outline" disabled={busy || path === ''} onClick={() => {
         void run(() => openPath(path, 'reveal'), 'registryActionFailed')
       }}>{t('registryOpenDirectory')}</Button>
     </div>
@@ -87,10 +87,10 @@ export function RegistrySettingsRow({ useRegistry, useDocument, save, setEnabled
     {documentPath && <div>
       <p>{t('registryConfig', { path: documentPath })}</p>
       <p>{t('registryDirectory', { path: documentPath.replace(/[\\/][^\\/]*$/u, '') })}</p>
-      <Button disabled={busy} onClick={() => {
+      <Button variant="outline" disabled={busy} onClick={() => {
         void run(() => openPath(documentPath, 'open'), 'registryActionFailed')
       }}>{t('registryOpenFile')}</Button>
-      <Button disabled={busy} onClick={() => {
+      <Button variant="outline" disabled={busy} onClick={() => {
         void run(() => openPath(documentPath, 'reveal'), 'registryActionFailed')
       }}>{t('registryOpenDirectory')}</Button>
     </div>}

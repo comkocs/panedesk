@@ -51,6 +51,7 @@
     "@panedesk/dsh-api-workspace-controller": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-renderer": "workspace:*",
     "@panedesk/dsh-client-ui-settings": "workspace:*",
     "@panedesk/dsh-client-ui-slots": "workspace:*",

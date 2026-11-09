@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import type { Context, Volatile } from '@panedesk/cordis'
 import ProjectOpening from './opening.ts'
 import { presetName } from './preset-name.ts'
+import { workflowDefaults, type WorkflowPrompts } from './workflow-defaults.ts'
 import type {} from '@panedesk/dsh-settings'
 import z from '@panedesk/schemastery'
 
@@ -10,6 +11,12 @@ import type { OpeningPreset, ProjectSelection } from './types.ts'
 
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Localized requirements-review draft. */
+  workflowRequirementsPrompt: Volatile<WorkflowPrompts['workflowRequirementsPrompt']>
+  /** Localized workflow-setup draft. */
+  workflowSetupPrompt: Volatile<WorkflowPrompts['workflowSetupPrompt']>
+  /** Localized workflow-checkup draft. */
+  workflowCheckupPrompt: Volatile<WorkflowPrompts['workflowCheckupPrompt']>
   /** Reusable opening drafts stored in the product profile. */
   openingPresets: Volatile<OpeningPreset[]>
   /** Show optional workflow starters above the composer on new sessions. */
@@ -26,8 +33,11 @@ export const Config = z.object({
     model: z.string(), permission: z.string(),
   })).default([]).volatile(),
   showWorkflowStarters: z.boolean().default(true).volatile(),
+  workflowRequirementsPrompt: z.object({ zh: z.string(), en: z.string() }).default(workflowDefaults.workflowRequirementsPrompt).volatile(),
+  workflowSetupPrompt: z.object({ zh: z.string(), en: z.string() }).default(workflowDefaults.workflowSetupPrompt).volatile(),
+  workflowCheckupPrompt: z.object({ zh: z.string(), en: z.string() }).default(workflowDefaults.workflowCheckupPrompt).volatile(),
   projects: z.dict(z.object({
-    mode: z.union(['off', 'remind', 'auto']).default('remind'),
+    mode: z.union(['off', 'remind', 'auto']).default('auto'),
     chosen: z.boolean().default(false),
   })).default({}).volatile(),
 })

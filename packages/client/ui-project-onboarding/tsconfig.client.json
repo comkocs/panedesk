@@ -64,6 +64,7 @@
     "src/client",
     "src/types.ts",
     "src/preset-name.ts",
+    "src/workflow-defaults.ts",
     "src/css-modules.d.ts"
   ]
 }

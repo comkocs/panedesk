@@ -60,11 +60,11 @@ export function NodesSection({ useResource, t, act, configure, openPath }: Props
   const sourceAction = (key: string, action: 'resume' | 'abandon'): NodeAction => ({ kind: 'source', action, key,
     operationId: randomUUID(), reason: t('operatorReason') })
   const actions = (resume: NodeAction, abandon: NodeAction, target: string) => <div className={css.actions}>
-    <Button disabled={pending || !data?.enabled} onClick={() => { setConfirmation({ action: resume, target }) }}>{t('resume')}</Button>
+    <Button variant="outline" disabled={pending || !data?.enabled} onClick={() => { setConfirmation({ action: resume, target }) }}>{t('resume')}</Button>
     <Button variant="outline" disabled={pending || !data?.enabled} onClick={() => { setConfirmation({ action: abandon, target }) }}>{t('abandon')}</Button>
   </div>
   return <section className={css.section}>
-    <header><h2><IconPanedeskNode size={20} /> {t('title')}</h2><Button disabled={pending} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button></header>
+    <header><h2><IconPanedeskNode size={20} /> {t('title')}</h2><Button variant="outline" disabled={pending} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button></header>
     <p>{t('description')}</p>
     <details><summary>{t('advanced')}</summary>
     <article className={css.card}>
@@ -107,7 +107,7 @@ export function NodesSection({ useResource, t, act, configure, openPath }: Props
         <dt>{t('windows')}</dt><dd>{text(node.openWindows)} / {text(node.limit)}</dd>
         <dt>{t('heartbeat')}</dt><dd>{text(node.lastHeartbeatAt)}</dd></dl>
       <p>{t(node.linkState === 'local' ? 'localLink' : node.linkState)} {node.safeReason}</p>
-      {node.linkState === 'exhausted' && node.rebuildable && <Button disabled={pending || !data?.enabled} onClick={() => {
+      {node.linkState === 'exhausted' && node.rebuildable && <Button variant="outline" disabled={pending || !data?.enabled} onClick={() => {
         setConfirmation({ action: { kind: 'rebuild', peerNodeId: node.nodeId }, target: node.nodeName })
       }}>{t('rebuild')}</Button>}
       <details><summary>{t('events')}</summary>{node.events.length === 0 ? <p>{t('noEvents')}</p>
@@ -146,8 +146,8 @@ export function NodesSection({ useResource, t, act, configure, openPath }: Props
     </article>)}
     <Modal open={confirmation !== null} onClose={() => { if (!pending) setConfirmation(null) }} title={t('confirm')}
       closeLabel={t('close')} description={t('confirmDescription')}
-      footer={<div className={css.actions}><Button disabled={pending} onClick={() => { setConfirmation(null) }}>{t('cancel')}</Button>
-        <Button disabled={pending || !data?.enabled} onClick={() => { void confirm() }}>{t('confirm')}</Button></div>}>
+      footer={<div className={css.actions}><Button variant="outline" disabled={pending} onClick={() => { setConfirmation(null) }}>{t('cancel')}</Button>
+        <Button variant="primary" disabled={pending || !data?.enabled} onClick={() => { void confirm() }}>{t('confirm')}</Button></div>}>
       {confirmation && <p>{t(confirmation.action.kind === 'rebuild' ? 'rebuild'
         : confirmation.action.kind === 'callback' ? confirmation.action.request.action : confirmation.action.action)} · {confirmation.target}</p>}
     </Modal>

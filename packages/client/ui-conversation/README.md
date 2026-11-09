@@ -70,6 +70,8 @@ The shared image slot props keep display choices separate from durable reference
 
 The composer measures its expanded control groups after size, content, visibility, or font-loading changes. If they cannot share a line, the row sets `--dsh-composer-model-text-display: none` and `--dsh-composer-model-icon-display: block` for the model seat; their defaults are `block` and `none`. Wrapping remains available if even the icon cannot fit.
 
+The session-maybe `conversation.hero.actions` list places feature-owned small actions above and to the right of the brand mark while the content is in its new-session hero phase, including before a session exists. It supplies the currently selected workspace directory and does not depend on central starter preferences.
+
 Session slot `inputActions.focus(selection?)` focuses the resident composer, restoring its caret when no range is supplied or selecting the supplied detect-coordinate range after a draft insertion.
 
 The context meter follows the [statistics-control radius](../../../docs/ui-radius.md#radius-scale).

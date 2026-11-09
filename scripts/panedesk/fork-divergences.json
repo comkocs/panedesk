@@ -1,6 +1,33 @@
 {
   "divergences": [
     {
+      "id": "new-session-workflow-settings-and-visible-actions",
+      "description": "Provide adjacent new-session preset and workflow menus with editable workflow prompts",
+      "origin": "Panedesk new-session and settings interaction",
+      "reason": "Reuse draft insertion and preset selection, centralize localized workflow defaults and reset actions, make settings buttons visible, allow title-row dragging, and preselect Automatic project opening without bypassing saved confirmation.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-project-onboarding/**",
+          "packages/client/ui-conversation/src/client/apply.ts",
+          "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-settings-general/**",
+          "packages/client/ui-database-connections/**",
+          "packages/client/ui-storage/**",
+          "packages/client/ui-nodes/**",
+          "packages/client/ui-seat-profiles/**",
+          "packages/client/ui-subagent-tree/**",
+          "packages/client/ui-stats/**",
+          "packages/client/ui-skills/**",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "opening-presets-and-top-level-modes",
       "description": "Manage reusable opening drafts and separate imported agent types from top-level modes",
       "origin": "Panedesk opening preset preferences",

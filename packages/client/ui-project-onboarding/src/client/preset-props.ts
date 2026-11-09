@@ -28,4 +28,4 @@ export type PresetSettingsProps = PropsRuntime<'settings.section'> & PresetsProp
 /** Opening selector beside the workspace. */
 export type PresetPickerProps = PropsRuntime<'conversation.hero.opening'> & PresetsProps
 /** New-session quick management entry. */
-export type PresetQuickProps = PropsRuntime<'conversation.session.header.actions'> & PresetsProps
+export type PresetQuickProps = PropsRuntime<'conversation.hero.actions'> & PresetsProps

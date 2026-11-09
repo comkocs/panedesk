@@ -57,7 +57,7 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; revision: numb
     <div className={css.actions}>{([false, true] as const).map(table => <Button key={String(table)} variant="outline" disabled={busy}
       onClick={() => void run(async () => { setRows([...rows, ...await props.importPresets(paste, table)]) })}>
       {t(table ? 'importTable' : 'batchPaste')}</Button>)}</div>
-    <Button disabled={busy || rows.some(row => !row.name.trim() || !row.prompt.trim() || !row.directories.some(path => path.trim()))}
+    <Button variant="primary" disabled={busy || rows.some(row => !row.name.trim() || !row.prompt.trim() || !row.directories.some(path => path.trim()))}
       onClick={() => void run(async () => {
         const saved = rows.map(row => ({ name: presetName(row.name), prompt: row.prompt,
           directories: row.directories.map(path => path.trim()).filter(Boolean),
@@ -103,11 +103,13 @@ export function OpeningPresetSettings(props: PresetSettingsProps) {
 }
 
 /** Selector rows prioritize the current directory; other presets are grouped by directory. */
-function Picker(props: PresetsProps & { currentDirectory: string | undefined; sessionId: SessionId | undefined }) {
+function Picker(props: PresetsProps & { currentDirectory: string | undefined; sessionId: SessionId | undefined; quick?: boolean }) {
   const presets = props.usePresets(state => state.value?.openingPresets ?? [])
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const form = props.usePresets(state => state)
   const matches = (preset: OpeningPreset) => props.currentDirectory !== undefined && preset.directories.includes(props.currentDirectory)
   const item = (preset: OpeningPreset, index: number) => ({ id: String(index), label: preset.name,
     ...(!matches(preset) && preset.directories.length > 1 ? { submenu: preset.directories.map((directory, at) => ({ id: `${index}:${at}`, label: directory })) } : {}) })
@@ -117,12 +119,15 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
     items.push({ type: 'label', id: `directory:${directory}`, text: directory })
     presets.forEach((preset, index) => { if (!matches(preset) && preset.directories[0] === directory) items.push(item(preset, index)) })
   }
-  items.push({ type: 'separator', id: 'manage-separator' }, { id: 'manage', label: props.t('managePresets') })
+  items.push({ type: 'separator', id: 'manage-separator' })
+  if (props.quick) items.push({ id: 'add', label: props.t('addPreset'), disabled: form.status !== 'ready' || !form.writable })
+  items.push({ id: 'manage', label: props.t('managePresets') })
   return <>
-    <Menu open={open} onClose={() => setOpen(false)} items={items} portal
-      anchor={<Button variant="ghost" disabled={busy} onClick={() => setOpen(!open)}>{props.t('opening')}</Button>}
+    <Menu open={open} onClose={() => setOpen(false)} items={items} portal autoFocus align={props.quick ? 'end' : 'start'}
+      anchor={<Button variant="outline" size="sm" disabled={busy} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{props.t(props.quick ? 'presetsTitle' : 'opening')}</Button>}
       onSelect={id => {
         setOpen(false)
+        if (id === 'add') { setAdding(true); return }
         if (id === 'manage') { props.managePresets(); return }
         const [index, at] = id.split(':').map(Number)
         const preset = presets[index!]!
@@ -130,6 +135,10 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
         setBusy(true); setError('')
         void props.choosePreset(index!, directory, directory === props.currentDirectory ? props.sessionId : undefined).catch(reason => setError(String(reason))).finally(() => setBusy(false))
       }} />
+    <Modal open={adding} title={props.t('addPreset')} closeLabel={props.t('close')} onClose={() => setAdding(false)}>
+      {adding && <Editor {...props} initial={[...(form.value?.openingPresets ?? []), { name: '', prompt: '', directories: [] }]}
+        revision={form.revision} done={() => setAdding(false)} />}
+    </Modal>
     {error && <p role="alert">{error}</p>}
   </>
 }
@@ -145,22 +154,5 @@ export function OpeningPresetPicker(props: PresetPickerProps) { return <Picker {
  * @returns Quick-management entry and panel.
  */
 export function OpeningPresetQuick(props: PresetQuickProps) {
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState('')
-  const session = props.useSessions(snapshot => snapshot.byId[props.sessionId])
-  const directory = session?.cwd
-  if (!session?.blank) return null
-  return <>
-    <Button variant="ghost" onClick={() => setOpen(true)}>{props.t('presetsTitle')}</Button>
-    {error && <p role="alert">{error}</p>}
-    <Modal open={open} title={props.t('presetsTitle')} closeLabel={props.t('close')} onClose={() => setOpen(false)}>
-      <Picker {...props} currentDirectory={directory} choosePreset={(index, path, sessionId) => {
-        setOpen(false)
-        setError('')
-        return props.choosePreset(index, path, sessionId).catch(reason => { setError(String(reason)) })
-      }} />
-      <Management {...props} />
-      <Button variant="outline" onClick={() => { setOpen(false); props.managePresets() }}>{props.t('managePresets')}</Button>
-    </Modal>
-  </>
+  return <Picker {...props} quick />
 }

@@ -203,6 +203,9 @@ export function ConversationContent(props: ConversationContentProps) {
       data-conversation-region="chat"
       data-content-phase={phase}
     >
+      {hero && <div className={css.heroActions}>
+        {renderSlot('conversation.hero.actions', { currentDirectory: pendingWorkspace?.path ?? workingDirectory ?? cwd })}
+      </div>}
       <div className={css.scrollBody} data-conversation-scroll="">
         {sessionId === undefined ? null : <Views />}
         {zone !== undefined && renderSlot('conversation.pending', zone)}

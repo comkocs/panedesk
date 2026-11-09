@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Shows session counts, subagents, token usage and recorded call timelines for the [session telemetry subsystem](../../../docs/subsystems/session-telemetry.md). The [ledger query service](../../session/ledger-query/README.md) owns aggregation and missing-measurement semantics.
 
+The settings page's Refresh action uses the shared outlined button.
+
 ## Table of Contents
 
 - [Configuration and use](#configuration-and-use)

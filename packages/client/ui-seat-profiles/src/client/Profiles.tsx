@@ -90,12 +90,12 @@ function Editor({ definition, snapshot, save, remove, blocked, onUnknown, t }: C
     <h2>{definition.seat}</h2><p>{t('immutable')}</p>
     {primary.map(field)}
     <details><summary>{t('advanced')}</summary>{advanced.map(field)}</details>
-    <div className={css.actions}><Button disabled={busy || deleted || blocked} onClick={() => { void run(submit, 'saved') }}>{t(busy ? 'saving' : 'save')}</Button>
-      <Button disabled={busy || deleted || blocked} onClick={() => { setConfirm(true) }}>{t('remove')}</Button></div>
+    <div className={css.actions}><Button variant="primary" disabled={busy || deleted || blocked} onClick={() => { void run(submit, 'saved') }}>{t(busy ? 'saving' : 'save')}</Button>
+      <Button variant="outline" disabled={busy || deleted || blocked} onClick={() => { setConfirm(true) }}>{t('remove')}</Button></div>
     {notice && <p role="status">{notice}</p>}
     <Modal open={confirm} title={t('removeTitle')} closeLabel={t('cancel')} onClose={() => { if (!busy) setConfirm(false) }}
-      footer={<><Button disabled={busy} onClick={() => { setConfirm(false) }}>{t('cancel')}</Button>
-        <Button disabled={busy || blocked} onClick={() => { if (!blocked) void run(async () => { await remove(base.snapshot, definition.seat); setDeleted(true) }, 'removed') }}>{t('confirmRemove')}</Button></>}>
+      footer={<><Button variant="outline" disabled={busy} onClick={() => { setConfirm(false) }}>{t('cancel')}</Button>
+        <Button variant="outline" disabled={busy || blocked} onClick={() => { if (!blocked) void run(async () => { await remove(base.snapshot, definition.seat); setDeleted(true) }, 'removed') }}>{t('confirmRemove')}</Button></>}>
       <p>{t('removeWarning')}</p><h3>{t('windows')}</h3>
       {windows.length === 0 ? <p>{t('none')}</p> : <ul>{windows.map(item => <li key={item.sessionId}><span>{item.title} — {item.sessionId}</span> <small>{item.stateKnown ? `${t('stateVersion')}: ${item.stateVersion}` : t('stateUnknown')}</small></li>)}</ul>}
       <h3>{t('pending')}</h3>{pending.length === 0 ? <p>{t('none')}</p>
@@ -132,11 +132,11 @@ function Importer({ preview, commit, presets, definition, onUnknown, t }: Copy &
         if (preset) { setMapping(JSON.stringify(preset.columnMap, null, 2)); changed() }
         setMenu(false)
       }}
-      anchor={<Button disabled={busy} onClick={() => { setMenu(!menu) }}>{t('preset')}</Button>} />}
+      anchor={<Button variant="outline" disabled={busy} onClick={() => { setMenu(!menu) }}>{t('preset')}</Button>} />}
     <label>{t('mapping')}<textarea aria-label={t('mapping')} disabled={busy} value={mapping} onChange={(event) => { setMapping(event.target.value); changed() }} /></label>
     <label>{t('defaults')}<textarea aria-label={t('defaults')} disabled={busy} value={defaults} onChange={(event) => { setDefaults(event.target.value); changed() }} /></label>
-    <Button disabled={busy || !definition} onClick={() => { if (definition) { setDefaults(JSON.stringify(definition, null, 2)); changed() } }}>{t('useProfile')}</Button>
-    <Button disabled={busy || !sourcePath.trim()} onClick={() => { void run(async () => {
+    <Button variant="outline" disabled={busy || !definition} onClick={() => { if (definition) { setDefaults(JSON.stringify(definition, null, 2)); changed() } }}>{t('useProfile')}</Button>
+    <Button variant="outline" disabled={busy || !sourcePath.trim()} onClick={() => { void run(async () => {
       const next = await preview({ sourcePath, format, mapping, defaults, table }); setPlan(next); setSelected([])
     }) }}>{t(busy ? 'saving' : 'preview')}</Button>
     {plan && <><div>{plan.rows.length === 0 && <p>{t('noRows')}</p>}{plan.rows.map(row => <div key={row.row}>
@@ -145,7 +145,7 @@ function Importer({ preview, commit, presets, definition, onUnknown, t }: Copy &
         onChange={(checked) => { setSelected(checked ? [...selected, row.row] : selected.filter(value => value !== row.row)) }} />
       {row.diagnostics.map((item, index) => <p key={`${item.code}:${index}`}>{item.code}: {item.message} {item.alternative}</p>)}
       {row.differences.map(item => <p key={item.field}>{item.field}: {JSON.stringify(item.local)} → {JSON.stringify(item.source)}</p>)}
-    </div>)}</div><Button disabled={busy || selected.length === 0} onClick={() => { void run(async () => {
+    </div>)}</div><Button variant="primary" disabled={busy || selected.length === 0} onClick={() => { void run(async () => {
       await commit(plan, selected); setPlan(undefined); setSelected([]); setNotice(t('imported'))
     }, true) }}>{t('commit')}</Button></>}
     {notice && <p role="status">{notice}</p>}
@@ -172,7 +172,7 @@ export function Profiles(props: ProfilesProps) {
   }, [data, refreshBase, resource.status])
   const onUnknown = (): void => { setRefreshBase(undefined); setUncertain(true) }
   if (!data) return resource.status === 'failed'
-    ? <section><h2>{t('nav')}</h2><p role="alert">{t('unavailable')}</p><Button onClick={refresh}>{t('refresh')}</Button></section>
+    ? <section><h2>{t('nav')}</h2><p role="alert">{t('unavailable')}</p><Button variant="outline" onClick={refresh}>{t('refresh')}</Button></section>
     : <p role="status">{t('loading')}</p>
   const blocked = resource.status !== 'live' || transferring || uncertain
   const definition = data.definitions.find(item => item.seat === seat)
@@ -182,15 +182,15 @@ export function Profiles(props: ProfilesProps) {
   }
   return <section className={css.page}><h2><IconPanedeskSeatProfile />{t('nav')}</h2>
     <details><summary>{t('singleMachineAdvanced')}</summary>
-    <div className={css.actions}><Button onClick={() => { actions.select(null); setEditing(undefined); setImporting(false) }}>{t('back')}</Button>
-      <Button onClick={() => { setRefreshBase(data); refresh() }}>{t('refresh')}</Button>
-      <Button onClick={() => { setImporting(!importing) }}>{t('import')}</Button></div>
-    {data.authority === 'import-source' && <><p>{t('sourceOwned')}</p><Button disabled={blocked} onClick={() => { setTakeover(true) }}>{t('takeover')}</Button></>}
+    <div className={css.actions}><Button variant="outline" onClick={() => { actions.select(null); setEditing(undefined); setImporting(false) }}>{t('back')}</Button>
+      <Button variant="outline" onClick={() => { setRefreshBase(data); refresh() }}>{t('refresh')}</Button>
+      <Button variant="outline" onClick={() => { setImporting(!importing) }}>{t('import')}</Button></div>
+    {data.authority === 'import-source' && <><p>{t('sourceOwned')}</p><Button variant="outline" disabled={blocked} onClick={() => { setTakeover(true) }}>{t('takeover')}</Button></>}
     {transferNotice && <p role="status">{transferNotice}</p>}
     {uncertain && <p role="status">{t('failed')}</p>}
     <Modal open={takeover} title={t('takeover')} closeLabel={t('cancel')} onClose={() => { if (!transferring) setTakeover(false) }}
-      footer={<><Button disabled={transferring} onClick={() => { setTakeover(false) }}>{t('cancel')}</Button>
-        <Button disabled={blocked} onClick={() => {
+      footer={<><Button variant="outline" disabled={transferring} onClick={() => { setTakeover(false) }}>{t('cancel')}</Button>
+        <Button variant="outline" disabled={blocked} onClick={() => {
           if (blocked) return
           setTransferring(true)
           void props.takeover(data.revision).then(() => {
@@ -202,7 +202,7 @@ export function Profiles(props: ProfilesProps) {
       {importing ? <Importer {...props} definition={current?.definition} onUnknown={onUnknown} /> : current
         ? <Editor key={`${current.definition.seat}:${reload}`} {...props} {...current} blocked={blocked} onUnknown={onUnknown} />
         : data.definitions.length === 0 ? <p>{t('empty')}</p>
-          : <ul>{data.definitions.map(item => <li key={item.seat}><Button onClick={() => { select(item) }}>{item.seat}</Button></li>)}</ul>}
+          : <ul>{data.definitions.map(item => <li key={item.seat}><Button variant="outline" onClick={() => { select(item) }}>{item.seat}</Button></li>)}</ul>}
     </fieldset>
     </details>
   </section>

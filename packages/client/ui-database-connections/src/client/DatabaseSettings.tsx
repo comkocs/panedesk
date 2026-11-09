@@ -73,8 +73,8 @@ export function DatabaseSettings({ useInspection, refresh, save, remove, test, b
     <section className={css.section}>
       <h3>{t('configuration')}</h3><p className={css.path}>{state.filename}</p>
       <div className={css.actions}>
-        <Button disabled={busy || !state.filename} onClick={() => { void run(() => open(state.filename)) }}>{t('open')}</Button>
-        <Button disabled={busy || state.loading} onClick={() => { void run(refresh) }}>{t('refresh')}</Button>
+        <Button variant="outline" disabled={busy || !state.filename} onClick={() => { void run(() => open(state.filename)) }}>{t('open')}</Button>
+        <Button variant="outline" disabled={busy || state.loading} onClick={() => { void run(refresh) }}>{t('refresh')}</Button>
       </div>
       {state.loading && <p role="status">{t('loading')}</p>}
       {state.error && <p role="alert">{t('failure')} {state.error}</p>}
@@ -86,14 +86,14 @@ export function DatabaseSettings({ useInspection, refresh, save, remove, test, b
         <label><input type="checkbox" checked={row.modelEnabled} disabled={busy || state.loading}
           onChange={event => { const enabled = event.target.checked; void run(() => save({ ...row, modelEnabled: enabled })) }} /> {t('modelEnabled')}</label>
         <div className={css.actions}>
-          <Button disabled={busy} onClick={() => edit(row)}>{t('edit')}</Button>
-          <Button disabled={busy} onClick={() => setDeleting(row.id)}>{t('remove')}</Button>
+          <Button variant="outline" disabled={busy} onClick={() => edit(row)}>{t('edit')}</Button>
+          <Button variant="outline" disabled={busy} onClick={() => setDeleting(row.id)}>{t('remove')}</Button>
           {deleting === row.id && <><span>{t('confirmDelete')}</span>
-            <Button disabled={busy} onClick={() => { void run(async () => { await remove(row.id); setDeleting(null); if (draft?.id === row.id) setDraft(null) }) }}>{t('remove')}</Button>
-            <Button disabled={busy} onClick={() => setDeleting(null)}>{t('cancel')}</Button></>}
+            <Button variant="outline" disabled={busy} onClick={() => { void run(async () => { await remove(row.id); setDeleting(null); if (draft?.id === row.id) setDraft(null) }) }}>{t('remove')}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>{t('cancel')}</Button></>}
         </div>
       </div>)}
-      <Button disabled={busy || state.loading} onClick={() => edit(fresh())}>{t('add')}</Button>
+      <Button variant="outline" disabled={busy || state.loading} onClick={() => edit(fresh())}>{t('add')}</Button>
     </section>
     {draft && <form className={css.section} onSubmit={event => { event.preventDefault(); void run(async () => {
       if (uri.trim()) { setMessage('uriError'); return }
@@ -122,28 +122,28 @@ export function DatabaseSettings({ useInspection, refresh, save, remove, test, b
             {textField('passphrase')}
           </div>
           <label><input type="checkbox" checked={clearPassphrase} onChange={event => setClearPassphrase(event.target.checked)} /> {t('clearPassphrase')}</label>
-          <Button type="button" onClick={() => { void run(() => browseDirectory('')) }}>{t('browse')}</Button>
+          <Button variant="outline" type="button" onClick={() => { void run(() => browseDirectory('')) }}>{t('browse')}</Button>
           {listing && <div className={css.section}>
             <label className={css.field}>{t('directory')}<input value={directory} onChange={event => setDirectory(event.target.value)} /></label>
             <div className={css.actions}>
-              <Button type="button" onClick={() => { void run(() => browseDirectory(directory)) }}>{t('go')}</Button>
-              <Button type="button" onClick={() => { void run(() => browseDirectory(listing.parent)) }}>{t('parent')}</Button>
-              <Button type="button" onClick={() => setListing(null)}>{t('cancel')}</Button>
+              <Button variant="outline" type="button" onClick={() => { void run(() => browseDirectory(directory)) }}>{t('go')}</Button>
+              <Button variant="outline" type="button" onClick={() => { void run(() => browseDirectory(listing.parent)) }}>{t('parent')}</Button>
+              <Button variant="outline" type="button" onClick={() => setListing(null)}>{t('cancel')}</Button>
             </div>
-            <div className={css.list}>{listing.entries.map(entry => <Button type="button" key={entry.path} onClick={() => {
+            <div className={css.list}>{listing.entries.map(entry => <Button variant="outline" type="button" key={entry.path} onClick={() => {
               if (entry.directory) void run(() => browseDirectory(entry.path))
               else { setDraft({ ...draft, ssh: { ...draft.ssh, privateKeyPath: entry.path } }); setListing(null) }
             }}>{entry.name}{entry.directory ? '/' : ''}</Button>)}</div>
           </div>}
         </>}
         <div className={css.actions}>
-          <Button type="submit">{t('save')}</Button>
-          <Button type="button" onClick={() => { void run(async () => {
+          <Button variant="primary" type="submit">{t('save')}</Button>
+          <Button variant="outline" type="button" onClick={() => { void run(async () => {
             if (uri.trim()) { setMessage('uriError'); return }
             setMessage('testing')
             const result = await test(input()); setMessage(result.ok ? 'testOk' : 'testFailed'); setError(result.error ?? '')
           }) }}>{t('test')}</Button>
-          <Button type="button" onClick={() => { setDraft(null); setUri(''); setListing(null) }}>{t('cancel')}</Button>
+          <Button variant="outline" type="button" onClick={() => { setDraft(null); setUri(''); setListing(null) }}>{t('cancel')}</Button>
         </div>
       </fieldset>
     </form>}

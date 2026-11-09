@@ -120,6 +120,9 @@
 
 /* Title row (figma 501:29959): 16/500 lh24, 12px side padding. */
 .navTitle {
+  cursor: move;
+  touch-action: none;
+  user-select: none;
   padding: 0 12px;
   font-size: 16px;
   line-height: 24px;
@@ -212,6 +215,9 @@
 
 /* Header (figma .Header 501:29981): h54, pad (10,20,14,8), close right. */
 .header {
+  cursor: move;
+  touch-action: none;
+  user-select: none;
   flex: none;
   display: flex;
   align-items: flex-start;
@@ -239,11 +245,7 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border: none;
-  border-radius: var(--dsw-radius-sm);
-  background: transparent;
-  cursor: pointer;
-  color: var(--dsw-alias-label-primary);
+
 }
 
 .close:hover {

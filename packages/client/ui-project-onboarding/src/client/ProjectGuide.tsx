@@ -7,6 +7,7 @@ import type { PropsLocale } from '@panedesk/dsh-client-ui-slots'
 import type { ProjectPreferences } from './controller.ts'
 import type { WELCOME_NOTICE_VERSION } from '@panedesk/dsh-client-ui-settings-models/src/onboarding-copy.ts'
 import css from './ProjectGuide.module.css'
+import { insertWorkflow } from './WorkflowStarters.tsx'
 
 type ChoiceProps = PropsLocale<'projectOnboarding'> & {
   path: string
@@ -15,7 +16,7 @@ type ChoiceProps = PropsLocale<'projectOnboarding'> & {
 }
 
 function ProjectChoice({ path, state, select, t }: ChoiceProps) {
-  const committed = state.projects[path]?.mode ?? 'remind'
+  const committed = state.projects[path]?.mode ?? 'auto'
   const [draft, setDraft] = useState<ProjectSelection['mode']>(committed)
   return <section className={css.choice}>
     <p>{path}</p>
@@ -33,7 +34,7 @@ function ProjectChoice({ path, state, select, t }: ChoiceProps) {
         <li key={outcome.projectId}>{outcome.projectId}: {t(outcome.status)}</li>)}</ul>}
     </div>}
     {state.saved && <p role="status">{t('success')}</p>}
-    <Button disabled={!state.writable || state.status !== 'ready'} onClick={() => { void select(path, draft) }}>
+    <Button variant="primary" disabled={!state.writable || state.status !== 'ready'} onClick={() => { void select(path, draft) }}>
       {t(state.status === 'saving' ? 'saving' : 'save')}
     </Button>
   </section>
@@ -47,8 +48,10 @@ const welcomeVersion: typeof WELCOME_NOTICE_VERSION = '2026-09-28.1'
  * @returns A modal for an unchosen project, otherwise no added interface.
  */
 export function ProjectGuide(props: GuideProps) {
-  const { usePreferences, useWelcome, useWorkspaces, useSessions, sessionId, select, retry, inputActions, t } = props
+  const { usePreferences, useWelcome, useWorkspaces, useSessions, useWorkflow, useWorkflowLocale, sessionId, select, retry, inputActions, t } = props
   const state = usePreferences(value => value)
+  const workflow = useWorkflow(value => value.value)
+  const language = useWorkflowLocale(value => value.active === 'zh' ? 'zh' : 'en')
   const welcomeComplete = useWelcome(value => value.status === 'ready' && value.value?.welcomeNoticeVersion === welcomeVersion)
   const projectActive = useSessions((value) => {
     const main = Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)
@@ -63,16 +66,15 @@ export function ProjectGuide(props: GuideProps) {
   if (state.status === 'loading') return null
   const close = () => { setDismissed(path) }
   const start = () => {
-    const span = inputActions.captureInsertion()
-    const inserted = inputActions.insertText(t('request'), span)
-    if (inserted) { inputActions.persistDraft(); close() }
+    const inserted = workflow && insertWorkflow(inputActions, workflow.workflowSetupPrompt[language])
+    if (inserted) close()
     else setInsertFailed(true)
   }
   return <Modal open title={t('title')} closeLabel={t('close')} onClose={close}>
     {state.status === 'error'
-      ? <><p role="alert">{t('error')}</p><Button onClick={() => { void retry() }}>{t('retry')}</Button></>
+      ? <><p role="alert">{t('error')}</p><Button variant="outline" onClick={() => { void retry() }}>{t('retry')}</Button></>
       : <ProjectChoice key={path} path={path} state={state} select={select} t={t} />}
-    <Button onClick={start}>{t('start')}</Button>
+    <Button variant="outline" onClick={start}>{t('start')}</Button>
     <p>{t('startHint')}</p>
     {insertFailed && <p role="alert">{t('unavailable')}</p>}
   </Modal>

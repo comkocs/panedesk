@@ -20,6 +20,7 @@ const pages = {
  * @returns Three guidance lines and optional first-use instructions.
  */
 export function PanedeskGuidance({ id, t }: { id: string; t: SettingsRootComponentProps['t'] }) {
+  if (id === 'opening-presets' || id === 'workflow') return null
   const page = pages[id as keyof typeof pages]
   const steps = page === 'project' || page === 'database' || page === 'skills'
     ? [t(`guidance.${page}.step1`), t(`guidance.${page}.step2`), t(`guidance.${page}.step3`)] as const : undefined

@@ -127,8 +127,8 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
       <p className={css.description}>{t('openingName.config', { path: documentPath })}</p>
       <p className={css.description}>{t('openingName.directory', { path: documentPath.replace(/[\\/][^\\/]*$/u, '') })}</p>
       <div className={css.actions}>
-        <Button size="sm" disabled={busy} onClick={() => { run(() => openPath(documentPath, 'open')) }}>{t('openingName.openFile')}</Button>
-        <Button size="sm" disabled={busy} onClick={() => { run(() => openPath(documentPath, 'reveal')) }}>{t('openingName.openDirectory')}</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => { run(() => openPath(documentPath, 'open')) }}>{t('openingName.openFile')}</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => { run(() => openPath(documentPath, 'reveal')) }}>{t('openingName.openDirectory')}</Button>
       </div>
     </div>}
     <textarea ref={textarea} id="panedesk-opening-name" className={css.sample} rows={3} value={sample} readOnly={!writable}
@@ -144,18 +144,18 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
       }} />
     <p className={css.description}>{t('openingName.selectionHint')}</p>
     <div className={css.actions}>
-      <Button size="sm" disabled={!writable || markdown === null || fileStart === 0} onClick={() => { choose('folder') }}>{t('openingName.folder')}</Button>
-      <Button size="sm" disabled={!writable || markdown === null} onClick={() => { choose('file') }}>{t('openingName.file')}</Button>
-      <Button size="sm" disabled={!writable || markdown === null} onClick={() => { choose('after') }}>{t('openingName.after')}</Button>
+      <Button size="sm" variant="outline" disabled={!writable || markdown === null || fileStart === 0} onClick={() => { choose('folder') }}>{t('openingName.folder')}</Button>
+      <Button size="sm" variant="outline" disabled={!writable || markdown === null} onClick={() => { choose('file') }}>{t('openingName.file')}</Button>
+      <Button size="sm" variant="outline" disabled={!writable || markdown === null} onClick={() => { choose('after') }}>{t('openingName.after')}</Button>
     </div>
     <p className={css.description} aria-live="polite">{t('openingName.preview', { title: preview })}</p>
     <p className={css.description}>{t('openingName.folderPreview', { title: folderPreview })}</p>
     {selected.length > 0 && !valid && <p role="alert">{t('openingName.invalid')}</p>}
     {failed && <p role="alert">{t('openingName.error')}</p>}
     <div className={css.actions}>
-      <Button size="sm" disabled={!writable || draft === undefined || !valid}
+      <Button size="sm" variant="primary" disabled={!writable || draft === undefined || !valid}
         onClick={() => { persist(pattern) }}>{t('openingName.save')}</Button>
-      <Button size="sm" variant="ghost" disabled={!writable || (pattern === undefined && draft === undefined)}
+      <Button size="sm" variant="outline" disabled={!writable || (pattern === undefined && draft === undefined)}
         onClick={() => { persist(undefined) }}>{t('openingName.clear')}</Button>
     </div>
   </div>

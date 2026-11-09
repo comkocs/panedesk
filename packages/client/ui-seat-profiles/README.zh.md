@@ -11,6 +11,8 @@ kind: "package-reference"
 
 此可选插件在设置中增加“工位档案”，不新增冷启动侧栏入口。已认证所有者可查看、编辑本机[工位](../../seat/seat-local/README.zh.md)目录，确认删除定义，并预览映射后的 Markdown 或 CSV 源文件勾选行。
 
+设置操作使用共用的有边框按钮，保存和提交导入使用主要操作样式。
+
 ## 目录
 
 - [使用本包](#use-this-package)

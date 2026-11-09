@@ -13,6 +13,7 @@
     { "path": "../store" },
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../../../vendor/cordis" },
+    { "path": "../ui-primitives" },
     { "path": "../ui-renderer" },
     { "path": "../ui-settings/tsconfig.client.json" },
     { "path": "../ui-slots" }

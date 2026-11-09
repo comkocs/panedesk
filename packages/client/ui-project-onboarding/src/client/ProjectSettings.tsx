@@ -18,7 +18,7 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
   const [openingPath, setOpeningPath] = useState(false)
   const paths = [...new Set([...workspaces.items.map(item => item.path), ...Object.keys(state.projects)])]
   const path = selected !== null && paths.includes(selected) ? selected : paths[0]
-  const mode = path === undefined ? 'remind' : state.projects[path]?.mode ?? 'remind'
+  const mode = path === undefined ? 'auto' : state.projects[path]?.mode ?? 'auto'
   const files = inspection.value
   const catalogFile = files?.catalogFile
   const disabled = state.status !== 'ready' || !state.writable || path === undefined
@@ -59,7 +59,7 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
       {state.error && <div role="alert"><p>{t(state.compensation ? 'compensation' : 'error')}</p>
         {state.compensation && <ul>{state.compensation.map(outcome =>
           <li key={outcome.projectId}>{outcome.projectId}: {t(outcome.status)}</li>)}</ul>}
-        <Button onClick={() => { void retry() }}>{t('retry')}</Button>
+        <Button variant="outline" onClick={() => { void retry() }}>{t('retry')}</Button>
       </div>}
       {state.saved && <p role="status">{t('success')}</p>}
     </section>
@@ -73,8 +73,8 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
         <p>{files.settingsFile}</p>
         <p>{t('directory')}: {files.settingsDirectory}</p>
         <div className={css.modes}>
-          <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'open') }}>{t('openFile')}</Button>
-          <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'reveal') }}>{t('openDirectory')}</Button>
+          <Button variant="outline" disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'open') }}>{t('openFile')}</Button>
+          <Button variant="outline" disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(files.settingsFile, 'reveal') }}>{t('openDirectory')}</Button>
         </div>
       </>}
       {pathFailure && <p role="alert">{t('pathError')}</p>}
@@ -87,14 +87,14 @@ export function ProjectSettings({ usePreferences, useWorkspaces, useInspection, 
           <p>{catalogFile}</p>
           <p>{t('directory')}: {files.catalogDirectory}</p>
           <div className={css.modes}>
-            <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(catalogFile, 'open') }}>{t('openFile')}</Button>
-            <Button disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(catalogFile, 'reveal') }}>{t('openDirectory')}</Button>
+            <Button variant="outline" disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(catalogFile, 'open') }}>{t('openFile')}</Button>
+            <Button variant="outline" disabled={openingPath || inspection.status !== 'ready'} onClick={() => { void open(catalogFile, 'reveal') }}>{t('openDirectory')}</Button>
           </div>
         </>}
       </>}
       {pathFailure && <p role="alert">{t('pathError')}</p>}
       <p role="status">{t('engineStatus')}: {inspection.status === 'ready' && files ? t(files.engine === 'unavailable' ? 'engineUnavailable' : files.engine) : t('engineUnknown')}</p>
-      <Button disabled={inspection.status === 'loading'} onClick={() => { void refresh() }}>{t('refresh')}</Button>
+      <Button variant="outline" disabled={inspection.status === 'loading'} onClick={() => { void refresh() }}>{t('refresh')}</Button>
       <p>{t('otherSettings')}</p>
     </details>
   </div>

@@ -14,7 +14,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  ConnectionIndicator, Tooltip, useModalLayer,
+  Button, ConnectionIndicator, Tooltip, useModalLayer,
   IconAgentPresetOutlineMedium, IconArchiveOutlineMedium, IconCloseOutlineRegular, IconDataOutlineMedium,
   IconChevronDownOutlineRegular, IconChevronRightOutlineRegular,
   IconPersonalizationOutlineMedium, IconSettingsOutlineMedium, IconUserOutlineMedium,
@@ -87,6 +87,24 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
     </button>
   )
 
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const drag = useRef<{ x: number; y: number } | null>(null)
+  const dragHandlers = {
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return
+      drag.current = { x: event.clientX - offset.x, y: event.clientY - offset.y }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      event.preventDefault()
+    },
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (drag.current) setOffset({ x: event.clientX - drag.current.x, y: event.clientY - drag.current.y })
+    },
+    onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+      drag.current = null
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    },
+    onLostPointerCapture: () => { drag.current = null },
+  }
   const panel = useRef<HTMLDivElement>(null)
   useModalLayer(panel, true, onClose)
 
@@ -97,9 +115,9 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
   return createPortal((
     <div className={css.overlay} role="presentation">
       <div className={css.mask} aria-hidden="true" />
-      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} style={{ translate: `${offset.x}px ${offset.y}px` }} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <nav className={css.nav}>
-          <div className={css.navTitle} id={titleId} tabIndex={-1}
+          <div {...dragHandlers} className={css.navTitle} id={titleId} tabIndex={-1}
             data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
           <div className={css.navList}>
             {rows.filter(row => row.group === undefined).map(renderRow)}
@@ -131,12 +149,12 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
           </div>
         </nav>
         <div className={css.content}>
-          <div className={css.header}>
+          <div {...dragHandlers} className={css.header}>
             <div className={css.actions}>{renderSlot('settings.action', {})}</div>
-            <button type="button" className={css.close} onClick={onClose}>
+            <Button variant="outline" size="sm" className={css.close} onClick={onClose}>
               <IconCloseOutlineRegular size={14} />
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
-            </button>
+            </Button>
           </div>
           <div className={css.options}>
             {activeGroup === 'panedesk' && active !== undefined && <PanedeskGuidance key={active} id={active} t={t} />}

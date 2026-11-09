@@ -11,6 +11,8 @@ kind: "package-reference"
 
 在[网页客户端](../../../docs/subsystems/web-client.zh.md)的“设置”中增加二级“节点”节。[宿主管理提供方](../../host/host-admin/README.zh.md)负责节点观察与既有操作员执行；本插件仅提供经过所有者认证的读取与确认后的本机操作。
 
+设置操作使用共用的有边框按钮，确认使用主要操作样式。
+
 ## 目录
 
 - [配置与使用](#configuration-and-use)

@@ -2,6 +2,8 @@
 
 Adds **Settings → Panedesk → Database connections** using the shared settings section slot, typed English/Chinese copy and the generated `databaseConnections` Remote contribution.
 
+Page actions use shared outlined buttons; Save uses the primary style.
+
 ## Usage
 
 Add, edit or delete named PostgreSQL connections. Paste a PostgreSQL URL to automatically fill host, port, username, password and database, or fill the fields directly. Defaults are shown on the page. Passwords remain masked and successful URL parsing clears the pasted URL. Blank secret fields preserve saved values; explicit Clear controls remove them. Testing uses the unsaved form and reports a plain-language result plus the original one-line error.

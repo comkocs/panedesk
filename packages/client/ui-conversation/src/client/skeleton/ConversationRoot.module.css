@@ -398,6 +398,17 @@ button.crumb:hover {
   --dsh-composer-dock-inset: 8px;
 }
 
+.heroActions {
+  position: absolute;
+  top: 16px;
+  right: max(24px, calc((100% - var(--dsh-composer-card-max-width)) / 2));
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .scrollBody {
   display: flex;
   flex: 1;

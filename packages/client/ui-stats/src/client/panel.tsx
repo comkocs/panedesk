@@ -189,7 +189,7 @@ export function StatsPanel({ sessionId, useResource, useSessions, useWorkspaces,
           items={[{ id: '', label: t('all') }, ...projectRows.map(row => ({ id: row.sessionId, label: name(row.sessionId) }))]}
           onSelect={id => { setSelectedSession(id); setPage(0); setMenu(null) }} />
         <Button variant="outline" aria-pressed={paused} onClick={() => { setPaused(value => !value) }}>{t(paused ? 'resume' : 'pause')}</Button>
-        <Button disabled={resource.status === 'loading'} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button>
+        <Button variant="outline" disabled={resource.status === 'loading'} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button>
       </div>
       <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(stateKey(resource.status, resource.value, resource.failure?.code))}</p>
     </div>

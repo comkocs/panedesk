@@ -264,6 +264,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
+    /** New-session actions above and to the right of the brand mark. */
+    'conversation.hero.actions': { kind: 'list'; scope: 'session-maybe'; owner: { currentDirectory: string | undefined } }
     /** Opening drafts at the former mode-picker position, available before a Session exists. */
     'conversation.hero.opening': { kind: 'single'; scope: 'session-maybe'; owner: { currentDirectory: string | undefined } }
     /** Agent-preset control staged for a New Session. */
@@ -323,6 +325,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
         'conversation.pending': { kind: 'list'; scope: 'session' }
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
+        'conversation.hero.actions': { kind: 'list'; scope: 'session-maybe' }
         'conversation.hero.opening': { kind: 'single'; scope: 'session-maybe' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }
         'conversation.hero.seat': { kind: 'single'; scope: 'session-maybe' }
