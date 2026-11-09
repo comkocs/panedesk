@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-seat-gates",
   "description": "Seat policy plugin scaffold",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "publishConfig": {
     "access": "public"
   },

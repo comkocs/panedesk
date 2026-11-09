@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-skill",
   "description": "Agent skill provider registry for the DeepSeek Harness",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-panedesk-settings",
   "description": "Read and update editable Panedesk preferences through the settings-page writer",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": { "access": "public" },

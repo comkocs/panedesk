@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-shortcuts",
   "description": "Application keyboard command registry and physical-key routing",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "publishConfig": {
     "access": "public"
   },
