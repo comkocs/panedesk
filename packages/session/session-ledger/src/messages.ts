@@ -24,7 +24,7 @@ export default class JournalMessageLedger extends Service implements MessageLedg
     super(ctx, 'messageLedger')
     this.home = resolveDshHome(config.dshHome)
     this.options = {
-      lockTimeoutMs: config.lockTimeoutMs ?? 5000,
+      lockTimeoutMs: config.lockTimeoutMs ?? 30000,
       lockRetryMs: config.lockRetryMs ?? 10,
       maxRecordBytes: config.maxRecordBytes ?? 16 * 1024 * 1024,
     }

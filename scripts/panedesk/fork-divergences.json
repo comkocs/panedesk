@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "ledger-lock-wait-and-subagent-failure-reason",
+      "description": "Wait longer for ledger writer contention and report stopped subagents through existing failure results.",
+      "origin": "Concurrent local ledger writers and subagent failure reporting",
+      "reason": "Allow thirty seconds for native writer locks without changing retry pacing or ownership, and preserve an actionable busy-ledger reason in parent notices and subagent failure details.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/messages.ts",
+          "packages/session/session-ledger/src/types.ts",
+          "packages/session/session-ledger/src/call-accounting.ts",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/README.md",
+          "packages/subagent/subagent/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "claude-agent-capabilities-and-provider-diagnostics",
       "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
       "origin": "Panedesk typed subagent compatibility",

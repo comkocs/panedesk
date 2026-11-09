@@ -1296,7 +1296,7 @@ export class SubagentManager {
     const notifyBeforeAccounting = this.ctx.get('sessionLedger') !== undefined
     if (notifyBeforeAccounting) {
       try {
-        const notification = this.notifySettlement(activation, failures.length === 0 ? result : { output: [], stopReason: 'error' })
+        const notification = this.notifySettlement(activation, failures.length === 0 ? result : { ...result, stopReason: 'error' })
         if (notification !== undefined) await notification
       } catch (error: unknown) {
         resultFailure = { error }
@@ -1329,7 +1329,7 @@ export class SubagentManager {
       try { await dispatch.returned(activation.parent, childId, activation.observer.runId, result) }
       catch (error: unknown) { this.ctx.logger.warn(`Subagent return observation failed: ${failureMessage(error)}`) }
     }
-    const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
+    const terminal: SubagentResult = failure === undefined ? result : { ...result, stopReason: 'error' }
     if (!notifyBeforeAccounting) {
       try {
         const notification = this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
