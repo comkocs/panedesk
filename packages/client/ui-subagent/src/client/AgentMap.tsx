@@ -1,10 +1,10 @@
 /** Composer map over shared subagent projections and read-only job streams. */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IJobs, JobView } from '@panedesk/dsh-api-job-controller/client'
 import type { SessionProjectionMap, SessionProjectionSnapshot } from '@panedesk/dsh-api-session-controller/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime, TranslateNS } from '@panedesk/dsh-client-ui-slots'
-import { IconBranchOutlineRegular, Modal, StateDot } from '@panedesk/dsh-client-ui-primitives'
+import { Button, IconBranchOutlineRegular, Modal, StateDot } from '@panedesk/dsh-client-ui-primitives'
 import type { SubagentCatalogInjected } from './SubagentHeaderLineage.tsx'
 import type { SubagentTreeUI, SubagentTreeNode } from '@panedesk/dsh-client-ui-subagent-tree/client'
 import type {} from '@panedesk/dsh-token-meter/client'
@@ -19,7 +19,7 @@ export interface AgentMapInjected extends SubagentCatalogInjected {
   treeAddress: SubagentTreeUI['address']
   modelColor: SubagentTreeUI['modelColor']
   isActive: SubagentTreeUI['isActive']
-  stopAgent(id: SessionId, parent: SessionId | null, external: boolean): Promise<void>
+  stopAgent: SubagentTreeUI['stop']
   killJob(sessionId: SessionId, jobId: JobView['id']): Promise<void>
 }
 
@@ -29,6 +29,7 @@ type Entry = SessionProjectionMap['subagentCatalog'][number]
 interface Branch {
   entry: Entry
   parent: SessionId
+  node: SubagentTreeNode
   children: Branch[]
   width: number
 }
@@ -42,44 +43,39 @@ const CARD_HEIGHT = 76
 const COLUMN = CARD_WIDTH + 12
 const ROW = CARD_HEIGHT + 32
 
-function branches(root: SessionId, projections: Readonly<Record<SessionId, SessionProjectionSnapshot>>): Branch[] {
-  const seen = new Set<SessionId>([root])
-  const visit = (parent: SessionId): Branch[] => (projections[parent]?.values.subagentCatalog ?? []).flatMap(entry => {
-    if (seen.has(entry.id)) return []
-    seen.add(entry.id)
-    const children = entry.mode === 'external' ? [] : visit(entry.id)
-    return [{ entry, parent, children, width: Math.max(COLUMN, children.reduce((sum, child) => sum + child.width, 0)) }]
+function branches(root: SubagentTreeNode, projections: Readonly<Record<SessionId, SessionProjectionSnapshot>>): Branch[] {
+  return root.children.map(node => {
+    const catalog = projections[root.sessionId]?.values.subagentCatalog?.find(entry => entry.id === node.sessionId)
+    const entry: Entry = node.external
+      ? { id: node.sessionId, mode: 'external', label: node.external.title, createdAt: node.external.startedAt ?? 0 }
+      : catalog ?? { id: node.sessionId, mode: 'unknown', createdAt: 0 }
+    const children = branches(node, projections)
+    return { entry, parent: root.sessionId, node, children, width: Math.max(COLUMN, children.reduce((sum, child) => sum + child.width, 0)) }
   })
-  return visit(root)
 }
 
-/** Pack sibling subtrees on two horizontal buses, growing away from the central root. */
+/** Pack sibling subtrees on horizontal buses below the main session's own row. */
 function layout(tree: Branch[]) {
-  const upper: Branch[] = []
-  const lower: Branch[] = []
   const breadth = (items: Branch[]): number => items.reduce((sum, item) => sum + item.width, 0)
-  for (const branch of tree) (breadth(upper) <= breadth(lower) ? upper : lower).push(branch)
   const depth = (items: Branch[]): number => items.length === 0 ? 0 : 1 + Math.max(...items.map(item => depth(item.children)))
-  const extent = Math.max(depth(upper), depth(lower))
-  const width = Math.max(COLUMN, breadth(upper), breadth(lower)) + 32
-  const center = { x: width / 2, y: extent * ROW + CARD_HEIGHT / 2 + 16 }
-  const height = center.y * 2
+  const width = Math.max(COLUMN, breadth(tree)) + 32
+  const center = { x: width / 2, y: CARD_HEIGHT / 2 + 16 }
+  const height = depth(tree) * ROW + CARD_HEIGHT + 32
   const nodes: PlacedNode[] = []
   const paths: string[] = []
-  const place = (items: Branch[], parent: { x: number; y: number }, left: number, direction: number): void => {
+  const place = (items: Branch[], parent: { x: number; y: number }, left: number): void => {
     let offset = left
     for (const branch of items) {
       const x = offset + branch.width / 2
-      const y = parent.y + direction * ROW
+      const y = parent.y + ROW
       nodes.push({ branch, x, y })
-      const bus = parent.y + direction * ROW / 2
-      paths.push(`M${parent.x},${parent.y + direction * CARD_HEIGHT / 2} V${bus} H${x} V${y - direction * CARD_HEIGHT / 2}`)
-      place(branch.children, { x, y }, offset, direction)
+      const bus = parent.y + ROW / 2
+      paths.push(`M${parent.x},${parent.y + CARD_HEIGHT / 2} V${bus} H${x} V${y - CARD_HEIGHT / 2}`)
+      place(branch.children, { x, y }, offset)
       offset += branch.width
     }
   }
-  place(upper, center, (width - breadth(upper)) / 2, -1)
-  place(lower, center, (width - breadth(lower)) / 2, 1)
+  place(tree, center, (width - breadth(tree)) / 2)
   return { width, height, center, nodes, paths }
 }
 
@@ -105,7 +101,7 @@ function jobStatus(job: JobView, t: TranslateNS<typeof NS>): string {
 }
 
 /**
- * Show an input-footer entry and a centered, scrollable descendant map.
+ * Show an input-footer entry and a zoomable, pannable descendant map.
  * @param props - Session-bound hooks, navigation, read-only jobs and localized copy.
  * @returns The trigger and its dismissible map panel.
  */
@@ -121,13 +117,31 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     if (resource.value) visit(resource.value.root)
     return result
   }, [resource.value])
-  const [stopError, setStopError] = useState(false)
+  const [stopError, setStopError] = useState<string>()
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
-  const stop = async (id: string, action: () => Promise<void>): Promise<void> => {
-    setStopError(false)
+  const stop = async (id: string, label: string, action: () => Promise<void>): Promise<void> => {
+    setStopError(undefined)
     setStopping(ids => new Set(ids).add(id))
-    try { await action() } catch (_stopFailed) { setStopError(true) }
-    finally { setStopping(ids => new Set([...ids].filter(value => value !== id))) }
+    try { await action() } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+      switch (code) {
+        case 'subagent/unauthorized':
+        case 'subagentTree/unauthorized':
+          setStopError(t('map.stopUnauthorized', { label }))
+          break
+        case 'session/not-found':
+        case 'subagent/not-found':
+        case 'job/not-found':
+          setStopError(t('map.stopEnded', { label }))
+          break
+        case 'gateway/internal':
+        case 'subagentTree/unavailable':
+          setStopError(t('map.stopDisconnected', { label }))
+          break
+        default:
+          setStopError(t('map.stopFailed', { label }))
+      }
+    } finally { setStopping(ids => new Set([...ids].filter(value => value !== id))) }
   }
   const projections = useSessions(state => state.projectionsBySession)
   const summaries = useSessions(state => state.byId)
@@ -138,29 +152,35 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
   const rows = useJobs(state => state.rows[sessionId])
   const observed = useJobs(state => state.observed)
   const jobs = useMemo(() => (rows ?? []).filter(job => job.kind === 'bash' || job.kind === 'pwsh'), [rows])
-  const tree = useMemo(() => {
-    const result = branches(sessionId, projections)
-    const merge = (items: Branch[], parent: SessionId): void => {
-      for (const node of facts.get(parent)?.children ?? []) {
-        if (items.some(item => item.entry.id === node.sessionId)) continue
-        items.push({ entry: node.external
-          ? { id: node.sessionId, mode: 'external', label: node.external.title, createdAt: node.external.startedAt ?? 0 }
-          : { id: node.sessionId, mode: 'unknown', createdAt: 0 }, parent, children: [], width: COLUMN })
-      }
-      for (const branch of items) {
-        if (branch.entry.mode !== 'external') merge(branch.children, branch.entry.id)
-        branch.width = Math.max(COLUMN, branch.children.reduce((sum, child) => sum + child.width, 0))
-      }
-    }
-    merge(result, sessionId)
-    return result
-  }, [sessionId, projections, facts])
+  const tree = useMemo(() => resource.value === undefined ? [] : branches(resource.value.root, projections), [resource.value, projections])
   const graph = useMemo(() => layout(tree), [tree])
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<{ kind: 'agent'; id: SessionId } | { kind: 'job'; id: JobView['id'] }>()
   const [now, setNow] = useState(Date.now)
   const requested = useRef(new Set<SessionId>())
   const viewport = useRef<HTMLDivElement>(null)
+  const [view, setView] = useState({ x: 0, y: 0, scale: 1 })
+  const autoFit = useRef(true)
+  const drag = useRef<{ pointerId: number; x: number; y: number; origin: typeof view; moved: boolean }>()
+  const [dragging, setDragging] = useState(false)
+  const fit = useCallback(() => {
+    const element = viewport.current
+    if (!element) return
+    const scale = Math.min(1, element.clientWidth / graph.width, element.clientHeight / graph.height)
+    setView({ x: (element.clientWidth - graph.width * scale) / 2, y: (element.clientHeight - graph.height * scale) / 2, scale })
+    autoFit.current = true
+  }, [graph.width, graph.height])
+  const zoom = useCallback((factor: number, x: number, y: number) => {
+    autoFit.current = false
+    setView(current => {
+      const scale = Math.max(0.3, Math.min(2, current.scale * factor))
+      return { x: x - (x - current.x) * scale / current.scale, y: y - (y - current.y) * scale / current.scale, scale }
+    })
+  }, [])
+  const zoomCenter = (factor: number) => {
+    const element = viewport.current!
+    zoom(factor, element.clientWidth / 2, element.clientHeight / 2)
+  }
 
   useEffect(() => watchRows(sessionId), [sessionId, watchRows])
   useEffect(() => {
@@ -183,10 +203,26 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [open, moving])
-  // Center the fixed-size graph in its scroll viewport when opening, without DOM measurement.
+  // Fit needs the viewport's pixel dimensions; CSS cannot derive a transform scale from both axes.
   useEffect(() => {
-    if (open) viewport.current?.querySelector('[data-map-root]')?.scrollIntoView({ block: 'center', inline: 'center' })
-  }, [open, sessionId, graph.width, graph.height])
+    const element = viewport.current
+    if (!open || !element) return
+    const resize = new ResizeObserver(() => { if (autoFit.current) fit() })
+    resize.observe(element)
+    if (autoFit.current) fit()
+    return () => resize.disconnect()
+  }, [open, fit])
+  useEffect(() => {
+    const element = viewport.current
+    if (!open || !element) return
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const rect = element.getBoundingClientRect()
+      zoom(Math.exp(-event.deltaY * 0.0015), event.clientX - rect.left - element.clientLeft, event.clientY - rect.top - element.clientTop)
+    }
+    element.addEventListener('wheel', wheel, { passive: false })
+    return () => element.removeEventListener('wheel', wheel)
+  }, [open, zoom])
 
   const activeJob = open && selected?.kind === 'job' ? jobs.find(job => job.id === selected.id) : undefined
   const jobId = activeJob?.id
@@ -220,9 +256,9 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const metrics = [model ?? t('map.modelUnknown'), elapsed === undefined
       ? fact?.elapsedMs === null || fact?.elapsedMs === undefined ? undefined : duration(fact.elapsedMs, t)
       : duration(elapsed, t)].filter(Boolean).join(' · ')
-    return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics, usageMetrics, model, running, stopped } as const
+    return { label: branch.entry.label || summary?.displayTitle || t('map.titlePending'), status, state, metrics, usageMetrics, model, running, stopped } as const
   }
-  const rootTitle = summaries[sessionId]?.displayTitle ?? sessionId
+  const rootTitle = summaries[sessionId]?.displayTitle || t('map.titlePending')
   const contextTokens = context?.pressureTokens
   const rootFact = facts.get(sessionId)
   const rootModel = rootFact?.model ?? selection?.lastUsed?.model ?? null
@@ -247,23 +283,46 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
       description={t('map.agents', { count: graph.nodes.length })} className={css.panel!} contentClassName={css.content!}>
       <div className={css.body}>
         <div className={css.main}>
-          {stopError && <p role="alert">{t('map.stopFailed')}</p>}
+          {stopError && <p role="alert">{stopError}</p>}
           {resource.status === 'failed' && <p role="alert">{t('map.factsFailed')}</p>}
           {resource.value?.externalRegistryUnreadable && <p role="alert">{t('map.registryFailed')}</p>}
-          <div ref={viewport} className={css.viewport} aria-label={t('tree.aria')} tabIndex={0}>
-            <div className={css.canvas} style={{ width: graph.width, height: graph.height }}>
+          <div ref={viewport} className={css.viewport} data-dragging={dragging} aria-label={t('tree.aria')} tabIndex={0}
+            onPointerDown={event => {
+              if (event.button !== 0 || (event.target as HTMLElement).closest('[data-map-card], button')) return
+              drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, origin: view, moved: false }
+              event.currentTarget.setPointerCapture(event.pointerId)
+              event.preventDefault()
+            }}
+            onPointerMove={event => {
+              const start = drag.current
+              if (!start || start.pointerId !== event.pointerId) return
+              const dx = event.clientX - start.x
+              const dy = event.clientY - start.y
+              if (!start.moved && Math.hypot(dx, dy) <= 5) return
+              start.moved = true
+              autoFit.current = false
+              setDragging(true)
+              setView({ ...start.origin, x: start.origin.x + dx, y: start.origin.y + dy })
+            }}
+            onPointerUp={event => {
+              if (drag.current?.pointerId === event.pointerId) event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onLostPointerCapture={() => { drag.current = undefined; setDragging(false) }}
+            onPointerCancel={() => { drag.current = undefined; setDragging(false) }}
+            onDoubleClick={event => { if (!(event.target as HTMLElement).closest('[data-map-card], button')) fit() }}>
+            <div className={css.canvas} style={{ width: graph.width, height: graph.height, transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
               <svg className={css.connections} width={graph.width} height={graph.height} aria-hidden="true">
                 <path d={graph.paths.join(' ')} />
               </svg>
-              <div data-map-root="" className={`${css.card} ${css.node} ${css.root}`}
+              <div data-map-root="" data-map-card="" className={`${css.card} ${css.node} ${css.root}`}
                 style={{ left: graph.center.x - CARD_WIDTH / 2, top: graph.center.y - CARD_HEIGHT / 2, borderLeftColor: modelColor(rootModel) }} title={`${rootTitle} · ${rootMetrics}`}>
-                <span className={css.title}><StateDot className={css.statusDot} state={rootRunning ? 'done' : 'idle'} size={10} />{rootTitle}</span>
+                <span className={css.title}><StateDot className={css.statusDot} state={rootRunning ? 'done' : 'idle'} size={10} /><span className={css.mainLabel}>{t('map.main')}</span>{rootTitle}</span>
                 <span className={css.metrics}>{rootStopped ? t('map.killed') + ' · ' : ''}{rootMetrics}</span>
                 <span className={css.metrics}>{rootUsageMetrics}</span>
               </div>
               {graph.nodes.map(({ branch, x, y }) => {
                 const info = describe(branch)
-                return <div key={branch.entry.id} className={`${css.card} ${css.node}`}
+                return <div key={branch.entry.id} data-map-card="" data-stopped={info.stopped} className={`${css.card} ${css.node}`}
                   style={{ left: x - CARD_WIDTH / 2, top: y - CARD_HEIGHT / 2, borderLeftColor: modelColor(info.model) }}>
                   <button type="button" className={css.cardSelect}
                     aria-pressed={selected?.kind === 'agent' && selected.id === branch.entry.id}
@@ -274,10 +333,16 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
                     <span className={css.metrics}>{info.usageMetrics}</span>
                   </button>
                   {info.running && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
-                    disabled={stopping.has(branch.entry.id)} onClick={() => { void stop(branch.entry.id,
-                      () => stopAgent(branch.entry.id, branch.parent, branch.entry.mode === 'external')) }}>■</button>}
+                    disabled={stopping.has(branch.entry.id)} onClick={() => { void stop(branch.entry.id, info.label,
+                      () => stopAgent(branch.node)) }}>■</button>}
                 </div>
               })}
+            </div>
+            <div className={css.controls}>
+              <Button variant="ghost" size="sm" onClick={fit}>{t('map.fit')}</Button>
+              <Button variant="ghost" size="sm" onClick={() => zoomCenter(1 / view.scale)}>{t('map.actualSize')}</Button>
+              <Button variant="ghost" size="sm" aria-label={t('map.zoomIn')} onClick={() => zoomCenter(1.25)}>{t('map.plus')}</Button>
+              <Button variant="ghost" size="sm" aria-label={t('map.zoomOut')} onClick={() => zoomCenter(0.8)}>{t('map.minus')}</Button>
             </div>
           </div>
           {[sessionId, ...graph.nodes.filter(node => node.branch.entry.mode !== 'external').map(node => node.branch.entry.id)].map(id => {
@@ -300,15 +365,15 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
                 </span>
               </button>
               {isActive(job.status) && <button type="button" className={css.stop} aria-label={t('map.stop')} title={t('map.stop')}
-                disabled={stopping.has(job.id)} onClick={() => { void stop(job.id, () => killJob(sessionId, job.id)) }}>■</button>}
+                disabled={stopping.has(job.id)} onClick={() => { void stop(job.id, job.label, () => killJob(sessionId, job.id)) }}>■</button>}
             </div>)}</div>
           </section>}
         </div>
         {(activeBranch !== undefined || activeJob !== undefined) && <aside className={css.details}>
           {activeBranch !== undefined && selectedInfo !== undefined && <>
             {selectedInfo.running && <button type="button" className={`${css.action} ${css.stopAction}`}
-              disabled={stopping.has(activeBranch.entry.id)} onClick={() => { void stop(activeBranch.entry.id,
-                () => stopAgent(activeBranch.entry.id, activeBranch.parent, activeBranch.entry.mode === 'external')) }}>{t('map.stop')}</button>}
+              disabled={stopping.has(activeBranch.entry.id)} onClick={() => { void stop(activeBranch.entry.id, selectedInfo.label,
+                () => stopAgent(activeBranch.node)) }}>{t('map.stop')}</button>}
             {activeBranch.entry.mode === 'external'
             ? <><h3>{selectedInfo.label}</h3><p>{selectedInfo.status}</p><p style={{ color: modelColor(selectedInfo.model) }}>{selectedInfo.metrics} · {selectedInfo.usageMetrics}</p></>
             : <>
@@ -325,7 +390,7 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
           </>}
           {activeJob !== undefined && <>
             {isActive(activeJob.status) && <button type="button" className={`${css.action} ${css.stopAction}`}
-              disabled={stopping.has(activeJob.id)} onClick={() => { void stop(activeJob.id, () => killJob(sessionId, activeJob.id)) }}>{t('map.stop')}</button>}
+              disabled={stopping.has(activeJob.id)} onClick={() => { void stop(activeJob.id, activeJob.label, () => killJob(sessionId, activeJob.id)) }}>{t('map.stop')}</button>}
             <h3>{t('map.command')}</h3><pre className={css.output}>{activeJob.label}</pre>
             <p>{jobStatus(activeJob, t)}{activeJob.detail && ` · ${activeJob.detail}`}</p>
             <h3>{t('map.output')}</h3>
