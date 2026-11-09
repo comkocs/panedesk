@@ -342,6 +342,7 @@
     { "path": "./packages/client/ui-stats/tsconfig.host.json" },
     { "path": "./packages/client/ui-nodes/tsconfig.host.json" },
     { "path": "./packages/client/ui-subagent-tree/tsconfig.host.json" },
+    { "path": "./packages/client/ui-cache-pill/tsconfig.host.json" },
     { "path": "./packages/util/time" },
     { "path": "./packages/util/timeout" },
     { "path": "./packages/util/crypto" },

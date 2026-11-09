@@ -33,6 +33,7 @@
         "@panedesk/dsh-client-locale",
         "@panedesk/dsh-client-ui-conversation",
         "@panedesk/dsh-client-ui-renderer",
+        "@panedesk/dsh-client-ui-settings",
         "@panedesk/dsh-client-resources"
       ],
       "platform": "web"
@@ -46,13 +47,18 @@
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"
   },
+  "dependencies": {
+    "@panedesk/schemastery": "workspace:~"
+  },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-api-remotes": "workspace:*",
     "@panedesk/dsh-llm-cache": "workspace:*",
+    "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",
     "@panedesk/dsh-client-ui-conversation": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-renderer": "workspace:*",
     "@panedesk/dsh-client-ui-slots": "workspace:*",

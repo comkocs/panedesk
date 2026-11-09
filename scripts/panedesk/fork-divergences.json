@@ -15730,6 +15730,33 @@
           "packages/settings/tool-panedesk-settings/tsconfig.json"
         ]
       }
+    },
+    {
+      "id": "cache-pill-hidden-by-default",
+      "description": "Keep the composer cache pill off unless the Panedesk feature settings enable it.",
+      "origin": "Panedesk feature audit item 74",
+      "reason": "The remaining-time reading is unknown on the designer's aggregated routes, so the dock pill is noise by default. Serve a volatile visible preference (default false) through the settings namespace, register the dock entry only while it is true, and contribute one switch row to the Panedesk feature settings page. The cache ledger and the usage cache-hit percentage stay unchanged.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/client/ui-cache-pill/package.json",
+          "packages/client/ui-cache-pill/README.md",
+          "packages/client/ui-cache-pill/README.zh.md",
+          "packages/client/ui-cache-pill/src/index.ts",
+          "packages/client/ui-cache-pill/src/client/index.ts",
+          "packages/client/ui-cache-pill/src/client/locales.ts",
+          "packages/client/ui-cache-pill/src/client/CachePillSettingRow.tsx",
+          "packages/client/ui-cache-pill/src/client/CachePillSettingRow.module.css",
+          "packages/client/ui-cache-pill/tsconfig.json",
+          "packages/client/ui-cache-pill/tsconfig.host.json",
+          "packages/client/ui-cache-pill/tsconfig.client.json",
+          "packages/client/README.md",
+          "packages/client/README.zh.md",
+          "tsconfig.client.json",
+          "tsconfig.host.json",
+          "pnpm-lock.yaml"
+        ]
+      }
     }
   ]
 }

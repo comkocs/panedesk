@@ -37,6 +37,9 @@ export const zh = {
   'tier.saved': '已保存,下一次请求生效',
   'tier.failed': '切换失败,当前档未改变',
   'tier.pending': '正在保存',
+  'settings.visible': '显示「缓存剩余」标签',
+  'settings.hint': '显示主窗与子代理提示缓存还剩多久;只有 Anthropic 与 DeepSeek 通路能算出剩余时间,其他提供商显示「未知」。',
+  'settings.error': '保存失败,显示状态未改变',
 } satisfies Record<string, string>
 
 /** The cache pill namespace key union. */
@@ -86,4 +89,7 @@ export const en = {
   'tier.saved': 'Saved; the next request uses it',
   'tier.failed': 'The switch failed; the current tier is unchanged',
   'tier.pending': 'Saving',
+  'settings.visible': 'Show the "Cache remaining" label',
+  'settings.hint': 'Show how long the prompt cache of the main window and subagents still has to live; only the Anthropic and DeepSeek routes can compute the remaining time, other providers show "Unknown".',
+  'settings.error': 'The save failed; the visibility is unchanged',
 } satisfies Record<CachePillKey, string>
