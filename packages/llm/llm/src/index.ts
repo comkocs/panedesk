@@ -7,6 +7,11 @@
  */
 
 import { Context } from '@panedesk/cordis'
+import type { JsonValue } from '@panedesk/dsh-util-values'
+import { credentialRef } from '@panedesk/dsh-credentials'
+import Schema from '@panedesk/schemastery'
+import { launchEnvironmentOf } from '@panedesk/dsh-launch-environment'
+import { deadline, timeoutOf } from '@panedesk/dsh-timeout'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import { deepFreeze } from '@panedesk/dsh-util-values'
 import type {
@@ -20,6 +25,9 @@ import type {
   LlmModelDiscoveryRequest,
   LlmModelInfo,
   LlmModelProbeResult,
+  LlmProbeProtocol,
+  LlmProtocolCheck,
+  LlmProtocolProbeResult,
   LlmResolvedModelInfo,
   LlmProviderInfo,
   ModelModality,
@@ -55,6 +63,12 @@ export * from './retry-policy.ts'
 export { BlockAssembler } from './assembler.ts'
 export { callConfigEquals, isAgentLoopRequest, markAgentLoopRequest } from './call-config.ts'
 export type { ConfigureCall, LlmCallConfig, LlmCallConfigAdapterDefaults, LlmCallControls } from './call-config.ts'
+
+/** Optional settings access for protocol probes, without a dependency on the settings implementation. */
+interface ProtocolSettings {
+  describe(): { ns: string; value: JsonValue; schema: Schema; revision: number }[]
+  mutate(ns: string, ops: readonly { op: 'set'; path: string[]; value: JsonValue }[], revision?: number): Promise<void>
+}
 
 declare module '@panedesk/cordis' {
   interface Context {
@@ -1238,6 +1252,251 @@ export class LlmRuntime extends TypertRemoteService {
       throw new RemoteError('gateway/cancelled', 'Model probe unavailable', {})
     }
     return this.probeModel(provider, model, signal)
+  }
+
+  /**
+   * Check three wire protocols without changing the configured route or retaining provider content.
+   * @param settingsNs - provider settings owner.
+   * @param request - the current endpoint and optional one-shot key.
+   * @param model - exact model identifier.
+   * @param signal - Remote invocation cancellation.
+   * @returns independent text, streaming, tool, and image results for each protocol.
+   */
+  @Remote('probeModelProtocols')
+  async probeModelProtocols(
+    settingsNs: string,
+    request: LlmModelDiscoveryRequest,
+    model: string,
+    signal: AbortSignal,
+  ): Promise<LlmProtocolProbeResult[]> {
+    if (this.ctx.invocation?.signal.aborted || signal.aborted) {
+      throw new RemoteError('gateway/cancelled', 'Model probe unavailable', {})
+    }
+    const protocols: LlmProbeProtocol[] = ['openai-completions', 'openai-responses', 'anthropic-messages']
+    type Capability = 'text' | 'stream' | 'tool' | 'image'
+    type Reply = {
+      type?: string; text?: string; delta?: string | { type?: string; text?: string; partial_json?: string }
+      error?: { type?: string; code?: string; message?: string }
+      choices?: { message?: { content?: string; tool_calls?: { type?: string; function?: { name?: string; arguments?: string } }[] }; delta?: { content?: string } }[]
+      content?: { type?: string; text?: string; name?: string; input?: object }[]
+      output?: { type?: string; name?: string; arguments?: string; content?: { type?: string; text?: string }[] }[]
+    }
+    const failed = (reason: NonNullable<LlmProtocolCheck['reason']>, status?: number): LlmProtocolCheck =>
+      ({ ok: false, reason, ...status === undefined ? {} : { status } })
+    const classify = (status: number, info: string): LlmProtocolCheck => {
+      const auth = status === 401 || status === 403 || /authentication_error|invalid_api_key|unauthorized/i.test(info)
+      const missingModel = /model[^\n]*(?:not[_ -]found|does not exist|unknown|not exist)|(?:unknown|invalid)[_ -]model/i.test(info)
+      const unsupported = status === 404 || status === 405 || status === 501
+        || /unsupported[_ -](?:protocol|endpoint)|(?:protocol|endpoint)[^\n]*(?:not supported|not found)|cannot post/i.test(info)
+      return failed(auth ? 'auth' : missingModel ? 'model' : status === 408 || status === 504 || /timeout|timed out/i.test(info) ? 'timeout'
+        : unsupported ? 'protocol' : 'other', status)
+    }
+    let baseURL: string
+    let apiKey: string | undefined
+    let headers: Record<string, string>
+    let timeoutMs: number
+    try {
+      const namespace = (this.ctx.get('settings') as ProtocolSettings | undefined)?.describe().find(entry => entry.ns === settingsNs)
+      const entry = [...this.directory.values()].find(value => value.settingsNs === settingsNs && value.provider === request.provider)
+      let profile = namespace!.value as Record<string, unknown>
+      let schema = new Schema(namespace!.schema)
+      const path = entry?.settingsPath ?? ['providers', request.provider ?? '']
+      for (const part of path) {
+        profile = (profile[part] ?? {}) as Record<string, unknown>
+        schema = (schema.type === 'object' ? schema.dict![part] : schema.inner)!
+      }
+      const environment = launchEnvironmentOf(this.ctx)
+      baseURL = request.baseURL ?? (profile['baseURL'] as string | undefined)
+        ?? entry?.baseURLEnv?.map(ref => environment.get(ref)?.value).find(value => value !== undefined) ?? entry?.defaultBaseURL ?? ''
+      const namedRef = profile['apiKeyEnv'] as string | undefined
+      const refs = namedRef === undefined ? entry?.nativeAuth?.env ?? [] : [namedRef]
+      apiKey = request.apiKey
+      for (const ref of refs) {
+        if (apiKey !== undefined) break
+        const credentials = this.ctx.get('credentials')
+        apiKey = credentials === undefined ? environment.get(ref)?.value : (await credentials.resolve(credentialRef(ref)))?.value
+      }
+      if (apiKey !== undefined) apiKey = assertUsableApiKey(apiKey, 'llm', 'probe')
+      headers = profile['headers'] as Record<string, string> | undefined ?? {}
+      timeoutMs = (profile['streamIdleTimeoutMs'] ?? schema.dict!['streamIdleTimeoutMs']!.meta.default) as number
+      if (baseURL.length === 0) throw new LlmError('No endpoint', 'INVALID_CONFIG')
+    } catch (error: unknown) {
+      const failure = normalizeLlmFailure(error)
+      const check = failed(['MISSING_CREDENTIAL', 'INVALID_CREDENTIAL', 'AUTH'].includes(failure.code) ? 'auth' : 'other')
+      return protocols.map(api => ({ api, text: check, stream: check, tool: check, image: check }))
+    }
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1cAAAAASUVORK5CYII='
+    const check = async (api: LlmProbeProtocol, capability: Capability): Promise<LlmProtocolCheck> => {
+      using timer = deadline(signal, timeoutMs, 'PROBE_TIMEOUT')
+      const anthropic = api === 'anthropic-messages'
+      const responses = api === 'openai-responses'
+      const streaming = capability === 'stream'
+      const tool = capability === 'tool'
+      const image = capability === 'image'
+      const prompt = tool ? 'Call the ping tool once.' : image ? 'Name the image color in one word.' : 'Say hello in one word.'
+      const declaration = { name: 'ping', description: 'Return a ping.', parameters: { type: 'object', properties: {}, required: [] } }
+      const content = image
+        ? anthropic ? [{ type: 'text', text: prompt }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }]
+          : responses ? [{ type: 'input_text', text: prompt }, { type: 'input_image', image_url: `data:image/png;base64,${png}` }]
+            : [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/png;base64,${png}` } }]
+        : prompt
+      const body = {
+        model, stream: streaming,
+        ...responses ? { input: [{ role: 'user', content }], max_output_tokens: 64 }
+          : { messages: [{ role: 'user', content }], max_tokens: 64 },
+        ...tool ? anthropic
+          ? { tools: [{ name: declaration.name, description: declaration.description, input_schema: declaration.parameters }], tool_choice: { type: 'tool', name: 'ping' } }
+          : responses ? { tools: [{ type: 'function', ...declaration }], tool_choice: { type: 'function', name: 'ping' } }
+            : { tools: [{ type: 'function', function: declaration }], tool_choice: { type: 'function', function: { name: 'ping' } } }
+          : {},
+      }
+      const base = baseURL.replace(/\/+$/, '')
+      const url = `${base}/${anthropic ? /\/v1$/.test(base) ? 'messages' : 'v1/messages' : responses ? 'responses' : 'chat/completions'}`
+      let status: number | undefined
+      try {
+        const response = await fetch(url, {
+          method: 'POST', signal: timer.signal,
+          headers: { ...headers, 'content-type': 'application/json',
+            ...anthropic ? { 'anthropic-version': '2023-06-01', ...apiKey === undefined ? {} : { 'x-api-key': apiKey } }
+              : apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` },
+          },
+          body: JSON.stringify(body),
+        })
+        status = response.status
+        if (!response.ok) {
+          return classify(status, await response.text())
+        }
+        let text = false
+        let called = false
+        let providerError: LlmProtocolCheck | undefined
+        let finished = false
+        const observe = (reply: Reply): void => {
+          if (reply.error !== undefined || reply.type === 'error' || reply.type === 'response.failed') {
+            providerError = classify(response.status, JSON.stringify(reply))
+          }
+          text ||= (reply.text?.length ?? 0) > 0
+            || (typeof reply.delta === 'string' ? reply.delta.length > 0 : (reply.delta?.text?.length ?? 0) > 0)
+            || reply.choices?.some(choice => (choice.message?.content?.length ?? choice.delta?.content?.length ?? 0) > 0) === true
+            || reply.content?.some(block => block.type === 'text' && (block.text?.length ?? 0) > 0) === true
+            || reply.output?.some(item => item.content?.some(block => (block.text?.length ?? 0) > 0)) === true
+          called ||= reply.choices?.some(choice => choice.message?.tool_calls?.some(call =>
+            call.type === 'function' && call.function?.name === 'ping' && typeof call.function.arguments === 'string')) === true
+            || reply.content?.some(block => block.type === 'tool_use' && block.name === 'ping' && block.input !== undefined) === true
+            || reply.output?.some(item => item.type === 'function_call' && item.name === 'ping' && typeof item.arguments === 'string') === true
+          finished ||= reply.type === 'message_stop' || reply.type === 'response.completed'
+        }
+        if (streaming) {
+          if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+            await response.body?.cancel()
+            return failed('other', status)
+          }
+          const reader = response.body!.getReader()
+          const decoder = new TextDecoder()
+          let pending = ''
+          try {
+            for (;;) {
+              const next = await reader.read()
+              pending += decoder.decode(next.value, { stream: !next.done })
+              const lines = pending.split(/\r?\n/)
+              pending = lines.pop() ?? ''
+              if (next.done && pending.length > 0) lines.push(pending)
+              for (const line of lines) {
+                if (!line.startsWith('data:')) continue
+                const data = line.slice(5).trim()
+                if (data === '[DONE]') finished = true
+                else if (data.length > 0) observe(JSON.parse(data) as Reply)
+              }
+              if (next.done || finished) break
+            }
+          } finally {
+            await reader.cancel()
+            reader.releaseLock()
+          }
+        } else observe(await response.json() as Reply)
+        return providerError ?? ((tool ? called : text) && (!streaming || finished)
+          ? { ok: true } : failed('other', status))
+      } catch (error: unknown) {
+        const failure = normalizeLlmFailure(error)
+        return failed(timeoutOf(timer.signal) !== undefined || failure.code.includes('TIMEOUT') ? 'timeout' : 'other', status)
+      }
+    }
+    return Promise.all(protocols.map(async api => ({
+      api,
+      text: await check(api, 'text'),
+      stream: await check(api, 'stream'),
+      tool: await check(api, 'tool'),
+      image: await check(api, 'image'),
+    })))
+  }
+
+  /**
+   * Save a tested protocol, reusing credentials without exposing their values.
+   * @param settingsNs - source provider namespace.
+   * @param request - endpoint and one-shot key from the form.
+   * @param model - model to retain in a separate route.
+   * @param api - selected protocol.
+   * @param separate - create a route containing only this model.
+   * @param expectedRevision - source revision the editor opened at.
+   * @returns whether all requested writes completed.
+   */
+  @Remote('saveModelProtocol')
+  async saveModelProtocol(
+    settingsNs: string, request: LlmModelDiscoveryRequest, model: string,
+    api: LlmProbeProtocol, separate: boolean, expectedRevision: number | undefined,
+  ): Promise<{ ok: boolean }> {
+    try {
+      const settings = (this.ctx.get('settings') as ProtocolSettings | undefined)!
+      const namespaces = settings.describe()
+      const source = namespaces.find(value => value.ns === settingsNs)!
+      const entry = [...this.directory.values()].find(value => value.settingsNs === settingsNs && value.provider === request.provider)
+      const path = entry?.settingsPath ?? ['providers', request.provider!]
+      let profile = source.value as Record<string, JsonValue>
+      for (const part of path) profile = (profile[part] ?? {}) as typeof profile
+      const target = namespaces.find(value => value.ns === 'llm-pi-ai')!
+      const environment = launchEnvironmentOf(this.ctx)
+      const baseURL = request.baseURL ?? profile['baseURL'] as string | undefined
+        ?? entry?.baseURLEnv?.map(ref => environment.get(ref)?.value).find(value => value !== undefined) ?? entry?.defaultBaseURL
+      let ref = profile['apiKeyEnv'] as string | undefined
+      if (ref === undefined && request.apiKey === undefined) {
+        for (const candidate of entry?.nativeAuth?.env ?? []) {
+          const credentials = this.ctx.get('credentials')
+          const value = credentials === undefined ? environment.get(candidate)?.value
+            : (await credentials.resolve(credentialRef(candidate)))?.value
+          if (value !== undefined) { ref = candidate; break }
+        }
+      }
+      const providers = (target.value as Record<string, Record<string, object>>)['providers']!
+      const stem = (request.provider ?? model).toLowerCase().replace(/[^a-z0-9-]/g, '-')
+      let route = `protocol-${stem}`
+      for (let suffix = 2; route in providers; suffix += 1) route = `protocol-${stem}-${String(suffix)}`
+      if (request.apiKey !== undefined) {
+        if (separate || ref === undefined) ref = `${(separate ? route : request.provider!).replace(/-/g, '_').toUpperCase()}_API_KEY`
+        await this.ctx.get('credentials')!.set(credentialRef(ref), assertUsableApiKey(request.apiKey, 'llm', 'probe'))
+      }
+      if (separate) {
+        const models = profile['models'] as Record<string, JsonValue>[] | undefined
+        const picked = models?.find(value => value['id'] === model) ?? { id: model }
+        const { inputModalities, ...fields } = picked
+        await settings.mutate(target.ns, [{ op: 'set', path: ['providers', route], value: {
+          api, ...baseURL === undefined ? {} : { baseURL },
+          ...profile['headers'] === undefined ? {} : { headers: profile['headers'] },
+          ...ref === undefined ? {} : { apiKeyEnv: ref },
+          models: [{ ...fields, ...inputModalities === undefined ? {} : { input: inputModalities } }],
+        } }], target.revision)
+      } else {
+        if (settingsNs !== target.ns) return { ok: false }
+        await settings.mutate(source.ns, [
+          { op: 'set', path: [...path, 'api'], value: api },
+          ...entry === undefined ? [{ op: 'set' as const, path: [...path, 'models'], value: [{ id: model }] }] : [],
+          ...baseURL === undefined ? [] : [{ op: 'set' as const, path: [...path, 'baseURL'], value: baseURL }],
+          ...ref === undefined ? [] : [{ op: 'set' as const, path: [...path, 'apiKeyEnv'], value: ref }],
+        ], expectedRevision)
+      }
+      return { ok: true }
+    } catch (error: unknown) {
+      // Provider diagnostics may include credentials; only the write outcome crosses the Remote.
+      return { ok: false }
+    }
   }
 
   private streamWithRegistration(

@@ -30,6 +30,9 @@ export type ModelDiscoveryOutcome =
   /** The interrogation was refused, with the Host's own diagnostic. */
   | { readonly kind: 'refused'; readonly message: string }
 
+/** Generated successful payload of the protocol probe Remote. */
+export type ProtocolResults = Extract<Awaited<ReturnType<ClientContext['remote']['llm']['probeModelProtocols']>>, { ok: true }>['value']
+
 /** The Host operations the Models page and its cards invoke. */
 export interface ModelsOperations {
   /**
@@ -72,6 +75,10 @@ export interface ModelsOperations {
    * @returns success, or the host's failure.
    */
   probeModel(provider: string, model: string): Promise<{ readonly ok: boolean; readonly message?: string | undefined }>
+  /** Probe text, streaming, tools, and images without returning provider diagnostics. */
+  probeModelProtocols(settingsNs: string, request: LlmModelDiscoveryRequest, model: string): Promise<ProtocolResults | undefined>
+  /** Save a protocol on this route or a separate single-model route. */
+  saveModelProtocol(settingsNs: string, request: LlmModelDiscoveryRequest, model: string, api: ProtocolResults[number]['api'], separate: boolean, revision: number | undefined): Promise<boolean>
 }
 
 /**
@@ -101,6 +108,14 @@ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
       return response.ok
         ? { kind: 'found', models: response.value }
         : { kind: 'refused', message: response.error.message }
+    },
+    probeModelProtocols: async (settingsNs, request, model) => {
+      const response = await ctx.remote.llm.probeModelProtocols(settingsNs, request, model)
+      return response.ok ? response.value : undefined
+    },
+    saveModelProtocol: async (settingsNs, request, model, api, separate, revision) => {
+      const response = await ctx.remote.llm.saveModelProtocol(settingsNs, request, model, api, separate, revision)
+      return response.ok && response.value.ok
     },
     probeModel: async (provider, model) => {
       const response = await ctx.remote.llm.probeModel(provider, model)

@@ -125,6 +125,8 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
 export interface DeepSeekModelsEditorProps {
   /** Effective rows: inherited until the parent materializes an override. */
   models: readonly DeepSeekModelDraft[]
+  /** Per-row compatibility action supplied by the owning provider card. */
+  renderProtocolProbe?: (model: DeepSeekModelDraft) => ReactNode
   /** Whether the user layer currently owns the whole array. */
   overridden: boolean
   /** Fallback context capacity used when a row omits its exact value. */
@@ -275,6 +277,7 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
                 key={index}
                 model={model}
                 position={index + 1}
+                protocolProbe={props.renderProtocolProbe?.(model)}
                 inputField="inputModalities"
                 expanded={expanded.has(index)}
                 disabled={props.disabled}

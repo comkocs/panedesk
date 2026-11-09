@@ -61,6 +61,8 @@
     "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
+    "@panedesk/dsh-credentials": "workspace:*",
+    "@panedesk/dsh-launch-environment": "workspace:*",
     "@panedesk/dsh-util-crypto": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3",

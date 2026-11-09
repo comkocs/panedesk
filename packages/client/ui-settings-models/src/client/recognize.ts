@@ -33,10 +33,12 @@ function newestFirst(left: LlmDiscoveredModel, right: LlmDiscoveredModel): numbe
 /**
  * Order one listing and check the newest model per family, retaining variant words.
  * @param models - models the endpoint advertised, in its own order.
+ * @param configured - existing entries, shown first and checked even when unlisted.
  * @returns the display order, the default checks, and the basis.
  */
 export function defaultRecognizedSelection(
   models: readonly LlmDiscoveredModel[],
+  configured: readonly LlmDiscoveredModel[] = [],
 ): RecognizedSelection {
   const versioned = models.some(model => /\d/.test(model.id))
   const dated = models.some(model => model.createdAt !== undefined)
@@ -49,8 +51,10 @@ export function defaultRecognizedSelection(
     families.add(family)
     checked.add(model.id)
   }
+  const known = new Set(configured.map(model => model.id))
+  for (const id of known) checked.add(id)
   return {
-    models: ordered,
+    models: [...configured, ...ordered.filter(model => !known.has(model.id))],
     checked,
     orderBasis: versioned ? 'version' : dated ? 'createdAt' : 'server',
   }

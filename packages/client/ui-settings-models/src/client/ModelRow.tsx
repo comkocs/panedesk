@@ -39,6 +39,7 @@ interface ModelRowProps {
   onChange: (model: DeepSeekModelDraft) => void
   onToggle: () => void
   onRemove: () => void
+  protocolProbe?: ReactNode
 }
 
 /**
@@ -89,6 +90,7 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           <IconTrashOutlineRegular size={14} />
         </button>
       </div>
+      {props.protocolProbe}
       {props.reasoningLevels !== undefined && props.reasoningLevels.length > 0
         ? (
           <button type="button" className={styles['linkButton']} disabled={disabled} onClick={props.onToggle}>

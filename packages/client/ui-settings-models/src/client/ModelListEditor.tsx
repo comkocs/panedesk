@@ -67,6 +67,10 @@ export interface ProbeTarget {
 export interface ModelListEditorProps {
   /** The rows as currently drafted. */
   models: readonly ModelDraft[]
+  /** Per-row compatibility action supplied by the owning provider card. */
+  renderProtocolProbe?: (model: ModelDraft) => ReactNode
+  /** Commit a recognized selection immediately on an existing provider. */
+  onSaveSelection?: (models: ModelDraft[]) => Promise<string | undefined>
   /** Installed provider whose catalog supplies defaults without endpoint I/O. */
   catalogProvider?: string | undefined
   /**
@@ -278,16 +282,14 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       }
       const found = answer.models
       if (catalogProvider !== undefined) setInheritedCatalog({ provider: catalogProvider, models: found })
-      if (found.length === 0) {
+      if (found.length === 0 && models.length === 0) {
         setFailure(t('fetchEmpty'))
         return
       }
-      // Existing rows stay unchecked without promoting older models in their family.
-      const known = new Set(models.map(model => textOf(model, 'id')))
-      const selection = defaultRecognizedSelection(found)
+      const selection = defaultRecognizedSelection(found, models.map(model => ({ id: textOf(model, 'id'), name: textOf(model, 'name') })))
       setCandidateQuery('')
       setCandidates(selection.models)
-      setPicked(new Set([...selection.checked].filter(id => !known.has(id))))
+      setPicked(new Set(selection.checked))
     } finally {
       setBusy(false)
     }
@@ -299,20 +301,27 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     setCandidateQuery('')
   }
 
-  const adoptPicked = (): void => {
+  const adoptPicked = async (): Promise<void> => {
     /* v8 ignore next -- the dialog only renders with candidates loaded */
     if (candidates === undefined) return
     const byId = new Map(models.map(model => [textOf(model, 'id'), model]))
-    for (const candidate of candidates) {
-      if (!picked.has(candidate.id)) continue
-      // A row the user already tuned wins over the provider's own numbers.
-      // Keyed by id, so a half-typed row whose id is still empty is not a
-      // match and the candidate joins as its own row — correct, since a row
-      // without an id is not yet a model and the create/apply gates refuse it.
-      if (!byId.has(candidate.id)) props.onRowEdited?.(byId.size)
-      byId.set(candidate.id, byId.get(candidate.id) ?? adopt(candidate))
+    for (let index = models.length - 1; index >= 0; index -= 1) {
+      if (!picked.has(textOf(models[index] as ModelDraft, 'id'))) props.onRowRemoved?.(index)
     }
-    onChange([...byId.values()])
+    const next = candidates.filter(candidate => picked.has(candidate.id)).map((candidate, index) => {
+      props.onRowEdited?.(index)
+      return byId.get(candidate.id) ?? adopt(candidate)
+    })
+    if (props.onSaveSelection !== undefined) {
+      setBusy(true)
+      try {
+        const failure = await props.onSaveSelection(next)
+        if (failure !== undefined) { setFailure(failure); return }
+      } finally { setBusy(false) }
+    }
+    onChange(next)
+    setExpanded(new Set())
+    setEditing(new Map())
     closePicker()
   }
 
@@ -324,6 +333,9 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
+  const configuredIds = new Set(models.map(model => textOf(model, 'id')))
+  const additions = [...picked].filter(id => !configuredIds.has(id)).length
+  const removals = [...configuredIds].filter(id => !picked.has(id)).length
   const activeCandidates = candidates ?? []
   const normalizedCandidateQuery = candidateQuery.trim().toLowerCase()
   const visibleCandidates = normalizedCandidateQuery.length === 0
@@ -403,6 +415,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             model={model}
             reasoningModel={reasoningModel(model)}
             position={index + 1}
+            protocolProbe={props.renderProtocolProbe?.(model)}
             inputField="input"
             inputFallback={props.defaultInput}
             inputLoading={catalogProvider !== undefined && catalog === undefined}
@@ -451,15 +464,15 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       {failure !== undefined ? <p className={styles['error']}>{failure}</p> : null}
       <Modal
         open={candidates !== undefined}
-        onClose={closePicker}
+        onClose={() => { if (!busy) closePicker() }}
         title={t('fetchTitle')}
         closeLabel={t('close')}
         description={t('fetchDescription')}
         className={styles['fetchDialog'] as string}
         footer={(
           <>
-            <Button variant="outline" onClick={closePicker}>{t('cancel')}</Button>
-            <Button variant="outline" onClick={adoptPicked}>{t('fetchAdopt')}</Button>
+            <Button variant="outline" disabled={busy} onClick={closePicker}>{t('cancel')}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => { void adoptPicked() }}>{t('fetchAdopt')}</Button>
           </>
         )}
       >
@@ -475,7 +488,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           <Button
             variant="ghost"
             size="sm"
-            disabled={visibleCandidates.length === 0}
+            disabled={busy || visibleCandidates.length === 0}
             onClick={toggleVisibleCandidates}
           >
             {t(allVisibleCandidatesPicked ? 'fetchDeselectAll' : 'fetchSelectAll')}
@@ -491,16 +504,19 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                     <input
                       type="checkbox"
                       checked={picked.has(candidate.id)}
+                      disabled={busy}
                       onChange={() => { toggle(candidate.id) }}
                     />
                     <span className={styles['candidateId']} title={candidate.name ?? candidate.id}>
                       {candidate.id}
                     </span>
+                    {configuredIds.has(candidate.id) ? <span>{t('recognizedAdded')}</span> : null}
                   </label>
                 </li>
               ))}
             </ul>
           )}
+        <p role="status">{t('recognizedChanges').replace('{add}', String(additions)).replace('{remove}', String(removals))}</p>
       </Modal>
     </section>
   )

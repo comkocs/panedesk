@@ -33,6 +33,7 @@ import type { DeepSeekModelsValidationFailure } from './DeepSeekModelsEditor.tsx
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
+import { ProtocolProbe } from './ProtocolProbe.tsx'
 import { validateReasoningEfforts } from './ModelReasoningEfforts.tsx'
 import type { ReasoningEffortsFailure } from './ModelReasoningEfforts.tsx'
 import { deriveKeyRef, protocolChoices, reasoningLevelChoices } from './store.ts'
@@ -195,7 +196,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const root = useMemo(() => schema.rehydrate(namespace.schema), [namespace.schema, schema])
   const node = useMemo(() => schema.nodeAtPath(root, settingsPath), [root, schema, settingsPath])
   const fallback = schema.getPath(namespace.value, settingsPath)
-  const disabled = props.readOnly || busy
+  const disabled = props.readOnly || busy || listBusy
   const layout = layoutOf(namespace.ns)
   const keyRef = refFor(schema, namespace, settingsPath, props.provider)
   // The same schema read the create card makes, so the choices offered here
@@ -406,6 +407,11 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const catalogProps = {
       models,
       overridden: modelsOverridden,
+      renderProtocolProbe: (model: Record<string, unknown>) => <ProtocolProbe
+        target={probe} model={model['id'] as string} operations={operations} t={t}
+        disabled={disabled} revision={expectedRevision} onBusyChange={setListBusy}
+        onSaved={() => { props.onClose(true) }}
+      />,
       t,
       disabled,
       onChange: (next: Record<string, unknown>[]) => {
@@ -527,6 +533,16 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
               : (
                 <ModelListEditor
                   {...catalogProps}
+                  onSaveSelection={async (next) => {
+                    const outcome = await operations.writeSettings(namespace.ns, [{
+                      op: 'set', path: [...settingsPath, 'models'], value: next as JsonValue,
+                    }], expectedRevision)
+                    if (outcome.kind !== 'written') return outcome.kind === 'conflict' ? t('conflict') : outcome.message
+                    setExpectedRevision(outcome.view.revision)
+                    setCommittedOriginal(schema.getPath(outcome.view.user, settingsPath))
+                    props.onClose(true)
+                    return undefined
+                  }}
                   catalogProvider={props.declared === true ? undefined : props.provider}
                   reasoningLevels={reasoningLevels}
                   reasoningCompat={schema.getPath(draft, ['compat', 'supportsReasoningEffort'])}

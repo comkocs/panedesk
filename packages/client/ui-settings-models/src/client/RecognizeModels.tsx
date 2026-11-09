@@ -41,6 +41,8 @@ export interface RecognizeModelsProps {
    * not know the count omit it and the guide stays hidden.
    */
   readonly modelCount?: number | undefined
+  /** Configured entries, including ids absent from discovery. */
+  readonly configuredModels?: readonly LlmDiscoveredModel[] | undefined
   /** Persist the selected catalog through the existing settings owner. */
   readonly onAdopt?: ((models: readonly LlmDiscoveredModel[]) => Promise<string | undefined>) | undefined
 }
@@ -82,12 +84,12 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
         setRecognized(undefined)
         return
       }
-      if (answer.models.length === 0) {
+      if (answer.models.length === 0 && (props.configuredModels?.length ?? 0) === 0) {
         setFailure(t('recognizeEmpty'))
         setRecognized(undefined)
         return
       }
-      const selection = defaultRecognizedSelection(answer.models)
+      const selection = defaultRecognizedSelection(answer.models, props.configuredModels)
       setRecognized({ models: selection.models, checked: new Set(selection.checked), orderBasis: selection.orderBasis })
     } catch (error: unknown) {
       setFailure(error instanceof Error ? error.message : String(error))
@@ -143,6 +145,10 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
     }
   }
 
+  const configuredIds = new Set(props.configuredModels?.map(model => model.id))
+  const additions = [...recognized?.checked ?? []].filter(id => !configuredIds.has(id)).length
+  const removals = [...configuredIds].filter(id => !recognized?.checked.has(id)).length
+
   return (
     <div className={styles['recognize']}>
       <button type="button" className={styles['secondaryButton']} disabled={disabled || busy || props.keyRequired === true} onClick={() => { void recognize() }}>
@@ -172,11 +178,13 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
                       onChange={() => { toggle(model.id) }}
                     />
                     <span className={styles['candidateId']}>{model.name ?? model.id}</span>
+                    {configuredIds.has(model.id) ? <span>{t('recognizedAdded')}</span> : null}
                   </label>
                 </li>
               ))}
             </ul>
-            {props.onAdopt === undefined ? null : <button type="button" disabled={disabled || busy || recognized.checked.size === 0} onClick={() => { void adopt() }}>{t('fetchAdopt')}</button>}
+            <p role="status">{t('recognizedChanges').replace('{add}', String(additions)).replace('{remove}', String(removals))}</p>
+            {props.onAdopt === undefined ? null : <button type="button" disabled={disabled || busy} onClick={() => { void adopt() }}>{t('fetchAdopt')}</button>}
           </div>
         )}
       {saved === undefined ? null : <p role="status">{t('recognizedSaved').replace('{count}', String(saved))}</p>}

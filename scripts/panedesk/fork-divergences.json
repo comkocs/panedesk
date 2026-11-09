@@ -15565,6 +15565,19 @@
           "packages/client/ui-workspace/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "model-selection-save-and-protocol-probes",
+      "description": "Save recognized model selections and inspect protocol compatibility per model",
+      "origin": "Model configuration usability",
+      "reason": "Retain configured model metadata while applying additions and removals, and show independent text, streaming, tool, and image compatibility before explicit protocol saves.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-models/",
+          "packages/llm/llm/"
+        ]
+      }
     }
   ]
 }
