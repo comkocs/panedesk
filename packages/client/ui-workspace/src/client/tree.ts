@@ -54,7 +54,7 @@ export interface SessionNode {
   running: boolean
   /** Running direct children in the loaded subagent catalog. */
   runningSubagentCount: number
-  /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
+  /** Finished running while not selected and not yet opened (the unviewed "done" reminder; the row run dot stays gray for it). */
   completed: boolean
   /** In the registry-global pin set: leads its section, reorderable only among pinned rows. */
   pinned: boolean
@@ -95,7 +95,7 @@ export interface SearchResultNode {
   running: boolean
   /** Running direct children in the loaded subagent catalog. */
   runningSubagentCount: number
-  /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
+  /** Finished running while not selected and not yet opened (the unviewed "done" reminder; the row run dot stays gray for it). */
   completed: boolean
   /** In the registry-global archive set: shown grayed and not openable. */
   archived: boolean

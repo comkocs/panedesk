@@ -15465,6 +15465,23 @@
           "pnpm-lock.yaml"
         ]
       }
+    },
+    {
+      "id": "sidebar-session-row-context-menu-and-run-dot",
+      "description": "Open the sidebar row menus on right click and replace the session row spinner with a run dot",
+      "origin": "Panedesk sidebar interaction parity with Claude desktop",
+      "reason": "Right-clicking a Session or Workspace row opens the same menu its ellipsis button shows, placed at the pointer through the Menu primitive's getAnchorRect; the Workspace menu gains a New session here entry on the hover button's create path. Every Session row carries one run dot instead of the shared ongoing loader: green while the Session works, the secondary label gray otherwise, so the leading seat is left unrendered and scheduled tasks stay listed on the hover card. The menu entries reuse the existing slot lists unchanged.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+          "packages/client/ui-workspace/src/client/rows/Rows.module.css",
+          "packages/client/ui-workspace/src/client/tree.ts",
+          "packages/client/ui-workspace/src/client/locales.ts",
+          "packages/client/ui-workspace/README.md",
+          "packages/client/ui-workspace/README.zh.md"
+        ]
+      }
     }
   ]
 }

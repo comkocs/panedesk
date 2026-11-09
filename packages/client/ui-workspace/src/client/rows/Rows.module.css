@@ -135,6 +135,32 @@
   white-space: nowrap;
 }
 
+/* Session run dot: a 6px core in the same 10px cell as the shared solid dots —
+ * green while the Session works (an own run or a running descendant), the
+ * secondary label gray otherwise; the per-status colors stay on the hover
+ * card. */
+.runDot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.runDot::after {
+  content: '';
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  corner-shape: round;
+  background: currentColor;
+}
+
+.runDotRunning {
+  color: var(--status-good, #0ca30c);
+}
+
 .folderActive {
   color: var(--dsw-alias-state-business-primary);
 }
