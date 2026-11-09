@@ -236,7 +236,7 @@ export class JournalSessionLedger extends SessionLedger {
         catch (error) { ctx.logger.warn('Ledger mirror rejected a committed local fact', error) }
       },
       identity: new WriterLockIdentity(),
-      lockTimeoutMs: config.lockTimeoutMs ?? 5000,
+      lockTimeoutMs: config.lockTimeoutMs ?? 30000,
       lockRetryMs: config.lockRetryMs ?? 10,
       maxRecordBytes: config.maxRecordBytes ?? 16 * 1024 * 1024,
     }

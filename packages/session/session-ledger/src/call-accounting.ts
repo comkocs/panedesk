@@ -11,6 +11,13 @@ import type {
 } from './types.ts'
 import type { CallContributor, CallContribution, CallContributionScope } from './call-contributor.ts'
 import { callWaits } from './call-waits.ts'
+import { LedgerUnavailableError } from './lock.ts'
+
+function isLockTimeout(error: unknown): boolean {
+  if (error instanceof LedgerUnavailableError && error.lockTimeoutCode === 'LEDGER_LOCK_TIMEOUT') return true
+  if (error instanceof AggregateError && error.errors.some(isLockTimeout)) return true
+  return error instanceof Error && error.cause !== undefined && isLockTimeout(error.cause)
+}
 
 interface SessionState {
   logicalRequestId: LedgerRequestId
@@ -112,6 +119,12 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
       if (sessionState.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: sessionState.failure })
       contribution = await contributor?.prepare({ request, id, agent, auxiliary })
       yield* metered(request, next, id, agent, state, service, contribution)
+    } catch (error: unknown) {
+      if (agent?.session.header.parentSession !== undefined && isLockTimeout(error)) {
+        throw new LlmError('The local ledger file was busy; the subagent stopped and can be dispatched again.',
+          'LEDGER_LOCK_TIMEOUT', { cause: error })
+      }
+      throw error
     } finally {
       try { await contribution?.dispose(state.failure) } finally {
         completed.resolve()
