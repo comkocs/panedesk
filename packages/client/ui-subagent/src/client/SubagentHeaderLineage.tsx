@@ -717,7 +717,7 @@ function CatalogDropdown({
             <>
               {runningCount > 0 && (
                 <span className={css.activitySlot}>
-                  <StateDot state="ongoing" />
+                  <StateDot state="done" />
                 </span>
               )}
               <span className={css.count}>{t(totalCountKey, { count: directCount })}</span>
