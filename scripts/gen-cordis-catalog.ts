@@ -232,6 +232,8 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  productFeatures: 'feature-local remote configuration path reader — packages/client/ui-settings-general/README.md owns the API',
+  subagentTreeUI: 'client-side tree and map presentation operations — packages/client/ui-subagent-tree/README.md owns the API',
   ledgerMirror: 'provider-installed interface-typed secondary ledger — packages/storage/storage-postgres/README.md owns append and snapshot behavior',
   messageDeliveryUnavailable: 'optional local delivery refusal value — packages/session/message-delivery-local/README.md owns the API',
   hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',
@@ -1116,6 +1118,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SkillCatalogPageEntry: 'skills.md',
   SkillCatalogPageValue: 'skills.md',
   LlmModelProbeResult: 'llm-streaming.md',
+  LlmProtocolProbeResult: 'llm-streaming.md',
+  LlmProbeProtocol: 'llm-streaming.md',
   AuthorizationEntry: 'credentials.md',
   AuthorizationFlow: 'credentials.md',
   AuthorizationInteraction: 'credentials.md',

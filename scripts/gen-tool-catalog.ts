@@ -62,6 +62,8 @@ import TerminalSessionService from '@panedesk/dsh-terminal'
 import * as ToolPty from '@panedesk/dsh-tool-terminal'
 import * as ToolGoal from '@panedesk/dsh-tool-goal'
 import * as ToolPanedeskSettings from '@panedesk/dsh-tool-panedesk-settings'
+import * as ToolSql from '@panedesk/dsh-tool-sql'
+import type DatabaseConnections from '@panedesk/dsh-db-connections'
 import type SettingsService from '@panedesk/dsh-settings'
 import type { ConfigEditor } from '@panedesk/dsh-config-editor'
 import * as ToolSchedule from '@panedesk/dsh-tool-schedule'
@@ -439,6 +441,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-sql',
+    dir: 'tool-sql',
+    source: 'packages/database/tool-sql/src/index.ts',
+    requires: ['ctx.tools', 'ctx.databaseConnections'],
+    writes: ['tool/call', 'database changes for SQL writes', 'tool/result'],
+    async mount(ctx) {
+      ctx.provide('databaseConnections', {
+        listConnections: async () => [{ name: 'catalog', modelEnabled: true }],
+      } as DatabaseConnections)
+      await ctx.plugin(ToolSql)
+    },
+    note: 'The connection enum contains only owner-enabled connections. SQL authority follows the database account; the catalog collects schemas without opening a connection.',
   },
   {
     pkg: '@panedesk/dsh-tool-panedesk-settings',
