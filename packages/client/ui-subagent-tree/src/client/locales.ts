@@ -1,7 +1,8 @@
 /** Typed English and Chinese subagent-tree copy, including unknown and recovery states. */
 export const en = {
   title: 'Subagent tree', open: 'Open the subagent tree in the right sidebar',
-  description: 'Read-only parent-child tree with per-node usage and monitoring.',
+  description: 'Parent-child tree with per-node usage, monitoring and Stop controls.',
+  stop: 'Stop', stopFailed: 'Could not stop the node. Check the connection and node status, then retry.',
   transcriptNote: 'Built-in model names come from session transcripts; external model names come from the registry. Missing names stay unknown.',
   external: 'External', startedAt: 'Started', endedAt: 'Ended', totalTokens: 'Input + output',
   registryFile: 'External subagent registry file',
@@ -26,7 +27,7 @@ export const en = {
   refresh: 'Refresh now', monitor: 'Monitor', monitorTitle: 'Subagent monitoring',
   monitorClose: 'Close monitoring', status: 'Status', running: 'Running', waiting: 'Waiting', finished: 'Finished',
   liveness: 'Process liveness', confirmed: 'Confirmed live', unknown: 'Unknown', dead: 'Not live',
-  endReason: 'End reason', completed: 'Completed', timeout: 'Timed out', killed: 'Killed', errored: 'Failed', cancelled: 'Cancelled',
+  endReason: 'End reason', completed: 'Completed', timeout: 'Timed out', killed: 'Stopped', errored: 'Failed', cancelled: 'Stopped',
   model: 'Model', modelUnknown: 'Unknown (not in transcript)', unreadable: 'Unknown (transcript unreadable)',
   unavailable: 'Unknown (transcript unavailable)',
   tokens: 'Tokens', inputTokens: 'Uncached input', cacheReadTokens: 'Cache read', cacheWriteShortTokens: 'Cache write (short tier)',
@@ -43,11 +44,12 @@ export type SubagentTreeKey = keyof typeof en
 /** Chinese copy has the same complete key set. */
 export const zh = {
   title: '子代理树', open: '在右栏打开子代理树',
-  description: '只读的父子会话树，逐节点展示用量与监测。',
+  description: '父子会话树，逐节点展示用量、监测与停止操作。',
+  stop: '停止', stopFailed: '停止失败，请检查连接与节点状态后重试。',
   transcriptNote: '内置子代理模型名来自会话转录，外部子代理模型名来自登记文件；缺失保持未知。',
   external: '外部', startedAt: '开始时间', endedAt: '结束时间', totalTokens: '输入 + 输出',
   registryFile: '外部子代理登记文件',
-  registryHint: '填上 派.sh 的登记文件路径后,用 派.sh 开的子代理也会显示在子代理树里;不用 派.sh 就留空。',
+  registryHint: '填上你的派遣脚本的登记文件路径后，外部子代理也会显示在子代理树里；不使用派遣脚本就留空。',
   registryScope: '适用范围：全局（当前运行配置的所有项目）',
   registryEnabled: '启用外部登记文件（缺省关闭；选好文件自动打开）',
   registryPath: '登记文件路径', registryChoose: '选择文件',
@@ -68,7 +70,7 @@ export const zh = {
   refresh: '立即刷新', monitor: '监测', monitorTitle: '子代理监测',
   monitorClose: '关闭监测', status: '状态', running: '运行中', waiting: '等待', finished: '已结束',
   liveness: '进程存活', confirmed: '已确认存活', unknown: '未知', dead: '未见存活',
-  endReason: '结束原因', completed: '已完成', timeout: '超时', killed: '被杀', errored: '失败', cancelled: '已取消',
+  endReason: '结束原因', completed: '已完成', timeout: '超时', killed: '已停止', errored: '失败', cancelled: '已停止',
   model: '模型', modelUnknown: '未知（转录中无）', unreadable: '未知（转录不可读）',
   unavailable: '未知（转录不可用）',
   tokens: 'Token', inputTokens: '未缓存输入', cacheReadTokens: '缓存读取', cacheWriteShortTokens: '缓存写入（短档）',

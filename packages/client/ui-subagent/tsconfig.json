@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../ui-subagent-tree/tsconfig.client.json" },
     {
       "path": "../../api/job-controller/tsconfig.client.json"
     },

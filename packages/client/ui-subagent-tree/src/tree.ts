@@ -48,6 +48,8 @@ export interface SubagentSessionFacts {
 
 /** Transcript facts one node contributes; see {@link foldTranscriptFacts}. */
 export interface SubagentTranscriptFacts {
+  /** Latest own turn activity; absent when no turn event was observed. */
+  readonly activity?: 'running' | 'idle' | 'stopped'
   /** Latest observed request or response model from the session's own log; `null` stays unknown. */
   readonly model: string | null
   /** Why `model` is absent, when it is. */
@@ -264,9 +266,12 @@ export function assembleSubagentTree(
       sessionId: fact.sessionId,
       parentSessionId: fact.parentSessionId,
       children: [],
-      status: fact.status,
+      status: transcript?.activity === 'stopped' ? 'finished'
+        : transcript?.activity === 'running' && fact.status === 'idle' ? 'running'
+        : transcript?.activity === 'idle' && fact.status === 'running' ? 'idle' : fact.status,
       liveness: fact.liveness,
-      ...(fact.endReason !== undefined ? { endReason: fact.endReason } : {}),
+      ...(transcript?.activity === 'stopped' ? { endReason: 'cancelled' as const }
+        : fact.endReason !== undefined ? { endReason: fact.endReason } : {}),
       model: transcript?.model ?? null,
       modelSource: transcript?.modelSource ?? 'unavailable',
       tokens: fact.tokens,

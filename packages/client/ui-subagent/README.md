@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browse local subagent conversations and external tasks from the parent header. Local conversations show activity, token usage, and duration; continuable children accept follow-up prompts and support Stop. External tasks appear as non-navigable leaves without an execution status. Historical one-shot conversations open as read-only records. The ordinary sidebar omits subagent conversations, and the separate `@` source inserts a running child's label without granting continuation authority.
+Browse local subagent conversations and external tasks from the parent header. Local conversations show activity, token usage, and duration; continuable children accept follow-up prompts and support Stop. External tasks appear as non-navigable leaves; registered external tasks expose their status and Stop action in the map. Historical one-shot conversations open as read-only records. The ordinary sidebar omits subagent conversations, and the separate `@` source inserts a running child's label without granting continuation authority.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ The session header keeps the current session title as the lineage breadcrumb; wh
 
 This package registers the `dsh-resource://subagentchat/session/<child>?parent=<parent>&mode=<mode>` resource and builtin Sidebar tab type. The resource retains the child `SessionReference` directly from its address without refreshing the parent catalog, and releases the reference when the tab record closes. The tab renders the shared `conversation.content` Factory through `sidebar.chat.conversation`, fixes the local View to Chat, and omits the main Conversation header and width controls.
 
-The composer's Agent map button sits between permissions and model selection. It opens a scrollable map with the current session in the middle and compact descendant cards on upper and lower buses, including external tasks. Select a local card for its task preview and an action to open the conversation. Background shell tasks appear at the lower left; selecting one shows its command and recent output without changing execution. Close the panel with its close button or Escape.
+The composer's Agent map button sits between permissions and model selection. It opens a scrollable map with the current session in the middle and compact descendant cards on upper and lower buses, including external tasks. Select a local card for its task preview and an action to open the conversation. Background shell tasks appear at the lower left; selecting one shows its command and recent output. Every map card prefixes its title with a green dot while running, waiting or stopping, otherwise gray. Native models come from the tree's own-session transcript fold, and registered external cards prefer `实际模型` over `模型`; missing models stay unknown. The tree owns the five model-family colors, applied to the cards' left borders. Active cards have a red square Stop button and the detail pane has Stop beside Open conversation, including registered external nodes and shell tasks. Native Stop interrupts the node and its active descendants child-first; external Stop terminates the recorded process trees and appends a terminal registry record; shell Stop calls `job.kill`. No confirmation is shown. Settled stops display Stopped and gray dots. Close the panel with its close button or Escape.
 
 ### Browsing the tree
 
@@ -120,7 +120,7 @@ Append-only. This package never edits earlier request tokens.
 
 These limits define what the catalog can show and what `@` references mean; they are current package constraints.
 
-- **Non-completed inactive outcomes remain grouped** — the catalog distinguishes a latest normal completion from other inactive states, but does not distinguish failure, cancellation, refusal, token exhaustion, or a child with no closed turn; the UI exposes no Activation identity, and stopping is limited to the composer's current-turn Stop for a running continuable child.
+- **Non-completed inactive outcomes remain grouped** — the catalog distinguishes a latest normal completion from other inactive states, but does not distinguish failure, cancellation, refusal, token exhaustion, or a child with no closed turn; the UI exposes no Activation identity, the map additionally shows transcript-backed stopped states.
 - **`@` references remain display-title text** — duplicate or renamed labels are ambiguous, so they intentionally do not acquire continuation semantics.
 
 <a id="dev-note"></a>

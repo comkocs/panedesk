@@ -1,11 +1,13 @@
 /**
  * Subagent tree plugin, browser half: contributes the session-header pill and
- * the right-sidebar tree tab over one owner-authorized read-only Remote. The
- * tree and monitoring views stay read-only; stopping a session keeps its
- * upstream session controls.
+ * the right-sidebar tree tab and shared map controls over existing session
+ * interruption and the external registry Remote.
  */
 import type { Context as ClientContext } from '@panedesk/cordis'
-import type {} from '../types.ts'
+import type { SubagentTreeNode } from '../types.ts'
+import { isActive, modelColor, type SubagentTreeUI } from './presentation.ts'
+export type { SubagentTreeUI } from './presentation.ts'
+export type { SubagentTreeNode } from '../types.ts'
 import contribution from '@panedesk/dsh-client-ui-subagent-tree/remote'
 import type {} from '@panedesk/dsh-api-session-controller/client'
 import type {} from '@panedesk/dsh-client-locale/client'
@@ -84,7 +86,19 @@ export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTa
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.subagentTree', 'sessions'], (scope) => {
+  const ui = ctx.inject(['remote.subagentTree', 'remote.subagents', 'remote.session', 'sessions'], (scope) => {
+    const stop = async (node: SubagentTreeNode, selected = true): Promise<void> => {
+      for (const child of node.children) await stop(child, false)
+      if (!selected && !isActive(node.status)) return
+      const result = node.external
+        ? await scope.remote.subagentTree.stopExternal({ sessionId: node.sessionId })
+        : node.parentSessionId === null
+          ? await scope.remote.session.cancel({ sessionId: node.sessionId })
+          : await scope.remote.subagents.interruptByParent(node.sessionId, node.parentSessionId, 'continuable')
+      if (!result.ok) throw result.error
+    }
+    const presentation: SubagentTreeUI = { address: subagentTreeAddress, modelColor, isActive, stop }
+    scope.effect(() => scope.reflect.provide('subagentTreeUI', presentation), 'subagentTree: shared controls')
     scope.effect(() => scope.locale.register('subagentTree', { en, zh }), 'subagentTree: locale')
     const t = scope.locale.bind('subagentTree')
     scope.inject(['configForms'], settings => {
@@ -154,7 +168,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       name: 'sidebar.right.pane.tab',
       key: SUBAGENT_TREE_ID,
       locale: 'subagentTree',
-      inject: (): SubagentTreeLabels => ({ labelOf }),
+      inject: (): SubagentTreeLabels => ({ labelOf, stop }),
     }, SubagentTreeTab))
     ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
       name: 'conversation.session.header.actions',
