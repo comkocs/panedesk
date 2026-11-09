@@ -10,7 +10,7 @@
 
 先以 `action: "read"` 调用，再将返回的准确 `name` 和 JSON `value` 交给 `action: "write"`。可改项包括开窗命名开关与左右锚规则、统计开关与刷新间隔、外部登记文件路径与开关、全局文件系统技能扫描控件、节点刷新间隔与唯一已配置传输的开关，以及数据存储设置。技能和传输字段复用页面的 `configEditor.edit` 路径；存储复用 `postgresStorage.save` 并回显重启要求。只列出已装配且可编辑的设置。读取可并行，写入独占执行。
 
-工具页与本工具共用 `disabledTools` 工具名数组。经过校验的默认值不提供 `subagent_fork`、`workflow`、`create_goal`、`update_goal`、`get_goal`、`present`、`ask_user_question`，未保存设置时也一样。空数组开启全部可用工具。普通会话在第一次模型装配时固定名单，后续修改对新会话生效。委派会话保留自己的预设／类型工具映射。这是模型呈现偏好，不是执行权限：隐藏原生 schema 与 PTC SDK 条目，不改变工具注册或执行守卫。
+工具页与本工具共用 `disabledTools` 工具名数组。经过校验的默认值不提供 `subagent_fork`、`workflow`、`create_goal`、`update_goal`、`get_goal`、`present`、`ask_user_question`，未保存设置时也一样。空数组开启全部可用工具。普通会话在第一次模型装配时固定名单，后续修改对新会话生效。类型子代理呈现映射后的工具。无类型子代理仅呈现干活工具集，加上 `subagent.extra_tools` 显式点名的工具；缺省不带浏览器或 MCP 工具。`subagentsFullTools` 开关缺省为 false，开启后为新建无类型子代理恢复全部可用工具。这是模型呈现偏好，不是执行权限：隐藏原生 schema 与 PTC SDK 条目，不改变工具注册或执行守卫。
 
 ## 模型体验
 

@@ -117,6 +117,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       label: () => scope.locale.bind('toolSettings')('title'), locale: 'toolSettings',
       inject: (): ToolsSectionInjected => ({
         hooks: { preferences: form }, save: disabledTools => form.set('disabledTools', disabledTools),
+        saveFullTools: enabled => form.set('subagentsFullTools', enabled),
       }),
     }, ToolsSection))
   })

@@ -29,6 +29,13 @@ import { renderToolsSdk } from './ts-types.ts'
 import type { ToolSdkSchema } from './ts-types.ts'
 import { renderToolsSdkPy } from './py-types.ts'
 
+declare module '@panedesk/dsh-agent' {
+  interface AgentOptions {
+    /** Extra advertised tools for this untyped child; omitted means the default working set. */
+    subagentExtraTools?: readonly string[]
+  }
+}
+
 declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     /** Tool availability changes supplied by the tool registry. */

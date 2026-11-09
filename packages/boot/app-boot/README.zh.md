@@ -35,6 +35,8 @@ kind: "package-library"
 
 ### 启动应用
 
+Windows shell 选择每次启动只读取一次。宿主执行器与随后挂载的预设工具使用同一选择：Git Bash 呈现 `bash` 和 Bash 写法，PowerShell 呈现 `pwsh` 和 PowerShell 写法。保存另一种 shell 选择后须重启生效，不会在现有宿主的预设装配中途切换。
+
 你把配置文件交给入口，进程就会启动整个应用：加载环境层、应用 patch 与 profile、启动每个插件，并在应用运行后返回。在回放模式下，它会启动同级的 `cordis.snapshot.yml` 替代文件，使已记录的会话能够原样复现。最小的入口只需两次调用：
 
 ```text

@@ -23,6 +23,7 @@
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",

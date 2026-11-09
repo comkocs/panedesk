@@ -8,12 +8,13 @@ import { toolDescriptionKey } from './tool-locales.ts'
 import css from './DeveloperToolsRow.module.css'
 
 /** Persisted disabled names; an empty list enables every available tool. */
-export interface ToolSettings { disabledTools: string[] }
+export interface ToolSettings { disabledTools: string[]; subagentsFullTools: boolean }
 
 /** Accepted settings and their existing revision-fenced writer. */
 export interface ToolsSectionInjected {
   hooks: { preferences: ObservableSnapshot<ConfigFormSnapshot<ToolSettings>> }
   save(disabledTools: string[]): Promise<boolean>
+  saveFullTools(enabled: boolean): Promise<boolean>
 }
 
 type Props = PropsRuntime<'settings.section'> & PropsLocale<'toolSettings'> & InjectFace<ToolsSectionInjected>
@@ -22,21 +23,23 @@ type Props = PropsRuntime<'settings.section'> & PropsLocale<'toolSettings'> & In
  * @param props - Catalog resource, accepted configuration, writer, and locale.
  * @returns The Tools settings page.
  */
-export function ToolsSection({ useResource, usePreferences, save, t }: Props) {
+export function ToolsSection({ useResource, usePreferences, save, saveFullTools, t }: Props) {
   const catalog = useResource<'tool-catalog'>('dsh-resource://tool-catalog/current')
   const preferences = usePreferences(value => value)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const disabled = preferences.value?.disabledTools
   const writable = preferences.status === 'ready' && preferences.writable && !busy
-  const persist = (names: string[]): void => {
+  const persist = (names: string[] | boolean): void => {
     setBusy(true)
     setFailed(false)
-    void save(names).then(accepted => { setFailed(!accepted) })
+    void (typeof names === 'boolean' ? saveFullTools(names) : save(names)).then(accepted => { setFailed(!accepted) })
       .catch(() => { setFailed(true) }).finally(() => { setBusy(false) })
   }
   return <section>
     <p>{t('note')}</p><p>{t('conditions')}</p>
+    <Switch label={t('subagentsFullTools')} checked={preferences.value?.subagentsFullTools ?? false}
+      disabled={!writable} onChange={persist} />
     <Button disabled={!writable} onClick={() => { persist([]) }}>{t('enableAll')}</Button>
     {failed && <p role="alert">{t('saveFailed')}</p>}
     {catalog.status === 'failed' || preferences.status === 'unavailable'

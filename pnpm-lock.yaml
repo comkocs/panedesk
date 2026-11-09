@@ -16188,6 +16188,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@panedesk/dsh-agent-preset-registry':
+        specifier: workspace:*
+        version: link:../../preset/agent-preset-registry
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent

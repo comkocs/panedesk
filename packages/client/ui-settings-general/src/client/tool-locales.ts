@@ -2,6 +2,7 @@
 export const zh = {
   title: '工具',
   enableAll: '全部开启',
+  subagentsFullTools: '子代理也用主窗全套工具',
   note: '保存后对新会话生效（首次发送消息时读取）。已有会话保持原选择；类型子代理的工具映射不受影响。',
   conditions: '开关不解除工具自身条件：exit_plan_mode 只在计划模式出现；Windows 只提供已选的 bash 或 pwsh。',
   tokens: '约 {count} token（说明与参数）',
@@ -35,6 +36,7 @@ export type ToolSettingsKey = keyof typeof zh
 export const en = {
   title: 'Tools',
   enableAll: 'Enable all',
+  subagentsFullTools: 'Give subagents the full tool set',
   note: 'Saved changes apply to new sessions (captured at their first message). Existing sessions keep their selection; typed subagent tool mappings are unchanged.',
   conditions: 'Tool conditions still apply: exit_plan_mode appears only in plan mode; Windows offers only the selected bash or pwsh.',
   tokens: 'About {count} tokens (description and parameters)',

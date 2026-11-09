@@ -234,6 +234,10 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             required: true,
             description: wording.promptDescription,
           },
+          extra_tools: {
+            type: 'array', items: { type: 'string' },
+            description: 'Extra tool names for an untyped child, such as browser or exact Chrome DevTools MCP names. Omit for the working tool set; typed tool mappings are unchanged.',
+          },
           agent_preset: {
             type: 'string',
             ...presets.choices?.length ? { enum: [...presets.choices] } : {},
@@ -365,7 +369,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,
             ...agentPreset === undefined ? {} : { agentPreset },
-            ...requestedChildAgentOptions !== undefined ? { agentOptions: requestedChildAgentOptions } : {},
+            agentOptions: { ...requestedChildAgentOptions, subagentExtraTools: args.extra_tools ?? [] },
             ...maxDepth !== undefined ? { maxDepth } : {},
           }
 

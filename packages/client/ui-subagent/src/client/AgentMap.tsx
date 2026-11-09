@@ -198,10 +198,12 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const summary = summaries[branch.entry.id]
     const values = projections[branch.entry.id]?.values ?? summary?.projectionValues
     const fact = facts.get(branch.entry.id)
-    const running = fact?.external ? isActive(fact.status)
-      : fact?.status === 'waiting' || (statuses.get(branch.entry.id)?.running ?? summary?.running ?? (fact && isActive(fact.status))) === true
     const timing = values?.subagentTiming ?? summary?.projectionValues?.subagentTiming
+    const running = fact !== undefined ? isActive(fact.status)
+      : timing !== undefined ? timing.active !== undefined
+        : (statuses.get(branch.entry.id)?.running ?? summary?.running) === true
     const usage = values?.tokenUsage ?? summary?.projectionValues?.tokenUsage
+    const pressure = values?.contextPressure?.pressureTokens ?? summary?.projectionValues?.contextPressure?.pressureTokens ?? fact?.contextTokens
     const elapsed = timing === undefined ? undefined : timing.settledMs + (timing.active === undefined ? 0
       : Math.max(0, (running ? now : timing.active.through) - timing.active.since))
     const state = running ? 'done' : 'idle'
@@ -211,15 +213,19 @@ export function AgentMap({ sessionId, useSessions, useSessionStatus, useProjecti
     const model = fact?.model ?? null
     const metrics = [model ?? t('map.modelUnknown'), elapsed === undefined
       ? fact?.elapsedMs === null || fact?.elapsedMs === undefined ? undefined : duration(fact.elapsedMs, t)
-      : duration(elapsed, t), usage === undefined ? undefined
-      : t('tokens.total', { value: tokens(usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens) })].filter(Boolean).join(' · ')
+      : duration(elapsed, t), pressure === undefined ? t('map.contextUnknown') : t('map.context', { value: tokens(pressure) }),
+      usage === undefined ? fact?.tokens.inputTokens == null || fact.tokens.outputTokens === null ? undefined
+        : t('map.total', { value: tokens(fact.tokens.inputTokens + fact.tokens.outputTokens + (fact.tokens.cacheReadTokens ?? 0)
+          + (fact.tokens.cacheWriteTokens ?? 0) + (fact.tokens.cacheWriteShortTokens ?? 0) + (fact.tokens.cacheWriteLongTokens ?? 0)) })
+        : t('map.total', { value: tokens(usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens) })].filter(Boolean).join(' · ')
     return { label: branch.entry.label ?? summary?.displayTitle ?? branch.entry.id, status, state, metrics, model, running, stopped } as const
   }
   const rootTitle = summaries[sessionId]?.displayTitle ?? sessionId
-  const contextTokens = context?.projectedTokens ?? context?.pressureTokens
+  const contextTokens = context?.pressureTokens
   const rootFact = facts.get(sessionId)
   const rootModel = rootFact?.model ?? selection?.lastUsed?.model ?? null
-  const rootRunning = rootFact?.status === 'waiting' || (statuses.get(sessionId)?.running ?? summaries[sessionId]?.running ?? (rootFact ? isActive(rootFact.status) : false))
+  const rootRunning = rootFact !== undefined ? isActive(rootFact.status)
+    : (statuses.get(sessionId)?.running ?? summaries[sessionId]?.running) === true
   const rootStopped = !rootRunning && (rootFact?.endReason === 'cancelled' || rootFact?.endReason === 'killed')
   const rootMetrics = [rootModel ?? t('map.modelUnknown'), contextTokens === undefined ? undefined
     : t('map.context', { value: tokens(contextTokens) })].filter(Boolean).join(' · ')

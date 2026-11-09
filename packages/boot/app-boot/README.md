@@ -35,6 +35,8 @@ Use it when implementing the shared `dsh` launcher or embedding its lower-level 
 
 ### Starting the app
 
+Windows shell selection is captured once per boot. Host executors and later preset tool mounts use that same selection: Git Bash advertises `bash` with Bash syntax, and PowerShell advertises `pwsh` with PowerShell syntax. Saving a different shell choice takes effect after restart, not halfway through an existing host's preset composition.
+
 You give your entry point a config file, and the process starts the whole app: it loads your environment layers, applies patches and profiles, boots every plugin, and returns once the app is running. In replay mode it boots the sibling `cordis.snapshot.yml` instead, so a recorded session reproduces identically. The smallest entry point is two calls:
 
 ```text

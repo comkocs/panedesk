@@ -93,6 +93,7 @@ function mapTools(tools: readonly string[]): { allowed: string[]; unmapped: stri
   for (const tool of tools) {
     const agent = /^Agent\s*\(([^)]*)\)$/.exec(tool)
     const mapped = CLAUDE_TOOL_NAMES[agent === null ? tool : 'Agent']
+      ?? (tool === 'browser' || tool.startsWith('mcp__') ? [tool] : undefined)
     if (mapped === undefined) unmapped.push(tool)
     else for (const name of mapped) allowed.add(name)
     if (agent !== null) {
@@ -127,6 +128,7 @@ export async function claudeAgentPresets(ctx: Context, sources: ClaudeAgentSourc
       unmappedTools: unmapped,
       definition: {
         id: file.name,
+        tools: allowed,
         ...file.description === '' ? {} : { description: file.description },
         ...file.model === '' ? {} : { model: file.model, reasoningEffort: file.effort },
         plugins: [...standard.plugins, { name: INSTRUCTION_PLUGIN, config: { text: file.body, allowedTools: allowed,

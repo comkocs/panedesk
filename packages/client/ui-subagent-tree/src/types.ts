@@ -92,6 +92,8 @@ export interface SubagentTreeNode {
   readonly model: string | null
   /** Which evidence source produced — or failed to produce — `model`. */
   readonly modelSource: SubagentModelSource
+  /** Latest reported request's input including cache; absent without request-level evidence. */
+  readonly contextTokens?: number
   /** Five token columns over the session's calls. */
   readonly tokens: SubagentTokenColumns
   /** Coverage of the usage evidence behind `tokens`. */

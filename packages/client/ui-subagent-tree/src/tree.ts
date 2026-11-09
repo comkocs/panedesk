@@ -28,6 +28,8 @@ export interface SubagentSessionFacts {
   readonly liveness: SubagentLiveness
   /** Terminal cause; present only while `status` is `finished`. */
   readonly endReason?: SubagentEndReason | undefined
+  /** Latest reported request input, including cache; absent without usage. */
+  readonly contextTokens?: number
   /** Five token columns over the session's calls; unobserved columns stay `null`. */
   readonly tokens: SubagentTokenColumns
   /** Coverage of the usage evidence behind `tokens`. */
@@ -72,6 +74,8 @@ interface SessionAccumulator {
   endReason: SubagentEndReason | undefined
   seat: string | null
   taskId: string | null
+  latestUsageAt?: number
+  contextTokens?: number
   usageObserved: number
   usageMissing: number
   inputTokens: number
@@ -121,6 +125,10 @@ function observeUsage(session: SessionAccumulator, row: Extract<LedgerRow, { kin
   }
   session.usageObserved += 1
   const usage = finish.usage
+  if (session.latestUsageAt === undefined || row.start.startedAt >= session.latestUsageAt) {
+    session.latestUsageAt = row.start.startedAt
+    session.contextTokens = usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
+  }
   session.inputTokens += usage.inputTokens
   session.cacheReadTokens += usage.cacheReadTokens ?? 0
   session.outputTokens += usage.outputTokens
@@ -167,6 +175,7 @@ function factsOf(session: SessionAccumulator, asOf: number): SubagentSessionFact
     liveness: session.liveness,
     ...(finished ? { endReason: session.endReason } : {}),
     tokens,
+    ...session.contextTokens === undefined ? {} : { contextTokens: session.contextTokens },
     usageState,
     cacheHitRate,
     elapsedMs,
@@ -268,13 +277,14 @@ export function assembleSubagentTree(
       children: [],
       status: transcript?.activity === 'stopped' ? 'finished'
         : transcript?.activity === 'running' && fact.status === 'idle' ? 'running'
-        : transcript?.activity === 'idle' && fact.status === 'running' ? 'idle' : fact.status,
+        : transcript?.activity === 'idle' && (fact.status === 'running' || fact.status === 'waiting') ? 'idle' : fact.status,
       liveness: fact.liveness,
       ...(transcript?.activity === 'stopped' ? { endReason: 'cancelled' as const }
         : fact.endReason !== undefined ? { endReason: fact.endReason } : {}),
       model: transcript?.model ?? null,
       modelSource: transcript?.modelSource ?? 'unavailable',
       tokens: fact.tokens,
+      ...fact.contextTokens === undefined ? {} : { contextTokens: fact.contextTokens },
       usageState: fact.usageState,
       cacheHitRate: fact.cacheHitRate,
       elapsedMs: fact.elapsedMs,
@@ -296,5 +306,13 @@ export function assembleSubagentTree(
       parent.children.push(node)
     }
   }
-  return bySession.get(rootSessionId) ?? root
+  const resolveWaiting = (node: SubagentTreeNode): SubagentTreeNode => {
+    const children = node.children.map(resolveWaiting)
+    const fact = facts.find(fact => fact.sessionId === node.sessionId)
+    const waiting = node.status === 'idle' && (fact?.status === 'running' || fact?.status === 'waiting')
+      && children.some(child => child.status === 'running' || child.status === 'waiting')
+    return { ...node, children, status: waiting ? 'waiting' : node.status }
+  }
+  const result = bySession.get(rootSessionId) ?? root
+  return result === null ? null : resolveWaiting(result)
 }

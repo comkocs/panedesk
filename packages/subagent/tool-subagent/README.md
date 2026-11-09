@@ -25,7 +25,7 @@ Use this package to give an agent a named tool that delegates work to a configur
 <a id="use-this-package"></a>
 ## Use this package
 
-The optional `cwd` argument selects the child's initial working directory. Relative paths resolve against the caller's current directory; omission inherits it. Existing children retain their own directories when the caller changes directory.
+The optional `extra_tools` argument lists additional tool names for an untyped local child, including `browser` or exact Chrome DevTools MCP names; omission uses the default working set. Typed mappings remain authoritative. The optional `cwd` argument selects the child's initial working directory. Relative paths resolve against the caller's current directory; omission inherits it. Existing children retain their own directories when the caller changes directory.
 
 Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it. Every instance retains the `subagent` execution capability for imported Claude Code `Agent` restrictions, including `Agent(x, y)` child-type lists, regardless of its configured name.
 

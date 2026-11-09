@@ -8,6 +8,8 @@ export interface AgentPreset {
   readonly description?: string
   readonly order?: number
   readonly broken?: string
+  /** Imported type's mapped tool names; absent for ordinary presets. */
+  readonly tools?: readonly string[]
   /** Preferred child model resolved against the live catalog at delegation. */
   readonly model?: string
   /** Preferred effort for the definition's model, not for an explicit override. */

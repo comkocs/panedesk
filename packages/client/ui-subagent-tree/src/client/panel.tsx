@@ -68,6 +68,13 @@ interface RowModel {
   label: string
 }
 
+function totalTokens(node: SubagentTreeNode): number | null {
+  const tokens = node.tokens
+  return tokens.inputTokens === null || tokens.outputTokens === null ? null
+    : tokens.inputTokens + tokens.outputTokens + (tokens.cacheReadTokens ?? 0)
+      + (tokens.cacheWriteTokens ?? 0) + (tokens.cacheWriteShortTokens ?? 0) + (tokens.cacheWriteLongTokens ?? 0)
+}
+
 function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => string): readonly RowModel[] {
   const rows: RowModel[] = []
   const walk = (node: SubagentTreeNode, depth: number): void => {
@@ -129,8 +136,9 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: S
         <td>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
         <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
-          {t('totalTokens')}: {number(node.tokens.inputTokens === null || node.tokens.outputTokens === null ? null : node.tokens.inputTokens + node.tokens.outputTokens)}
-          {' · '}{number(node.tokens.inputTokens)} / {number(node.tokens.cacheReadTokens)} / {number(node.tokens.outputTokens)}
+          {node.contextTokens === undefined ? t('contextUnknown') : t('context', { value: new Intl.NumberFormat(undefined,
+            { notation: 'compact', maximumFractionDigits: 1 }).format(node.contextTokens) })}
+          {' · '}{t('totalTokens')}: {number(totalTokens(node))}
         </td>
         <td>{node.cacheHitRate === null ? t('unknown') : `${Math.round(node.cacheHitRate * 100)}%`}</td>
         <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitoredId(nodeKey(node)) }}>{t('monitor')}</Button>
@@ -164,7 +172,8 @@ function MonitoringView({ node, label, t, number, time }: {
       { key: 'startedAt' as const, value: node.external.startedAt === null ? t('unknown') : time(node.external.startedAt) },
       { key: 'endedAt' as const, value: node.external.endedAt === null ? t('unknown') : time(node.external.endedAt) },
     ] : []),
-    { key: 'totalTokens', value: number(node.tokens.inputTokens === null || node.tokens.outputTokens === null ? null : node.tokens.inputTokens + node.tokens.outputTokens) },
+    { key: 'contextTokens', value: number(node.contextTokens) },
+    { key: 'totalTokens', value: number(totalTokens(node)) },
     { key: 'inputTokens', value: number(node.tokens.inputTokens) },
     { key: 'cacheReadTokens', value: number(node.tokens.cacheReadTokens) },
     { key: 'cacheWriteShortTokens', value: number(node.tokens.cacheWriteShortTokens) },

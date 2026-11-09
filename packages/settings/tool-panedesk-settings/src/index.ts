@@ -2,6 +2,7 @@
 import type { Context, Volatile } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type {} from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-agent-preset-registry'
 import type { Session } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-system-prompt'
 import type {} from '@panedesk/dsh-settings'
@@ -18,6 +19,7 @@ export const inject = ['tools', 'settings', 'configEditor', 'systemPrompt']
 /** Tool names omitted from ordinary sessions; typed subagents keep their own tool mapping. */
 export interface Config {
   disabledTools: Volatile<string[]>
+  subagentsFullTools: Volatile<boolean>
 }
 
 /** Defaults apply even when no preference has been saved. */
@@ -25,10 +27,17 @@ export const Config = z.object({
   disabledTools: z.array(z.string()).default([
     'subagent_fork', 'workflow', 'create_goal', 'update_goal', 'get_goal', 'present', 'ask_user_question',
   ]).volatile(),
+  subagentsFullTools: z.boolean().default(false).volatile(),
 })
 
+const subagentTools = new Set([
+  'read', 'write', 'edit', 'grep', 'glob', 'bash', 'pwsh', 'web_fetch', 'web_search', 'read_image',
+  'skill', 'todo_write', 'working_directory', 'load_workspace_dependencies',
+  'subagent', 'list_agents', 'send_message', 'interrupt_agent',
+])
+
 const fields: Record<string, readonly string[]> = {
-  '@panedesk/dsh-tool-panedesk-settings': ['disabledTools'],
+  '@panedesk/dsh-tool-panedesk-settings': ['disabledTools', 'subagentsFullTools'],
   '@panedesk/dsh-client-ui-settings-general': ['openingNameEnabled', 'openingName'],
   '@panedesk/dsh-client-ui-stats': ['enabled', 'refreshIntervalMs'],
   '@panedesk/dsh-client-ui-subagent-tree': ['externalRegistryFile', 'externalRegistryEnabled'],
@@ -38,6 +47,7 @@ const skillFields = ['enabled', 'includeDefaultRoots', 'customSkillDirs', 'watch
 const options: Record<string, object> = {
   disabledTools: { type: 'array', items: 'tool name', description: 'Omit these tools from new ordinary sessions; [] enables all.' },
   enabled: [false, true], openingNameEnabled: [false, true], externalRegistryEnabled: [false, true],
+  subagentsFullTools: [false, true],
   openingName: { sample: 'string', selected: 'nonempty string; trim outer whitespace only', left: 'string', right: 'string' },
   refreshIntervalMs: { type: 'integer', min: 1000, max: 2147483647 },
   externalRegistryFile: { type: 'string', description: 'Host-readable registry file path; empty disables the path' },
@@ -52,9 +62,23 @@ const options: Record<string, object> = {
  */
 export function apply(ctx: Context, config: Config): void {
   const disabledBySession = new WeakMap<Session, ReadonlySet<string>>()
+  const fullToolsBySession = new WeakMap<Session, boolean>()
   ctx.effect(() => ctx.tools.filterPresentation((name, context) => {
-    const session = context.agent?.session
-    if (session === undefined || session.header.origin === 'subagent') return true
+    const agent = context.agent
+    const session = agent?.session
+    if (session === undefined) return true
+    if (session.header.origin === 'subagent' && agent !== undefined) {
+      const preset = agent.ctx.get('agentPresets')?.composedPolicy(agent.ctx)
+      const typedTools = preset?.tools ?? preset?.executionPolicy?.allowedTools
+      if (typedTools !== undefined) return typedTools.includes(ctx.tools.get(name, agent)?.guardName ?? name)
+        || ['working_directory', 'load_workspace_dependencies', 'run_code'].includes(name)
+      let full = fullToolsBySession.get(session)
+      if (full === undefined) {
+        full = config.subagentsFullTools.get()
+        fullToolsBySession.set(session, full)
+      }
+      return full || subagentTools.has(name) || agent.options.subagentExtraTools?.includes(name) === true
+    }
     let disabled = disabledBySession.get(session)
     if (disabled === undefined) {
       disabled = new Set(config.disabledTools.get())

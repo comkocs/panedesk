@@ -25,6 +25,8 @@ export interface PresetDefinition {
   readonly reasoningEffort?: string
   /** Optional enforced execution definition; omission retains the existing uncontrolled preset behavior. */
   readonly executionPolicy?: PresetExecutionPolicy
+  /** Imported type's mapped tool names; omission keeps ordinary preset presentation. */
+  readonly tools?: readonly string[]
   readonly plugins: readonly (Omit<EntryOptions, 'id' | 'disabled'> & { id?: string; disabled?: EntryOptions['disabled'] | JsExpr })[]
 }
 

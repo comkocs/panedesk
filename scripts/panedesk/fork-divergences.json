@@ -1,6 +1,38 @@
 {
   "divergences": [
     {
+      "id": "subagent-working-tools-context-and-activity",
+      "description": "Trim untyped child tools and distinguish current context from cumulative usage and resident activity",
+      "origin": "Panedesk V1.8 requirements 69-71 and Windows shell naming",
+      "reason": "Default untyped children to working tools with explicit extras and a reversible full-tools setting, retain typed mappings, normalize provider usage before both projections and ledger accounting, and use closed-turn plus descendant activity for tree and map controls. Capture Windows shell choice once per boot so preset tool names match the host executor until restart.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/core/tools/src/index.ts",
+          "packages/settings/tool-panedesk-settings/src/index.ts",
+          "packages/settings/tool-panedesk-settings/package.json",
+          "packages/settings/tool-panedesk-settings/tsconfig.json",
+          "packages/client/ui-settings-general/src/client/ToolsSection.tsx",
+          "packages/client/ui-settings-general/src/client/index.ts",
+          "packages/client/ui-settings-general/src/client/tool-locales.ts",
+          "packages/subagent/tool-subagent/src/index.ts",
+          "packages/preset/agent-preset-registry/src/claude-agents.ts",
+          "packages/preset/agent-preset-registry/src/definition.ts",
+          "packages/preset/agent-preset-registry/src/index.ts",
+          "packages/preset/agent-preset-registry/src/preset.ts",
+          "packages/llm/llm-pi-ai/src/stream.ts",
+          "packages/client/ui-subagent/src/client/AgentMap.tsx",
+          "packages/client/ui-subagent/src/client/locales.ts",
+          "packages/client/ui-subagent-tree/src/tree.ts",
+          "packages/client/ui-subagent-tree/src/types.ts",
+          "packages/client/ui-subagent-tree/src/client/panel.tsx",
+          "packages/client/ui-subagent-tree/src/client/locales.ts",
+          "packages/boot/app-boot/src/index.ts",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "typed-agent-standard-tools-and-model-routing",
       "description": "Compose imported agent types over Standard tools and resolve their actual model provider",
       "origin": "Panedesk typed subagent compatibility",

@@ -233,7 +233,7 @@ pi-ai events become harness reasoning, text, tool-call, usage, and finish chunks
 
 #### Token effect
 
-Generated content affects later inputs only after the loop records it. pi-ai folds reasoning tokens into output usage when the provider does not report them separately, and preserves its exact `totalTokens` value unchanged.
+Generated content affects later inputs only after the loop records it. Before publishing usage, the adapter normalizes observed wire fields into disjoint uncached input, cache read, cache write, and output buckets for both session projections and ledger evidence. OpenAI-compatible prompt totals include cache; DeepSeek's explicit miss count overrides the derived uncached value. Anthropic input excludes cache. Separate reasoning joins output only when the reported total confirms it, and the normalized total sums the four buckets.
 
 #### KV Cache effect
 
