@@ -2,7 +2,6 @@
 import { resolve } from 'node:path'
 import type { Context, Volatile } from '@panedesk/cordis'
 import ProjectOpening from './opening.ts'
-import { presetName } from './preset-name.ts'
 import { workflowDefaults, type WorkflowPrompts } from './workflow-defaults.ts'
 import type {} from '@panedesk/dsh-settings'
 import z from '@panedesk/schemastery'
@@ -28,7 +27,7 @@ export interface Config {
 /** Validate persisted per-workspace preferences. */
 export const Config = z.object({
   openingPresets: z.array(z.object({
-    name: z.transform(z.string().required(), presetName), prompt: z.string().required(),
+    name: z.string().required(), prompt: z.string().required(),
     directories: z.array(z.string().required()).min(1).required(),
     model: z.string(), permission: z.string(),
   })).default([]).volatile(),
