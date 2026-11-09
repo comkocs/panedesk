@@ -27,7 +27,7 @@ Use this package to give an agent a named tool that delegates work to a configur
 
 The optional `cwd` argument selects the child's initial working directory. Relative paths resolve against the caller's current directory; omission inherits it. Existing children retain their own directories when the caller changes directory.
 
-Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it.
+Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it. Every instance retains the `subagent` execution capability for imported Claude Code `Agent` restrictions, including `Agent(x, y)` child-type lists, regardless of its configured name.
 
 ### Minimal configuration
 

@@ -1,6 +1,6 @@
 /** Direct Messages transport with one cancellable lifecycle per model request. */
 
-import { attributionHeaders, LlmAdapter, LlmError } from '@panedesk/dsh-llm'
+import { attributionHeaders, LlmAdapter, LlmError, redactLlmDiagnostic } from '@panedesk/dsh-llm'
 import type { GenerateOptions, ImageAttachmentAccessResolver, PreparedAdapterCall, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import type { DeepSeekLlmApiJson } from '@panedesk/dsh-deepseek-llm-api-extensions'
 import { idleWatchdog, timeoutOf } from '@panedesk/dsh-timeout'
@@ -165,8 +165,10 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
           const detail = providerErrorDetail(raw)
           if (await files.retry(detail)) continue
           const failure = providerError(raw, response.status, response.headers)
-          const message = files.errorMessage(response.status, failure.message, detail)
-          throw new LlmError(message, failure.code, { ...failure.failure, cause: new Error(text) })
+          const apiKey = auth.headers['x-api-key'] ?? auth.headers['x-dsh-auth-token']
+          const body = redactLlmDiagnostic(text, apiKey).slice(0, 500)
+          const message = redactLlmDiagnostic(files.errorMessage(response.status, failure.message, detail), apiKey)
+          throw new LlmError(`HTTP ${response.status}: ${body || message}`, failure.code, failure.failure)
         }
         await extensions.accept()
         if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')

@@ -2,7 +2,8 @@
  * @module @panedesk/dsh-subagent/activation
  */
 
-import type { Agent, AgentHandle } from '@panedesk/dsh-agent'
+import { foldConsumedWork, type Agent, type AgentHandle } from '@panedesk/dsh-agent'
+import { formatLlmFailure } from '@panedesk/dsh-llm'
 import type { SessionId, SessionLogOffset } from '@panedesk/dsh-session'
 import { assertNever } from '@panedesk/dsh-util-values'
 import { finalAssistantOutput } from './assistant-output.ts'
@@ -89,7 +90,7 @@ export type ActivationResource =
     failureStage: 'model-connection' | 'running'
     /** Route from a committed request header, never from requested Agent options. */
     model?: SubagentResult['model']
-    /** Sanitized provider error retained for failed delivery sidecars. */
+    /** Sanitized live failure retained when a terminal event cannot be committed. */
     diagnostic?: string
     /** Renewed when local settlement must recheck input or owned children. */
     poke: PromiseWithResolvers<void>
@@ -182,10 +183,14 @@ export function captureLocalResult(activation: LocalActivation): SubagentResult 
   const events = activation.handle.agent.session.snapshotEvents(activation.outputStart)
   const output = finalAssistantOutput(events) ?? []
   const stopReason = activation.failureAt === undefined ? epochStopReason(events) : 'error'
+  const reason = foldConsumedWork(events).end?.data.reason
+  const diagnostic = activation.failureAt !== undefined ? activation.diagnostic
+    : reason?.kind === 'error' ? formatLlmFailure(reason.error) : undefined
   const metadata = {
     sessionId: activation.childId,
     ...activation.model === undefined ? {} : { model: activation.model },
-    ...stopReason === 'error' ? { failureStage: activation.failureStage } : {},
+    ...stopReason === 'error' ? { failureStage: activation.failureStage,
+      ...diagnostic === undefined ? {} : { diagnostic } } : {},
   }
   const structured = activation.structured
   if (structured !== undefined) {

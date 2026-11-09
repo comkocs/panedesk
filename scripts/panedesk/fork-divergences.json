@@ -1,6 +1,48 @@
 {
   "divergences": [
     {
+      "id": "claude-agent-capabilities-and-provider-diagnostics",
+      "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
+      "origin": "Panedesk typed subagent compatibility",
+      "reason": "Support installed shell tools, parenthesized child-type lists and renamed delegation tools without restricting auxiliary capabilities; preserve redacted HTTP diagnostics in child results and parent notices.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/preset/agent-preset-registry/src/claude-agents.ts",
+          "packages/preset/agent-preset-registry/src/claude-agent-instructions.ts",
+          "packages/preset/agent-preset-registry/src/index.ts",
+          "packages/preset/agent-preset-registry/README.md",
+          "packages/preset/agent-preset-registry/README.zh.md",
+          "packages/core/tools/src/index.ts",
+          "packages/core/tools/README.md",
+          "packages/core/tools/README.zh.md",
+          "packages/subagent/tool-subagent/src/index.ts",
+          "packages/subagent/tool-subagent/README.md",
+          "packages/subagent/tool-subagent/README.zh.md",
+          "packages/subagent/subagent/src/activation.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/src/continuation-messages.ts",
+          "packages/subagent/subagent/src/delivery.ts",
+          "packages/subagent/subagent/README.md",
+          "packages/subagent/subagent/README.zh.md",
+          "packages/subagent/subagent-dsh-sdk/src/run.ts",
+          "packages/subagent/subagent-dsh-sdk/README.md",
+          "packages/subagent/subagent-dsh-sdk/README.zh.md",
+          "packages/llm/llm/src/adapter-failure.ts",
+          "packages/llm/llm/src/index.ts",
+          "packages/llm/llm/README.md",
+          "packages/llm/llm/README.zh.md",
+          "packages/llm/llm-pi-ai/src/adapter.ts",
+          "packages/llm/llm-pi-ai/src/stream.ts",
+          "packages/llm/llm-pi-ai/README.md",
+          "packages/llm/llm-pi-ai/README.zh.md",
+          "packages/llm/llm-deepseek/src/adapter.ts",
+          "packages/llm/llm-deepseek/README.md",
+          "packages/llm/llm-deepseek/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",

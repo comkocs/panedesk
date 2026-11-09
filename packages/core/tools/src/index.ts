@@ -222,6 +222,8 @@ export interface ToolOutputDefinition {
 
 /** A registered tool: its schema plus the execution function. */
 export interface ToolDefinition extends ToolSchema {
+  /** Stable capability name for execution allowlists when the model-facing name is configurable; omission uses `name`. */
+  guardName?: string
   /** Mandatory canonical output declaration. */
   readonly output: ToolOutputDefinition
   /**
@@ -727,9 +729,10 @@ interface ToolView {
  * returning `undefined` leaves it unchanged. Because guards have no allow
  * result, listener ordering cannot turn a denial back into permission.
  * @param execution - the identity-protected call after extensible pre-execute policy completed.
+ * @param capabilityName - the registered definition's stable guard name, or its model-facing name when omitted.
  * @returns a final denial reason, or `undefined` to leave the call allowed.
  */
-export type ToolGuard = (execution: Readonly<ToolExecution>) => string | undefined
+export type ToolGuard = (execution: Readonly<ToolExecution>, capabilityName: string) => string | undefined
 
 /** One scope's complete tool-registry contribution. */
 class ToolLayer implements ScopeLayer {
@@ -765,9 +768,9 @@ class ToolLayer implements ScopeLayer {
   }
 
   /** First monotonic denial from this layer's live guard registrations. */
-  guardReason(exec: ToolExecution): string | undefined {
+  guardReason(exec: ToolExecution, capabilityName: string): string | undefined {
     for (const guard of this.guards.values()) {
-      const reason = guard(exec)
+      const reason = guard(exec, capabilityName)
       if (reason !== undefined) return reason
     }
     return undefined
@@ -1151,11 +1154,12 @@ export class ToolRuntime extends Service {
 
   /** First monotonic denial from the global then the scope chain's guard layers, farthest first. */
   private guardReason(exec: ToolExecution): string | undefined {
-    const globalReason = this.layers.global.guardReason(exec)
+    const capabilityName = this.get(exec.name, exec.agent)?.guardName ?? exec.name
+    const globalReason = this.layers.global.guardReason(exec, capabilityName)
     if (globalReason !== undefined) return globalReason
     if (exec.agent === undefined) return undefined
     for (const layer of this.layers.chainLayers(exec.agent)) {
-      const reason = layer.guardReason(exec)
+      const reason = layer.guardReason(exec, capabilityName)
       if (reason !== undefined) return reason
     }
     return undefined

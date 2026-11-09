@@ -2,6 +2,7 @@
 import type { Context } from '@panedesk/cordis'
 import { FsError, type FileSystem } from '@panedesk/dsh-fs'
 import type { Agent } from '@panedesk/dsh-agent'
+import { redactLlmDiagnostic } from '@panedesk/dsh-llm'
 import type { LedgerRunFinish } from '@panedesk/dsh-session-ledger'
 import { SubagentError } from './error.ts'
 
@@ -64,17 +65,12 @@ export async function checkDeliveries(plan?: DeliveryPlan): Promise<{ state: Led
   return { state, files }
 }
 
-/** Remove credential assignments and network addresses from provider diagnostics.
+/** Bound provider diagnostics already redacted with their configured credential at the adapter.
  * @param diagnostic Runtime-owned error text, never assistant output.
  * @returns Bounded safe text for notifications and sidecars.
  */
 export function sanitizeDiagnostic(diagnostic: string): string {
-  return diagnostic
-    .replace(/\b(Bearer\s+)\S+/gi, '$1[redacted]')
-    .replace(/\b(api[-_]?key|token|password|secret|authorization)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
-    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[redacted]')
-    .replace(/\b(?:[a-f\d]{0,4}:){2,}[a-f\d:]*\b/gi, '[redacted]')
-    .slice(0, 1024)
+  return redactLlmDiagnostic(diagnostic).slice(0, 1024)
 }
 
 /** Write sanitized failure text beside, never into, declared outputs using exclusive creation.

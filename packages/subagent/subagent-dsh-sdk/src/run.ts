@@ -20,7 +20,7 @@ import {
   TransportClosedError,
   validatedSessionEvent,
 } from '@panedesk/dsh-sdk-client'
-import type { ContentBlock, ReasoningEffortId } from '@panedesk/dsh-llm'
+import { formatLlmFailure, type ContentBlock, type ReasoningEffortId } from '@panedesk/dsh-llm'
 import type { SessionId, TurnEndReason } from '@panedesk/dsh-session'
 import type { SubagentResult, SubagentRun, SubagentStartRequest, SubagentStopReason } from '@panedesk/dsh-subagent'
 import { AssistantOutputFold, settleRunResult, subprocessRunHandle } from '@panedesk/dsh-subagent'
@@ -73,7 +73,7 @@ export interface SdkRunSpec {
   disposeGraceMs: number
   /**
    * Host sink for startup, published-run, or shutdown failures. Model-visible
-   * text uses fixed safe facts, while this callback retains the original Error.
+   * text uses redacted child terminal facts or fixed SDK categories; this callback retains the original Error.
    * A throw from the sink itself is contained.
    */
   onError?: (error: Error, stopReason: SubagentStopReason) => void
@@ -172,7 +172,7 @@ export function sdkChildOutcome(
     case 'error':
       return {
         stopReason: 'error',
-        diagnostic: failureDiagnostic({ stage: 'session-run', category: 'child-error' }),
+        diagnostic: formatLlmFailure(reason.error),
       }
     case 'interrupted':
       return { stopReason: 'error' }

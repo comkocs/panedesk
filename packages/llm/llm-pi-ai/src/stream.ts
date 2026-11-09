@@ -9,7 +9,7 @@
  */
 
 import { brandString } from '@panedesk/dsh-brand'
-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE } from '@panedesk/dsh-llm'
+import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, redactLlmDiagnostic, formatLlmFailure } from '@panedesk/dsh-llm'
 import type { FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@panedesk/dsh-llm'
 import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
@@ -27,6 +27,8 @@ export class PiResponseEvidence {
   private readonly reportedUsage: Record<string, number> = {}
   /** HTTP status observed by the SDK response hook, absent before any response. */
   status: number | undefined
+  /** Redacted non-2xx response excerpt, captured before the SDK consumes its response. */
+  responseBody: string | undefined
 
   /**
    * @param requestedModel - request identity used only to compare an observed name.
@@ -76,9 +78,10 @@ export class PiResponseEvidence {
    * Add observed evidence to translated chunks without changing their outcome or replay state.
    * @param chunk - SDK-translated stream chunk.
    * @param metadata - resolved route and effective wire-cache evidence.
+   * @param apiKey - configured credential to remove from SDK diagnostics, absent for native authentication.
    * @returns the chunk with observed usage tiers or terminal metadata.
    */
-  enrich(chunk: StreamChunk, metadata: Omit<Partial<FinishChunk>, 'type' | 'reason' | 'replayState'>): StreamChunk {
+  enrich(chunk: StreamChunk, metadata: Omit<Partial<FinishChunk>, 'type' | 'reason' | 'replayState'>, apiKey?: string): StreamChunk {
     if (chunk.type === 'usage') {
       this.translatedUsage = chunk.usage
       const long = this.api === 'anthropic-messages' ? this.longWrites
@@ -89,7 +92,14 @@ export class PiResponseEvidence {
       return long === undefined ? chunk : { ...chunk, usage: { ...chunk.usage, cacheWriteLongTokens: long } }
     }
     if (chunk.type !== 'finish') return chunk
-    const reason = chunk.reason
+    let reason = chunk.reason
+    if (reason.kind === 'error' || reason.kind === 'aborted') {
+      const failure = { ...reason.failure,
+        ...this.status === undefined ? {} : { status: this.status },
+        message: this.responseBody || redactLlmDiagnostic(reason.failure.message, apiKey).slice(0, 500),
+      }
+      reason = { ...reason, failure: { ...failure, message: formatLlmFailure(failure) } }
+    }
     const finish: FinishChunk = {
       ...chunk, ...metadata,
       ...this.responseModel === undefined ? {} : { responseModel: this.responseModel },
@@ -97,8 +107,7 @@ export class PiResponseEvidence {
         ? this.responseModel === this.requestedModel ? 'same' : 'different'
         : this.observed ? 'missing' : 'unobservable',
       ...this.status === undefined ? {} : { httpStatus: this.status },
-      reason: this.status !== undefined && this.status >= 400 && (reason.kind === 'error' || reason.kind === 'aborted')
-        ? { ...reason, failure: { ...reason.failure, status: this.status } } : reason,
+      reason,
     }
     const raw = this.reportedUsage
     const observed = Object.keys(raw).length > 0

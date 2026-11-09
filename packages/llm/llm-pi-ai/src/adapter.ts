@@ -45,6 +45,7 @@ import {
   LlmAdapter,
   LlmError,
   ReasoningEffortId,
+  redactLlmDiagnostic,
 } from '@panedesk/dsh-llm'
 import type {
   GenerateOptions,
@@ -591,11 +592,14 @@ export class PiAiAdapter extends LlmAdapter {
         ...cache.options,
         onResponse: (response) => { evidence.status = response.status },
         // SDKs throw non-2xx responses before onResponse; the public fetch seam
-        // preserves their status without parsing error text or changing retries.
-        ...['anthropic-messages', 'openai-responses', 'openai-completions'].includes(model.api) ? {
+        // preserves status and a redacted body without consuming the SDK's response.
+        ...['anthropic-messages', 'openai-responses', 'openai-completions', 'azure-openai-responses',
+          'openai-codex-responses', 'pi-messages', 'mistral-conversations'].includes(model.api) ? {
           fetch: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
             const response = await fetch(input, init)
-            if (!response.ok) evidence.status = response.status
+            evidence.status = response.status
+            evidence.responseBody = response.ok ? undefined
+              : redactLlmDiagnostic(await response.clone().text(), apiKey).slice(0, 500)
             return response
           },
         } : {},
@@ -621,7 +625,7 @@ export class PiAiAdapter extends LlmAdapter {
           }
           yield evidence.enrich(result.value, {
             ...cache.metadata, accountLabel: profile.displayName || profile.provider || 'unknown',
-          })
+          }, apiKey)
         }
       } finally {
         if (!exhausted) {
@@ -639,7 +643,11 @@ export class PiAiAdapter extends LlmAdapter {
       if (options.signal?.aborted) {
         throw new LlmError('pi-ai request aborted by caller', 'ABORTED', { cause: error })
       }
-      throw error
+      const message = evidence.responseBody || redactLlmDiagnostic(error instanceof Error ? error.message : String(error), apiKey).slice(0, 500)
+      throw new LlmError(message, error instanceof LlmError ? error.code : 'UNKNOWN', {
+        ...error instanceof LlmError ? error.failure : {},
+        ...evidence.status === undefined ? {} : { status: evidence.status },
+      })
     } finally {
       consumer.abort('pi-ai stream consumer stopped')
     }
