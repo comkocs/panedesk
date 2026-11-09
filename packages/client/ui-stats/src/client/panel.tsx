@@ -12,6 +12,8 @@ type ToolsProps = PropsRuntime<'conversation.session.header.actions'> & PropsLoc
 type ChartProps = Pick<ToolsProps, 'sessionId' | 'useSessions' | 'useWorkspaces' | 'useResource' | 't'>
 type Call = StatsData['view']['details'][number]
 const ranges = ['today', '6h', '24h', '72h', '168h', 'all'] as const
+/** Per-call records stay collapsed by default and paginate at this page size. */
+const pageSize = 30
 
 function stateKey(status: string, value: StatsData | undefined, code: string | undefined): StatsKey {
   if (code === 'stats/unauthorized') return 'unauthorized'
@@ -76,7 +78,7 @@ export function StatsTools(props: ToolsProps) {
   const [open, setOpen] = useState(false)
   return <>
     <Tooltip label={props.t('title')}><Button variant="toolbar" size="sm" aria-label={props.t('title')} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(true) }}><IconPanedeskStats /></Button></Tooltip>
-    <Modal open={open} onClose={() => { setOpen(false) }} title={props.t('title')} closeLabel={props.t('close')} className={css.dialog!}>
+    <Modal open={open} onClose={() => { setOpen(false) }} title={props.t('title')} closeLabel={props.t('close')} className={css.dialog!} contentClassName={css.dialogContent!}>
       {open && <StatsPanel {...props} />}
     </Modal>
   </>
@@ -106,6 +108,8 @@ export function StatsPanel({ sessionId, useResource, useSessions, useWorkspaces,
   const [refresh, setRefresh] = useState(0)
   const [project, setProject] = useState('')
   const [selectedSession, setSelectedSession] = useState('')
+  const [recordsOpen, setRecordsOpen] = useState(false)
+  const [page, setPage] = useState(0)
   const [menu, setMenu] = useState<'range' | 'project' | 'session' | null>(null)
   const sessions = useSessions(value => value.byId)
   const workspaces = useWorkspaces(value => value.items)
@@ -152,10 +156,8 @@ export function StatsPanel({ sessionId, useResource, useSessions, useWorkspaces,
   const familyIds = descendants(root)
   const family = visibleRows.filter(row => familyIds.has(row.sessionId))
   const familyCalls = calls.filter(call => familyIds.has(call.sessionId))
-  const first = Math.min(...familyCalls.map(call => call.startedAt))
-  const last = Math.max(...familyCalls.map(call => call.endedAt ?? view!.asOf))
-  const span = Math.max(1, last - first)
   const time = (value: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(value)
+  const minute = (value: number | null) => value === null ? t('unknown') : t('minutes', { value: new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value / 60000) })
   const cards: { key: StatsKey; value: number | null }[] = [
     { key: 'sessions', value: visibleRows.length }, { key: 'subagents', value: visibleRows.filter(row => row.parentSessionId !== null).length },
     { key: 'tokens', value: total(calls, tokens) },
@@ -164,26 +166,35 @@ export function StatsPanel({ sessionId, useResource, useSessions, useWorkspaces,
   const duration = total(calls, call => call.modelInFlightMs)
   if (calls.length && cost !== null) cards.push({ key: 'costUsd', value: cost })
   if (calls.length && duration !== null) cards.push({ key: 'duration', value: duration })
+  const sortedCalls = [...familyCalls].sort((a, b) => a.startedAt - b.startedAt)
+  const pageCount = Math.max(1, Math.ceil(sortedCalls.length / pageSize))
+  const currentPage = Math.min(page, pageCount - 1)
+  const pageCalls = sortedCalls.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+  const pageIds = new Set(pageCalls.map(call => call.sessionId))
+  const pageAgents = family.filter(row => pageIds.has(row.sessionId))
+  const pageWallMax = Math.max(0, ...pageCalls.map(call => call.wallMs ?? 0))
   return <section className={css.panel}>
-    <p>{t('description')}</p>
-    <div className={css.controls}>
-      <Menu open={menu === 'range'} onClose={() => { setMenu(null) }} autoFocus selectedId={range}
-        anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'range'} onClick={() => { setMenu('range') }}>{t('range')}: {t(range)}</Button>}
-        items={ranges.map(id => ({ id, label: t(id) }))} onSelect={id => { const next = ranges.find(value => value === id); if (next) setRange(next); setMenu(null) }} />
-      <Menu open={menu === 'project'} onClose={() => { setMenu(null) }} autoFocus selectedId={project}
-        anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'project'} onClick={() => { setMenu('project') }}>{t('project')}: {project === '' ? t('all') : workspaces.find(item => item.workspaceId === project)?.title ?? t('unassigned')}</Button>}
-        items={[{ id: '', label: t('all') }, ...workspaces.map(item => ({ id: item.workspaceId, label: item.title })), { id: 'unassigned', label: t('unassigned') }]}
-        onSelect={id => { setProject(id); setSelectedSession(''); setMenu(null) }} />
-      <Menu open={menu === 'session'} onClose={() => { setMenu(null) }} autoFocus selectedId={selectedSession}
-        anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'session'} onClick={() => { setMenu('session') }}>{t('session')}: {selectedSession === '' ? t('all') : name(selectedSession as Call['sessionId'])}</Button>}
-        items={[{ id: '', label: t('all') }, ...projectRows.map(row => ({ id: row.sessionId, label: name(row.sessionId) }))]}
-        onSelect={id => { setSelectedSession(id); setMenu(null) }} />
-      <Button variant="outline" aria-pressed={paused} onClick={() => { setPaused(value => !value) }}>{t(paused ? 'resume' : 'pause')}</Button>
-      <Button disabled={resource.status === 'loading'} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button>
+    <div className={css.panelHeader}>
+      <p>{t('description')}</p>
+      <div className={css.controls}>
+        <Menu open={menu === 'range'} onClose={() => { setMenu(null) }} autoFocus selectedId={range}
+          anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'range'} onClick={() => { setMenu('range') }}>{t('range')}: {t(range)}</Button>}
+          items={ranges.map(id => ({ id, label: t(id) }))} onSelect={id => { const next = ranges.find(value => value === id); if (next) setRange(next); setPage(0); setMenu(null) }} />
+        <Menu open={menu === 'project'} onClose={() => { setMenu(null) }} autoFocus selectedId={project}
+          anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'project'} onClick={() => { setMenu('project') }}>{t('project')}: {project === '' ? t('all') : workspaces.find(item => item.workspaceId === project)?.title ?? t('unassigned')}</Button>}
+          items={[{ id: '', label: t('all') }, ...workspaces.map(item => ({ id: item.workspaceId, label: item.title })), { id: 'unassigned', label: t('unassigned') }]}
+          onSelect={id => { setProject(id); setSelectedSession(''); setPage(0); setMenu(null) }} />
+        <Menu open={menu === 'session'} onClose={() => { setMenu(null) }} autoFocus selectedId={selectedSession}
+          anchor={<Button variant="outline" aria-haspopup="menu" aria-expanded={menu === 'session'} onClick={() => { setMenu('session') }}>{t('session')}: {selectedSession === '' ? t('all') : name(selectedSession as Call['sessionId'])}</Button>}
+          items={[{ id: '', label: t('all') }, ...projectRows.map(row => ({ id: row.sessionId, label: name(row.sessionId) }))]}
+          onSelect={id => { setSelectedSession(id); setPage(0); setMenu(null) }} />
+        <Button variant="outline" aria-pressed={paused} onClick={() => { setPaused(value => !value) }}>{t(paused ? 'resume' : 'pause')}</Button>
+        <Button disabled={resource.status === 'loading'} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button>
+      </div>
+      <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(stateKey(resource.status, resource.value, resource.failure?.code))}</p>
     </div>
-    <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(stateKey(resource.status, resource.value, resource.failure?.code))}</p>
-    {view && <>
-      <div className={css.cards}>{cards.map(card => <article key={card.key}><h3>{t(card.key)}</h3><strong>{card.key === 'duration' ? t('milliseconds', { value: number(card.value) }) : number(card.value)}</strong></article>)}</div>
+    {view && <div className={css.panelBody}>
+      <div className={css.cards}>{cards.map(card => <article key={card.key}><h3>{t(card.key)}</h3><strong>{card.key === 'duration' ? minute(card.value) : number(card.value)}</strong></article>)}</div>
       <p className={css.note}>{t('sessionCountNote')} {t('reference')} {t('projectNote')}</p>
       <div className={css.charts}>
         <figure className={css.chart}><figcaption>{t('models')}</figcaption>
@@ -199,19 +210,28 @@ export function StatsPanel({ sessionId, useResource, useSessions, useWorkspaces,
           {daily.map(row => <div className={css.day} key={row.day}><span>{number(row.tokens)}</span><div className={css.columnTrack}>{row.tokens !== null && <div className={css.column} style={{ '--bar-height': `${row.tokens / dayMaximum * 100}%` } as CSSProperties} />}</div><time>{row.day}</time></div>)}
         </div></figure>}
       </div>
-      <figure className={css.chart}><figcaption>{t('timeline')} — {name(root as Call['sessionId'])}</figcaption><p className={css.note}>{t('timingNote')}</p>
-        {familyCalls.length > 0 && <div className={css.rowLabel}><time>{time(first)}</time><time>{time(last)}</time></div>}
-        {family.map(row => <article className={css.agent} key={row.sessionId}>
-          <h3>{name(row.sessionId)}</h3><p>{t('parent')}: {row.parentSessionId === null ? t('session') : name(row.parentSessionId)}</p>
-          {familyCalls.filter(call => call.sessionId === row.sessionId).map(call => <div className={css.call} key={call.callId} data-palette={palette(call.model)}>
-            <div className={css.rowLabel}><span>{t('model')}: {call.model}</span><span>{t('duration')}: {call.wallMs === null ? t('unknown') : t('milliseconds', { value: number(call.wallMs) })} · {t(call.endedAt === null ? 'running' : 'ended')}</span></div>
-            <div className={css.track}><div className={css.bar} style={{ '--bar-start': `${(call.startedAt - first) / span * 100}%`, '--bar-width': `${((call.endedAt ?? view.asOf) - call.startedAt) / span * 100}%` } as CSSProperties} /></div>
-            <small>{time(call.startedAt)} — {call.endedAt === null ? t('running') : time(call.endedAt)}</small>
-          </div>)}
-          {!familyCalls.some(call => call.sessionId === row.sessionId) && <p>{t('noTiming')}</p>}
-        </article>)}
-        {!family.some(row => row.sessionId !== root) && <p>{t('noChildren')}</p>}
+      <figure className={css.chart}><figcaption>{t('timeline')} — {name(root as Call['sessionId'])}</figcaption>
+        <Button variant="outline" aria-expanded={recordsOpen} onClick={() => { setRecordsOpen(value => !value) }}>{t(recordsOpen ? 'hideRecords' : 'showRecords', { count: sortedCalls.length })}</Button>
+        {recordsOpen && <>
+          <p className={css.note}>{t('timingNote')}</p>
+          {pageAgents.map(row => <article className={css.agent} key={row.sessionId}>
+            <h3>{name(row.sessionId)}</h3><p>{t('parent')}: {row.parentSessionId === null ? t('session') : name(row.parentSessionId)}</p>
+            {pageCalls.filter(call => call.sessionId === row.sessionId).map(call => <div className={css.call} key={call.callId} data-palette={palette(call.model)}
+              title={`${time(call.startedAt)} — ${call.endedAt === null ? t('running') : time(call.endedAt)} · ${t('duration')}: ${minute(call.wallMs)}`}>
+              <div className={css.rowLabel}><span>{t('model')}: {call.model}</span><span>{t('duration')}: {minute(call.wallMs)} · {t(call.endedAt === null ? 'running' : 'ended')}</span></div>
+              {call.wallMs !== null && pageWallMax > 0 && <div className={css.track}><div className={css.bar} style={{ '--bar-width': `${call.wallMs / pageWallMax * 100}%` } as CSSProperties} /></div>}
+              <small>{time(call.startedAt)} — {call.endedAt === null ? t('running') : time(call.endedAt)}</small>
+            </div>)}
+          </article>)}
+          {sortedCalls.length === 0 && <p>{t('empty')}</p>}
+          {pageCount > 1 && <div className={css.pager}>
+            <Button variant="outline" disabled={currentPage === 0} onClick={() => { setPage(currentPage - 1) }}>{t('prevPage')}</Button>
+            <span>{t('pageOf', { page: currentPage + 1, total: pageCount })}</span>
+            <Button variant="outline" disabled={currentPage >= pageCount - 1} onClick={() => { setPage(currentPage + 1) }}>{t('nextPage')}</Button>
+          </div>}
+          {!family.some(row => row.sessionId !== root) && <p>{t('noChildren')}</p>}
+        </>}
       </figure>
-    </>}
+    </div>}
   </section>
 }

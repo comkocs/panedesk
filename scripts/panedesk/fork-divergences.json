@@ -1177,6 +1177,23 @@
       }
     },
     {
+      "id": "stats-panel-windowed-records",
+      "description": "Keep the statistics modal inside the window and summarize before per-call records.",
+      "origin": "Statistics panel layout review",
+      "reason": "Cap the modal at the viewport with a fixed header and filter row plus a scrolling data region, show the summary cards first, collapse per-call records behind a toggle with 30-per-page pagination, express durations in minutes with two decimals, and scale each record bar to that call's duration against the page's longest call. This presentation policy is not proposed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-stats/src/client/panel.tsx",
+          "packages/client/ui-stats/src/client/panel.module.css",
+          "packages/client/ui-stats/src/client/locales.ts",
+          "packages/client/ui-stats/README.md",
+          "packages/client/ui-stats/README.zh.md",
+          "packages/client/ui-stats/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "cache-popover-above-composer",
       "description": "Keep cache details clear of the input card and toolbar.",
       "origin": "Composer dock visual acceptance",
