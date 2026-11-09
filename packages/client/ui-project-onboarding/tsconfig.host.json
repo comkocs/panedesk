@@ -6,6 +6,9 @@
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
   "references": [
+    { "path": "../../core/agent" },
+    { "path": "../../session/session-title" },
+    { "path": "../../workspace/workspace" },
     {
       "path": "../../../vendor/cordis"
     },

@@ -6,6 +6,11 @@
     "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
   },
   "references": [
+    { "path": "../../session/session-title" },
+    { "path": "../ui-workspace" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
+    { "path": "../../api/workspace-controller/tsconfig.client.json" },
+    { "path": "../../core/session" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -58,6 +63,7 @@
   "include": [
     "src/client",
     "src/types.ts",
+    "src/preset-name.ts",
     "src/css-modules.d.ts"
   ]
 }

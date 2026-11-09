@@ -45,6 +45,8 @@ kind: "package-reference"
 
 Web 声明来自 `dsh-web-app` bundle。注册表还在启动时读取一次 `~/.claude/agents/*.md` 与工作区 `.claude/agents/*.md`，项目同名定义覆盖用户定义。导入保留指令、映射后的工具限制和模型／强度偏好，不解析提供方。指令插件使用 `@panedesk/dsh-agent-preset-registry/claude-agent-instructions` 子路径：源码启动通过工作区别名解析，安装版加载已发布的 `lib/types/claude-agent-instructions.js` 导出。派遣时从实时目录解析模型偏好，无命中则使用父级路由，显式模型覆盖优先。启动时缺少提供方不会让这些类型变成 broken。`selectedDefault` volatile 字段为新会话覆盖部署默认值。
 
+远端列表以 `importedAgent` 标记导入的 Claude 代理类型，顶层模式选择器隐藏这些条目。导入、解析和按预设 ID 派遣仍使用完整注册表。
+
 Claude Code 工具映射到 Panedesk 能力：`Read` → `read`、`Write` → `write`、`Edit` / `MultiEdit` → `edit`、`Grep` → `grep`、`Glob` → `glob`、`Bash` → 已装配的 `bash` 与 `pwsh`、`WebFetch` → `web_fetch`、`WebSearch` → `web_search`、`TodoWrite` → `todo_write`、`Skill` → `skill`、`AskUserQuestion` → `ask_user_question`，以及 `Agent` → 委派工具（包括改名实例）。`Agent(x, y)` 保留括号内名单，委派时要求显式传入名单内的 `agent_preset`；单独的 `Agent` 不限制类型。后代使用同一执行守卫。限制仅作用于映射能力：`working_directory` 等辅助工具、`run_code` 传输工具与 MCP 工具仍可使用。未知名称按定义记录一行提示日志，不阻止导入。
 
 注册表不写入任何声明。`read` Remote 把一条声明的子插件列表按 entry-list YAML 方言（含 `!!js` 条件）渲染回来，供客户端展示 preset 的组成；没有任何接口接受 YAML 写回。新建 preset 或覆盖内置 preset 都是 bundle 补丁：插入一行 `@panedesk/dsh-agent-preset`，或按该行 id 写覆盖补丁，再用 `plugin_manager` 安装到 profile；创造模式在对话中编写这类 bundle。

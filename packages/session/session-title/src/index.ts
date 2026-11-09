@@ -601,6 +601,21 @@ export class SessionTitleService extends Service {
     })
   }
 
+  /** Pin an explicitly chosen opening preset using the existing date and duplicate-name allocator.
+   * @param session - live new session receiving the preset draft.
+   * @param name - saved preset display name.
+   * @returns Completion after the title event is appended.
+   */
+  async selectOpeningPreset(session: Session, name: string): Promise<void> {
+    await this.enqueueNaming(async () => {
+      const title = await this.automaticTitle(session, normalizeSessionTitle(name, this.config.maxTitleBytes))
+      this.supersede(this.stateFor(session), 'opening preset selected')
+      session.append('session/title', {
+        title, messageSeqs: [], source: { kind: 'provider', provider: OPENING_NAME_PROVIDER },
+      })
+    })
+  }
+
   private openingEnabled(): boolean {
     return this.openingPreferences?.enabled() ?? true
   }

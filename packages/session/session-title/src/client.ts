@@ -5,4 +5,4 @@
  */
 
 export type * from './types.ts'
-export { extractOpeningFolder } from './opening-name.ts'
+export { extractOpeningFolder, extractOpeningName } from './opening-name.ts'

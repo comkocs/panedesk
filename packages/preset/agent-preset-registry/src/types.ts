@@ -10,6 +10,8 @@ export interface AgentPresetRow {
   readonly id: string
   /** Whether a session naming no preset composes this one. */
   readonly isDefault: boolean
+  /** Imported agent types remain available for delegation, not the top-level mode picker. */
+  readonly importedAgent?: boolean
   /** Display name the preset published. */
   readonly name?: string
   /** One sentence on what this preset is for. */

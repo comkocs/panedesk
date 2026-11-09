@@ -1,5 +1,15 @@
 /** Typed copy for project guidance and settings. */
 export const zh = {
+  presetsTitle: '开窗词预设', opening: '开窗词', managePresets: '管理预设…', addPreset: '添加预设', editPresets: '添加 / 编辑预设',
+  presetName: '名字（不超过 20 字）', presetPrompt: '开窗词', presetDirectories: '文件夹（每行一个）',
+  dropDirectories: '多选拖入文件夹，或点击添加文件夹', addDirectory: '添加文件夹', presetModel: '模型（提供方/模型，可附档位）',
+  presetPermission: '权限档', followCurrent: '跟随当前', deletePreset: '删除', reorderPresets: '拖动预设框上下排序；缺少名字、开窗词或文件夹的条目补齐后才能保存。',
+  importText: '粘贴多行开窗词或 markdown 表', batchPaste: '批量粘贴', importTable: '从表导入',
+  presetSaveFailed: '预设未保存；请重新打开编辑器核对当前配置。',
+  presetsWhat: '保存开窗词、文件夹和可选模型 / 权限；选中只填入草稿，不自动发送。',
+  presetsWhether: '可选功能，缺省为空。保存到下方产品配置文件，不写入项目目录。',
+  presetsAi: '请帮我整理开窗词预设，核对名字、原文、文件夹与可选模型 / 权限，再由我在本页保存。',
+  headerWhat: '这是什么', headerWhether: '要不要开', headerAi: '让 AI 帮忙', copy: '复制', copied: '已复制', copyFailed: '复制失败', once: '首次使用',
   advanced: '高级(单机用不着)',
   title: '项目开窗设置', intro: '选择这个项目收到事件后的开窗方式。之后可在项目设置修改。',
   off: '关', remind: '只提醒', auto: '自动',
@@ -46,6 +56,16 @@ export type ProjectOnboardingKey = keyof typeof zh
 
 /** English project guidance and settings copy. */
 export const en = {
+  presetsTitle: 'Opening presets', opening: 'Opening', managePresets: 'Manage presets…', addPreset: 'Add preset', editPresets: 'Add / edit presets',
+  presetName: 'Name (up to 20 characters)', presetPrompt: 'Opening text', presetDirectories: 'Directories (one per line)',
+  dropDirectories: 'Drop multiple folders or choose Add folder', addDirectory: 'Add folder', presetModel: 'Model (provider/model, optional effort)',
+  presetPermission: 'Permission preset', followCurrent: 'Follow current', deletePreset: 'Delete', reorderPresets: 'Drag preset cards to reorder. Complete missing names, opening text, and folders before saving.',
+  importText: 'Paste opening lines or a markdown table', batchPaste: 'Batch paste', importTable: 'Import table',
+  presetSaveFailed: 'Presets were not saved. Reopen the editor to review the current configuration.',
+  presetsWhat: 'Save opening text, directories, and optional model / permission choices. Selection fills a draft without sending.',
+  presetsWhether: 'Optional and empty by default. Saved in the product configuration below, never inside a project.',
+  presetsAi: 'Help organize my opening presets. Check names, original text, directories, and optional model / permissions before I save them here.',
+  headerWhat: 'What it does', headerWhether: 'Whether to enable', headerAi: 'Ask AI', copy: 'Copy', copied: 'Copied', copyFailed: 'Copy failed', once: 'First use',
   advanced: 'Advanced (not needed on one machine)',
   title: 'Project opening settings', intro: 'Choose how this project opens windows after events. Change it later in project settings.',
   off: 'Off', remind: 'Remind only', auto: 'Automatic',

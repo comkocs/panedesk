@@ -1,6 +1,30 @@
 {
   "divergences": [
     {
+      "id": "opening-presets-and-top-level-modes",
+      "description": "Manage reusable opening drafts and separate imported agent types from top-level modes",
+      "origin": "Panedesk opening preset preferences",
+      "reason": "Save opening text and directories in product settings, import existing lists, fill unsent drafts with optional model and permission choices, reuse preset names for titles, and hide imported agent types only in the top-level picker.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-project-onboarding/**",
+          "packages/client/ui-agent-preset/**",
+          "packages/preset/agent-preset-registry/src/index.ts",
+          "packages/preset/agent-preset-registry/src/types.ts",
+          "packages/preset/agent-preset-registry/README.md",
+          "packages/preset/agent-preset-registry/README.zh.md",
+          "packages/session/session-title/**",
+          "packages/client/ui-conversation/src/client/apply.ts",
+          "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "workflow-starters-and-finished-background-jobs",
       "description": "Offer optional workflow starters on new sessions and distinguish finished background jobs",
       "origin": "Panedesk workflow guidance and background job presentation",

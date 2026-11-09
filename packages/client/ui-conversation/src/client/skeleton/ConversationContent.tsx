@@ -131,10 +131,14 @@ export function ConversationContent(props: ConversationContentProps) {
         },
         onClose: () => { setPickerOpen(false) },
       })}
-      {renderSlot('conversation.hero.agentPreset', {})}
+      {renderSlot('conversation.hero.opening', { currentDirectory: pendingWorkspace?.path
+        ?? (sessionId === undefined ? undefined : workingDirectory ?? cwd) })}
       {renderSlot('conversation.hero.seat', { currentDirectory: pendingWorkspace?.path
         ?? (sessionId === undefined ? undefined : workingDirectory ?? cwd) })}
-      {sessionId === undefined ? null : <div className={css.heroOptions}>{renderSlot('conversation.hero.options', {})}</div>}
+      <div className={css.heroOptions}>
+        {sessionId === undefined ? null : renderSlot('conversation.hero.options', {})}
+        {renderSlot('conversation.hero.agentPreset', {})}
+      </div>
     </div>
   )
 

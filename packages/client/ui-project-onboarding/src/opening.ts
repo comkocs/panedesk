@@ -1,5 +1,10 @@
 /** Owner-authorized persistence and engine application of workspace opening modes. */
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import type { Agent } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-session-title'
+import type {} from '@panedesk/dsh-workspace'
+import type { Config } from './index.ts'
 import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod'
 import type {} from '@panedesk/dsh-config-editor'
@@ -26,16 +31,43 @@ declare module '@panedesk/cordis' {
 
 /** Feature-local remote operations; no model or window is started here. */
 export default class ProjectOpening extends TypertRemoteService {
-  static inject = ['settings']
+  static inject = ['settings', 'sessionTitle', 'workspaceRegistry']
 
   private readonly lifetime = new AbortController()
   private readonly active = new Set<Promise<unknown>>()
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, private readonly preferences: Config) {
     super(ctx, 'projectOpening')
     ctx.effect(() => async () => {
       this.lifetime.abort()
       await Promise.allSettled([...this.active])
+    })
+  }
+
+  /** Apply the selected preset's title without starting a turn.
+   * @param agent - exact session receiving the opening draft.
+   * @param index - saved preset position.
+   * @returns Completion of the title append.
+   */
+  @Remote
+  async selectPreset(agent: Agent, index: number): Promise<void> {
+    const preset = this.preferences.openingPresets.get()[index]!
+    await this.ctx.sessionTitle.selectOpeningPreset(agent.session, preset.name)
+  }
+
+  /** Infer registered workspace directories from the parent of each markdown file's folder.
+   * @param prompts - opening sentences, unchanged.
+   * @returns A directory or an empty string for each sentence needing manual selection.
+   */
+  @Remote
+  inferDirectories(prompts: string[]): string[] {
+    const workspaces = this.ctx.workspaceRegistry.list()
+    return prompts.map(prompt => {
+      const token = (prompt.match(/"[^"\n]+\.md"|'[^'\n]+\.md'|`[^`\n]+\.md`|[^\s"'`，。；！？<>]+\.md/giu) ?? [])[0]
+      if (!token) return ''
+      const parent = dirname(dirname(resolve(token.replace(/^["'`]|["'`]$/gu, ''))))
+      return workspaces.find(workspace => (workspace.path === parent || dirname(workspace.path) === parent)
+        && existsSync(workspace.path))?.path ?? ''
     })
   }
 

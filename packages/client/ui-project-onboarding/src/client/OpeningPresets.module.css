@@ -1,0 +1,6 @@
+.editor { display: grid; gap: 12px; }
+.row { display: grid; gap: 8px; border: 1px solid var(--dsw-alias-border-l3); border-radius: 8px; padding: 12px; }
+.editor label { display: grid; gap: 4px; }
+.editor textarea, .editor input { width: 100%; box-sizing: border-box; color: inherit; background: transparent; border: 1px solid var(--dsw-alias-border-l3); border-radius: 4px; padding: 8px; font: inherit; }
+.editor textarea { min-height: 72px; resize: vertical; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }

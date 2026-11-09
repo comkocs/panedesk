@@ -28,6 +28,8 @@ kind: "package-reference"
 <a id="conversation-assembly"></a>
 ## Conversation 组装
 
+`conversation.hero.opening` 单槽使用 `session-maybe` 作用域，位于原模式选择器位置并接收当前目录。既有 `conversation.hero.agentPreset` 单槽移到该行最右；两个单槽都没有列表 order。页头动作贡献仍各自按 order 排列。
+
 可选的 `conversation.hero.seat` 单槽采用 `session-maybe` 作用域，在尚无 Session 时即可显示于预设芯片旁。其目录跟随当前会话的工作目录投影，投影不可用时回退到会话原始目录；尚无会话时传入待选工作区路径。工作区选择及输入门控保持不变。`conversation.header.seat` 在头部前导区域使用同一实例作用域；既有根作用域 `conversation.header.leading` 槽保持不变。
 
 `UiConversation.events` 是 event Definition 的唯一 registry，`UiConversation.views` 是 target snapshot builder 的唯一 registry。两者都拒绝重复 key、保持注册顺序、返回幂等 disposer，并在 contribution roster 变化时重建现有 binding。`UiConversation.binding(bindingOrSessionId)` 为当前 Session Controller binding 返回 identity 稳定的 Conversation binding，不会另开事件源。 View Definition 可以声明 `toolCallFocus`，将工具调用 id 转换为自身的焦点标识。仅当此目标拥有可见的 View 条目时，Conversation 才提供 Inspect 回调；Chat 直接使用回调，不选择目标。

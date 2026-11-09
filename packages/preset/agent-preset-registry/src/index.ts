@@ -78,6 +78,7 @@ interface Definition {
   config: PresetDefinition
   context: Context
   ready: Promise<void>
+  importedAgent?: boolean
   generation?: Generation
   /** Mount failure; unset while a tree is mounted, whose rows {@link AgentPresetRegistry.diagnostic} re-audits on read. */
   broken?: string
@@ -126,6 +127,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
         : `Unmapped Claude Code tools: ${preset.unmappedTools.join(', ')}`
       if (note !== undefined) this.owner.logger.info(`${preset.id}: ${note}`)
       await this.register(preset.definition)
+      this.definitions.get(preset.id)!.importedAgent = true
     }
   }
 
@@ -254,7 +256,8 @@ export class AgentPresetRegistry extends TypertRemoteService {
   @Remote('list')
   async remoteExportList(): Promise<AgentPresetRoster> {
     const defaultId = this.defaultId
-    return { presets: (await this.list()).map(row => ({ ...row, isDefault: row.id === defaultId })) }
+    return { presets: (await this.list()).map(row => ({ ...row, isDefault: row.id === defaultId,
+      importedAgent: this.definitions.get(row.id)?.importedAgent === true })) }
   }
 
   /** Resolve an identity without starting an Agent.

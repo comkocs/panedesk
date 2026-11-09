@@ -2,13 +2,16 @@
 import { resolve } from 'node:path'
 import type { Context, Volatile } from '@panedesk/cordis'
 import ProjectOpening from './opening.ts'
+import { presetName } from './preset-name.ts'
 import type {} from '@panedesk/dsh-settings'
 import z from '@panedesk/schemastery'
 
-import type { ProjectSelection } from './types.ts'
+import type { OpeningPreset, ProjectSelection } from './types.ts'
 
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Reusable opening drafts stored in the product profile. */
+  openingPresets: Volatile<OpeningPreset[]>
   /** Show optional workflow starters above the composer on new sessions. */
   showWorkflowStarters: Volatile<boolean>
   /** Saved opening choices keyed by absolute workspace directory in product settings. */
@@ -17,6 +20,11 @@ export interface Config {
 
 /** Validate persisted per-workspace preferences. */
 export const Config = z.object({
+  openingPresets: z.array(z.object({
+    name: z.transform(z.string().required(), presetName), prompt: z.string().required(),
+    directories: z.array(z.string().required()).min(1).required(),
+    model: z.string(), permission: z.string(),
+  })).default([]).volatile(),
   showWorkflowStarters: z.boolean().default(true).volatile(),
   projects: z.dict(z.object({
     mode: z.union(['off', 'remind', 'auto']).default('remind'),
@@ -46,5 +54,5 @@ export function apply(ctx: Context, config: Config): void {
       return modes.values().next().value
     }))
   })
-  ctx.plugin(ProjectOpening)
+  ctx.plugin(ProjectOpening, config)
 }

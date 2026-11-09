@@ -5,6 +5,7 @@ import { guideEn, guideZh, type PresetGuideKey } from './guide-locales.ts'
 /** Locale keys these surfaces render. */
 export type AgentPresetSettingsKey =
   | PresetGuideKey
+  | 'dshModes'
   | 'builtInGroup'
   | 'customGroup'
   | 'seatHint'
@@ -37,6 +38,7 @@ export type AgentPresetSettingsKey =
 /** English copy. */
 export const en: Record<AgentPresetSettingsKey, string> = {
   ...guideEn,
+  dshModes: 'DSH modes',
   builtInGroup: 'Built-in', customGroup: 'Custom',
   sectionIntro: 'Choose the agent’s tools and how it works. Use Standard mode for everyday tasks, or Creator mode to add capabilities to Panedesk.',
 
@@ -82,6 +84,7 @@ export const en: Record<AgentPresetSettingsKey, string> = {
 /** Simplified Chinese copy. */
 export const zh: Record<AgentPresetSettingsKey, string> = {
   ...guideZh,
+  dshModes: 'DSH 原有模式',
   builtInGroup: '内置', customGroup: '自定义',
   sectionIntro: '选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 Panedesk 的能力用「创造模式」。',
 

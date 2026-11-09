@@ -103,7 +103,7 @@ export function AgentPresetSeat({
   }, [load])
 
   const options = useMemo(
-    () => state.options.filter(option => developerTools || !requiresCodingTools(option)),
+    () => state.options.filter(option => !option.importedAgent && (developerTools || !requiresCodingTools(option))),
     [state.options, developerTools],
   )
 
@@ -164,7 +164,7 @@ export function AgentPresetSeat({
       {ready && <Menu
         open={open && options.length > 0}
         onClose={() => { setOpen(false) }}
-        items={options.map((option) => {
+        items={[{ type: 'label', id: 'dsh-modes', text: t('dshModes') }, ...options.map((option) => {
           const text = presetDisplayText(option, t)
           return {
             id: option.id,
@@ -177,7 +177,7 @@ export function AgentPresetSeat({
               </span>
             ),
           }
-        })}
+        })]}
         selectedId={state.current}
         onSelect={(id) => {
           setOpen(false)

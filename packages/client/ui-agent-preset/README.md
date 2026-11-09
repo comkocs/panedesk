@@ -37,6 +37,8 @@ Known shipped presets offer mode details and usage examples in a read-only dialo
 
 Entering Creator selects `cordis` for the receiving blank Session without changing the new-task default or Coding Tools setting. If no workspace or blank Session is bound yet, the choice waits for that binding. After the choice is applied, the Creator Session keeps its preset; a later newly created Session uses the configured default, such as Standard.
 
+The new-session mode picker sits at the right end of the workspace row and labels its modes **DSH modes**. Rows marked `importedAgent` by the registry are omitted only from this picker; named delegation and the registry remain unchanged. Coding Tools visibility and the configured default still apply.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

@@ -6172,6 +6172,27 @@ importers:
       '@panedesk/dsh-seat-engine':
         specifier: workspace:*
         version: link:../../seat/seat-engine
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
+      '@panedesk/dsh-client-ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
+      '@panedesk/dsh-api-workspace-controller':
+        specifier: workspace:*
+        version: link:../../api/workspace-controller
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../settings/settings

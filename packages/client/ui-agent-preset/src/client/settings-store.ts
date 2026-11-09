@@ -40,6 +40,8 @@ export async function writeDefaultPreset(
 export interface AgentPresetOption {
   /** Preset id, written to Settings and the label's fallback. */
   id: string
+  /** Imported subagent type, hidden only by the top-level picker. */
+  importedAgent?: boolean
   /** Display name the preset published, absent when it published none. */
   name?: string
   /** One sentence on what the preset is for. */
@@ -117,10 +119,11 @@ export async function beginRosterRead<S extends { status: string; error: string 
  * @returns one option per selectable preset, in roster order.
  */
 export function presetOptions(
-  presets: readonly { id: string; name?: string; description?: string; broken?: string }[],
+  presets: readonly { id: string; name?: string; description?: string; broken?: string; importedAgent?: boolean }[],
 ): AgentPresetOption[] {
   return presets.filter(preset => preset.broken === undefined).map(preset => ({
     id: preset.id,
+    ...preset.importedAgent === undefined ? {} : { importedAgent: preset.importedAgent },
     ...preset.name === undefined ? {} : { name: preset.name },
     ...preset.description === undefined ? {} : { description: preset.description },
   }))
