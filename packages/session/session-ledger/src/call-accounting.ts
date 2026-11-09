@@ -121,7 +121,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
       yield* metered(request, next, id, agent, state, service, contribution)
     } catch (error: unknown) {
       if (agent?.session.header.parentSession !== undefined && isLockTimeout(error)) {
-        throw new LlmError('The local ledger file was busy; the subagent stopped and can be dispatched again.',
+        throw new LlmError('The local ledger file was busy; the subagent stopped and can be dispatched again. / 本机记账文件被占用,子代理已停,可重派。',
           'LEDGER_LOCK_TIMEOUT', { cause: error })
       }
       throw error

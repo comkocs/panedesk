@@ -7,7 +7,7 @@
 - New-session workflow and opening-preset menus fill an unsent draft. Settings can edit workflow prompts and manage or import saved opening text, folders and optional model and permission choices.
 - A Tools settings page lists available tools with switches and approximate context costs, and can restore the full tool set for untyped subagents.
 - The context panel groups usage by category, lists individual contributors and deferred tools, shows compaction headroom and links to Tools settings.
-- The workflow pack includes requirements review and workflow checkup entries. Built-in features now describes the 1.8 defaults and where to find the new entries.
+- The workflow pack includes requirements review and workflow checkup entries; opening reads are trimmed to the opening guide, project rules and constitution, and new projects start with two sessions. Built-in features now describes the 1.8 defaults and where to find the new entries.
 
 ### Changed
 
@@ -28,6 +28,7 @@
 - Agent-opened sessions land in their folder group.
 - Finished background jobs and finished subagents show a grey dot without a stop button.
 - Subagent cards distinguish current context from cumulative usage, and provider usage is normalized before context and ledger accounting.
+- Subagents wait longer for the local ledger lock and, if they still stop, tell the parent session and their card why.
 
 ## 1.7.0
 
