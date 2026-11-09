@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for requirements-review.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write templates/workflow-pack/requirements-review.md
+/requirements-review-let-ai-design-the-product-development-documents-first:
+  en: 96da17a63629b2d6
+  zh: 2d0941a4e1b8336a
+/requirements-review-let-ai-design-the-product-development-documents-first/instructions-for-the-ai:
+  en: 97614c10a3824e5d
+  zh: 80ac76bd148dbe05
+/requirements-review-let-ai-design-the-product-development-documents-first/1-design-a-complete-first-draft-without-an-interview:
+  en: 15a86b974854404c
+  zh: f926d53583d5a240
+/requirements-review-let-ai-design-the-product-development-documents-first/2-give-every-requirement-and-decision-a-status-and-source:
+  en: 6b0c7c0f83ffe9c8
+  zh: 3d239ae51de7e83e
+/requirements-review-let-ai-design-the-product-development-documents-first/3-required-outputs-and-document-structure:
+  en: e3ce3793a0bfb991
+  zh: 033fa7409a8d04e9
+/requirements-review-let-ai-design-the-product-development-documents-first/3-required-outputs-and-document-structure/1-md:
+  en: fbf96cb6cebe88e1
+  zh: 06dd648d6aea24ab
+/requirements-review-let-ai-design-the-product-development-documents-first/3-required-outputs-and-document-structure/2-md:
+  en: 365cb9a6365fc4ae
+  zh: 4cd209460fd530f9
+/requirements-review-let-ai-design-the-product-development-documents-first/4-deliver-a-complete-new-version-after-user-annotations:
+  en: 8dec28f1f99f28cb
+  zh: 0da6b01176d8c75a
+/requirements-review-let-ai-design-the-product-development-documents-first/4-deliver-a-complete-new-version-after-user-annotations/continuing-in-a-new-window:
+  en: a531861e1b58cc98
+  zh: fff885740e1dcf7a
+/requirements-review-let-ai-design-the-product-development-documents-first/5-finalization:
+  en: 029847070297b08b
+  zh: 0f1e214800ab02a8
+/requirements-review-let-ai-design-the-product-development-documents-first/6-realigning-partway-through-development:
+  en: 342774b3737f5cbd
+  zh: 5676b79327aa5cc4
+/requirements-review-let-ai-design-the-product-development-documents-first/7-next-step:
+  en: 400feeef719c5838
+  zh: 43066a0ced31b13f

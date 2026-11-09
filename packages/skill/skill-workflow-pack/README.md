@@ -21,7 +21,7 @@ The provider exposes the workflow-pack guide and resources through the skill reg
 <a id="use-this-package"></a>
 ## Use this package
 
-This [skill subsystem](../../../docs/subsystems/skills.md) provider registers `workflow-pack` for user and model invocation. Its body is the portable [getting-started guide](../../../templates/workflow-pack/getting-started.md), with the complete pack exposed as a directory resource. It checks requirements before generating project rules; loading the skill does not write files or start models.
+This [skill subsystem](../../../docs/subsystems/skills.md) provider registers `workflow-pack` for user and model invocation. Its body is the portable [getting-started guide](../../../templates/workflow-pack/getting-started.md), with the complete pack exposed as a directory resource. Choose one of three guides: [requirements review](../../../templates/workflow-pack/requirements-review.md) for product design, getting-started for workflow setup, or [workflow checkup](../../../templates/workflow-pack/workflow-checkup.md) for an existing project. Read the matching guide before writing project files; loading the skill does not write files or start models.
 
 The build copies `templates/workflow-pack/` into `lib/workflow-pack/`. Maintain the template source only. An absolute `assetRoot` can override the packaged resource directory; incomplete resources fail plugin activation.
 
@@ -37,7 +37,7 @@ The published resource list lives in `package.json`; build-time copying lives in
 
 #### What the model sees
 
-Discovery adds the `workflow-pack` description to the skill catalog. Invocation returns the `getting-started.md` guide and directory resource guidance through the skill consumer; the 215-rule table is not injected automatically.
+Discovery adds the `workflow-pack` description to the skill catalog. Invocation returns the `getting-started.md` guide and directory resource guidance through the skill consumer; the 225-rule table is not injected automatically.
 
 #### Token effect
 

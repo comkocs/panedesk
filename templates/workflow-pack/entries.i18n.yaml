@@ -3,47 +3,47 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write templates/workflow-pack/entries.md
 /entries:
-  en: 36ee2d13174254b5
-  zh: e50e492991532807
+  en: c94b1f2cb1b51704
+  zh: 01901a9be7ccac9c
 /entries/safeguards:
-  en: bb290305fd4eb425
-  zh: d5cac5c4d715affc
+  en: f5036f9f4cec50c9
+  zh: 2ddb0fee937ebb59
 /entries/decisions-and-original-wording:
-  en: 6b16e020d72c1d69
-  zh: 7917f638e90deff4
+  en: 4880fe9e99d2c5c0
+  zh: 0a61bea041d2e4a9
 /entries/authority-and-completion:
-  en: 9a09ad1574eda44e
-  zh: 584fb47ec348ead8
+  en: 8db5299403ca3871
+  zh: 165a9f00e7279b1d
 /entries/responsibilities-and-authority:
-  en: 7d3dc2961c78aea5
-  zh: f77f864f0b1dc02a
+  en: 41512e79567c5077
+  zh: 7c5def0d4db27218
 /entries/records-and-channels:
-  en: 775b4eac02887fd6
-  zh: 67cd3b1a2a6823e9
+  en: 73c8d9b617893e64
+  zh: 740c22ab50372b42
 /entries/assignments-and-dispatch:
-  en: 0513f81ce907b6ce
-  zh: 2ddcf18109238337
+  en: 3e7eb578c2a5f33c
+  zh: 5d6996de2583695c
 /entries/audit-and-acceptance:
-  en: 36aa932edbf72b8a
-  zh: 30cb733d008edf47
+  en: a1c2749b71c6300d
+  zh: 4b949032c6a8167e
 /entries/rule-lifetime:
-  en: 8c8e70b74ea95bae
-  zh: 209d036fa90a2b20
+  en: 3c8ba177e6c6bbb3
+  zh: 9c3cd0b1896a813e
 /entries/memory-and-handover:
-  en: 2faaf4427605d946
-  zh: 26715defad389a10
+  en: 377b85f7da91ac40
+  zh: 39eab00f88fb11e1
 /entries/cross-window-collaboration:
-  en: c34a7c50eb588bf7
-  zh: 410cabf75a19b748
+  en: fc75794f7dd4a3eb
+  zh: f02f86052c72e57f
 /entries/code-and-repositories:
-  en: 90d7c1952280f35a
-  zh: 3c908e68a61cb612
+  en: 1ad57ddcfba9359b
+  zh: 419a2d0f324678f6
 /entries/release-and-deployment:
-  en: 92f45956e7bc7068
-  zh: d1c1119cc2e345da
+  en: ecbb2bdd1ebf3143
+  zh: 4657d66741234403
 /entries/assets-and-naming:
-  en: be89a20537f82908
-  zh: 2cc9b4f108feca6a
+  en: aba2eb5164501524
+  zh: 0429ac8501386fc5
 /entries/load-and-performance:
   en: 881c09ab15cceab8
   zh: 4c500ec4be1fa4fd

@@ -5,30 +5,33 @@
 /:
   en: f9965ed290caee4b
   zh: 4a363fc00bb8d141
-/getting-started:
-  en: eafc5135b2acfaab
-  zh: 7c56bf0fd67cfa53
-/getting-started/record-the-original-request:
+/getting-started-workflow-setup:
+  en: 5148bdee7b96c92e
+  zh: 3674974761bc4ec7
+/getting-started-workflow-setup/route-the-project-first:
+  en: 803724630bd81db9
+  zh: 23a26d93593bda1a
+/getting-started-workflow-setup/record-the-original-request:
   en: a029284e473435f8
   zh: d1d7e9e3d086f3e8
-/getting-started/check-requirements-in-one-exchange:
-  en: cb77a4d803fcd88c
-  zh: 88efea1ff569a4b3
-/getting-started/start-the-requirement-card-from-the-nearest-profile:
-  en: 2c051d4495028887
-  zh: a0a638a463d93297
-/getting-started/validate-and-generate:
+/getting-started-workflow-setup/check-requirements-in-one-exchange:
+  en: eb7a01e94242e6aa
+  zh: 21b5ca1312ad54f8
+/getting-started-workflow-setup/start-the-requirement-card-from-the-nearest-profile:
+  en: b43f568cbadff5cd
+  zh: efa9e77e21b43c40
+/getting-started-workflow-setup/validate-and-generate:
   en: 9a6821501e012079
   zh: 370c1f8dc49bef52
-/getting-started/present-the-reduced-set-to-the-decision-maker:
-  en: f68de92d0aa36049
-  zh: 05ee92e11e81fcb1
-/getting-started/present-the-reduced-set-to-the-decision-maker/message-to-the-decision-maker:
-  en: bf66f64ad097fed3
-  zh: 3743b6e3070e5a1e
-/getting-started/place-the-results-and-document-the-reading-order:
+/getting-started-workflow-setup/present-the-reduced-set-to-the-decision-maker:
+  en: b1a27adab8855e9e
+  zh: 67070785e61c1953
+/getting-started-workflow-setup/present-the-reduced-set-to-the-decision-maker/message-to-the-decision-maker:
+  en: 12ca08b242722e5a
+  zh: f8bc86b6865ec1fd
+/getting-started-workflow-setup/place-the-results-and-document-the-reading-order:
   en: ed0de5d041a9b99a
   zh: 06134587db8bc439
-/getting-started/restore-rules-as-the-project-grows:
-  en: fe7ea2deefccbd3c
-  zh: 8408fbcb2e4e91f7
+/getting-started-workflow-setup/restore-rules-as-the-project-grows:
+  en: 831ff89931564b33
+  zh: 4ab92bba5480f32a
