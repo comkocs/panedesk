@@ -33,7 +33,7 @@ kind: "package-bundle"
 
 启动 GUI、打开浏览器，然后开始与 agent（智能体）对话。flag 用于微调本次调用。
 
-会话顶栏可以打开[右栏浏览器](../../client/ui-sidebar-browser/README.zh.md)。`browser` 工具在 Desktop 中操作同一个可见 webview，在 Web 中返回仅桌面版可用的提示。Desktop 还随附可选的 [Chrome DevTools MCP 提供方](../../experimental/browser-use-chrome-devtools-mcp/README.zh.md)，默认关闭，设置页提供 attach 模式开关和调试地址。
+会话顶栏可以打开[右栏浏览器](../../client/ui-sidebar-browser/README.zh.md)。`browser` 工具在 Desktop 中操作同一个可见 webview，在 Web 中返回仅桌面版可用的提示。Desktop 还随附可选的 [Chrome DevTools MCP 提供方](../../experimental/browser-use-chrome-devtools-mcp/README.zh.md)，默认开启，设置页提供 attach 模式开关和调试地址。
 
 ### 启动 Web GUI
 

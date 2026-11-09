@@ -24,7 +24,7 @@ export interface Config {
 
 /** Settings edits apply to future Session connections; disabling blocks existing tool calls. */
 export const Config = Schema.object({
-  enabled: Schema.boolean().default(false).volatile(),
+  enabled: Schema.boolean().default(true).volatile(),
   mode: Schema.union(['launch', 'attach']).default('attach'),
   endpoint: Schema.string().pattern(/^https?:\/\/[^\s/]+|^wss?:\/\/[^\s/]+/u).default('http://localhost:9222').volatile(),
   headless: Schema.boolean().default(true),
@@ -45,6 +45,7 @@ export function apply(ctx: Context, config: Config): void {
     name: 'chrome-devtools-mcp',
     exclusive: config.mode === 'attach',
     enabled: () => config.enabled.get(),
+    onStartupError: () => { ctx.logger.warn('Chrome DevTools MCP is unavailable; other tools remain available. Check the Chrome debugging address in Settings.') },
     command: process.execPath,
     args: () => {
       const args = [cli, '--no-usage-statistics']

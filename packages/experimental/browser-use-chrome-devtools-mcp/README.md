@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection before creation or resume completes and retains it across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. Desktop ships this experimental provider disabled; enable it under Settings → Connect your Chrome, save the debugging address, then create or resume a Session. The shipped entry uses attach mode and does not operate the sidebar webview.
+Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection before creation or resume completes and retains it across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. Desktop ships this experimental provider enabled; configure or disable it under Settings → Connect your Chrome, save the debugging address, then create or resume a Session. The shipped entry uses attach mode and does not operate the sidebar webview.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ Use `mode: attach` and set `endpoint` to an HTTP(S) debugging URL or WS(S) brows
 
 | Field | Default | Meaning |
 |---|---|---|
-| `enabled` | `false` | Activate the provider and register its tools for new or resumed Sessions |
+| `enabled` | `true` | Activate the provider and register its tools for new or resumed Sessions |
 | `mode` | `attach` | `launch` or `attach`, fixed for this provider activation |
 | `headless` | `true` | Launch without a visible window |
 | `executablePath` | upstream discovery | Chromium executable for launch |
@@ -89,7 +89,7 @@ Tools retain upstream descriptions and JSON schemas under `mcp__chrome-devtools-
 
 #### Token effect
 
-The catalog, resource helpers, and server instructions add tool definitions and prompt text. Calls add arguments, text, and admitted images to Session history. Inline image bytes stay outside model-visible history.
+Tools remain immediately loaded: the current request pipeline has no on-demand activation for tools present in the initial catalog, so setting `deferLoading` would leave them unavailable on supporting routes. The catalog, resource helpers, and server instructions add tool definitions and prompt text. Calls add arguments, text, and admitted images to Session history. Inline image bytes stay outside model-visible history.
 
 #### KV Cache effect
 
@@ -102,7 +102,7 @@ An unchanged catalog preserves its tool-definition prefix. Results append to his
 The integration retains the pinned server's browser and tool restrictions.
 
 - Chromium only; Firefox and WebKit are not selectable.
-- Startup failure or cancellation rejects Session creation or resume and triggers client cleanup. A disconnected client is not retried; after fixing the cause, create a new Session or unload and resume the existing one.
+- MCP startup failure cleans up the client, emits one warning, and leaves the Session usable without browser tools. Cancellation still rejects creation or resume. Chrome attaches lazily; a failed attachment returns the upstream connection diagnostic without blocking other tools. A disconnected client is not retried; after fixing the cause, create a new Session or unload and resume the existing one.
 - Attachment exclusivity is local to this provider instance. Other processes and browser users can still modify the same pages.
 - The shared resource-server inventory can show inherited server names; it does not grant access to another Session's browser.
 - Cancellation does not undo navigation, clicks, or other actions already delivered to the browser.

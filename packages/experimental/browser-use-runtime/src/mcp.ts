@@ -82,6 +82,8 @@ export interface SessionMcpOptions {
   args: string[] | (() => string[])
   /** Optional live enablement for new connections and existing tool calls. */
   enabled?: () => boolean
+  /** Report a cleaned-up startup failure and continue without this browser; omission rejects Agent creation. */
+  onStartupError?: (error: unknown) => void
   /** Explicit overrides merged into the MCP client's scrubbed child environment. */
   env?: Record<string, string>
   /** Per-call timeout override; omission retains the MCP client default. */
@@ -95,7 +97,7 @@ interface ClientState {
 
 /**
  * Await one MCP client during each future Agent's creation.
- * A busy attachment leaves that activation without browser tools; its other turns continue.
+ * A busy attachment or a startup failure handled by onStartupError leaves that activation without browser tools.
  * Calls are serialized per Session; unload closes every server before releasing registration.
  * @param ctx - provider context supplying browser use, Agents, tools, prompt assembly, and working directories.
  * @param options - provider identity, attachment exclusivity, and executable configuration.
@@ -191,7 +193,16 @@ export function mountSessionMcp(ctx: Context, options: SessionMcpOptions): void 
       refreshBlockedMasks()
       return
     }
-    await resources.get(agent, signal)
+    try {
+      await resources.get(agent, signal)
+    } catch (error) {
+      if (signal?.aborted === true || options.onStartupError === undefined) throw error
+      state.status = 'blocked'
+      clients.set(agent, state)
+      refreshBlockedMasks()
+      options.onStartupError(error)
+      return
+    }
     clients.set(agent, state)
   }, { prepend: true })
   ctx.on('tools/change', refreshBlockedMasks)

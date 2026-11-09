@@ -14,6 +14,7 @@
     { "path": "../session-title" },
     { "path": "../../settings/settings" },
     { "path": "../../core/tools" },
-    { "path": "../working-directory" }
+    { "path": "../working-directory" },
+    { "path": "../../workspace/workspace" }
   ]
 }

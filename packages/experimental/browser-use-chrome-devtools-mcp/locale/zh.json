@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "浏览器操作（Chrome DevTools）",
-    "description": "可选地通过 Chrome DevTools MCP 连接自己的 Chrome。桌面版默认关闭，在设置中填写调试地址。"
+    "description": "通过 Chrome DevTools MCP 连接自己的 Chrome，桌面版默认开启。在设置中填写调试地址；连接失败不影响其他工具。"
   }
 }

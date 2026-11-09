@@ -16044,6 +16044,9 @@ importers:
       '@panedesk/dsh-working-directory':
         specifier: workspace:*
         version: link:../working-directory
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
 
   packages/session/tool-working-directory:
     devDependencies:

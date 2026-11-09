@@ -29,7 +29,8 @@
     "@panedesk/dsh-session-title": "workspace:*",
     "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
-    "@panedesk/dsh-working-directory": "workspace:*"
+    "@panedesk/dsh-working-directory": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
@@ -41,7 +42,8 @@
     "@panedesk/dsh-session-title": "workspace:*",
     "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
-    "@panedesk/dsh-working-directory": "workspace:*"
+    "@panedesk/dsh-working-directory": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   },
   "dependencies": { "@panedesk/dsh-brand": "workspace:*" }
 }

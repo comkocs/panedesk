@@ -93,7 +93,7 @@ The page refresh shortcut calls the same reload operation as the toolbar. Its to
 
 #### What the model sees
 
-The `browser` tool accepts a `command` object: `navigate` with `url`; `read`, `screenshot`, or `tabs`; `click` with `x` and `y`; `type` with `text`; `scroll` with `x`, `y`, `deltaX`, and `deltaY`; or `switch` with `tabId`. Coordinates are viewport CSS pixels. Desktop opens the calling Session and its Browser tab before operating the same webview the user sees. Text and PNG image attachments use the normal persisted tool-result pipeline. Web returns a desktop-only notice.
+The `browser` tool accepts a `command` object: `navigate` with `url`; `read`, `screenshot`, or `tabs`; `click` with `x` and `y`; `type` with `text`; `scroll` with `x`, `y`, `deltaX`, and `deltaY`; or `switch` with `tabId`. Coordinates are viewport CSS pixels. Desktop opens the calling Session and its Browser tab before operating the same webview the user sees. Text and PNG image attachments use the normal persisted tool-result pipeline. Availability follows the connected Desktop browser IPC bridge, not the Host's Node executable marker. Web returns a desktop-only notice.
 
 #### Token effect
 

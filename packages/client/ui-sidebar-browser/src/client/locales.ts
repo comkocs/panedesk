@@ -2,7 +2,7 @@
 export const zh = {
   'type.label': '浏览器',
   'chrome.title': '连接自己的 Chrome',
-  'chrome.description': '可选的 Chrome DevTools MCP，默认关闭。连接已开启远程调试的 Chrome；保存并启用后，新建或恢复会话。它与右栏内置浏览器分开。',
+  'chrome.description': 'Chrome DevTools MCP 默认开启，连接已开启远程调试的 Chrome。连接失败会提示，不影响其他工具；工具暂保持常驻，当前按需激活不可用。修改地址后新建或恢复会话；它与右栏内置浏览器分开。',
   'chrome.enabled': '启用 Chrome DevTools MCP',
   'chrome.endpoint': 'Chrome 调试地址',
   'chrome.save': '保存地址',
@@ -41,7 +41,7 @@ export type SidebarBrowserKey = keyof typeof zh
 export const en = {
   'type.label': 'Browser',
   'chrome.title': 'Connect your Chrome',
-  'chrome.description': 'Optional Chrome DevTools MCP, off by default. Attach to Chrome with remote debugging enabled; after saving and enabling, create or resume a session. It is separate from the built-in sidebar browser.',
+  'chrome.description': 'Chrome DevTools MCP is on by default and attaches to Chrome with remote debugging enabled. Connection failures do not block other tools; tools remain loaded because on-demand activation is unavailable. After changing the address, create or resume a session. It is separate from the sidebar browser.',
   'chrome.enabled': 'Enable Chrome DevTools MCP',
   'chrome.endpoint': 'Chrome debugging address',
   'chrome.save': 'Save address',

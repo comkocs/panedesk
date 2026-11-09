@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Starting an app with this package is a small, explicit entry point: you give it a config file and it runs the whole boot. This section covers what you can do and what you get; the helper calls behind each outcome are documented in the folded implementation section.
 
-The shared official-bundle admission list includes Chrome DevTools MCP for offline catalog and release ordering. The Desktop composition supplies its disabled attach-mode entry; [the provider](../../experimental/browser-use-chrome-devtools-mcp/README.md) owns its settings and Session behavior.
+The shared official-bundle admission list includes Chrome DevTools MCP for offline catalog and release ordering. The Desktop composition supplies its enabled-by-default attach-mode entry; [the provider](../../experimental/browser-use-chrome-devtools-mcp/README.md) owns its settings and Session behavior.
 
 ### When to use it
 
