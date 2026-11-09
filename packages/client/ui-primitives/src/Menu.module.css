@@ -30,8 +30,8 @@
   top: calc(100% + 4px);
   left: 0;
   z-index: 100;
-  min-width: 144px;
-  max-width: 360px;
+  min-width: min(144px, calc(100vw - 24px));
+  max-width: min(360px, calc(100vw - 24px));
 }
 
 /* Portal mode: fixed in the viewport, coordinates supplied inline from the
@@ -45,23 +45,10 @@
   z-index: 1100;
 }
 
-/* Open above the anchor (empty-state workspace chip: figma 122:9481). */
-.sideTop {
-  top: auto;
-  bottom: calc(100% + 4px);
-}
-
-.alignEnd {
-  left: auto;
-  right: 0;
-}
-
 /* Viewport fit: the card stops 12px short of the viewport's top/bottom edges
  * (the portal MARGIN in Menu.tsx; the top side widens to the frame's published
  * overlay inset) and taller content scrolls inside
- * .viewport, so a pinned .footer stays visible. Menus with submenu rows skip
- * this class — the overflow clip would crop the side card, so they rely on
- * staying short. */
+ * .viewport, so a pinned .footer stays visible. Fixed submenus escape this clip. */
 .scrollable {
   max-height: calc(100vh - 12px - max(12px, var(--dsh-frame-overlay-top, 12px)));
 }
@@ -264,22 +251,12 @@
   display: none;
 }
 
-/* The submenu aligns with the parent's bottom edge. Its hit bridge covers
- * the menu inset and the 6px gap so pointer movement keeps it open. */
+/* Fixed placement keeps submenus outside the primary card's scroll clip. */
 .submenu {
-  position: absolute;
-  top: auto;
-  bottom: -4px;
-  left: calc(100% + 10px);
-  z-index: 101;
-  min-width: 163px;
-}
-
-.submenu::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -10px;
-  width: 10px;
+  position: fixed;
+  z-index: 1101;
+  min-width: min(163px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 12px - max(12px, var(--dsh-frame-overlay-top, 12px)));
+  overflow-y: auto;
 }

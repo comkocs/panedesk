@@ -206,8 +206,13 @@ export function HoverCard({
         })
         return
       }
-      const top = r.top + h > window.innerHeight - VIEWPORT_MARGIN ? window.innerHeight - h - VIEWPORT_MARGIN : r.top
-      setPos({ left: r.right + ANCHOR_GAP, top })
+      const width = Math.min(244, window.innerWidth - VIEWPORT_MARGIN * 2)
+      const topMargin = overlayTopMargin(VIEWPORT_MARGIN)
+      const maxHeight = window.innerHeight - topMargin - VIEWPORT_MARGIN
+      const left = r.right + ANCHOR_GAP + width <= window.innerWidth - VIEWPORT_MARGIN
+        ? r.right + ANCHOR_GAP : r.left - ANCHOR_GAP - width
+      const top = Math.max(topMargin, Math.min(r.top, window.innerHeight - Math.min(h, maxHeight) - VIEWPORT_MARGIN))
+      setPos({ left: Math.max(VIEWPORT_MARGIN, Math.min(left, window.innerWidth - width - VIEWPORT_MARGIN)), top, width, maxHeight })
     }
     place()
     const observer = (variant !== 'compact' || inline) && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null
@@ -231,7 +236,7 @@ export function HoverCard({
     /* v8 ignore next -- the card is mounted whenever pos is set, so the ref is attached here. */
     const h = cardRef.current?.offsetHeight ?? 0
     if (pos.top + h > window.innerHeight - VIEWPORT_MARGIN) {
-      setPos({ left: pos.left, top: window.innerHeight - h - VIEWPORT_MARGIN })
+      setPos({ ...pos, top: Math.max(overlayTopMargin(VIEWPORT_MARGIN), window.innerHeight - h - VIEWPORT_MARGIN) })
     }
   }, [open, pos, variant, inline])
 

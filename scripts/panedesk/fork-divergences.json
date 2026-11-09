@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "window-bounded-dialogs",
+      "description": "Keep dialogs inside the window with visible titles and footer actions",
+      "origin": "Panedesk dialog layout",
+      "reason": "Limit shared dialog height to the overlay inset, scroll standard dialog bodies without shrinking headers or footers, and widen opening-preset editors.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-primitives/src/Modal.module.css",
+          "packages/client/ui-primitives/src/Menu.tsx",
+          "packages/client/ui-primitives/src/Menu.module.css",
+          "packages/client/ui-primitives/src/HoverCard.tsx",
+          "packages/client/ui-primitives/src/HoverCard.module.css",
+          "packages/client/ui-primitives/README.md",
+          "packages/client/ui-primitives/README.zh.md",
+          "packages/client/ui-project-onboarding/src/client/OpeningPresets.tsx",
+          "packages/client/ui-project-onboarding/src/client/OpeningPresets.module.css"
+        ]
+      }
+    },
+    {
       "id": "dark-theme-default",
       "description": "Use dark appearance when no theme preference has been saved",
       "origin": "Panedesk appearance defaults",

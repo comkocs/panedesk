@@ -75,7 +75,7 @@ function Management(props: PresetsProps) {
   const [editing, setEditing] = useState(false)
   return <>
     <Button variant="outline" disabled={form.status !== 'ready' || !form.writable} onClick={() => setEditing(true)}>{props.t('editPresets')}</Button>
-    <Modal open={editing} title={props.t('presetsTitle')} closeLabel={props.t('close')} onClose={() => setEditing(false)}>
+    <Modal className={css.modal!} open={editing} title={props.t('presetsTitle')} closeLabel={props.t('close')} onClose={() => setEditing(false)}>
       {editing && <Editor {...props} initial={form.value?.openingPresets ?? []} revision={form.revision} done={() => setEditing(false)} />}
     </Modal>
   </>
@@ -135,7 +135,7 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
         setBusy(true); setError('')
         void props.choosePreset(index!, directory, directory === props.currentDirectory ? props.sessionId : undefined).catch(reason => setError(String(reason))).finally(() => setBusy(false))
       }} />
-    <Modal open={adding} title={props.t('addPreset')} closeLabel={props.t('close')} onClose={() => setAdding(false)}>
+    <Modal className={css.modal!} open={adding} title={props.t('addPreset')} closeLabel={props.t('close')} onClose={() => setAdding(false)}>
       {adding && <Editor {...props} initial={[...(form.value?.openingPresets ?? []), { name: '', prompt: '', directories: [] }]}
         revision={form.revision} done={() => setAdding(false)} />}
     </Modal>

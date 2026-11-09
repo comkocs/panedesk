@@ -1,8 +1,8 @@
 /* Full-viewport layer (figma Mask + Dialog 451:18655): mask + centered card.
    24px of air on every side; the top/bottom widen to the frame's published
    overlay inset so a tall card stays clear of it.
-   Cards size against this padding box: consumers cap growth with
-   `max-height: 100%`, never their own viewport calc. */
+   Cards default to `max-height: 100%` inside this padding box;
+   consumers can tighten that limit without their own viewport calc. */
 .root {
   pointer-events: auto;
   position: fixed;
@@ -38,6 +38,7 @@
   flex-direction: column;
   gap: 20px;
   width: min(380px, 100%);
+  max-height: 100%;
   padding: 0 0 24px;
   overflow: hidden;
   border: 0;
@@ -63,12 +64,14 @@
 .content {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   width: 100%;
 }
 
 /* Header row (figma Title row): pad l24/t22/r14/b12, SPACE_BETWEEN —
  * title left, close button right. */
 .header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -116,11 +119,14 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   margin-top: 20px;
   padding: 0 24px;
 }
 
 .footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;

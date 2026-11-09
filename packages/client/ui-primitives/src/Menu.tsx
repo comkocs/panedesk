@@ -136,7 +136,7 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * @param props.portal - render the list into document.body, fixed-positioned
  * from the anchor rect (follows movement and resizing while open). Use when an
  * ancestor's overflow clipping would crop the in-place list; default false
- * keeps the pure-CSS in-place behavior.
+ * keeps the list in place. Both modes clamp placement to the viewport.
  * @param props.closeOnPointerLeave - close the list once the pointer has left
  * both trigger and list for the pointer grace (default false keeps it open
  * until outside click/Escape/selection). The grace makes the 4px trigger->list
@@ -236,13 +236,13 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   const [fixedPos, setFixedPos] = useState<CSSProperties | null>(null)
   const { arm: armClose, cancel: cancelClose } = usePointerGrace(onClose)
 
-  // Portal mode: fixed-position the list from the anchor rect before paint;
+  // Clamp list placement from the anchor rect before paint;
   // track the anchor while open (capture-phase scroll catches nested panes).
   // getAnchorRect trumps measuring the wrapper span: a child layout effect
   // runs before the parent's, so a wrapper the host positions in its own
   // effect measures stale here — the host callback owns the truth instead.
   useLayoutEffect(() => {
-    if (!open || !portal) { setFixedPos(null); return }
+    if (!open) { setFixedPos(null); return }
     const place = () => {
       let r: DOMRect | null
       if (getAnchorRect !== undefined) {
@@ -272,10 +272,23 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
         y = side === 'bottom' ? r.bottom + 4 : r.top - lh - 4
       }
 
-      if (lw > 0) x = Math.min(Math.max(x, MARGIN), vw - lw - MARGIN)
-      if (lh > 0) y = Math.min(Math.max(y, overlayTopMargin(MARGIN)), vh - lh - MARGIN)
-
+      if (lw > 0) x = Math.max(MARGIN, Math.min(x, vw - lw - MARGIN))
+      if (lh > 0) y = Math.max(overlayTopMargin(MARGIN), Math.min(y, vh - lh - MARGIN))
+      if (!portal) {
+        const bounds = rootRef.current!.getBoundingClientRect()
+        x -= bounds.left
+        y -= bounds.top
+      }
       setFixedPos(current => current?.left === x && current.top === y ? current : { left: x, top: y })
+
+      const submenu = listEl?.querySelector<HTMLElement>(`.${css.submenu}`)
+      if (submenu !== null && submenu !== undefined) {
+        const parent = submenu.parentElement!.getBoundingClientRect()
+        const width = submenu.offsetWidth
+        const left = parent.right + width <= vw - MARGIN ? parent.right : parent.left - width
+        submenu.style.left = `${Math.max(MARGIN, Math.min(left, vw - width - MARGIN))}px`
+        submenu.style.top = `${Math.max(overlayTopMargin(MARGIN), Math.min(parent.bottom - submenu.offsetHeight, vh - submenu.offsetHeight - MARGIN))}px`
+      }
     }
     // First run measures the hidden pre-render (same commit as `open`), so
     // end/top alignment and clamping use real dimensions before anything
@@ -294,7 +307,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
-  }, [open, portal, align, side, getAnchorRect])
+  }, [open, portal, align, side, getAnchorRect, openSubmenuId])
 
   // Opening remembers where the keyboard was, so closing can hand it back to
   // that control — an anchor wrapping several (a split button) cannot be asked
@@ -432,10 +445,6 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
     if (!open) cancelClose()
   }, [open, cancelClose])
 
-  // The submenu card is absolutely positioned outside the list box; the
-  // scroll clip would crop it, so only submenu-free menus get the height cap.
-  const scrollable = !items.some(entry => !isSeparator(entry) && !isLabel(entry) && entry.submenu !== undefined && entry.submenu.length > 0)
-
   const renderEntry = (entry: MenuEntry) => {
     if (isSeparator(entry)) {
       return <div key={entry.id} className={css.separator} role="separator" />
@@ -517,8 +526,8 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   const list = open && (
     <MenuSurface compact={compact}
       ref={listRef}
-      className={clsx(css.list, listClassName, dense && css.denseList, compact && css.compactList, scrollable && css.scrollable, portal && css.portal, side === 'top' && !portal && css.sideTop, align === 'end' && !portal && css.alignEnd)}
-      style={portal ? fixedPos ?? MEASURE_STYLE : undefined}
+      className={clsx(css.list, listClassName, dense && css.denseList, compact && css.compactList, css.scrollable, portal && css.portal)}
+      style={fixedPos ?? MEASURE_STYLE}
       role="menu"
       // React portals bubble synthetic events through the REACT tree: without
       // this stop, an item click re-fires the anchor row's own onClick
