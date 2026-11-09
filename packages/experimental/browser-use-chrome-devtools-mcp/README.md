@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection before creation or resume completes and retains it across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. Desktop ships this experimental provider enabled; configure or disable it under Settings → Connect your Chrome, save the debugging address, then create or resume a Session. The shipped entry uses attach mode and does not operate the sidebar webview.
+Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstream tools. The provider initializes a Session's MCP connection in the background without delaying creation or resume, hides browser tools until ready, and retains the connection across turns. Launch a separate browser or attach one Session to an existing browser with its current tabs and login state. Desktop ships this experimental provider enabled; configure or disable it under Settings → Connect your Chrome, save the debugging address, then create or resume a Session. The shipped entry uses attach mode and does not operate the sidebar webview.
 
 ## Table of Contents
 
@@ -61,7 +61,7 @@ When configuring the system prompt's `toolOrder` for the whole process, leave br
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The provider resolves its pinned npm entry and starts it under the current Node executable. A temporary protocol probe may precede the serving process. The [shared runtime](../browser-use-runtime/README.md) owns awaited Agent initialization, per-Session serialization, and cleanup; the [MCP client](../../mcp/mcp-client/README.md) owns transport, discovery, and result projection.
+The provider resolves its pinned npm entry and starts it under the current Node executable. A temporary protocol probe may precede the serving process. The [shared runtime](../browser-use-runtime/README.md) owns background MCP initialization, per-Session serialization, and cleanup; the [MCP client](../../mcp/mcp-client/README.md) owns transport, discovery, and result projection.
 
 Browser state survives turns while its live Session remains attached. The MCP server starts in the Session's validated current working directory and retains that launch directory after later Session directory changes. Disposal waits for server shutdown before releasing resources. Resume after reload starts fresh browser runtime state; stored conversation history does not restore cookies or pages.
 
@@ -102,7 +102,7 @@ An unchanged catalog preserves its tool-definition prefix. Results append to his
 The integration retains the pinned server's browser and tool restrictions.
 
 - Chromium only; Firefox and WebKit are not selectable.
-- MCP startup failure cleans up the client, emits one warning, and leaves the Session usable without browser tools. Cancellation still rejects creation or resume. Chrome attaches lazily; a failed attachment returns the upstream connection diagnostic without blocking other tools. A disconnected client is not retried; after fixing the cause, create a new Session or unload and resume the existing one.
+- MCP startup failure cleans up the client, emits one warning, and leaves the Session usable without browser tools. Results arriving after cancellation or disposal are discarded. Chrome attaches lazily; a failed attachment returns the upstream connection diagnostic without blocking other tools. A disconnected client is not retried; after fixing the cause, create a new Session or unload and resume the existing one.
 - Attachment exclusivity is local to this provider instance. Other processes and browser users can still modify the same pages.
 - The shared resource-server inventory can show inherited server names; it does not grant access to another Session's browser.
 - Cancellation does not undo navigation, clicks, or other actions already delivered to the browser.

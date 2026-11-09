@@ -79,7 +79,7 @@ export interface UiWorkspace {
    */
   connectWorkspace(workspaceId: WorkspaceId, options?: Pick<StartSessionOptions, 'agentPreset'>): Promise<SessionId>
   /**
-   * Create a fresh Session, or reuse a blank when preparing an explicit draft. A creation the Host
+   * Reuse a blank Session or create one; repeated requests while opening are ignored. A creation the Host
    * refuses is shown through the Workspace notice and leaves the selection as it was.
    * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
    * @param options - initial content and the reused blank's preset; existing text or attachments
@@ -160,6 +160,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
+  private opening: Promise<void> | undefined
 
   /**
    * @param ctx - Client root Context.
@@ -195,18 +196,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   /**
-   * @param reuse - preset for the reused or created blank; absent creates a fresh Session.
+   * @param reuse - preset for the reused or created blank.
    */
   private async connectBlank(
     workspaceId: WorkspaceId,
-    reuse: Pick<StartSessionOptions, 'agentPreset'> | undefined,
+    reuse: Pick<StartSessionOptions, 'agentPreset'>,
   ): Promise<SessionId> {
     const workspace = this.workspaces.list.getSnapshot().items
       .find(item => item.workspaceId === workspaceId)
     if (workspace === undefined) {
       throw new Error(`uiWorkspace.connectWorkspace: unknown workspace ${workspaceId}`)
     }
-    if (reuse === undefined) return this.sessions.create({ workspaceId })
     const inflight = this.connecting.get(workspaceId)
     if (inflight !== undefined && inflight.agentPreset === reuse.agentPreset) return inflight.attempt
 
@@ -288,7 +288,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private async openWorkspaceSession(
     workspaceId: WorkspaceId,
     beforeOpen: ((sessionId: SessionId) => void) | undefined,
-    reuse: Pick<StartSessionOptions, 'agentPreset'> | undefined,
+    reuse: Pick<StartSessionOptions, 'agentPreset'>,
   ): Promise<void> {
     const navigation = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
     let sessionId: SessionId
@@ -318,6 +318,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {
+    if (this.opening !== undefined) return
     const { agentPreset, ...draft } = options ?? {}
     const draftOptions = options === undefined ? undefined : draft
     const initializeDraft = draftOptions !== undefined
@@ -340,16 +341,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       this.clearMain()
       return
     }
-    const opening = draftOptions === undefined
-      ? this.openWorkspaceSession(target, undefined, undefined)
-      : this.openWorkspace(target, initializeDraft ? (id) => {
-        const binding = this.sessions.binding(id)
-        if (binding === undefined) this.draftPreparationFailed()
-        this.prepareDraft(binding, draftOptions)
-      } : undefined, agentPreset === undefined ? {} : { agentPreset })
+    const opening = this.openWorkspace(target, initializeDraft ? (id) => {
+      const binding = this.sessions.binding(id)
+      if (binding === undefined) this.draftPreparationFailed()
+      this.prepareDraft(binding, draftOptions)
+    } : undefined, agentPreset === undefined ? {} : { agentPreset })
+    this.opening = opening
     void opening.catch(
       (reason: unknown) => { console.warn('new session failed:', reason) },
-    )
+    ).finally(() => { this.opening = undefined })
   }
 
   private prepareDraft(binding: SessionBinding, options: DraftInitializationOptions): void {

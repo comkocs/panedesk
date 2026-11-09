@@ -21,6 +21,44 @@
       }
     },
     {
+      "id": "background-browser-mcp-startup",
+      "description": "Start per-Agent browser MCP clients without delaying session creation",
+      "origin": "Panedesk new-session responsiveness",
+      "reason": "Keep browser tools hidden until background startup and discovery complete, retain startup error reporting, and ignore results for canceled or disposed Agents.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/experimental/browser-use-runtime/src/mcp.ts",
+          "packages/experimental/browser-use-runtime/README.md",
+          "packages/experimental/browser-use-runtime/README.zh.md",
+          "packages/experimental/browser-use-chrome-devtools-mcp/README.md",
+          "packages/experimental/browser-use-chrome-devtools-mcp/README.zh.md",
+          "packages/experimental/browser-use-playwright-mcp/README.md",
+          "packages/experimental/browser-use-playwright-mcp/README.zh.md",
+          "packages/llm/llm-cache/src/index.ts",
+          "packages/llm/llm-cache/README.md",
+          "packages/llm/llm-cache/README.zh.md"
+        ]
+      }
+    },
+    {
+      "id": "new-session-deduplication-and-stream-batching",
+      "description": "Reuse eligible blank sessions and batch streaming snapshot notifications",
+      "origin": "Panedesk new-session responsiveness",
+      "reason": "Ignore repeated New Session requests while opening, reuse existing blanks in the selected workspace, and publish transient Assistant snapshots by animation frame.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-workspace/src/client/navigation.ts",
+          "packages/client/ui-workspace/README.md",
+          "packages/client/ui-workspace/README.zh.md",
+          "packages/api/session-controller/src/client/sessions/session.ts",
+          "packages/api/session-controller/README.md",
+          "packages/api/session-controller/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "dark-theme-default",
       "description": "Use dark appearance when no theme preference has been saved",
       "origin": "Panedesk appearance defaults",

@@ -142,6 +142,7 @@ interface SessionState {
   policy: CachePolicy
   keepalive: KeepalivePolicy
   prefix?: Pick<PromptAssembly, 'sections' | 'tools'>
+  toolSdk?: string | undefined
   evidence?: LedgerCacheEvidence | undefined
   reasons: Set<string>
   request?: GenerateOptions
@@ -451,8 +452,13 @@ export function apply(ctx: Context, config: Config): void {
     if (context.agent === undefined || ledger() === undefined) return assembly
     const state = stateOf(context.agent.id, context.agent)
     const available = new Set(assembly.tools.map(tool => tool.name))
-    if (state.prefix === undefined) {
+    const toolSdk = assembly.sections.find(section => section.name === 'tools:sdk')?.text
+    // Background discovery must reach both native schemas and the PTC SDK.
+    if (state.prefix === undefined || toolSdk !== state.toolSdk
+      || assembly.tools.some(tool => !state.prefix?.tools.some(retained => retained.name === tool.name))) {
+      if (state.prefix !== undefined) state.reasons.add('permission-change')
       state.prefix = { sections: [{ name: 'cache-stable-prefix', text: renderPrompt(assembly), interpolate: false }], tools: orderedTools(assembly.tools) }
+      state.toolSdk = toolSdk
     } else {
       const retained = state.prefix.tools.filter(tool => available.has(tool.name))
       if (retained.length !== state.prefix.tools.length) {
