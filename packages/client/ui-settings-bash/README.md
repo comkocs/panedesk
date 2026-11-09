@@ -21,7 +21,7 @@ Settings General row that probes the Windows Git Bash installation through the H
 
 ## Using this package
 
-Mount the row in web-facing profiles; it registers into `settings.general.item` behind the General section of Settings and reads every fact through the generated `bashSetup` Remote face. Off-Windows hosts see a one-line "applies to Windows hosts only" body with no actions. On Windows the row reports the first probe hit with its full path, and the button click is the confirmation that commits that executable to the product configuration the base profiles gate on. When the probe finds nothing, the row carries the bilingual install instructions instead. A committed selection renders with a restore action that removes the file and returns the host to the PowerShell default.
+Mount the row in web-facing profiles; it registers into `settings.general.item` behind the General section of Settings and reads every fact through the generated `bashSetup` Remote face. Off-Windows hosts see a one-line "applies to Windows hosts only" body with no actions. On Windows the row reports the first probe hit with its full path, and the button click is the confirmation that commits that executable to the product configuration the base profiles gate on. When the probe finds nothing, the row carries the bilingual install instructions instead. A committed selection renders with a switch-back action that commits an explicit PowerShell selection; Windows hosts without any committed selection already run a detected Git Bash by default.
 
 ### What a click commits
 

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-agent-instructions` 向 agent（智能体）提供来自用户全局文件和项目级文件的工作区指引；这些文件均与 `AGENTS.md` 兼容。它为第一次请求加载适用的指令链。它不会持续监视外部编辑：成功的文件系统操作会发现新适用的嵌套文件，并让后续变更或移除可见；恢复会话也会对账基线。`dsh-base` 默认启用此行为，profile 可以禁用。字节预算限制注入的上下文：较宽泛的文件先被省略，最具体的文件最后被截断，空指令链不添加任何内容。
+`dsh-agent-instructions` 向 agent（智能体）提供来自用户全局文件和项目级文件的工作区指引；这些文件均与 `AGENTS.md` 兼容。它为第一次请求加载适用的指令链。它不会持续监视外部编辑：成功的文件系统操作会发现新适用的嵌套文件，并让后续变更或移除可见；恢复会话也会对账基线。`dsh-base` 默认启用此行为，profile 可以禁用。字节预算限制注入的上下文：较宽泛的文件先被省略，最具体的文件最后被截断，空指令链不添加任何内容。同一条基线还会在目录存在时带上 Claude Code 记忆文件——`~/.claude/projects/<编码工作目录>/memory/MEMORY.md`,路径中非字母数字字符一律编码为 `-`——占用同一预算,并附一句该目录全路径的说明,让模型用普通读写工具在那里读写记忆;对账不跟踪它。本包还为压缩提示词收集项目根到会话工作目录 `CLAUDE.md` 链中的 `## Compact Instructions` 段(`collectCompactInstructions`)。
 
 ## 目录
 
@@ -100,7 +100,9 @@ export interface Config {
 | [`src/index.ts`](src/index.ts) | 插件入口：pre-step 监听器、`tools/result` touch 跟踪、inbox 组合 |
 | [`src/config.ts`](src/config.ts) | `Config` schema、预算解析、基线标识 |
 | [`src/files.ts`](src/files.ts) | 候选发现、项目根搜索、有界流式读取 |
-| [`src/render.ts`](src/render.ts) | 指令渲染、预算截断、变更记录 |
+| [`src/render.ts`](src/render.ts) | 指令渲染、预算截断、变更记录、记忆块 |
+| [`src/compact.ts`](src/compact.ts) | 为压缩提示词提取 `## Compact Instructions` 段 |
+| [`src/memory.ts`](src/memory.ts) | Claude Code 记忆目录编码与 `MEMORY.md` 加载 |
 | [`src/state.ts`](src/state.ts) | 持久消息来源、版本／digest 缓存、对账 |
 | [`src/digest.ts`](src/digest.ts) | SHA-1 内容标识与每候选组重复键 |
 

@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="using-this-package"></a>
 ## 使用本包
 
-把行挂进面向 Web 的档;它注册在设置面板通用区的 `settings.general.item` 槽上,全部事实都经生成的 `bashSetup` 远端面读取。非 Windows 宿主看到一行「只在 Windows 宿主上适用」的说明,没有动作。Windows 上,行报告首个探测命中及其完整路径,按钮点击就是把这个可执行文件提交为 base 档门控所读产品选择的确认动作。探测一无所获时,行改为承载中英安装说明。已提交的选择带一个恢复动作:删掉该文件,宿主回到 PowerShell 缺省。
+把行挂进面向 Web 的档;它注册在设置面板通用区的 `settings.general.item` 槽上,全部事实都经生成的 `bashSetup` 远端面读取。非 Windows 宿主看到一行「只在 Windows 宿主上适用」的说明,没有动作。Windows 上,行报告首个探测命中及其完整路径,按钮点击就是把这个可执行文件提交为 base 档门控所读产品选择的确认动作。探测一无所获时,行改为承载中英安装说明。已提交的选择带一个改回动作:提交一份显式 PowerShell 选择;没有任何已提交选择的 Windows 宿主,缺省就已经在用探测到的 Git Bash。
 
 ### 一次点击提交什么
 

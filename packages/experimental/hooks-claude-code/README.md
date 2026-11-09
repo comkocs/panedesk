@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Hook processes and their payload `cwd` use the Session's current working directory when each hook point starts. `CLAUDE_PROJECT_DIR` follows it unless `projectDir` is configured. `SubagentStop` reads the child's final committed directory after disposal; it cannot recover a missing directory or mutate that Session, and a failed stop hook is warned.
 
-Mount this package, point `configPath` at your hook config, and the hooks you already have start firing at the corresponding moments in agent runs. There is nothing else to set up before the first hook works.
+Mount this package and the hooks you already have start firing at the corresponding moments in agent runs. With no `configPath`, each session working directory discovers its project `.claude/settings.json` / `.claude/settings.local.json` plus the user-level `~/.claude/settings.json` and merges them in that order. There is nothing else to set up before the first hook works.
 
 ### When to choose it
 
@@ -45,7 +45,7 @@ Use it when you own a Claude Code `hooks.json` (or a settings file whose `hooks`
 
 | Field | Default | Meaning |
 |---|---|---|
-| `configPath` | required | Path to a `hooks.json` or a settings file whose `hooks` key holds the config |
+| `configPath` | optional | Path to a `hooks.json` or a settings file whose `hooks` key holds the config; omitted, each session working directory discovers project and user settings |
 | `pluginRoot` | — | Replaces `${CLAUDE_PLUGIN_ROOT}` in command strings |
 | `projectDir` | session workspace | Replaces `${CLAUDE_PROJECT_DIR}` and sets the `CLAUDE_PROJECT_DIR` env var |
 | `defaultTimeoutMs` | `600,000` | Per-hook timeout when a hook sets none (the Claude Code default) |
@@ -57,7 +57,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 | Your hook | When it runs | What it can do |
 |---|---|---|
-| `SessionStart` | when a session starts | attach context the model sees in that session |
+| `SessionStart` | when a session starts, and again with source `compact` after a committed compaction | attach context the model sees in that session |
 | `UserPromptSubmit` | when the agent receives a prompt | block the prompt, or attach extra context |
 | `PreToolUse` | before a tool runs | block the tool, or ask for approval before it runs |
 | `PostToolUse` | after a tool runs | block the result with feedback, or attach extra context |
@@ -69,7 +69,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 - Hooks run in the agent's current Session directory; `pwd`, payload `cwd`, and relative paths agree.
 - `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PROJECT_DIR}` in command strings are replaced from your config, and `CLAUDE_PROJECT_DIR` is set for every hook process.
-- One config applies to the whole process: it is read once at startup, and a relative `configPath` resolves from the directory that launched the process.
+- An explicit config applies to the whole process: it is read once at startup, and a relative `configPath` resolves from the directory that launched the process. Without one, discovery parses each working directory's settings files once per directory.
 - Hooks on the same event run one after another, in config order.
 - If the config cannot be read or parsed, the bridge logs a warning and runs no hooks — the agent still starts.
 - A hook that fails to run (a bad command or a crash) is logged, and the agent continues.
@@ -180,7 +180,7 @@ These limits describe what your Claude Code hooks cannot do through this bridge 
 - **`SubagentStart` and `SubagentStop` are partial** — both report a constant `agent_type` of `general-purpose` and use the child session id where Claude Code reports the parent session. Start context is best-effort and can only reach a live in-process child; stop is observe-only and cannot block the subagent or feed it context. Stop omits `agent_transcript_path`, `last_assistant_message`, `background_tasks`, and `session_crons` and always reports `stop_hook_active: false`.
 - **`Stop` is partial** — blocking forces another model turn, but `stop_hook_active` is always `false`, `last_assistant_message`, `background_tasks`, and `session_crons` are omitted, and the consecutive-block cap is not implemented. An unconditionally blocking hook therefore force-continues every step unless it self-limits.
 - **Common payload and output fields are partial** — mapped event payloads omit `prompt_id`, `permission_mode`, and `effort` where Claude Code would provide them, and `transcript_path` is never populated: it is always the empty string, because the persistence seam exposes no artifact paths and the default Zstandard-compressed session log is not readable by hook scripts. `systemMessage` is logged + warned but not surfaced; `{"continue": false}` is recorded but does not halt the run; `suppressOutput`, `stopReason`, and `terminalSequence` are not applied.
-- **Handler and config support is partial** — only shell-form command handlers run. `http`, `mcp_tool`, `prompt`, and `agent` handlers are skipped; command-handler options such as `args`, `async`, `asyncRewake`, `shell`, `if`, `once`, and `statusMessage` are not honored. Matching handlers run serially and are not deduplicated, whereas Claude Code runs them in parallel and deduplicates identical handlers. One process-level `configPath` is parsed once at load; Claude Code's layered project, user, plugin, and policy discovery and live reload are not implemented.
+- **Handler and config support is partial** — only shell-form command handlers run. `http`, `mcp_tool`, `prompt`, and `agent` handlers are skipped; command-handler options such as `args`, `async`, `asyncRewake`, `shell`, `if`, `once`, and `statusMessage` are not honored. Matching handlers run serially and are not deduplicated, whereas Claude Code runs them in parallel and deduplicates identical handlers. An explicit `configPath` is parsed once at load; without one, project and user settings are discovered per session working directory. Plugin and policy layers and live reload are not implemented.
 
 <a id="dev-note"></a>
 ### Dev Note

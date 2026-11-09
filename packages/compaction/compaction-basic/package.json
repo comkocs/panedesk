@@ -44,6 +44,7 @@
     }
   },
   "dependencies": {
+    "@panedesk/dsh-agent-instructions": "workspace:*",
     "@panedesk/dsh-util-values": "workspace:*",
     "@panedesk/schemastery": "workspace:~"
   },

@@ -235,6 +235,41 @@ function additionalSectionText(file: LoadedInstructionFile): string {
 
 const BASELINE_RENDER_STYLE: RenderStyle = { intro: AGENT_INSTRUCTIONS_INTRO, section: sectionText }
 
+const CLAUDE_MEMORY_INTRO = 'Claude Code memory for this workspace. Read and write files in this memory directory with the normal file tools to carry notes across sessions.'
+
+/**
+ * Render the Claude Code memory file as its own budgeted reminder block.
+ * @param memory - the loaded memory file and its absolute directory.
+ * @param budgetBytes - maximum UTF-8 bytes this block may occupy.
+ * @returns the framed block, or undefined when the budget fits no content.
+ */
+export function renderClaudeMemory(
+  memory: { file: LoadedInstructionFile; directory: string },
+  budgetBytes: number,
+): string | undefined {
+  const header = [
+    `Memory directory: ${memory.directory}`,
+    CLAUDE_MEMORY_INTRO,
+    '',
+    `Instructions from memory: ${memory.file.displayPath}`,
+    '',
+  ].join('\n')
+  if (budgetBytes <= 0 || !Number.isFinite(budgetBytes)) return undefined
+  let content = memory.file.content
+  let bytes = byteLength(header) + byteLength(content)
+  if (bytes > budgetBytes) {
+    content = truncateUtf8(content, Math.max(0, budgetBytes - byteLength(header)))
+    bytes = byteLength(header) + byteLength(content)
+  }
+  const body = `${header}${content}`
+  if (bytes > budgetBytes) {
+    const notice = truncateUtf8(header, budgetBytes)
+    if (notice.length === 0) return undefined
+    return [SYSTEM_REMINDER_OPEN, escapeInstructionFrameBody(notice), SYSTEM_REMINDER_CLOSE].join('\n')
+  }
+  return [SYSTEM_REMINDER_OPEN, escapeInstructionFrameBody(body), SYSTEM_REMINDER_CLOSE].join('\n')
+}
+
 function baselineRenderStyle(files: LoadedInstructionFile[], replacePreviousBaseline: boolean | undefined): RenderStyle {
   if (replacePreviousBaseline !== true) return BASELINE_RENDER_STYLE
   return {

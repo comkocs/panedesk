@@ -16,7 +16,7 @@ import Loader, { type Entry, type EntryGroup, type EntryOptions } from '@panedes
 import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '@panedesk/cordis-plugin-include'
 import Group from '@panedesk/cordis-plugin-group'
 import { dshHomePath, resolveDshHome } from '@panedesk/dsh-home-paths'
-import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bash-local'
+import { resolveWindowsBashDefault, type WindowsBashConfig } from '@panedesk/dsh-bash-local'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 export { readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
@@ -1307,7 +1307,7 @@ export async function boot(
   try {
     ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
     ctx.provide('dshHomePath', dshHomePath)
-    ctx.provide('windowsBashConfig', () => readWindowsBashConfig())
+    ctx.provide('windowsBashConfig', () => resolveWindowsBashDefault())
     // Fiber.update() discards the restart promise. Observe it before the
     // waterfall returns; activation audits still report the failed fiber.
     ctx.on('internal/update', (_config, _noSave, next: () => unknown) => {

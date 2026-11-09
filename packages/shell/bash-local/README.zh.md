@@ -141,7 +141,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 - **自身不提供隔离**——命令以 harness 进程的权限运行；需要隔离的部署组合 `dsh-bash-sandbox`，每次调用的 allow/deny/ask 策略则属于工具的 `pre-execute` waterfall（瀑布式事件）。
 - **没有持久 shell 或 PTY**——每次调用都启动全新的非登录 `bash -c`；仅持久化 cwd 与交互式终端会话均继续延期，直到真实工作流需要它们。
-- **Windows 要求显式安装 Bash**——将 `bashPath` 设为 Git Bash 可执行文件，如 `C:\Program Files\Git\bin\bash.exe`。缺省仍为 `bash`。首启探测(`windowsBashCandidates`)按标准安装器、用户目录安装、Scoop、便携版顺序找候选,设置行把用户确认后的选择写进 harness 主目录下的 `windows-bash.json`(`writeWindowsBashConfig`);base 档的 Bash 与 PowerShell 行按 `PANEDESK_BASH_PATH` 或这份已提交的选择门控,省略时仍用 Windows PowerShell。命令语法与路径转换由所选 Bash 安装负责。
+- **Windows 要求显式安装 Bash**——将 `bashPath` 设为 Git Bash 可执行文件，如 `C:\Program Files\Git\bin\bash.exe`。缺省仍为 `bash`。首启探测(`windowsBashCandidates`)按标准安装器、用户目录安装、Scoop、便携版顺序找候选,设置行把用户确认后的选择写进 harness 主目录下的 `windows-bash.json`(`writeWindowsBashConfig`);base 档的 Bash 与 PowerShell 行按 `PANEDESK_BASH_PATH` 或解析后的选择(`resolveWindowsBashDefault`)门控:从未选择过的宿主直接用探测到的 Git Bash,而一份显式 `{ enabled: false }` 文档(设置行的停用动作 `commitWindowsPowerShellSelection`)保持 PowerShell。命令语法与路径转换由所选 Bash 安装负责。
 - **后台提供方失败提示就是整条 stderr 流**——`SubprocessHandle.done` 可能在目标命令开始执行前或后被拒绝，而 subprocess 服务不会为从未上报结果的目标命令 缓冲任何输出，因此执行器把不声明失败阶段的 `subprocess failed before reporting an outcome: …` 作为观测到的 stderr 流提供（偏移读取方按各自偏移重读），并只折入恰好一个 `readOutput()` 增量；丢弃了该增量的消耗式读取方只能经 `observed.stderr` 恢复它。
 
 <a id="dev-note"></a>

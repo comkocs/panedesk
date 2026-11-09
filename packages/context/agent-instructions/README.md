@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-agent-instructions` gives agents workspace guidance from user-global and project-level `AGENTS.md`-compatible files. It loads the applicable chain for the first request. It does not watch external edits continuously: successful filesystem operations discover newly relevant nested files and make later changes or removals visible, while session resume reconciles the baseline. `dsh-base` enables this behavior by default, while profiles can disable it. A byte budget bounds the injected context: broader files are omitted before the most specific file is truncated, and an empty chain adds nothing.
+`dsh-agent-instructions` gives agents workspace guidance from user-global and project-level `AGENTS.md`-compatible files. It loads the applicable chain for the first request. It does not watch external edits continuously: successful filesystem operations discover newly relevant nested files and make later changes or removals visible, while session resume reconciles the baseline. `dsh-base` enables this behavior by default, while profiles can disable it. A byte budget bounds the injected context: broader files are omitted before the most specific file is truncated, and an empty chain adds nothing. The same baseline carries the Claude Code memory file — `~/.claude/projects/<encoded working directory>/memory/MEMORY.md`, with every non-alphanumeric path character encoded as `-` — inside the same budget when that directory exists, alongside a reminder of the directory's full path so the model reads and writes memory there with the normal file tools; reconciliation does not track it. The package also collects the `## Compact Instructions` sections of the root-to-cwd `CLAUDE.md` chain (`collectCompactInstructions`) for the compaction prompt.
 
 ## Table of Contents
 
@@ -100,7 +100,9 @@ The plugin is built on one principle: workspace instructions are durable convers
 | [`src/index.ts`](src/index.ts) | Plugin entry: pre-step listener, `tools/result` touch tracking, inbox composition |
 | [`src/config.ts`](src/config.ts) | `Config` schema, budget resolution, baseline identity |
 | [`src/files.ts`](src/files.ts) | Candidate discovery, project-root search, bounded streaming reads |
-| [`src/render.ts`](src/render.ts) | Instruction rendering, budget truncation, change records |
+| [`src/render.ts`](src/render.ts) | Instruction rendering, budget truncation, change records, memory block |
+| [`src/compact.ts`](src/compact.ts) | `## Compact Instructions` extraction for the compaction prompt |
+| [`src/memory.ts`](src/memory.ts) | Claude Code memory directory encoding and `MEMORY.md` loading |
 | [`src/state.ts`](src/state.ts) | Durable message sources, version/digest cache, reconciliation |
 | [`src/digest.ts`](src/digest.ts) | SHA-1 content identity and per-candidate-group duplicate keys |
 

@@ -1781,6 +1781,9 @@ importers:
 
   packages/api/terminal-controller:
     dependencies:
+      '@panedesk/dsh-bash-local':
+        specifier: workspace:*
+        version: link:../../shell/bash-local
       '@panedesk/dsh-deque':
         specifier: workspace:*
         version: link:../../util/deque
@@ -2694,6 +2697,9 @@ importers:
       '@panedesk/dsh-hmr':
         specifier: workspace:*
         version: link:../../boot/hmr
+      '@panedesk/dsh-hooks-claude-code':
+        specifier: workspace:*
+        version: link:../../experimental/hooks-claude-code
       '@panedesk/dsh-instruction-subscriptions':
         specifier: workspace:*
         version: link:../../context/instruction-subscriptions
@@ -8608,6 +8614,9 @@ importers:
 
   packages/compaction/compaction-basic:
     dependencies:
+      '@panedesk/dsh-agent-instructions':
+        specifier: workspace:*
+        version: link:../../context/agent-instructions
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
@@ -10873,6 +10882,9 @@ importers:
       '@panedesk/dsh-bash-local':
         specifier: workspace:*
         version: link:../../shell/bash-local
+      '@panedesk/dsh-compaction':
+        specifier: workspace:*
+        version: link:../../compaction/compaction
       '@panedesk/dsh-fs-local':
         specifier: workspace:*
         version: link:../../fs/fs-local

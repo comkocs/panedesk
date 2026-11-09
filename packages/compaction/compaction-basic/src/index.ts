@@ -13,6 +13,7 @@ import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@panedesk/dsh-llm'
 import type { LlmCallConfig } from '@panedesk/dsh-llm'
 import { assertNever } from '@panedesk/dsh-util-values'
 import type { Agent, PreStepDecision } from '@panedesk/dsh-agent'
+import { collectCompactInstructions } from '@panedesk/dsh-agent-instructions'
 import type { CommandId } from '@panedesk/dsh-commands/brand'
 // Type-only: makes the optional sibling service available to `ctx.get()`.
 import type {} from '@panedesk/dsh-compaction-tool-result-pruner'
@@ -238,6 +239,8 @@ export class BasicCompactionEngine extends CompactionEngine {
    * Summarize the replayed conversation region through a direct one-shot
    * `ctx.llm.stream()` call whose prefix reuses the conversation's own system
    * prompt, tools, and messages so the provider's KV cache is not invalidated.
+   * The workspace CLAUDE.md `## Compact Instructions` sections are appended to
+   * the instruction; failing to read them logs and compacts without them.
    * Override this sole hook for a template or remote summarizer.
    * @param input - replayed conversation prefix (system, tools, and leading messages) to condense.
    * @param agent - supplies routed-model history, fallback model, and session id.
@@ -253,7 +256,21 @@ export class BasicCompactionEngine extends CompactionEngine {
     const config = target === undefined
       ? this.config
       : resolveTargetPolicy(this.config, target)
-    return summarizeWithLlm(this.ctx, config, input, agent, signal)
+    return summarizeWithLlm(this.ctx, config, input, agent, signal, await this.compactInstructions(agent, signal))
+  }
+
+  /** Read the workspace Compact Instructions sections for the summarization prompt. */
+  private async compactInstructions(agent: Agent, signal?: AbortSignal): Promise<string | undefined> {
+    const workingDirectory = this.ctx.get('workingDirectory')
+    const cwd = workingDirectory === undefined ? undefined : workingDirectory.get(agent.session)
+    if (cwd === undefined) return undefined
+    try {
+      return await collectCompactInstructions({ cwd, ...signal === undefined ? {} : { signal } }, this.ctx.get('fs'))
+    } catch (error: unknown) {
+      signal?.throwIfAborted()
+      this.ctx.logger.warn(`compaction-basic: compact instructions unavailable: ${String(error)}`)
+      return undefined
+    }
   }
 
   /**

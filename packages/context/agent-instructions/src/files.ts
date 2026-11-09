@@ -389,6 +389,25 @@ async function* nodeTextChunks(path: string, signal?: AbortSignal): AsyncIterabl
   for await (const chunk of stream) yield String(chunk)
 }
 
+/**
+ * Read one instruction file under the source cap, without baseline discovery.
+ * @param path - absolute file path.
+ * @param maxSourceBytes - maximum UTF-8 bytes accepted from the file.
+ * @param fileSystem - optional provider used instead of host filesystem reads.
+ * @param signal - cancellation for metadata probes and streaming reads.
+ * @returns the file content, or undefined when absent, oversized, or unreadable.
+ */
+export async function readInstructionFile(
+  path: string,
+  maxSourceBytes: number,
+  fileSystem?: FileSystem,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
+  const probe = await statFile(path, fileSystem, signal)
+  if (probe.kind !== 'present') return undefined
+  return readBounded({ absolutePath: path, ...probe.info }, maxSourceBytes, fileSystem, signal)
+}
+
 async function readBounded(
   file: { absolutePath: string; target?: FsTarget; size?: number },
   maxSourceBytes: number,

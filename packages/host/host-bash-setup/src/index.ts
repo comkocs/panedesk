@@ -2,7 +2,9 @@
 
 import { Context } from '@panedesk/cordis'
 import { TypertRemoteService, Remote, RemoteError } from '@panedesk/dsh-typert-protocol'
-import { probeWindowsBash, readWindowsBashConfig, clearWindowsBashConfig, writeWindowsBashConfig } from '@panedesk/dsh-bash-local'
+import {
+  commitWindowsPowerShellSelection, probeWindowsBash, readWindowsBashConfig, writeWindowsBashConfig,
+} from '@panedesk/dsh-bash-local'
 import type { BashSetupStatus, BashSetupWriteResult } from './types.ts'
 
 export type { BashSetupStatus, BashSetupWriteResult } from './types.ts'
@@ -38,13 +40,13 @@ export class BashSetupGateway extends TypertRemoteService {
     return this.snapshot()
   }
 
-  /** Remove the committed selection so the platform default stands again.
-   * @returns Status after the removal.
+  /** Commit the explicit PowerShell selection, overriding the detected-Bash default.
+   * @returns Status after the write.
    */
   @Remote('disable')
   async disable(): Promise<BashSetupWriteResult> {
     this.checkCancellation()
-    await clearWindowsBashConfig()
+    await commitWindowsPowerShellSelection()
     return this.snapshot()
   }
 
