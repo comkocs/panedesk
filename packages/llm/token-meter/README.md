@@ -46,11 +46,11 @@ The measurement anchor includes the priced surface immediately before the succes
 
 ### Session projections
 
-When the composition provides `ctx.sessionProjections`, token-meter registers three projection units. `tokenUsage` carries the complete durable log's `uncachedInputTokens`, `outputTokens`, `cacheReadTokens`, and `cacheWriteTokens`. A final assistant-message sample replaces streaming usage from the same attempt; `llm/retry-started` ends that replacement scope, so a retry in the same step contributes another billed attempt. `contextPressure` carries optional `pressureTokens` (the newest provider-reported prompt size), optional `projectedTokens` (what the next request's prompt would cost), and optional `contextWindow` from the newest `request/context` record. `contextBreakdown` carries heuristic `systemTokens`, `toolsTokens`, and `messageTokens` — the context's composition, not its provider-billed size. Unloading the plugin removes all three keys.
+When the composition provides `ctx.sessionProjections`, token-meter registers three projection units. `tokenUsage` carries the complete durable log's `uncachedInputTokens`, `outputTokens`, `cacheReadTokens`, and `cacheWriteTokens`. A final assistant-message sample replaces streaming usage from the same attempt; `llm/retry-started` ends that replacement scope, so a retry in the same step contributes another billed attempt. `contextPressure` carries optional `pressureTokens` (the newest provider-reported prompt size), optional `projectedTokens` (what the next request's prompt would cost), and optional `contextWindow` from the newest `request/context` record. `contextBreakdown` carries local categories for messages, system prompts, MCP and built-in tools, skills, instruction files, agent catalogs, and MCP instructions, with five named item lists, separate deferred-tool estimates, and category weights sampled before the latest provider response. Unloading the plugin removes all three keys.
 
 Image offload reprices existing node identities while preserving prior usage anchors. The fixed reference heuristic excludes `offloaded` metadata, so an offload decision does not change `contextBreakdown` or the scalar heuristic total; route-aware measurement replaces the selected visual prices with placeholder text.
 
-`contextBreakdown` classifies the last nonempty surviving `system/message` in surface order as `systemTokens`; empty dormant nodes contribute nothing, and no nonempty system means zero. `messageTokens` includes every other visible node, including superseded prompts. Their sum equals `measure().nodes[].heuristicTokens` after appends, metered compaction and pruning, and system-prompt rewrites or clearing; an unmetered replacement of a non-system range folds at zero delta, like `contextPressure`. `toolsTokens` follows the latest `request/header`. All three use the fixed heuristic, not route image pricing or file-handle projection; they are approximate composition, not billing or `projectedTokens`.
+`contextBreakdown` classifies recognizable MCP instruction sections in the last nonempty surviving `system/message` in surface order separately from the remaining `systemTokens`. Logged instruction-file and skill-catalog frames contribute their own categories; unrecognized surface content, including superseded system prompts, remains messages. Tool schemas follow the latest `request/header`: `mcp__` names identify MCP tools, `deferLoading` excludes definitions from active occupancy, and embedded preset catalogs contribute agent descriptions. Unidentifiable agent prompt text stays in system prompts. MCP instructions are recognized from their server heading through the next level-one-to-three heading; nested headings and section text without retained source metadata cannot be attributed reliably and remain system text. Agent lists reflect the advertised preset catalog, which does not retain whether each entry came from an agent file. These figures use the fixed heuristic, not route image pricing or file-handle projection.
 
 `deriveTurnTokenUsage(events)` folds one complete turn into exact per-attempt and whole-turn usage for browser consumers. It returns no result when lifecycle evidence is missing, counts are unsafe, or exact totals conflict; each corresponding aggregate appears only when every participating attempt reports its optional cache, reasoning, or route value.
 
@@ -65,7 +65,7 @@ Both plugins have usable defaults. The meter consumes only the optional `llm` se
 
 ### Reading the numbers
 
-Occupancy is a reference figure, not a billing record: nothing in the harness makes decisions from it, and compaction reads `measure()` instead. A UI computes occupancy by dividing measured pressure by the separately resolved capacity for the selected model. The `contextBreakdown` figures are estimates that will not sum to `projectedTokens`, whose provider anchor carries exactly the heuristic error — CJK text and JSON schemas underprice badly at four characters per token.
+Occupancy is a reference figure, not a billing record: nothing in the harness makes decisions from it, and compaction reads `measure()` instead. A UI computes occupancy by dividing measured pressure by the separately resolved capacity for the selected model. Text pricing counts each Han, kana, Hangul, or fullwidth punctuation character as one token and each four other Unicode characters as one token, rounded up, plus existing structural overhead. The context panel scales sampled category weights to provider-reported input, then shows subsequent local growth separately; raw projection estimates are not billing totals. `createContextCompactionProjection(policy)` lets a mounted backend publish its configured trigger reservation without modifying requests.
 
 -----
 
@@ -86,7 +86,7 @@ The service is built on one fold and one anchor. Each session gets an isolated r
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | The `TokenMeter` service: replay state, fold, `measure()` and `estimateMessage()` |
-| [`src/estimate.ts`](src/estimate.ts) | The fixed heuristic: four characters per token plus block and role overhead |
+| [`src/estimate.ts`](src/estimate.ts) | The fixed heuristic: one token per CJK character, four other characters per token, plus block and role overhead |
 | [`src/surface-fold.ts`](src/surface-fold.ts) | The positional surface fold shared with `measure()` |
 | [`src/surface-projection.ts`](src/surface-projection.ts) | Shadow-price protocol for the O(1) projection units |
 | [`src/usage-projection.ts`](src/usage-projection.ts) | `tokenUsage` and `contextPressure` projection definitions |
@@ -100,7 +100,7 @@ Each `measure()` call synchronizes the fold to the current durable tail, then re
 
 ### Projection semantics
 
-`contextBreakdown` retains only the surviving `system/message` nodes with their heuristic prices, one running surface total, and at most one armed shadow-price claim; a replacement subtracts the adjacent claim, whose `shadowedSeqs` also name the system prompts it removes, or the retained price of the one system prompt it rewrites ([decision](../../../.agents/notes/implemented/architecture/2026-10-13-context-breakdown-system-prompt-state.md)). Its state follows the number of surviving system prompts, not the message count; state version 6 invalidates positional checkpoints. `contextPressure` is the other scalar shadow-price consumer: replacements without adjacent claims contribute zero delta. The usage fold retains one last-sample slot because legal logs never report usage for an earlier step after a later step reports usage.
+`contextBreakdown` retains surviving system prompts and classified instruction contributions, a running surface total, tool details, and one adjacent shadow-price claim. Replacements remove classified contributions named by `shadowedSeqs`; single-node system rewrites reprice their retained entry. State version 7 invalidates older composition checkpoints; context-pressure version 6 invalidates prices from the previous text heuristic. `contextPressure` is the other scalar shadow-price consumer: replacements without adjacent claims contribute zero delta. The usage fold retains one last-sample slot because legal logs never report usage for an earlier step after a later step reports usage.
 
 `./estimate` exports the stateless text/content estimators used by tool-result retention. Model adapters supply request-image costs through `imageRequestPricing`.
 
@@ -151,7 +151,7 @@ These limits define where the measurement stops and future work begins. They are
 
 This Dev Note is non-authoritative working context: notes for maintainers and open questions. Shipped behavior and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
 
-- The fixed four-characters-per-token heuristic underprices CJK text and JSON schemas; the provider anchor carries exactly that error when usage is reused. Present the composition rows as an approximate composition, never as a total.
+- Character-based estimates remain approximate, especially for JSON schemas; provider-aligned display categories do not make individual item estimates exact.
 - A per-provider exact tokenizer is not decided; keeping one deterministic heuristic is what makes every consumer's measurement agree and replay-stable.
 
 </details>

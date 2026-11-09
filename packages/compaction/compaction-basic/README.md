@@ -77,6 +77,8 @@ All settings are optional. With context window `W`, effective request output cap
 
 Misconfiguration fails fast: unknown settings, duplicate per-model overrides, invalid token counts, both retention forms together, or a retention ratio at least as large as the threshold ratio reject the plugin at load. When the model is first used, `W − O − B` must be positive and the resolved retained budget must be below the trigger. Zero headroom requires an explicit positive `maxTokens`, globally or in that model policy. Small-window deployments must configure headroom that fits their capacity; lower `thresholdRatio` to compact earlier.
 
+The backend also registers a display-only `contextCompaction` projection using the logged route and output cap with the resolved model policy. Its reservation is the window minus the configured trigger, or zero with `auto: false`; this does not change compaction execution or model requests.
+
 ### What happens when condensation runs
 
 The summarization instruction appends the `## Compact Instructions` sections of the root-to-cwd `CLAUDE.md` chain (`collectCompactInstructions` in `@panedesk/dsh-agent-instructions`) verbatim, so workspace compaction guidance shapes the summary. The oldest balanced span is replaced by one summary message and the recent tail stays verbatim; the conversation continues from the summary. The operation reports how many history items were condensed and the estimated tokens freed. If nothing can be condensed safely — for example the whole conversation is one indivisible unit — nothing changes and nothing is written to the session log. If no model is available to write the summary (no configured target and no routed request yet), condensation fails with a clear error telling you to configure the summarization provider and model or route one request.
@@ -254,7 +256,7 @@ These limits define when automatic condensation is a poor fit or needs special c
 This Dev Note is working context for maintainers and is explicitly non-authoritative; shipped behavior lives in the sections above, the package code, and the linked Agent Notes.
 
 - **Default ratios, undecided** — `thresholdRatio: 0.8` and `retainRatio: 0.16` are fixed defaults; per-model tuning via `modelPolicies` exists, but no corpus-backed guidance on ideal values is recorded.
-- **Tokenizer-accurate measurement, deferred** — the token meter's four-characters-per-token heuristic underprices CJK text and JSON Schema documents; exact tokenization remains an open direction for the measurement service.
+- **Tokenizer-accurate measurement, deferred** — the token meter's character heuristic remains approximate for CJK text and JSON Schema documents; exact tokenization remains an open direction for the measurement service.
 - **Overflow recovery beyond canonical errors, undecided** — recovery triggers on `CONTEXT_WINDOW_EXCEEDED` only; other provider-side context failures are not classified.
 
 </details>

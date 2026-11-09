@@ -58,7 +58,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
 
 /** Services required by the Conversation plugin. */
 export const inject = [
-  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'configForms',
+  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'configForms', 'settingsNavigation',
 ]
 
 /** Conversation runtime configuration. */
@@ -468,6 +468,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     inject: (sessionId: SessionId | undefined): ComposerBarInjected => {
       if (sessionId === undefined) {
         return {
+          openToolSettings: () => { ctx.settingsNavigation.openSection('panedesk-tools') },
           keyboard: undefined,
           addFiles: undefined,
           removeAttachment: undefined,
@@ -490,6 +491,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       const inputTriggers = inputHub.inputTriggers(sessionId)
       const bridge = hostPathBridge()
       return {
+        openToolSettings: () => { ctx.settingsNavigation.openSection('panedesk-tools') },
         keyboard: shell,
         addFiles: (files, directories = new Set()) => {
           if (sessions.binding(sessionId) === undefined) return t('file.sessionUnavailable')

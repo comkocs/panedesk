@@ -469,6 +469,8 @@ export interface ComposerBarOwnerProps {
 
 /** Package-private operations injected into the resident composer bar. */
 export interface ComposerBarInjected {
+  /** Open the built-in tool switches from the context composition panel. */
+  openToolSettings: () => void
   keyboard: ComposerKeyboard | undefined
   /**
    * Register one picked batch; resolves to the rejection copy or null. Where
