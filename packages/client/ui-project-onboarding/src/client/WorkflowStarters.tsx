@@ -4,7 +4,7 @@ import { Button, Menu, SettingsPageHeader, Switch } from '@panedesk/dsh-client-u
 import type { InputActions } from '@panedesk/dsh-client-ui-conversation/client'
 import { workflowChoices, workflowDefaults } from '../workflow-defaults.ts'
 import type { WorkflowPrompts } from '../workflow-defaults.ts'
-import type { WorkflowSettingsProps, WorkflowStarterProps, WorkflowQuickProps } from './props.ts'
+import type { WorkflowSettingsProps, WorkflowStarterProps, WorkflowResetProps, WorkflowQuickProps } from './props.ts'
 import css from './ProjectGuide.module.css'
 
 /** Insert a workflow draft through the existing composer actions, without sending.
@@ -22,31 +22,43 @@ export function insertWorkflow(actions: InputActions, text: string): boolean {
 
 /** Offer workflow drafts before the first edit or message in a new session.
  * @param props - Session input and the shared workflow configuration.
- * @returns Three optional starters, a reset action after selection, or nothing after sending.
+ * @returns Three optional starters, hidden after selection or sending.
  */
-export function WorkflowStarters({ session, input, inputActions, useWorkflow, useWorkflowLocale, t }: WorkflowStarterProps) {
+export function WorkflowStarters({ session, input, inputActions, useWorkflow, useWorkflowLocale, useStore, actions, t }: WorkflowStarterProps) {
   const form = useWorkflow(value => value.value)
   const language = useWorkflowLocale(value => value.active === 'zh' ? 'zh' : 'en')
-  const [starterRevision, setStarterRevision] = useState<number | null>(0)
+  const starterRevision = useStore(value => value.starterRevision)
   if (form?.showWorkflowStarters !== true || !session.blank || session.promptAttempted || input.phase !== 'plain') return null
-  if (starterRevision === null) return <Button variant="outline" size="sm" onClick={() => {
-    inputActions.setDraft('')
-    inputActions.persistDraft()
-    inputActions.focus()
-    setStarterRevision(inputActions.captureInsertion().draftRev)
-  }}>{t('chooseAnother')}</Button>
-  if (input.draftRev !== starterRevision) return null
+  if (starterRevision === null || input.draftRev !== starterRevision) return null
   return <section className={css.starters} aria-label={t('startersTitle')}>
     <p>{t('startersTitle')}</p>
     <div className={css.starterChoices}>
       {workflowChoices.map(([label, hint, key]) => <Button key={key} variant="outline"
         className={css.starter} onClick={() => {
-          if (insertWorkflow(inputActions, form[key][language])) setStarterRevision(null)
+          if (insertWorkflow(inputActions, form[key][language])) actions.setStarterRevision(null)
         }}>
         <span>{t(label)}</span><span className={css.starterHint}>{t(hint)}</span>
       </Button>)}
     </div>
   </section>
+}
+
+/** Keep workflow reselection beside the composer after a central entry is chosen.
+ * @param props - Session input and shared workflow selection.
+ * @returns A draft-clearing reset action until the first message is attempted.
+ */
+export function WorkflowReset({ session, input, inputActions, useStore, actions, useWorkflow, useWorkflowLocale, t }: WorkflowResetProps) {
+  const form = useWorkflow(value => value.value)
+  const language = useWorkflowLocale(value => value.active === 'zh' ? 'zh' : 'en')
+  const selected = useStore(value => value.starterRevision === null)
+    || workflowChoices.some(([, , key]) => input.draft === form?.[key][language])
+  if (!selected || !session.blank || session.promptAttempted || (input.phase !== 'plain' && input.phase !== 'claimed')) return null
+  return <Button variant="outline" size="sm" onClick={() => {
+    inputActions.setDraft('')
+    inputActions.persistDraft()
+    inputActions.focus()
+    actions.setStarterRevision(inputActions.captureInsertion().draftRev)
+  }}>{t('chooseAnother')}</Button>
 }
 
 /** Blank-session menu remains available independently of the central starter switch.

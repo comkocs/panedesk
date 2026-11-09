@@ -72,6 +72,8 @@ Queue 预览保留空白、换行与 emoji，在每个待送气泡内折行展�
 
 session-maybe 作用域的 `conversation.hero.actions` 列表在内容处于新会话首屏阶段时，把功能包提供的小操作放在品牌标上方偏右，尚未创建会话时也可显示。它提供当前选择的工作区目录，不依赖中央工作流入口开关。
 
+session 作用域的 `conversation.hero.starters` 列表在首屏阶段将空会话功能入口放在欢迎标题上方。它接收与 `conversation.input.dock` 相同的 Session 和输入 owner 数据；后者仍位于输入卡片上方，用于选择后的紧凑操作。
+
 Session 插槽的 `inputActions.focus(selection?)` 聚焦常驻输入框；未传范围时恢复光标，传入范围时在草稿插入后选中指定的探测坐标范围。
 
 上下文占用率入口遵循[统计控件圆角规则](../../../docs/ui-radius.zh.md#radius-scale)。

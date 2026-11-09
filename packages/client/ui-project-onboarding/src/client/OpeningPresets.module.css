@@ -1,7 +1,7 @@
 .modal { width: min(720px, 100%); }
 .editor { display: grid; gap: 12px; }
 .row { position: relative; display: grid; gap: 8px; min-width: 0; margin: 0; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 8px; padding: 12px; }
-.summary { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) repeat(3, auto); align-items: center; gap: 4px; }
+.summary { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) repeat(4, auto); align-items: center; gap: 4px; }
 .summaryText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .handle { cursor: grab; }
 .handle:active { cursor: grabbing; }
@@ -13,4 +13,7 @@
 .editor label { display: grid; gap: 4px; }
 .editor textarea, .editor input { width: 100%; box-sizing: border-box; color: inherit; background: transparent; border: 1px solid var(--dsw-alias-border-l3); border-radius: 4px; padding: 8px; font: inherit; }
 .editor textarea { min-height: 72px; resize: vertical; }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.dragPreview { position: absolute; top: 0; left: -10000px; width: 180px; height: 12px; border-radius: 4px; background: var(--dsw-alias-brand-primary); opacity: 0.5; pointer-events: none; }
+.saved { animation: preset-saved 4s forwards; }
+@keyframes preset-saved { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }

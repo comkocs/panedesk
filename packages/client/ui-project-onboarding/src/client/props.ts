@@ -1,5 +1,5 @@
 /** Derived slot props for project preferences and first-entry guidance. */
-import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
+import type { HostObservable, InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@panedesk/dsh-client-ui-slots'
 import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import type { ConfigFormSnapshot } from '@panedesk/dsh-client-ui-settings/client'
@@ -40,8 +40,12 @@ export interface WorkflowInjected {
   manageWorkflow: () => void
 }
 
-/** Optional starter entries above the new-session composer. */
-export type WorkflowStarterProps = PropsRuntime<'conversation.input.dock'> & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
+/** Workflow interaction state shared by the hero entries and composer reset. */
+type WorkflowSelectionProps = PropsStore<ReturnType<typeof import('./workflow-store.ts').createWorkflowStore>>
+/** Optional starter entries above the new-session headline. */
+export type WorkflowStarterProps = PropsRuntime<'conversation.hero.starters'> & WorkflowSelectionProps & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
+/** Reset action above the composer after choosing a workflow. */
+export type WorkflowResetProps = PropsRuntime<'conversation.input.dock'> & WorkflowSelectionProps & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
 /** Panedesk feature preference for the starter entries. */
 export type WorkflowSettingsProps = PropsRuntime<'settings.section'> & InjectFace<WorkflowInjected> & PropsLocale<'projectOnboarding'>
 /** Always-visible workflow menu on the blank-session screen. */

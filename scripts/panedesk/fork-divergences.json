@@ -103,7 +103,7 @@
       "id": "opening-presets-and-top-level-modes",
       "description": "Manage reusable opening drafts and separate imported agent types from top-level modes",
       "origin": "Panedesk opening preset preferences",
-      "reason": "Save opening text and directories in product settings, keep the preset schema serializable so saved rows read back through the shared settings form immediately and after restart, report the saved preset count with the shared toast, split pasted opening lines with undo and inferred or inherited directories, place batch imports above collapsed rows with handle-only drag sorting and insertion lines plus move buttons, expand only the new row when adding from the hero, fill unsent drafts with optional model and permission choices, reuse preset names for titles, and hide imported agent types only in the top-level picker.",
+      "reason": "Save opening text and directories in product settings, keep the preset schema serializable so saved rows read back through the shared settings form immediately and after restart, report the saved preset count beside Save for four seconds without closing the editor, split pasted opening lines with shared automatic names and undo that restores pasted text plus inferred or inherited directories, place batch imports above collapsed rows with accessible delete icons and handle-only translucent-bar drag previews and insertion lines plus move buttons, share settings and hero editor initialization including an empty list, fill unsent drafts with optional model and permission choices, reuse preset names for titles, and hide imported agent types only in the top-level picker.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -127,7 +127,7 @@
       "id": "workflow-starters-and-finished-background-jobs",
       "description": "Offer optional workflow starters on new sessions and distinguish finished background jobs",
       "origin": "Panedesk workflow guidance and background job presentation",
-      "reason": "Prefill localized workflow-pack drafts without sending, provide a default-enabled feature preference, and show idle indicators and explicit finished counts when no jobs are running.",
+      "reason": "Center optional workflow starter cards above the blank-session welcome headline through conversation.hero.starters, keep Choose another above the composer after central or quick-menu selection, prefill localized workflow-pack drafts without sending, provide a default-enabled feature preference, and show idle indicators and explicit finished counts when no jobs are running.",
       "match": {
         "type": "behavior",
         "paths": [
