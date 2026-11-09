@@ -232,6 +232,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  toolCatalog: 'feature-local remote tool preference catalog — packages/client/ui-settings-general/README.md owns descriptions and token estimates',
   productFeatures: 'feature-local remote configuration path reader — packages/client/ui-settings-general/README.md owns the API',
   subagentTreeUI: 'client-side tree and map presentation operations — packages/client/ui-subagent-tree/README.md owns the API',
   ledgerMirror: 'provider-installed interface-typed secondary ledger — packages/storage/storage-postgres/README.md owns append and snapshot behavior',
