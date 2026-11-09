@@ -15730,6 +15730,43 @@
           "packages/settings/tool-panedesk-settings/tsconfig.json"
         ]
       }
+    },
+    {
+      "id": "v18-z-model-context-window-presets",
+      "description": "Resolve model context windows through upstream listings, name-keyed presets, or manual entry, and label each model row's source on the Models page",
+      "origin": "Panedesk V18-Z",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/llm/llm-pi-ai/src/context-presets.ts",
+          "packages/llm/llm-pi-ai/src/catalog.ts",
+          "packages/llm/llm-pi-ai/src/config.ts",
+          "packages/llm/llm-pi-ai/README.md",
+          "packages/llm/llm-pi-ai/README.zh.md",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-settings-models/src/client/DeepSeekModelsEditor.tsx",
+          "packages/client/ui-settings-models/src/client/ModelListEditor.tsx",
+          "packages/client/ui-settings-models/src/client/ModelRow.tsx",
+          "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+          "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "packages/client/ui-settings-models/src/client/locales.ts"
+        ]
+      }
+    },
+    {
+      "id": "v18-z-compaction-threshold-5-percent-left",
+      "description": "Start automatic compaction with 5.5 percent of the context window left by default",
+      "origin": "Panedesk V18-Z",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/compaction/compaction-basic/README.md",
+          "packages/compaction/compaction-basic/README.zh.md",
+          "packages/compaction/compaction-basic/src/config.ts",
+          "packages/compaction/compaction-basic/src/types.ts"
+        ]
+      }
     }
   ]
 }
