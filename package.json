@@ -242,6 +242,7 @@
     "@panedesk/dsh-llm-replay": "workspace:*",
     "@panedesk/dsh-mcp-client": "workspace:*",
     "@panedesk/dsh-tool-session-query": "workspace:*",
+    "@panedesk/dsh-tool-session-ops": "workspace:*",
     "@panedesk/dsh-web-fetch-http": "workspace:*",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@testing-library/dom": "^10.4.1",

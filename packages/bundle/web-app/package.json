@@ -182,6 +182,7 @@
     "@panedesk/dsh-tool-pwsh": "workspace:*",
     "@panedesk/dsh-tool-pwsh-persistent": "workspace:*",
     "@panedesk/dsh-tool-schedule": "workspace:*",
+    "@panedesk/dsh-tool-session-ops": "workspace:*",
     "@panedesk/dsh-tool-skill": "workspace:*",
     "@panedesk/dsh-tool-subagent": "workspace:*",
     "@panedesk/dsh-tool-subagent-control": "workspace:*",

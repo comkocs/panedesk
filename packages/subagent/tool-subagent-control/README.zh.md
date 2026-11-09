@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-tool-subagent-control` 为可继续子级添加全局控制工具：`send_message` 在直接父级与子级之间进行 steering（中途引导），`interrupt_agent` 停止子级当前轮次但保留其收件箱与后代，`list_agents`（来自可单独加载的 `list-agents` 插件）按持久化 ID 与标签列出可继续子级。父级与可继续子级继承相同的 `send_message` 定义和顺序，因此模型通信不会增加子级专属工具 schema。是否加载这些工具不会决定委派工具是否启动可继续工作。
+`dsh-tool-subagent-control` 为可继续子级添加全局控制工具：`send_message` 在直接父级与子级之间进行 steering（中途引导），`interrupt_agent` 停止子级当前轮次并保留其收件箱，也可选择中断后代，`list_agents`（来自可单独加载的 `list-agents` 插件）按持久化 ID 与标签列出可继续子级。父级与可继续子级继承相同的 `send_message` 定义和顺序，因此模型通信不会增加子级专属工具 schema。是否加载这些工具不会决定委派工具是否启动可继续工作。
 
 ## 目录
 
@@ -49,7 +49,7 @@ kind: "package-reference"
 
 ### interrupt_agent
 
-外部执行会永久停止，不能接收后续消息。本地目标只停止当前轮次：已排队消息保持暂停，直到之后调用 `send_message`；后代继续运行，子级仍可接受后续消息。调用在停止请求被接受后立即返回，不等待目标完全停稳；中断已结束的 agent 会被接受并按空操作处理，而自身、同级、陈旧及非祖先调用方会收到出错结果。
+外部执行会永久停止，不能接收后续消息。本地目标只停止当前轮次：已排队消息保持暂停，直到之后调用 `send_message`；后代默认继续运行，子级仍可接受后续消息。将可选布尔参数 `includeDescendants` 设为 `true`，即可通过现有枚举服务请求中断所有目录可达后代；省略或设为 `false` 时仍只中断目标。调用在停止请求被接受后立即返回，不等待目标完全停稳；中断已结束的 agent 会被接受并按空操作处理，而自身、同级、陈旧及非祖先调用方会收到出错结果。
 
 ### list_agents
 
@@ -106,7 +106,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-已生成的 [schema](../../../docs/tool-catalog.zh.md#panedeskdsh-tool-subagent-control)：`send_message` 接受 `agent_id` 与 `message`；`interrupt_agent` 接受 `agent_id`；`list_agents` 不接受参数。
+已生成的 [schema](../../../docs/tool-catalog.zh.md#panedeskdsh-tool-subagent-control)：`send_message` 接受 `agent_id` 与 `message`；`interrupt_agent` 接受 `agent_id` 和可选的 `includeDescendants`（默认 `false`）；`list_agents` 不接受参数。
 
 #### Token 影响
 

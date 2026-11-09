@@ -602,6 +602,7 @@
       "@panedesk/dsh-tool-ralph": ["./packages/experimental/tool-ralph/src"],
       "@panedesk/dsh-tool-schedule": ["./packages/schedule/tool-schedule/src"],
       "@panedesk/dsh-tool-seat-messages": ["./packages/session/tool-seat-messages/src"],
+      "@panedesk/dsh-tool-session-ops": ["./packages/session/tool-session-ops/src"],
       "@panedesk/dsh-tool-session-query": ["./packages/experimental/tool-session-query/src"],
       "@panedesk/dsh-tool-skill": ["./packages/skill/tool-skill/src"],
       "@panedesk/dsh-tool-str-replace-editor": ["./packages/fs/tool-str-replace-editor/src"],

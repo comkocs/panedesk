@@ -27,6 +27,11 @@ import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import LocalFileSystem from '@panedesk/dsh-fs-local'
 import WorkingDirectory from '@panedesk/dsh-working-directory'
 import * as ToolWorkingDirectory from '@panedesk/dsh-tool-working-directory'
+import * as ToolSessionOps from '@panedesk/dsh-tool-session-ops'
+import type { SessionController } from '@panedesk/dsh-api-session-controller'
+import type PermissionPresets from '@panedesk/dsh-permission-presets'
+import type SettingsForms from '@panedesk/dsh-settings'
+import type AgentDefaultModel from '@panedesk/dsh-agent-default-model'
 import * as ToolWorktree from '@panedesk/dsh-experimental-tool-worktree'
 import { AttachmentStore } from '@panedesk/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@panedesk/dsh-attachment'
@@ -572,6 +577,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-session-ops',
+    dir: 'tool-session-ops',
+    source: 'packages/session/tool-session-ops/src/index.ts',
+    requires: ['ctx.tools', 'ctx.sessionController', 'ctx.permissionPresets', 'ctx.sessionProjections', 'ctx.workingDirectory', 'ctx.settings', 'ctx.agentDefaultModel'],
+    writes: ['tool/call', 'tool/result', 'ordinary Session events through existing Host services'],
+    async mount(ctx) {
+      ctx.provide('sessionController', {} as SessionController)
+      ctx.provide('permissionPresets', {} as PermissionPresets)
+      ctx.provide('settings', {} as SettingsForms)
+      ctx.provide('agentDefaultModel', {} as AgentDefaultModel)
+      await ctx.plugin(ToolSessionOps)
+    },
+    note: 'Session tools reuse the Host Session service. Web and Desktop presets include them; new sessions retain remembered defaults and normal naming unless explicitly overridden. Messages use next-step delivery and identify the sender.',
   },
   {
     pkg: '@panedesk/dsh-tool-subagent-control',

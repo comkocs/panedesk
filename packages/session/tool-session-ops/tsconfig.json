@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cosmokit" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../util/brand" },
+    { "path": "../../core/agent-default-model" },
+    { "path": "../../api/session-controller/tsconfig.host.json" },
+    { "path": "../../interaction/permission-presets" },
+    { "path": "../../core/session" },
+    { "path": "../session-projection" },
+    { "path": "../session-title" },
+    { "path": "../../settings/settings" },
+    { "path": "../../core/tools" },
+    { "path": "../working-directory" }
+  ]
+}

@@ -1,6 +1,33 @@
 {
   "divergences": [
     {
+      "id": "host-session-tools-and-descendant-interruption",
+      "description": "Manage top-level Sessions through Host tools and optionally interrupt subagent descendants.",
+      "origin": "Panedesk Session orchestration tools",
+      "reason": "Reuse existing Session creation, model, permission, naming, listing and next-step prompt services; ship four tools in Web and Desktop presets without changing Client or subagent lifecycle ownership.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/session/tool-session-ops/",
+          "packages/subagent/tool-subagent-control/src/index.ts",
+          "packages/subagent/tool-subagent-control/README.md",
+          "packages/subagent/tool-subagent-control/README.zh.md",
+          "packages/bundle/web-app/package.json",
+          "packages/bundle/web-app/presets/standard.patch.yml",
+          "packages/bundle/web-app/presets/ptc.patch.yml",
+          "packages/bundle/web-app/presets/minimal.patch.yml",
+          "packages/bundle/web-app/presets/cordis.patch.yml",
+          "packages/bundle/web-app/README.md",
+          "packages/bundle/web-app/README.zh.md",
+          "scripts/gen-tool-catalog.ts",
+          "package.json",
+          "tsconfig.host.json",
+          "tsconfig.base.json",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",
