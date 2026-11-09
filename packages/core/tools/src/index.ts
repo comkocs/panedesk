@@ -14,7 +14,7 @@ import { HarnessError } from '@panedesk/dsh-llm'
 import type { Agent } from '@panedesk/dsh-agent'
 import type { UserMessage } from '@panedesk/dsh-session'
 import { assertNever, deepFreeze, snapshotJsonValue, type JsonValue } from '@panedesk/dsh-util-values'
-import type { PromptSection, ToolProviderResult } from '@panedesk/dsh-system-prompt'
+import type { AssembleContext, PromptSection, ToolProviderResult } from '@panedesk/dsh-system-prompt'
 import type { PtcRuntime } from '@panedesk/dsh-ptc-runtime'
 import type {} from '@panedesk/dsh-sandbox-policy'
 // Type-only: makes `ctx.get('approval')` resolve to the ApprovalService
@@ -739,6 +739,7 @@ class ToolLayer implements ScopeLayer {
   readonly tools: NamedEntries<ToolDefinition>
   readonly restrictions = new AnonymousEntries<CompiledToolRestriction>()
   readonly guards = new AnonymousEntries<ToolGuard>()
+  readonly presentationFilters = new AnonymousEntries<(name: string, context: AssembleContext) => boolean>()
   /**
    * Presentation this scope's agent declared for itself, shadowing the
    * deployment default. One cell rather than an entry table: two answers to
@@ -755,7 +756,7 @@ class ToolLayer implements ScopeLayer {
   /** Whether every contribution table in this aggregate layer is empty. */
   isEmpty(): boolean {
     return this.tools.isEmpty() && this.restrictions.isEmpty() && this.guards.isEmpty()
-      && this.mode === undefined
+      && this.presentationFilters.isEmpty() && this.mode === undefined
   }
 
   /** Whether every compiled restriction in this layer admits a global tool name. */
@@ -857,7 +858,7 @@ export class ToolRuntime extends Service {
     // optional-input type for direct (non-Loader) construction in tests.
     this.defaultMode = config.mode ?? 'native'
     this.maxParallelSubCalls = resolveMaxParallelSubCalls(config.maxParallelSubCalls)
-    ctx.systemPrompt.tools(context => this.wireSchemas(context.scope))
+    ctx.systemPrompt.tools(context => this.wireSchemas(context))
     if (this.defaultMode !== 'native') {
       ctx.systemPrompt.section(this.collapseSection())
       ctx.systemPrompt.section(this.sdkSection())
@@ -914,7 +915,7 @@ export class ToolRuntime extends Service {
         const render = SDK_RENDERERS[runtime.language]
         /* v8 ignore next -- requirePtcRuntime rejects an unknown language before this runs. */
         if (render === undefined) throw new Error(`dsh-tools: no SDK renderer for ${runtime.language}`)
-        return render(this.sdkSchemas(context.scope), runtime.programFormat)
+        return render(this.sdkSchemas(context.scope).filter(tool => this.advertises(tool.name, context)), runtime.programFormat)
       },
     }
   }
@@ -1019,11 +1020,14 @@ export class ToolRuntime extends Service {
    * Build one scope's wire schemas and names for prompt-order validation.
    * Restrictions do not make known tools invalid, but a mode collapse does.
    */
-  private wireSchemas(scope?: ScopeKey): ToolProviderResult {
+  private wireSchemas(context: AssembleContext): ToolProviderResult {
+    const scope = context.scope
     const view = this.view(scope)
     const mode = this.modeFor(scope)
     if (mode === 'native') {
-      const schemas = [...view.visible.values()].map(definition => this.schemaOf(definition, false))
+      const schemas = [...view.visible.values()]
+        .filter(definition => this.advertises(definition.name, context))
+        .map(definition => this.schemaOf(definition, false))
       return { schemas, knownNames: [...view.knownNames] }
     }
     // Validate the runtime language BEFORE projecting schemas: schemaOf reads
@@ -1034,7 +1038,7 @@ export class ToolRuntime extends Service {
     this.requirePtcRuntime(mode)
     const schemas = [...view.visible.values()].map(definition => this.schemaOf(definition, false))
     return {
-      schemas: schemas.filter(schema => schema.name === RUN_CODE_NAME),
+      schemas: schemas.filter(schema => schema.name === RUN_CODE_NAME && this.advertises(schema.name, context)),
       knownNames: [RUN_CODE_NAME],
     }
   }
@@ -1096,6 +1100,20 @@ export class ToolRuntime extends Service {
       layer => layer.tools.insert(name, definition),
       { label: 'tools.register()' },
     )
+  }
+
+  /**
+   * Filter advertised native schemas and PTC SDK entries without changing execution or child capabilities.
+   * @param filter - Whether to advertise a tool in the current assembly.
+   * @returns The disposer that removes this presentation preference.
+   */
+  filterPresentation(filter: (name: string, context: AssembleContext) => boolean): () => void {
+    return this.layers.effect(this.ctx, layer => layer.presentationFilters.append(filter), { label: 'tools.filterPresentation()' })
+  }
+
+  private advertises(name: string, context: AssembleContext): boolean {
+    return [this.layers.global, ...this.layers.chainLayers(context.scope)]
+      .every(layer => [...layer.presentationFilters.values()].every(filter => filter(name, context)))
   }
 
   /**

@@ -90,7 +90,7 @@ The command child activates only when a commands service is composed. It maps ba
 
 ### The exit tool
 
-`exit_plan_mode` stays registered while plan mode is inactive, so entering or leaving changes only the prompt section, never the request tool catalog. An approved review records a silent pending exit that the next accepted in-turn pre-step appends, keeping plan guidance for the rest of the current tool batch. Without a user-questions channel, or after a service reload while the review is pending, the call fails closed and `/plan off` remains the manual escape.
+`exit_plan_mode` stays registered for dispatch but is advertised only when the assembled step is in plan mode, including a pending selection. Entering or leaving changes both the plan guidance and the request tool catalog. An approved review records a silent pending exit that the next accepted in-turn pre-step appends, keeping plan guidance for the rest of the current tool batch. Without a user-questions channel, or after a service reload while the review is pending, the call fails closed and `/plan off` remains the manual escape.
 
 ### Session projection unit
 
@@ -164,15 +164,15 @@ The user block is append-only conversation growth. Entering or leaving plan mode
 
 #### What the model sees
 
-The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#panedeskdsh-plan-mode) remains available in both states; execution outside plan mode fails, while an approved in-mode review returns the canonical `{ approved: true }` value and renders the existing confirmation text. Rejection remains a failed call carrying review feedback. A dismissed review returns `{ approved: false }`, renders a note that the user will reply, and concludes the turn without another model request.
+The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#panedeskdsh-plan-mode) is advertised only in plan mode, in both native requests and PTC SDK guidance; execution outside plan mode fails, while an approved in-mode review returns the canonical `{ approved: true }` value and renders the existing confirmation text. Rejection remains a failed call carrying review feedback. A dismissed review returns `{ approved: false }`, renders a note that the user will reply, and concludes the turn without another model request.
 
 #### Token effect
 
-The stable schema is paid according to ToolRuntime mode, and each plan argument and review result remains in conversation history.
+The schema adds tokens only in plan mode according to ToolRuntime mode, and each plan argument and review result remains in conversation history.
 
 #### KV Cache effect
 
-Mode transitions do not change the tool catalog; plan arguments and review results extend the conversation normally.
+Mode transitions change the advertised tool catalog; plan arguments and review results extend the conversation normally.
 
 ## Known Limitations and Deferred Work
 

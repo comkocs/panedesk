@@ -23,10 +23,10 @@
             name: '@panedesk/dsh-time-context'
           - id: tool-bash
             name: '@panedesk/dsh-tool-bash'
-            disabled: !!js process.platform === 'win32'
+            disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH && ctx.get('windowsBashConfig')?.()?.enabled !== true
           - id: tool-pwsh
             name: '@panedesk/dsh-tool-pwsh'
-            disabled: !!js process.platform !== 'win32'
+            disabled: !!js process.platform !== 'win32' || !!(process.env.PANEDESK_BASH_PATH || ctx.get('windowsBashConfig')?.()?.enabled === true)
           - id: tool-fs
             name: '@panedesk/dsh-tool-fs'
           - id: tool-fs-search
@@ -43,8 +43,6 @@
             name: '@panedesk/dsh-command-goal'
           - id: tool-goal
             name: '@panedesk/dsh-tool-goal'
-          - id: tool-panedesk-settings
-            name: '@panedesk/dsh-tool-panedesk-settings'
           - id: planning
             name: cordis:group
             group: true
@@ -59,7 +57,7 @@
 
                     Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.
 
-                    The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
+                    Only plan-mode requests include exit_plan_mode. These plan-mode rules override later tool descriptions or guidance suggesting mutation; other tools may remain listed but must not be used to implement the plan. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
 
                     Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.
 

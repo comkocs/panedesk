@@ -13,12 +13,18 @@
     "./package.json": "./package.json"
   },
   "files": ["lib/index.js", "lib/types/**/*.d.ts"],
+  "dependencies": {
+    "@panedesk/schemastery": "workspace:~"
+  },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-tools": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-config-editor": "workspace:*",

@@ -101,7 +101,7 @@ The canonical tool result is `{ kind: 'activation', subagentId }`. It contains n
 
 ### Context-sensitive wording
 
-The tool's description derives from `provider.inheritsParentContext`: a fresh child gets "it does not see this conversation" wording, a forked child gets "it does not see the current in-flight turn" wording, so the model never restates or omits context that does not exist.
+The concise tool description derives from `provider.inheritsParentContext`: a fresh child works in a separate context, while a fork does not see the current in-flight turn. Route defaults and continuation support remain explicit; preset descriptions appear once in `agent_preset`, not again in the tool overview.
 
 ### Source map
 

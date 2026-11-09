@@ -56,6 +56,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@panedesk/dsh-llm': ['callConfigEquals'],
   '@panedesk/dsh-session-format': ['sessionFormatLogFilename'],
   '@panedesk/dsh-timeout': ['MAX_TIMER_DELAY_MS'],
+  '@panedesk/dsh-token-meter/estimate': ['estimateContent'],
   '@panedesk/schemastery': ['default'],
 } as const satisfies HostDependencyExports
 

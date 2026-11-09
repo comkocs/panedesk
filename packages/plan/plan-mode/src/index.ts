@@ -12,9 +12,8 @@
  * assembly, then appends `plan/mode` from `agent/pre-step` only when the step
  * is accepted. Same-step request retries reuse their assembly.
  *
- * The exit tool remains registered while plan mode is inactive, so entering
- * or leaving plan mode changes only the prompt section, not the request tool
- * catalog.
+ * The exit tool stays registered for dispatch, but only active or pending
+ * plan-mode assemblies advertise it to the model.
  *
  * See packages/plan/plan-mode/README.md.
  *
@@ -59,10 +58,7 @@ declare module '@panedesk/cordis' {
   }
 }
 
-/**
- * The model-facing exit tool's name. It stays registered while plan mode is
- * inactive so the request tool catalog is stable across transitions.
- */
+/** The exit tool's registered name; only plan-mode requests advertise it. */
 export const EXIT_PLAN_MODE = 'exit_plan_mode'
 
 /** Deployment-owned plan guidance. */
@@ -169,7 +165,7 @@ export const planProjectionDefinition = {
 
 /**
  * `ctx.planMode`: owns logged plan state, applies and narrates selected state at step start,
- * the `plan:policy` section, the `/plan` command, and the stable exit tool.
+ * the `plan:policy` section, the `/plan` command, and the plan-only advertised exit tool.
  * Client carriers expose the projection's cropped `{ active, pending }` view.
  */
 export class PlanModeController extends Service {
@@ -224,6 +220,12 @@ export class PlanModeController extends Service {
     })
 
     ctx.sessionProjections.register(planProjectionDefinition)
+    ctx.effect(() => ctx.tools.filterPresentation((name, context) => {
+      if (name !== EXIT_PLAN_MODE) return true
+      const agent = context.agent
+      return agent !== undefined
+        && (this.pendingIntents.get(agent.session)?.active ?? this.loggedActive(agent.session))
+    }))
 
     // The command child activates only when a command registry is composed.
     ctx.inject(['commands'], (commandCtx) => {

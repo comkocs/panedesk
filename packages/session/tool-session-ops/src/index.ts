@@ -46,7 +46,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'session_new',
-    description: 'Open a new top-level session in the current or another directory using the existing session service. Returns its session id and current name. An opening prompt starts work; without a name, normal automatic naming applies.',
+    description: 'Open a top-level session; return its id and name. A prompt starts work; omit name for automatic naming.',
     parameters: {
       cwd: { type: 'string', description: 'Working directory for the new session. Omit to use your current working directory.' },
       model: { type: 'string', description: 'Exact name or id of an already configured model. Omit to use the remembered default model.' },
@@ -88,7 +88,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'session_rename',
-    description: 'Rename your own session or another session by id using the existing session naming service.',
+    description: 'Rename your session or another session by id.',
     parameters: {
       sessionId: { type: 'string', description: 'Session id to rename. Omit to rename your own session.' },
       name: { type: 'string', required: true, description: 'New explicit session name.' },
@@ -105,7 +105,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'session_list',
-    description: 'List all top-level sessions, most recently active first, with each session id, name, working directory, running state, and model. Subagents are excluded; ordinary conversation forks remain top-level sessions.',
+    description: 'List top-level sessions newest-active first: id, name, directory, running state, model. Includes conversation forks, not subagents.',
     parameters: {},
     output: {
       schema: {
@@ -142,7 +142,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'session_send',
-    description: 'Send a message to a top-level session by id or exact name. Duplicate names select the most recently active session. The message identifies your session; a busy recipient queues it for the next step without interruption. Returns acceptance, not a reply.',
+    description: 'Message a top-level session by id or exact name (newest-active match). Identifies the sender; a busy recipient queues it for the next step without interruption. Returns acceptance, not a reply.',
     parameters: {
       target: { type: 'string', required: true, description: 'Recipient session id or exact session name. Use session_list to discover sessions.' },
       text: { type: 'string', required: true, description: 'Message text to deliver.' },

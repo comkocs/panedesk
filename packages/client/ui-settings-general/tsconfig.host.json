@@ -8,12 +8,16 @@
   "files": [
     "src/index.ts",
     "src/types.ts",
-    "src/product-features.ts"
+    "src/product-features.ts",
+    "src/tool-catalog.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../settings/settings" },
+    { "path": "../../core/tools" },
+    { "path": "../../preset/agent-preset-registry" },
+    { "path": "../../llm/token-meter" },
     { "path": "../../session/session-title" },
     { "path": "../../typert/protocol" }
   ]

@@ -1,5 +1,9 @@
 /** Model-facing Panedesk preferences using the same writers as the settings pages. */
-import type { Context } from '@panedesk/cordis'
+import type { Context, Volatile } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type {} from '@panedesk/dsh-agent'
+import type { Session } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-system-prompt'
 import type {} from '@panedesk/dsh-settings'
 import type {} from '@panedesk/dsh-config-editor'
 import { defineTool } from '@panedesk/dsh-tools'
@@ -9,9 +13,22 @@ import type { StorageSettings } from '@panedesk/dsh-storage-postgres/types'
 /** Loader identity. */
 export const name = 'tool-panedesk-settings'
 /** Shared form reader and writer used by the settings pages. */
-export const inject = ['tools', 'settings', 'configEditor']
+export const inject = ['tools', 'settings', 'configEditor', 'systemPrompt']
+
+/** Tool names omitted from ordinary sessions; typed subagents keep their own tool mapping. */
+export interface Config {
+  disabledTools: Volatile<string[]>
+}
+
+/** Defaults apply even when no preference has been saved. */
+export const Config = z.object({
+  disabledTools: z.array(z.string()).default([
+    'subagent_fork', 'workflow', 'create_goal', 'update_goal', 'get_goal', 'present', 'ask_user_question',
+  ]).volatile(),
+})
 
 const fields: Record<string, readonly string[]> = {
+  '@panedesk/dsh-tool-panedesk-settings': ['disabledTools'],
   '@panedesk/dsh-client-ui-settings-general': ['openingNameEnabled', 'openingName'],
   '@panedesk/dsh-client-ui-stats': ['enabled', 'refreshIntervalMs'],
   '@panedesk/dsh-client-ui-subagent-tree': ['externalRegistryFile', 'externalRegistryEnabled'],
@@ -19,6 +36,7 @@ const fields: Record<string, readonly string[]> = {
 }
 const skillFields = ['enabled', 'includeDefaultRoots', 'customSkillDirs', 'watch', 'watchPollIntervalMs']
 const options: Record<string, object> = {
+  disabledTools: { type: 'array', items: 'tool name', description: 'Omit these tools from new ordinary sessions; [] enables all.' },
   enabled: [false, true], openingNameEnabled: [false, true], externalRegistryEnabled: [false, true],
   openingName: { sample: 'string', selected: 'nonempty string; trim outer whitespace only', left: 'string', right: 'string' },
   refreshIntervalMs: { type: 'integer', min: 1000, max: 2147483647 },
@@ -30,8 +48,21 @@ const options: Record<string, object> = {
 /**
  * Register one reversible read/write tool with canonical before/after results.
  * @param ctx - Tool registry and the running profile's settings editor.
+ * @param config - Live defaults captured for each ordinary session's first assembly.
  */
-export function apply(ctx: Context): void {
+export function apply(ctx: Context, config: Config): void {
+  const disabledBySession = new WeakMap<Session, ReadonlySet<string>>()
+  ctx.effect(() => ctx.tools.filterPresentation((name, context) => {
+    const session = context.agent?.session
+    if (session === undefined || session.header.origin === 'subagent') return true
+    let disabled = disabledBySession.get(session)
+    if (disabled === undefined) {
+      disabled = new Set(config.disabledTools.get())
+      disabledBySession.set(session, disabled)
+    }
+    return !disabled.has(name)
+  }))
+  ctx.effect(() => ctx.settings.configure({ auto: false }))
   const items = () => {
     const entries = ctx.configEditor.entries()
     return ctx.settings.describe({ redactSecrets: true }).flatMap(section => {
@@ -54,7 +85,7 @@ export function apply(ctx: Context): void {
   }
   ctx.effect(() => ctx.tools.register(defineTool({
     name: 'panedesk_settings',
-    description: 'Read editable Panedesk settings and allowed values, or write one exact item name returned by read. Writes use the settings-page writer and return before and after. Items not listed are manual-only. Opening-name rules have sample, selected, left and right string fields. Read before writing; use the returned exact name, not a guessed namespace.',
+    description: 'Read editable Panedesk settings and allowed values before writing an exact returned item name. Writes use the settings-page writer and return before/after. Unlisted items are manual-only.',
     parameters: {
       action: { type: 'string', enum: ['read', 'write'], required: true },
       name: { type: 'string', description: 'Exact item name returned by read; required for write.' },

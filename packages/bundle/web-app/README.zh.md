@@ -15,7 +15,7 @@ kind: "package-bundle"
 
 运行 `dsh --profile web`，获得浏览器内的聊天、模型与设置管理以及会话历史，并与其他 dsh 表层共用同一套模型访问、工具与安全默认值。启动时会打印带 token 的 URL，通常还会在默认浏览器中打开；SSH 会话和 `--no-open` 需要手动打开。你可以更改端口、允许额外 authority、绑定一个具体的本机 IP，并用自己提供的证书直接提供 HTTPS；通配地址会被拒绝。跨机访问使用剥离前缀代理后公告的 HTTP(S) URL、监听器 TLS，或非 loopback 绑定上的明文 HTTP。一次性的命令行任务应使用 headless 配置。
 
-所有随附预设（包含 minimal）都装配 `panedesk_settings`。Panedesk 设置页共用白话指引和可复制的 AI 请求，特色设置之后提供产品自带功能目录。
+所有随附预设（包含 minimal）继承基础装配的同一个 `panedesk_settings` 实例，让工具页与模型共用一份禁用偏好。Windows 的 shell 条目跟随启动时解析的 Bash 选择，保留显式环境覆盖，只挂载 Bash 或 PowerShell 之一；minimal 同时把选定的 Bash 可执行文件交给持久终端。其他平台保留原有 shell 默认值。Panedesk 设置页共用白话指引和可复制的 AI 请求，特色设置之后提供产品自带功能目录。
 
 ## 目录
 

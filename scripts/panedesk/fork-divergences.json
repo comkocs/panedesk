@@ -1,6 +1,35 @@
 {
   "divergences": [
     {
+      "id": "ordinary-session-tool-preferences",
+      "description": "Trim default tool context and expose persisted Tools settings",
+      "origin": "Panedesk tool context preferences",
+      "reason": "Omit seven optional tools by default, advertise plan exit only while planning, retain typed subagent capabilities, and let users or panedesk_settings enable tools with shared token estimates.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/core/tools/src/index.ts",
+          "packages/core/tools/README.md",
+          "packages/core/tools/README.zh.md",
+          "packages/settings/tool-panedesk-settings/**",
+          "packages/client/ui-settings-general/**",
+          "packages/plan/plan-mode/**",
+          "packages/subagent/tool-subagent/**",
+          "packages/schedule/tool-schedule/**",
+          "packages/session/tool-session-ops/**",
+          "packages/client/ui-sidebar-browser/**",
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/base/README.md",
+          "packages/bundle/base/README.zh.md",
+          "packages/bundle/web-app/presets/*.patch.yml",
+          "packages/bundle/web-app/README.md",
+          "packages/bundle/web-app/README.zh.md",
+          "scripts/package-dependency-policy.ts",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "claude-agent-capabilities-and-provider-diagnostics",
       "description": "Map Claude Code agent capabilities and preserve provider failure diagnostics",
       "origin": "Panedesk typed subagent compatibility",

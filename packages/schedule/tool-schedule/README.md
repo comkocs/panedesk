@@ -84,7 +84,7 @@ The plugin registers four `defineTool` definitions through the context that load
 
 #### What the model sees
 
-The generated [`schedule_create`, `schedule_list`, `schedule_update`, and `schedule_delete` schemas](../../../docs/tool-catalog.md#panedeskdsh-tool-schedule) whenever this package is visible in the calling Agent's scope. Title guidance does not rewrite stored titles or add validation beyond the existing non-empty and length checks.
+The generated [`schedule_create`, `schedule_list`, `schedule_update`, and `schedule_delete` schemas](../../../docs/tool-catalog.md#panedeskdsh-tool-schedule) whenever this package is visible in the calling Agent's scope. Concise create/update descriptions retain timing choice, missed-occurrence, crash-delivery, and partial-update semantics. Title guidance does not rewrite stored titles or add validation beyond the existing non-empty and length checks.
 
 #### Token effect
 

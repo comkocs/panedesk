@@ -7,6 +7,7 @@ import type { Volatile, Context } from '@panedesk/cordis'
 
 import z from '@panedesk/schemastery'
 import ProductFeatures from './product-features.ts'
+import ToolCatalog from './tool-catalog.ts'
 
 /** Runtime preferences projected to the browser. */
 export interface Config {
@@ -34,6 +35,7 @@ export const Config = z.object({
  */
 export function apply(ctx: Context, config: Config): void {
   ctx.inject(['settings'], child => { child.plugin(ProductFeatures) })
+  ctx.plugin(ToolCatalog)
   ctx.inject(['sessionTitle'], child => {
     child.effect(() => child.sessionTitle.configureOpeningName({
       enabled: () => config.openingNameEnabled.get(),

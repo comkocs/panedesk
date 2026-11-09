@@ -101,7 +101,7 @@ kind: "package-reference"
 
 ### 随上下文变化的措辞
 
-工具描述源自 `provider.inheritsParentContext`：全新子 agent 得到「it does not see this conversation」措辞，fork 子 agent 得到「it does not see the current in-flight turn」措辞，因此模型既不会复述、也不会省略并不存在的上下文。
+精简后的工具描述源自 `provider.inheritsParentContext`：全新子 agent 使用独立上下文，fork 子 agent 看不到当前进行中的轮次。路由默认值与续聊支持仍明确说明；预设说明仅放在 `agent_preset` 参数，不再重复放进工具概述。
 
 ### 源码地图
 

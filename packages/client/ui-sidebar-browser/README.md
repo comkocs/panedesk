@@ -97,7 +97,7 @@ The `browser` tool accepts a `command` object: `navigate` with `url`; `read`, `s
 
 #### Token effect
 
-The tool definition adds a stable schema. Requested page text, tab lists, and screenshots enter conversation history; manual browsing alone adds no model input.
+The concise tool description and unchanged parameter definitions add a stable schema. Requested page text, tab lists, and screenshots enter conversation history; manual browsing alone adds no model input.
 
 #### KV Cache effect
 

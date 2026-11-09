@@ -6879,6 +6879,9 @@ importers:
 
   packages/client/ui-settings-general:
     dependencies:
+      '@panedesk/dsh-token-meter':
+        specifier: workspace:*
+        version: link:../../llm/token-meter
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
@@ -6940,6 +6943,15 @@ importers:
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../settings/settings
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-agent-preset-registry':
+        specifier: workspace:*
+        version: link:../../preset/agent-preset-registry
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
@@ -16171,7 +16183,20 @@ importers:
         version: link:../../core/session
 
   packages/settings/tool-panedesk-settings:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
