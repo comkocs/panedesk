@@ -98,8 +98,8 @@
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  width: 184px;
-  min-height: 52px;
+  width: 240px;
+  min-height: 76px;
   padding: 6px 24px 6px 8px;
   border: 1px solid var(--dsw-alias-border-l3);
   border-left-width: 3px;
@@ -114,7 +114,7 @@
 
 .node {
   position: absolute;
-  height: 52px;
+  height: 76px;
 }
 
 .card[aria-pressed='true'] {
@@ -123,7 +123,7 @@
 
 .root {
   border-color: var(--dsw-alias-brand-primary);
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover);
   cursor: default;
 }
 

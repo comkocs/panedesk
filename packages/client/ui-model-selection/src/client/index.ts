@@ -56,7 +56,8 @@ function optionsOf(directory: ModelDirectoryState, t: TranslateNS<'model'>): Sel
     for (const model of group.models) {
       rows.push({
         id: rowId(group.id, model.id),
-        label: model.name,
+        label: model.name + (directory.groups.some(other => other.id !== group.id && other.models.some(row => row.name === model.name))
+          ? t('option.providerSuffix', { provider: name }) : ''),
         group: { name: group.id, label: name },
         ...(directory.current !== null
           && directory.current.provider === group.id

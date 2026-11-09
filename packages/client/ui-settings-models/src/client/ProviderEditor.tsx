@@ -407,11 +407,14 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const catalogProps = {
       models,
       overridden: modelsOverridden,
-      renderProtocolProbe: (model: Record<string, unknown>) => <ProtocolProbe
-        target={probe} model={model['id'] as string} operations={operations} t={t}
-        disabled={disabled} revision={expectedRevision} onBusyChange={setListBusy}
-        onSaved={() => { props.onClose(true) }}
-      />,
+      renderProtocolProbe: (model: Record<string, unknown>) => {
+        const input = model[family === 'deepseek' ? 'inputModalities' : 'input']
+        const declaredInput = Array.isArray(input) && input.length > 0 ? input : defaultInput
+        return <ProtocolProbe target={probe} model={model['id'] as string}
+          imageDeclared={Array.isArray(declaredInput) && declaredInput.includes('image')} operations={operations} t={t}
+          disabled={disabled} revision={expectedRevision} onBusyChange={setListBusy}
+          onSaved={() => { props.onClose(true) }} />
+      },
       t,
       disabled,
       onChange: (next: Record<string, unknown>[]) => {

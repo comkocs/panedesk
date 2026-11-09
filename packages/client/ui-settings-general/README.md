@@ -59,7 +59,7 @@ The `opening-auto-name` row in `settings.panedesk.item` edits the Host `ui-setti
 
 Panedesk settings use outlined action buttons and emphasized primary saves; the shared header's Copy button is outlined. Opening presets and Workflow supply their own standard headers without a duplicate shell header.
 
-All Panedesk-group sections share three guidance lines (what it is, whether to change it, and a copyable AI request); unavailable tool actions are marked manual-only. Project opening, database connections and skills include three first-use steps. The opening-name shortcuts select and highlight the folder, filename before `.md`, or text after `.md`, while preserving drag and double-click selection.
+All Panedesk-group sections share three guidance lines (what it is, whether to change it, and a copyable AI request); unavailable tool actions are marked manual-only. Project opening, database connections and skills include three first-use steps. The opening-name shortcuts select and highlight the folder, filename before `.md`, or text after `.md`, while preserving drag and double-click selection. The shortcut matching the saved or staged selection uses the primary button style.
 
 The `product-features` section follows at order `1`, with 25 numbered, expandable built-in capabilities, introduction versions, five facts each, and Host-owned path-opening actions. Compatible memory uses `~/.claude/projects/<working-directory-code>/memory/`, replacing non-alphanumeric directory characters with `-`; its button opens the projects root without reading memory files.
 

@@ -419,11 +419,14 @@ export function ModelSelect(
     submit(selection)
   }
 
+  const providerSuffix = (provider: ModelLabelOwner['provider'], model: ModelLabelOwner['model']): string =>
+    choices.some(choice => choice.group.id !== provider.id && choice.model.name === model.name)
+      ? t('option.providerSuffix', { provider: provider.name }) : ''
   const waiting = currentChoice === undefined && state.status === 'loading'
   const modelLabel = waiting
     ? t('trigger.loading')
-    : currentChoice?.model.name
-      ?? t('trigger.fallback')
+    : currentChoice === undefined ? t('trigger.fallback')
+      : currentChoice.model.name + providerSuffix(currentChoice.group.provider, currentChoice.model)
   const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
   const triggerAria = waiting
     ? t('trigger.loading')
@@ -439,7 +442,7 @@ export function ModelSelect(
     <span data-provider-id={provider.id} data-model-id={model.id}>
       {renderSlot('conversation.input.model.label', {
         provider, model, placement, selected,
-      }, { fallback: model.name })}
+      }, { fallback: model.name })}{providerSuffix(provider, model)}
     </span>
   )
   let itemIndex = 0
@@ -601,7 +604,7 @@ export function ModelSelect(
                               else itemRefs.current[index]?.focus()
                             }}
                             key={model.id}
-                            title={model.name}
+                            title={model.name + providerSuffix(group.provider, model)}
                             disabled={busy}
                             onClick={() => { choose({ provider: group.id, model: model.id }) }}
                           >

@@ -98,13 +98,15 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
   }
   const markdown = /\.md\b/iu.exec(sample)
   const fileStart = markdown === null ? 0 : Math.max(sample.lastIndexOf('/', markdown.index), sample.lastIndexOf('\\', markdown.index)) + 1
-  const choose = (part: 'folder' | 'file' | 'after'): void => {
-    if (markdown === null) return
-    const end = markdown.index + markdown[0].length
-    const folderEnd = fileStart - 1
-    const folderStart = Math.max(sample.lastIndexOf('/', folderEnd - 1), sample.lastIndexOf('\\', folderEnd - 1)) + 1
-    const a = part === 'after' ? end : part === 'file' ? fileStart : folderStart
-    const b = part === 'after' ? sample.length : part === 'file' ? end - 3 : folderEnd
+  const end = markdown === null ? 0 : markdown.index + markdown[0].length
+  const folderEnd = fileStart - 1
+  const folderStart = Math.max(sample.lastIndexOf('/', folderEnd - 1), sample.lastIndexOf('\\', folderEnd - 1)) + 1
+  const choices = [
+    { part: 'folder', a: folderStart, b: folderEnd },
+    { part: 'file', a: fileStart, b: end - 3 },
+    { part: 'after', a: end, b: sample.length },
+  ] as const
+  const choose = (a: number, b: number): void => {
     textarea.current?.focus()
     textarea.current?.setSelectionRange(a, b)
     const next = selectedPattern(sample, a, b)
@@ -144,9 +146,14 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
       }} />
     <p className={css.description}>{t('openingName.selectionHint')}</p>
     <div className={css.actions}>
-      <Button size="sm" variant="outline" disabled={!writable || markdown === null || fileStart === 0} onClick={() => { choose('folder') }}>{t('openingName.folder')}</Button>
-      <Button size="sm" variant="outline" disabled={!writable || markdown === null} onClick={() => { choose('file') }}>{t('openingName.file')}</Button>
-      <Button size="sm" variant="outline" disabled={!writable || markdown === null} onClick={() => { choose('after') }}>{t('openingName.after')}</Button>
+      {choices.map(({ part, a, b }) => {
+        const candidate = selectedPattern(sample, a, b)
+        const active = valid && markdown !== null && candidate.selected === selected
+          && candidate.left === pattern?.left && candidate.right === pattern.right
+        return <Button key={part} size="sm" variant={active ? 'primary' : 'outline'} aria-pressed={active}
+          disabled={!writable || markdown === null || (part === 'folder' && fileStart === 0)}
+          onClick={() => { choose(a, b) }}>{t(`openingName.${part}`)}</Button>
+      })}
     </div>
     <p className={css.description} aria-live="polite">{t('openingName.preview', { title: preview })}</p>
     <p className={css.description}>{t('openingName.folderPreview', { title: folderPreview })}</p>
