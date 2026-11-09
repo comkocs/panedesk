@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.8.0
+
+### Added
+
+- New-session workflow and opening-preset menus fill an unsent draft. Settings can edit workflow prompts and manage or import saved opening text, folders and optional model and permission choices.
+- A Tools settings page lists available tools with switches and approximate context costs, and can restore the full tool set for untyped subagents.
+- The context panel groups usage by category, lists individual contributors and deferred tools, shows compaction headroom and links to Tools settings.
+- The workflow pack includes requirements review and workflow checkup entries. Built-in features now describes the 1.8 defaults and where to find the new entries.
+
+### Changed
+
+- Panedesk uses a dark theme by default; saved appearance choices are unchanged.
+- Six optional tools are off by default, question cards remain available, only the selected command tool is mounted, and plan exit is offered only in plan mode. Tools settings can turn optional tools back on.
+- Untyped subagents receive working tools and explicitly requested extras by default; typed subagents keep their mapped capabilities.
+- Model context limits use upstream listings, model-name presets or manual entry, with the source shown in Models. Automatic compaction starts with 5.5% of the context window remaining.
+- Chrome DevTools is enabled by default. Its tools remain loaded rather than deferred, and connection failures do not block other tools.
+- Project opening defaults to Automatic while retaining saved choices and the existing cost confirmation. Settings actions are easier to see and the settings title row can be dragged.
+- The cache pill is hidden unless turned on in settings.
+- The session header shows a Statistics text button. Running background jobs and subagents show solid green dots in their header lists.
+
+### Fixed
+
+- Typed subagents now get the standard tools, and an ambiguous agent model picks the first provider in Models settings order.
+- The browser tool works in the desktop app.
+- The command tool is named `bash` when Git Bash runs it, including when an older unversioned shell preference exists.
+- Agent-opened sessions land in their folder group.
+- Finished background jobs and finished subagents show a grey dot without a stop button.
+- Subagent cards distinguish current context from cumulative usage, and provider usage is normalized before context and ledger accounting.
+
 ## 1.7.0
 
 ### Added
