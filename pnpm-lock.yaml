@@ -4600,6 +4600,10 @@ importers:
         version: 18.3.1(react@18.3.1)
 
   packages/client/ui-cache-pill:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -4625,6 +4629,9 @@ importers:
       '@panedesk/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
       '@panedesk/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../ui-slots
@@ -4634,6 +4641,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-settings':
+        specifier: workspace:*
+        version: link:../../settings/settings
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

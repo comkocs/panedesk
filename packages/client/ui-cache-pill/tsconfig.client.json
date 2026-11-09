@@ -1,0 +1,24 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
+  },
+  "include": [
+    "src/client",
+    "src/css-modules.d.ts"
+  ],
+  "references": [
+    { "path": "../resources" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../api/remotes/tsconfig.client.json" },
+    { "path": "../../llm/llm-cache" },
+    { "path": "../../core/session" },
+    { "path": "../locale/tsconfig.client.json" },
+    { "path": "../ui-conversation/tsconfig.client.json" },
+    { "path": "../ui-settings/tsconfig.client.json" },
+    { "path": "../ui-primitives" },
+    { "path": "../ui-slots" }
+  ]
+}

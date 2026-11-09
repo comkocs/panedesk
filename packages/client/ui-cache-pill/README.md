@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package adds one composer dock pill after the shipped activity and usage pills. Opening it lists the cache time left for the main window and each authorized descendant with ledger evidence. An explicit cache route also offers the tiers that route supports; an automatic route lists hits only and offers no switch. A stored tier is carried by the next request of that window. A window without cache evidence shows unknown rather than a guessed duration.
+This package adds one composer dock pill after the shipped activity and usage pills. The pill is off by default; the "Show the \"Cache remaining\" label" switch on the Panedesk feature settings page turns it on, and the change applies immediately. Opening it lists the cache time left for the main window and each authorized descendant with ledger evidence. An explicit cache route also offers the tiers that route supports; an automatic route lists hits only and offers no switch. A stored tier is carried by the next request of that window. A window without cache evidence shows unknown rather than a guessed duration.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This package adds one composer dock pill after the shipped activity and usage pi
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`. The pill appears in the composer dock of an open session except with the minimal preset, and stays off the screen shown before a session starts. The closed pill shows the main window's reading. The open panel sits above the whole composer without covering its input card or toolbar, and lists the main window and each authorized descendant with ledger evidence. Only an explicit route shows tier buttons, and only the tiers that route supports. Choosing one stores it; the following request of that window carries it.
+Mount this plugin alongside `ui-conversation`. The pill is registered only while its visibility preference is on, which the "Show the \"Cache remaining\" label" switch on the Panedesk feature settings page controls; a fresh deployment starts with the switch off. When on, the pill appears in the composer dock of an open session except with the minimal preset, and stays off the screen shown before a session starts. The closed pill shows the main window's reading. The open panel sits above the whole composer without covering its input card or toolbar, and lists the main window and each authorized descendant with ledger evidence. Only an explicit route shows tier buttons, and only the tiers that route supports. Choosing one stores it; the following request of that window carries it.
 
 ### Failures
 
@@ -39,7 +39,7 @@ A failed resource read shows the read-error line rather than remaining in loadin
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package contributes the `cache` entry (order 2) of `conversation.composer.dock`. The browser calls `cacheView.read` and `cacheView.setTier` on the cache-owned Remote. Those methods read `llmCache.remaining`, `llmCache.routeFor`, and `llmCache.policy`, and store a tier through `llmCache.update`. The next `agent/request` of that window writes the stored policy into the request. Remaining seconds are the ledger estimate rounded to a whole second. Descendants come from ledger parent identities and are filtered individually through the caller grants. A shared session resource refreshes evidence every four seconds; the component decrements complete second-resolution readings locally.
+The package contributes the `cache` entry (order 2) of `conversation.composer.dock`, registered only while the volatile `visible` preference (default off, served as the `ui-cache-pill` settings namespace) is true; toggling the preference on the Panedesk feature settings page registers or removes the entry immediately. The browser calls `cacheView.read` and `cacheView.setTier` on the cache-owned Remote. Those methods read `llmCache.remaining`, `llmCache.routeFor`, and `llmCache.policy`, and store a tier through `llmCache.update`. The next `agent/request` of that window writes the stored policy into the request. Remaining seconds are the ledger estimate rounded to a whole second. Descendants come from ledger parent identities and are filtered individually through the caller grants. A shared session resource refreshes evidence every four seconds; the component decrements complete second-resolution readings locally.
 
 </details>
 
