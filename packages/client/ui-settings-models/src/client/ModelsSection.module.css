@@ -575,6 +575,11 @@
   line-height: 18px;
 }
 
+.modelFieldSource {
+  margin-left: 6px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .modelReasoning {
   grid-column: 1 / -1;
   display: flex;

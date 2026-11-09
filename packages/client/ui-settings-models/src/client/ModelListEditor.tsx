@@ -17,9 +17,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
+import { presetContextWindow } from '@panedesk/dsh-llm-pi-ai/src/context-presets.ts'
 import { inferReasoningEfforts } from '@panedesk/dsh-llm-pi-ai/src/reasoning.ts'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
-import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
+import { contextSourceKey, formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
 import { defaultRecognizedSelection } from './recognize.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
@@ -131,7 +132,9 @@ type CapacityField = 'contextWindow' | 'maxTokens'
  *
  * The magnitudes are the adapter's own route-level fallbacks (`llm-pi-ai`'s
  * `defaultContextWindow` and `defaultMaxTokens`), spelled the way a person
- * would say them. They are a hint, not a mirror: this page counts `K` as 1000,
+ * would say them; the context hint shows only when neither the name-keyed
+ * preset nor the installed catalog sizes the model. They are a hint, not a
+ * mirror: this page counts `K` as 1000,
  * so typing `256K` stores 256000 while leaving the field blank keeps the
  * adapter's 262144. A deployment that overrides those defaults is not
  * reflected here — nothing on this page can read them.
@@ -157,7 +160,12 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
   return {
     id: candidate.id,
     ...candidate.name === undefined ? {} : { name: candidate.name },
-    ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
+    ...candidate.contextWindow === undefined ? {} : {
+      contextWindow: candidate.contextWindow,
+      // The listing disclosed this capacity, which keeps the row's source
+      // label reading "upstream" until the field is edited by hand.
+      contextWindowSource: 'upstream',
+    },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
     ...candidate.inputModalities === undefined ? {} : { input: [...candidate.inputModalities] },
   }
@@ -218,12 +226,33 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
 
   const editCapacity = (index: number, field: CapacityField, text: string): void => {
     setEditing(current => new Map(current).set(bufferKey(index, field), text))
-    patch(index, { [field]: parseCapacity(text) })
+    // Editing the context window by hand makes the value hand-entered, so the
+    // upstream marker leaves together with the value it qualified; clearing the
+    // text drops both and the row falls back to its preset or default.
+    patch(index, field === 'contextWindow'
+      ? { contextWindow: parseCapacity(text), contextWindowSource: undefined }
+      : { [field]: parseCapacity(text) })
   }
 
   /** What a capacity field shows: the buffer while typing, else the stored count. */
   const capacityText = (model: ModelDraft, index: number, field: CapacityField): string =>
     editing.get(bufferKey(index, field)) ?? capacitySpelling(numberOf(model, field))
+
+  /**
+   * What an empty context-window field previews: the resolution order this
+   * value would take — the name-keyed preset, else the installed catalog's
+   * disclosure for the same id, else the route-default hint.
+   */
+  const contextPlaceholder = (model: ModelDraft): string => {
+    const id = textOf(model, 'id')
+    if (id.length > 0) {
+      const preset = presetContextWindow(id)
+      if (preset !== undefined) return formatCapacity(preset)
+      const installed = catalog?.find(entry => entry.id === id)?.contextWindow
+      if (installed !== undefined) return formatCapacity(installed)
+    }
+    return CAPACITY_HINT.contextWindow
+  }
 
   /** Drop one row's entries and shift the rows after it down, in one pass. */
   const reindexOnRemove = (
@@ -425,7 +454,8 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
             t={t}
             contextWindow={{
               value: capacityText(model, index, 'contextWindow'),
-              placeholder: CAPACITY_HINT.contextWindow,
+              placeholder: contextPlaceholder(model),
+              source: t(contextSourceKey(model)),
               onChange: (text) => { editCapacity(index, 'contextWindow', text) },
             }}
             maxTokens={{

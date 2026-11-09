@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { IconPlusOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
+import { presetContextWindow } from '@panedesk/dsh-llm-pi-ai/src/context-presets.ts'
 import type { en } from './locales.ts'
 import { ModelRow } from './ModelRow.tsx'
 import styles from './ModelsSection.module.css'
@@ -119,6 +120,25 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
     }
   }
   return undefined
+}
+
+/**
+ * The copy key naming where one row's effective context window comes from: a
+ * stored value is upstream when discovery wrote it (a marker only the pi-ai
+ * family stores) and hand-entered otherwise, an unset field reads the
+ * name-keyed preset table, and a miss leaves the route default, which the
+ * label marks unrecognized so the value can be typed.
+ * @param model - one catalog row as the editors hold it.
+ * @returns the locale key for the row's context-window source label.
+ */
+export function contextSourceKey(model: DeepSeekModelDraft): keyof typeof en {
+  if (typeof model['contextWindow'] === 'number') {
+    return model['contextWindowSource'] === 'upstream' ? 'contextSourceUpstream' : 'contextSourceManual'
+  }
+  const id = model['id']
+  return typeof id === 'string' && id.length > 0 && presetContextWindow(id) !== undefined
+    ? 'contextSourcePreset'
+    : 'contextSourceDefault'
 }
 
 /** Props of {@link DeepSeekModelsEditor}. */
@@ -239,6 +259,7 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
     placeholder: fallback === undefined
       ? props.t(field === 'contextWindow' ? 'contextWindowPlaceholder' : 'maxTokensPlaceholder')
       : formatCapacity(fallback),
+    source: field === 'contextWindow' ? props.t(contextSourceKey(model)) : undefined,
     onChange: (text: string) => {
       setEditing(current => new Map(current).set(`${String(index)}:${field}`, text))
       update(index, field, parseCapacity(text))

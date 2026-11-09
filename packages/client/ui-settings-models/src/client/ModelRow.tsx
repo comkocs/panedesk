@@ -16,6 +16,8 @@ interface CapacityInput {
   placeholder: string
   onChange: (value: string) => void
   onBlur?: () => void
+  /** Label naming where this capacity's effective value comes from, when known. */
+  source?: string | undefined
 }
 
 /** Adapter-owned data and actions for one model row. */
@@ -104,7 +106,12 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           <div className={styles['modelAdvanced']}>
             {(['contextWindow', 'maxTokens'] as const).map(field => (
               <label className={styles['modelField']} key={field}>
-                <span className={styles['modelFieldLabel']}>{t(field)}</span>
+                <span className={styles['modelFieldLabel']}>
+                  {t(field)}
+                  {props[field].source === undefined ? null : (
+                    <span className={styles['modelFieldSource']}>{props[field].source}</span>
+                  )}
+                </span>
                 <input
                   className={styles['input']}
                   type="text"

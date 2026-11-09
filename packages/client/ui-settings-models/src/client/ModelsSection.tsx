@@ -602,7 +602,12 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   const additions = models.filter(model => !ids.has(model.id)).map(model => ({
                     id: model.id,
                     ...model.name === undefined ? {} : { name: model.name },
-                    ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
+                    // Only the pi-ai schema carries the upstream marker; the
+                    // DeepSeek adapter's model entries have no such field.
+                    ...model.contextWindow === undefined ? {} : row.entry.settingsNs === 'llm-pi-ai' ? {
+                      contextWindow: model.contextWindow,
+                      contextWindowSource: 'upstream',
+                    } : { contextWindow: model.contextWindow },
                     ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
                     ...model.inputModalities === undefined ? {} : row.entry.settingsNs === 'llm-pi-ai'
                       ? { input: [...model.inputModalities] }

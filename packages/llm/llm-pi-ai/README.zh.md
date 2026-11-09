@@ -81,7 +81,7 @@ kind: "package-reference"
 | `models` | 已安装目录 | 整体替换路由目录；每个条目从已安装模型取默认值 |
 | `modelOverrides` | 无 | 重塑个别已安装目录模型，而不替换其余模型 |
 | `compat` | 目录检测 | 无法识别端点的协议兼容开关 |
-| `defaultContextWindow` | `262,144` | 未描述模型的容量回退 |
+| `defaultContextWindow` | `262,144` | 条目、名称预设与目录都没有尺寸的模型的容量回退 |
 | `defaultMaxTokens` | `32,768` | 未描述模型的输出上限回退 |
 | `requestImagePixelBudget` | `4,194,304` | 每张确定性请求图片的总像素预算 |
 | `requestImageMaxBytes` | `1 MiB` | 每张请求图片在 base64 扩展前的编码字节目标 |
@@ -98,9 +98,11 @@ pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程�
 
 profile 的 `models` 列表会替换而非扩展路由的已安装目录；每个条目从同 id 已安装模型取未设置字段的默认值，因此把路由收窄到两个模型、修正一个容量或添加比已安装目录更新的模型都是一行编辑。`modelOverrides` 无需该代价即可重塑个别已安装目录模型——修正一个模型，保留其余三十七个——当它与 `models` 列表并存、位于手工声明路由上、或点名目录未描述的模型时会被拒绝，因为静默不变的模型会成为别人日后寻找的拼写错误。
 
+模型的上下文窗口按四层解析：条目自身的 `contextWindow`（手填值，或采纳上游列表时存入的值——后者带 `contextWindowSource: 'upstream'` 标记，供 Models 页显示来源），然后是按名称匹配的预设表，再是同 id 的已安装目录条目，最后是路由的 `defaultContextWindow`。预设按模型名分段匹配——不按提供方名——因此聚合路由背后的家族模型也能拿到真实窗口：`claude`/`opus`/`sonnet`/`haiku` 与 `deepseek` 为 1,000,000，`glm` 为 1,048,576，`sol` 为 500,000，`astra` 为 262,144。预设表是单一常量（[`src/context-presets.ts`](src/context-presets.ts)）；未被收录的名称继续走下一层，已有 profile 无需迁移，因为预设表在解析时实时套用。
+
 ### 带推理（reasoning）与协议兼容运行
 
-`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是分派时在协议中发送的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；自定义模型则按 id 和显示名推断档位。GPT 文本模型、o 系列、Astra、Sol、Terra、Luna、Claude 与 Grok 提供 `low`、`medium`、`high` 和 `xhigh`。图片、语音、音频、视频与嵌入模型不提供档位。GLM、DeepSeek 与 Gemini 只有显式设置 `compat.supportsReasoningEffort: true` 才提供 `low`、`medium` 和 `high`；未知端点不会被假定接受推理强度参数。`false` 显式禁用推理，显式档位字典始终优先。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
+`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是分派时在协议中发送的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；自定义模型则按 id 和显示名推断档位。GPT 文本模型、o 系列、Astra、Sol、Terra、Luna、Claude 与 Grok 提供 `low`、`medium`、`high` 和 `xhigh`。图片、语音、音频、视频与嵌入模型不提供档位。GLM、DeepSeek 与 Gemini 只有显式设置 `compat.supportsReasoningEffort: true` 才提供 `low`、`medium` 和 `high`；未知端点不会被假定接受推理强度参数。`false` 显式禁用推理，显式档位字典始终优先。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目、名称预设与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
 
 确切模型元数据将 `reasoning.efforts` 按可选强度从低到高排列。未配置路由推理强度时，模型选择和请求均默认使用 `high`，没有 `high` 时使用最高可用档位。配置函数可从该列表中选择，再由 `prepareCall()` 校验具体强度。适配器只接收解析后的控制项。选择 `off` 不保证禁用推理：以省略推理字段表达该值的协议会沿用网关默认行为。所选等级下产生的推理 token 都计入该请求的输出上限。
 
