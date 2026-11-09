@@ -5,58 +5,103 @@ import type { MenuEntry } from '@panedesk/dsh-client-ui-primitives'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { OpeningPreset } from '../types.ts'
 import { presetName } from '../preset-name.ts'
+import { importPresets } from './preset-import.ts'
 import type { PresetsProps, PresetSettingsProps, PresetPickerProps, PresetQuickProps } from './preset-props.ts'
 import css from './OpeningPresets.module.css'
 
 /** Editable local rows are persisted atomically through the shared product form. */
-function Editor(props: PresetsProps & { initial: OpeningPreset[]; revision: number | undefined; done: () => void }) {
+function Editor(props: PresetsProps & { initial: OpeningPreset[]; expandFirst?: boolean; revision: number | undefined; done: () => void }) {
   const { t } = props
-  const [rows, setRows] = useState(props.initial)
+  const [rows, setRows] = useState(() => props.initial.map((row, index) => ({ ...row, id: crypto.randomUUID(), expanded: Boolean(props.expandFirst && index === 0) })))
+  const [split, setSplit] = useState<{ before: typeof rows; count: number }>()
   const [paste, setPaste] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [dragged, setDragged] = useState<number>()
-  const update = (index: number, patch: Partial<OpeningPreset>) => setRows(current => current.map((row, at) => at === index ? { ...row, ...patch } : row))
+  const [dropAt, setDropAt] = useState<number>()
+  const update = (index: number, patch: Partial<(typeof rows)[number]>) => setRows(current => current.map((row, at) => at === index ? { ...row, ...patch } : row))
+  const move = (from: number, to: number) => {
+    const next = [...rows]; const [moved] = next.splice(from, 1); next.splice(to, 0, moved!); setRows(next)
+  }
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError('')
     try { await action() } catch (reason) { setError(String(reason)) } finally { setBusy(false) }
   }
   return <div className={css.editor}>
-    {rows.map((row, index) => <fieldset key={index} className={css.row} draggable={!busy}
-      onDragStart={event => { if ((event.target as HTMLElement).tagName !== 'FIELDSET') return; setDragged(index) }}
-      onDragOver={event => event.preventDefault()} onDrop={event => {
+    <label>{t('importText')}<textarea disabled={busy} value={paste} onChange={event => setPaste(event.target.value)} /></label>
+    <div className={css.actions}>{([false, true] as const).map(table => <Button key={String(table)} variant="outline" disabled={busy}
+      onClick={() => void run(async () => { setRows([...rows, ...(await props.importPresets(paste, table)).map(row => ({ ...row, id: crypto.randomUUID(), expanded: false }))]) })}>
+      {t(table ? 'importTable' : 'batchPaste')}</Button>)}</div>
+    {split && <div className={css.actions} role="status">
+      {t('splitPresets').replace('{count}', String(split.count))}
+      <Button size="sm" disabled={busy} onClick={() => { setRows(split.before); setSplit(undefined) }}>{t('undoSplit')}</Button>
+    </div>}
+    {rows.map((row, index) => <fieldset key={row.id} className={css.row} disabled={busy}
+      data-drop={dropAt === index ? 'before' : dropAt === rows.length && index === rows.length - 1 ? 'after' : undefined}
+      onDragOver={event => {
+        event.preventDefault()
+        if (dragged !== undefined) {
+          event.dataTransfer.dropEffect = 'move'
+          const bounds = event.currentTarget.firstElementChild!.getBoundingClientRect()
+          setDropAt(index + (event.clientY > bounds.top + bounds.height / 2 ? 1 : 0))
+        }
+      }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropAt(undefined) }}
+      onDrop={event => {
         event.preventDefault(); event.stopPropagation()
         if (event.dataTransfer.files.length) {
           update(index, { directories: [...new Set([...row.directories, ...props.droppedPaths(Array.from(event.dataTransfer.files))])] })
-        } else if (dragged !== undefined) {
-          const next = [...rows]; const [moved] = next.splice(dragged, 1); next.splice(index, 0, moved!); setRows(next)
+        } else if (dragged !== undefined && dropAt !== undefined) {
+          move(dragged, dropAt > dragged ? dropAt - 1 : dropAt)
         }
-        setDragged(undefined)
+        setDragged(undefined); setDropAt(undefined)
       }}>
-      <legend>{row.name || t('addPreset')}</legend>
-      <label>{t('presetPrompt')}<textarea value={row.prompt} onChange={event => {
-        const prompt = event.target.value
-        update(index, { prompt, ...(row.name === '' || row.name === props.namePreset(row.prompt) ? { name: props.namePreset(prompt) } : {}) })
-      }} /></label>
-      <label>{t('presetName')}<input value={row.name} onChange={event => update(index, { name: presetName(event.target.value) })} /></label>
-      <label>{t('presetDirectories')}<textarea value={row.directories.join('\n')} placeholder={t('dropDirectories')}
-        onChange={event => update(index, { directories: event.target.value.split('\n') })} /></label>
-      <Button variant="outline" onClick={() => void run(async () => {
-        const directory = await props.pickDirectory()
-        if (directory) update(index, { directories: [...new Set([...row.directories.filter(Boolean), directory])] })
-      })}>{t('addDirectory')}</Button>
-      <label>{t('presetModel')}<input value={row.model ?? ''} placeholder={t('followCurrent')}
-        onChange={event => update(index, { model: event.target.value })} /></label>
-      <label>{t('presetPermission')}<input value={row.permission ?? ''} placeholder={t('followCurrent')}
-        onChange={event => update(index, { permission: event.target.value })} /></label>
-      <Button variant="outline" onClick={() => setRows(rows.filter((_, at) => at !== index))}>{t('deletePreset')}</Button>
+      <div className={css.summary}>
+        <Button size="sm" className={css.handle} draggable={!busy} aria-label={t('dragPreset')}
+          onDragStart={event => {
+            setDragged(index)
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('text/plain', row.id)
+            event.dataTransfer.setDragImage(event.currentTarget.parentElement!, 12, 12)
+          }} onDragEnd={() => { setDragged(undefined); setDropAt(undefined) }}>⠿</Button>
+        <span className={css.summaryText} data-invalid={!row.name.trim() || !row.prompt.trim()} title={row.name}>{row.name || t('addPreset')}</span>
+        <span className={css.summaryText} data-invalid={!row.directories.some(path => path.trim())} title={row.directories[0]}>{row.directories[0] || t('presetDirectories')}</span>
+        <Button size="sm" disabled={index === 0} onClick={() => move(index, index - 1)}>{t('movePresetUp')}</Button>
+        <Button size="sm" disabled={index === rows.length - 1} onClick={() => move(index, index + 1)}>{t('movePresetDown')}</Button>
+        <Button size="sm" aria-expanded={row.expanded} onClick={() => update(index, { expanded: !row.expanded })}>{t(row.expanded ? 'collapsePreset' : 'expandPreset')}</Button>
+      </div>
+      {row.expanded && <>
+        <label>{t('presetPrompt')}<textarea value={row.prompt} aria-invalid={!row.prompt.trim()} onPaste={event => {
+          const text = event.clipboardData.getData('text/plain')
+          if (importPresets(text, false).length < 2) return
+          event.preventDefault()
+          void run(async () => {
+            const imported = await props.importPresets(text, false)
+            const replacements = imported.map((preset, at) => ({ ...row, ...preset,
+              directories: preset.directories.length ? preset.directories : [...row.directories],
+              id: at === 0 ? row.id : crypto.randomUUID(), expanded: at === 0 }))
+            setSplit({ before: rows, count: replacements.length })
+            setRows([...rows.slice(0, index), ...replacements, ...rows.slice(index + 1)])
+          })
+        }} onChange={event => {
+          const prompt = event.target.value
+          update(index, { prompt, ...(row.name === '' || row.name === props.namePreset(row.prompt) ? { name: props.namePreset(prompt) } : {}) })
+        }} /></label>
+        <label>{t('presetName')}<input value={row.name} aria-invalid={!row.name.trim()} onChange={event => update(index, { name: presetName(event.target.value) })} /></label>
+        <label>{t('presetDirectories')}<textarea value={row.directories.join('\n')} placeholder={t('dropDirectories')} aria-invalid={!row.directories.some(path => path.trim())}
+          onChange={event => update(index, { directories: event.target.value.split('\n') })} /></label>
+        <Button variant="outline" onClick={() => void run(async () => {
+          const directory = await props.pickDirectory()
+          if (directory) update(index, { directories: [...new Set([...row.directories.filter(Boolean), directory])] })
+        })}>{t('addDirectory')}</Button>
+        <label>{t('presetModel')}<input value={row.model ?? ''} placeholder={t('followCurrent')}
+          onChange={event => update(index, { model: event.target.value })} /></label>
+        <label>{t('presetPermission')}<input value={row.permission ?? ''} placeholder={t('followCurrent')}
+          onChange={event => update(index, { permission: event.target.value })} /></label>
+        <Button variant="outline" onClick={() => setRows(rows.filter((_, at) => at !== index))}>{t('deletePreset')}</Button>
+      </>}
     </fieldset>)}
     <p>{t('reorderPresets')}</p>
-    <Button variant="outline" onClick={() => setRows([...rows, { name: '', prompt: '', directories: [] }])}>{t('addPreset')}</Button>
-    <label>{t('importText')}<textarea value={paste} onChange={event => setPaste(event.target.value)} /></label>
-    <div className={css.actions}>{([false, true] as const).map(table => <Button key={String(table)} variant="outline" disabled={busy}
-      onClick={() => void run(async () => { setRows([...rows, ...await props.importPresets(paste, table)]) })}>
-      {t(table ? 'importTable' : 'batchPaste')}</Button>)}</div>
+    <Button variant="outline" disabled={busy} onClick={() => setRows([...rows.map(row => ({ ...row, expanded: false })), { name: '', prompt: '', directories: [], id: crypto.randomUUID(), expanded: true }])}>{t('addPreset')}</Button>
     <Button variant="primary" disabled={busy || rows.some(row => !row.name.trim() || !row.prompt.trim() || !row.directories.some(path => path.trim()))}
       onClick={() => void run(async () => {
         const saved = rows.map(row => ({ name: presetName(row.name), prompt: row.prompt,
@@ -136,7 +181,7 @@ function Picker(props: PresetsProps & { currentDirectory: string | undefined; se
         void props.choosePreset(index!, directory, directory === props.currentDirectory ? props.sessionId : undefined).catch(reason => setError(String(reason))).finally(() => setBusy(false))
       }} />
     <Modal className={css.modal!} open={adding} title={props.t('addPreset')} closeLabel={props.t('close')} onClose={() => setAdding(false)}>
-      {adding && <Editor {...props} initial={[...(form.value?.openingPresets ?? []), { name: '', prompt: '', directories: [] }]}
+      {adding && <Editor {...props} expandFirst initial={[{ name: '', prompt: '', directories: [] }, ...(form.value?.openingPresets ?? [])]}
         revision={form.revision} done={() => setAdding(false)} />}
     </Modal>
     {error && <p role="alert">{error}</p>}

@@ -65,7 +65,7 @@
       "id": "opening-presets-and-top-level-modes",
       "description": "Manage reusable opening drafts and separate imported agent types from top-level modes",
       "origin": "Panedesk opening preset preferences",
-      "reason": "Save opening text and directories in product settings, import existing lists, fill unsent drafts with optional model and permission choices, reuse preset names for titles, and hide imported agent types only in the top-level picker.",
+      "reason": "Save opening text and directories in product settings, split pasted opening lines with undo and inferred or inherited directories, place batch imports above collapsed rows with handle-only drag sorting and insertion lines plus move buttons, expand only the new row when adding from the hero, fill unsent drafts with optional model and permission choices, reuse preset names for titles, and hide imported agent types only in the top-level picker.",
       "match": {
         "type": "behavior",
         "paths": [
