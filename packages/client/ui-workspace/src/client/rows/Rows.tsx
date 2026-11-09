@@ -571,10 +571,16 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, now, onOpen, onRenameRequest, renderSlot, onReveal, drag, t,
+  node, currentId, multiSelected = false, onSelectClick, onBulkMenu, now, onOpen, onRenameRequest, renderSlot, onReveal, drag, t,
 }: {
   node: SessionNode
   currentId: string | undefined
+  /** The row is inside the browser's multi-selection. */
+  multiSelected?: boolean
+  /** Toggle this row, or extend the selection through it. */
+  onSelectClick?: ((id: SessionNode['id'], mode: 'toggle' | 'range') => void) | undefined
+  /** Open the bulk menu when this row is part of a multi-selection. */
+  onBulkMenu?: ((id: SessionNode['id'], pos: { x: number; y: number }) => void) | undefined
   now: number
   onOpen: (id: SessionNode['id']) => void
   /** Open the rename dialog from a title double-click (id + current title). */
@@ -618,20 +624,33 @@ export function SessionNodeItem({
       ref={rowRef}
       data-row-key={`session:${node.id}`}
       className={clsx(
-        css.sessionRow, selected && css.selected, menuOpen && css.menuOpen,
+        css.sessionRow, selected && css.selected, multiSelected && css.multiSelected, menuOpen && css.menuOpen,
         row.archived && css.archived,
         drag?.marker === 'before' && css.dropBefore, drag?.marker === 'after' && css.dropAfter,
       )}
       role="treeitem"
-      aria-selected={selected}
+      aria-selected={selected || multiSelected}
       aria-description={row.archived ? t('toast.archivedNotOpenable') : undefined}
-      onClick={() => { onOpen(node.id) }}
+      onClick={(e) => {
+        // Modifier clicks edit the multi-selection and never open the Session.
+        // A plain click opens it and the browser clears the selection.
+        if (onSelectClick !== undefined && (e.shiftKey || e.ctrlKey || e.metaKey)) {
+          onSelectClick(node.id, e.shiftKey ? 'range' : 'toggle')
+          return
+        }
+        onOpen(node.id)
+      }}
       // A blank placeholder has no menu; right-clicking any other row opens
-      // the same "..." menu at the pointer.
+      // the same "..." menu at the pointer. A row inside a multi-selection
+      // opens the bulk menu instead.
       onContextMenu={row.blank
         ? undefined
         : (e) => {
           e.preventDefault()
+          if (multiSelected && onBulkMenu !== undefined) {
+            onBulkMenu(node.id, { x: e.clientX, y: e.clientY })
+            return
+          }
           setContextPos({ x: e.clientX, y: e.clientY })
           setMenuOpen(true)
         }}

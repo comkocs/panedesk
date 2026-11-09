@@ -16175,6 +16175,29 @@
           "templates/workflow-pack/tools/trim.py"
         ]
       }
+    },
+    {
+      "id": "sidebar-session-multi-select",
+      "description": "Select several sidebar sessions and pin or archive them together",
+      "origin": "Panedesk sidebar interaction parity with Claude desktop",
+      "reason": "Shift-click selects the displayed range from the last plain or modifier click, and Ctrl or Cmd click toggles one row without opening it. With more than one row selected, a strip above the list and a right-click menu offer Pin N, Unpin N, and Archive N, each repeating the single-session call; a batch archive raises one undoable notice. Escape, list padding, and a plain click clear the selection.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+          "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.module.css",
+          "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+          "packages/client/ui-workspace/src/client/rows/Rows.module.css",
+          "packages/client/ui-workspace/src/client/rows/AnimatedRows.tsx",
+          "packages/client/ui-workspace/src/client/index.ts",
+          "packages/client/ui-workspace/src/client/contract/slots.ts",
+          "packages/client/ui-workspace/src/client/contract/toast.ts",
+          "packages/client/ui-workspace/src/client/toast/register.ts",
+          "packages/client/ui-workspace/src/client/locales.ts",
+          "packages/client/ui-workspace/README.md",
+          "packages/client/ui-workspace/README.zh.md"
+        ]
+      }
     }
   ]
 }

@@ -1,7 +1,7 @@
 /** One presentation Factory and the adapters for keyed Workspace notices. */
 import { IconWarningOutlineRegular, Toast } from '@panedesk/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@panedesk/dsh-client-ui-slots'
-import type { ArchiveToastEntryProps, ToastEntryProps, WorkspaceToastProps } from '../contract/toast.ts'
+import type { ArchivedManyToastEntryProps, ArchiveToastEntryProps, ToastEntryProps, WorkspaceToastProps } from '../contract/toast.ts'
 
 /**
  * Render one notice using the shared Factory.
@@ -19,9 +19,21 @@ export function ToastEntry<P extends PropsRuntime<'workspace.toast'>>(props: Toa
  * @returns The shared Toast occurrence with its current actions.
  */
 export function ArchiveToastEntry(props: ArchiveToastEntryProps) {
-  const { dismissToast, display, filterAction, useStore, t, renderFactorySlot, seq } = props
+  return <ArchiveToastBody {...props} />
+}
+
+/** Batch-archive notice: the same body, narrowed to its own payload. */
+export function ArchivedManyToastEntry(props: ArchivedManyToastEntryProps) {
+  return <ArchiveToastBody {...props} />
+}
+
+/** Shared archive-notice body; each export above fixes the notice payload. */
+function ArchiveToastBody(props: ArchiveToastEntryProps | ArchivedManyToastEntryProps) {
+  const { dismissToast, filterAction, useStore, t, renderFactorySlot, seq } = props
   const archivedVisible = useStore(state => (state.archivedFilter ?? 'default') !== 'default')
-  const fields = display(props, t, dismissToast)
+  const fields = props.kind === 'archivedMany'
+    ? props.display(props, t, dismissToast)
+    : props.display(props, t, dismissToast)
   return renderFactorySlot('workspace.toast.content', {
     ...fields,
     actions: [...fields.actions ?? [], ...archivedVisible ? [] : [filterAction(t, dismissToast)]],

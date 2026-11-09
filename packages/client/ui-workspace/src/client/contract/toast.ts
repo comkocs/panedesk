@@ -33,10 +33,18 @@ export type ToastEntryProps<P extends PropsRuntime<'workspace.toast'>> =
 export interface ArchiveToastInjected extends ToastDisplayInjected<'archived' | 'stoppedAndArchived'> {
   filterAction: (t: PropsLocale<'workspace'>['t'], dismiss: () => void) => NonNullable<ToastDisplay['actions']>[number]
 }
+/** Batch-archive adapter: the notice names a count and undoes the whole batch. */
+export interface ArchivedManyToastInjected extends ToastDisplayInjected<'archivedMany'> {
+  filterAction: (t: PropsLocale<'workspace'>['t'], dismiss: () => void) => NonNullable<ToastDisplay['actions']>[number]
+}
 /** Archive adapter props with its injected action and viewing-state seats. */
 export type ArchiveToastEntryProps =
   PropsRuntime<'workspace.toast', 'archived' | 'stoppedAndArchived'> & PropsLocale<'workspace'> & PropsRenderFactories
   & PropsStore<WorkspaceViewStoreHandle> & InjectFace<ArchiveToastInjected>
+/** Batch-archive adapter props. */
+export type ArchivedManyToastEntryProps =
+  PropsRuntime<'workspace.toast', 'archivedMany'> & PropsLocale<'workspace'> & PropsRenderFactories
+  & PropsStore<WorkspaceViewStoreHandle> & InjectFace<ArchivedManyToastInjected>
 
 /** Complete props of the shared Workspace Toast Factory. */
 export type WorkspaceToastProps = FactoryComponentPropsOf<'workspace.toast.content'>
