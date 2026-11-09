@@ -94,6 +94,8 @@ When you launch `dsh --profile web` over SSH, the URL line still prints but the 
 
 ### Per-session agent setup
 
+All four shipped presets include [Session tools](../../session/tool-session-ops/README.md) (`session_new`, `session_rename`, `session_list`, and `session_send`) on Web and on Desktop compositions using this bundle.
+
 Each browser session selects a shipped preset (`standard` by default). The Agent presets settings page changes the default and edits preset child plugins; saves persist in `$PANEDESK_HOME/profiles/web/cordis.patch.yml`. Creator's plugin-management tool is enabled only when the Host provides an editable profile.
 
 -----

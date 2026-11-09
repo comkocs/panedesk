@@ -94,6 +94,8 @@ dsh --profile web --no-open --host "$(hostname -i | awk '{print $1}')" --public-
 
 ### 按会话的 agent 设置
 
+四个随发行版交付的预设均在 Web 和使用此 bundle 的 Desktop 组合中提供[会话工具](../../session/tool-session-ops/README.zh.md)：`session_new`、`session_rename`、`session_list` 和 `session_send`。
+
 每个浏览器会话选择一个随发行版交付的 preset（默认 `standard`）。Agent 预设设置页可更改默认项并编辑预设的子插件；保存结果持久化到 `$PANEDESK_HOME/profiles/web/cordis.patch.yml`。只有 Host 提供可编辑的 profile 时，Creator 的插件管理工具才会启用。
 
 -----

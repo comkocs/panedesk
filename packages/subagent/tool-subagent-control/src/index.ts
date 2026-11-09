@@ -76,12 +76,16 @@ export function apply(ctx: Context): void {
     description:
       'Ask a subagent to stop its current work. This call returns without waiting for it to stop. '
       + 'You can continue a local direct child\'s conversation later with send_message. '
-      + 'External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.',
+      + 'External executions stop permanently and cannot receive follow-ups. Descendants keep running unless includeDescendants is true.',
     parameters: {
       agent_id: {
         type: 'string',
         required: true,
         description: 'The id of an agent created under you: your direct child or a deeper descendant.',
+      },
+      includeDescendants: {
+        type: 'boolean',
+        description: 'Also request interruption of every catalog-reachable descendant of this agent. Defaults to false.',
       },
     },
     output: {
@@ -97,7 +101,7 @@ export function apply(ctx: Context): void {
         text: `interrupt requested for agent ${args.agent_id}`,
       }],
     },
-    execute(args, exec) {
+    async execute(args, exec) {
       const caller = exec.agent
       if (!caller) {
         // Ancestor authority requires an exact live calling agent.
@@ -105,8 +109,16 @@ export function apply(ctx: Context): void {
       }
       // The service authorizes the exact live caller against the target's
       // recorded lineage; the tool adds no authority of its own.
-      ctx.subagents.interrupt(brandString<SessionId>(args.agent_id), { kind: 'ancestor', agent: caller })
-      return Promise.resolve({ accepted: true })
+      const target = brandString<SessionId>(args.agent_id)
+      ctx.subagents.interrupt(target, { kind: 'ancestor', agent: caller })
+      if (args.includeDescendants === true) {
+        const descendants = await ctx.subagents.listDescendants(target, exec.signal)
+        for (const entry of descendants) {
+          exec.signal.throwIfAborted()
+          ctx.subagents.interrupt(entry.id, { kind: 'ancestor', agent: caller })
+        }
+      }
+      return { accepted: true }
     },
   }))
 }
