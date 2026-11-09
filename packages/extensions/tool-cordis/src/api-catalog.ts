@@ -9264,7 +9264,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmModelProbeResult',
-    declaration: 'export interface LlmModelProbeResult {\n    readonly ok: boolean;\n    readonly code?: string;\n    readonly message?: string;\n}',
+    declaration: 'export interface LlmModelProbeResult {\n    readonly ok: boolean;\n    readonly code?: string;\n    readonly reason?: \'protocol\' | \'auth\' | \'model\' | \'timeout\' | \'other\';\n    readonly status?: number;\n    readonly body?: string;\n    readonly message?: string;\n}',
   },
   {
     name: 'LlmModelReasoningInfo',
@@ -9280,7 +9280,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmProtocolCheck',
-    declaration: 'export interface LlmProtocolCheck {\n    readonly ok: boolean;\n    readonly reason?: \'protocol\' | \'auth\' | \'model\' | \'timeout\' | \'other\';\n    readonly status?: number;\n}',
+    declaration: 'export interface LlmProtocolCheck {\n    readonly ok: boolean;\n    readonly reason?: \'protocol\' | \'auth\' | \'model\' | \'timeout\' | \'other\';\n    readonly status?: number;\n    readonly body?: string;\n}',
   },
   {
     name: 'LlmProtocolProbeResult',

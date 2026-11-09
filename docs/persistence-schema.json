@@ -17032,6 +17032,81 @@
       }
     },
     {
+      "key": "event:subagent/effort-not-applicable",
+      "kind": "event",
+      "event": "subagent/effort-not-applicable",
+      "surface": false,
+      "digest": "8a7c39fbacb7d1d59dbb39c4bbb802986363ad2aed02757a3ecbe5c58160c929",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 3,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 5,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "model",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "provider",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "subagent/effort-not-applicable"
+          }
+        ]
+      }
+    },
+    {
       "key": "event:subagent/model-selection-policy",
       "kind": "event",
       "event": "subagent/model-selection-policy",
@@ -23862,6 +23937,11 @@
   ],
   "types": [
     {
+      "digest": "00dcaf10461226e867a35bf15c2383b6aaaac31253ed2d26b56eb5fa89446beb",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "0116b1f89c05221d56b0ba35c83d302bf4857bc7277d247e9bbaf74b27d2c66e",
       "names": [],
       "sources": []
@@ -23870,7 +23950,7 @@
       "digest": "012ead24ade01106d448e0ad9811d72eda66fd7d851e165318966cf52b34ff84",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:605"
+        "packages/llm/llm/src/types.ts:619"
       ]
     },
     {
@@ -23911,7 +23991,7 @@
       "digest": "0553a7709a522476de9edf26bac4bc1ae8cda303f94d0407e6a8d1502862c6ce",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:606"
+        "packages/llm/llm/src/types.ts:620"
       ]
     },
     {
@@ -23950,6 +24030,7 @@
       ],
       "sources": [
         "packages/session/session-title/src/types.ts:32",
+        "packages/subagent/tool-subagent/src/model-selection-state.ts:29",
         "packages/subagent/tool-subagent/src/model-selection.ts:44"
       ]
     },
@@ -23988,7 +24069,7 @@
         "packages/llm/llm/src/types.ts#ReplayEnvelope"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:497"
+        "packages/llm/llm/src/types.ts:511"
       ]
     },
     {
@@ -24050,7 +24131,7 @@
       "digest": "0d47a8f3d847243c4488e755ad4cab7a04ac5d4621b9c81865524cf3f4d8536f",
       "names": [],
       "sources": [
-        "packages/subagent/tool-subagent/src/model-selection-state.ts:17"
+        "packages/subagent/tool-subagent/src/model-selection-state.ts:19"
       ]
     },
     {
@@ -24532,7 +24613,7 @@
       "digest": "2abb711460e6238d851c30f3e4bdd87a2aa1887ee70575b3d3b7b25610673095",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:522"
+        "packages/llm/llm/src/types.ts:536"
       ]
     },
     {
@@ -24799,7 +24880,7 @@
       "digest": "3bec87f9e6ab3da03346f49923d3c51621debc0159df68605e543c3b2a026f90",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:520"
+        "packages/llm/llm/src/types.ts:534"
       ]
     },
     {
@@ -25210,7 +25291,7 @@
         "packages/llm/llm/src/types.ts#CacheRetention"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:592"
+        "packages/llm/llm/src/types.ts:606"
       ]
     },
     {
@@ -25499,7 +25580,7 @@
         "packages/llm/llm/src/types.ts#ToolSchema"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:554"
+        "packages/llm/llm/src/types.ts:568"
       ]
     },
     {
@@ -25544,7 +25625,7 @@
       "digest": "6904f635b8e768cdabf470841824efb6ee70393f90b6de95c4fd7f5d3e109731",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:526"
+        "packages/llm/llm/src/types.ts:540"
       ]
     },
     {
@@ -25575,7 +25656,7 @@
         "packages/llm/llm/src/types.ts#StreamChunk"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:519"
+        "packages/llm/llm/src/types.ts:533"
       ]
     },
     {
@@ -25732,7 +25813,7 @@
       "digest": "701688cda06fa2c2c5643dc2ec0f2064dba7c3087dbbbadec020ab09612e362c",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:525"
+        "packages/llm/llm/src/types.ts:539"
       ]
     },
     {
@@ -25767,7 +25848,7 @@
         "packages/llm/llm/src/types.ts#LlmCacheControl"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:595"
+        "packages/llm/llm/src/types.ts:609"
       ]
     },
     {
@@ -26124,7 +26205,7 @@
       "digest": "88a610b831be6d92612a464be5c7d0b88ec24d97bd299837bf74bf7672183c9a",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:523"
+        "packages/llm/llm/src/types.ts:537"
       ]
     },
     {
@@ -26134,6 +26215,11 @@
     },
     {
       "digest": "8a6e1ec9e8db346b0e02f027db73c07a94f067a26d40c1aef1abd09c47ce7ba0",
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "8a7c39fbacb7d1d59dbb39c4bbb802986363ad2aed02757a3ecbe5c58160c929",
       "names": [],
       "sources": []
     },
@@ -26311,7 +26397,7 @@
       "digest": "95080295115fbd83544520ba247b68a03790131f6a2eac323d388758cb542f65",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:521"
+        "packages/llm/llm/src/types.ts:535"
       ]
     },
     {
@@ -27281,7 +27367,7 @@
       "digest": "d4b739491689cc6bb13d07ffac1a32239875abda364c0d5edd8f74faf5e9c00d",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:524"
+        "packages/llm/llm/src/types.ts:538"
       ]
     },
     {
@@ -27403,7 +27489,7 @@
       "digest": "dc09715d31baff7e949244859110d74c7e6f4428d9a9eeb257b627533cd933b5",
       "names": [],
       "sources": [
-        "packages/llm/llm/src/types.ts:604"
+        "packages/llm/llm/src/types.ts:618"
       ]
     },
     {
@@ -27780,7 +27866,7 @@
         "packages/llm/llm/src/types.ts#SystemPromptUpdate"
       ],
       "sources": [
-        "packages/llm/llm/src/types.ts:463"
+        "packages/llm/llm/src/types.ts:477"
       ]
     },
     {
