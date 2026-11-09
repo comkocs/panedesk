@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-panedesk-icons",
   "description": "Panedesk entry glyphs and the shared design-token table the new panels consume: monoline current-color icons in 16/20/24 plus the spacing tier the upstream theme lacks",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "publishConfig": {
     "access": "public"
   },

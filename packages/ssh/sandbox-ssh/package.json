@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-sandbox-ssh",
   "description": "Remote POSIX sandbox argv provider over the shared SSH helper",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "publishConfig": {
     "access": "public"
   },
