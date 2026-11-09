@@ -45,7 +45,7 @@ export function ContextMeter({ useProjection, t, openToolSettings }: ContextMete
   const breakdown = useProjection('contextBreakdown')
   const compaction = useProjection('contextCompaction')
   const [open, setOpen] = useState(false)
-  const [expanded, setExpanded] = useState<keyof ContextBreakdownProjection['items'] | null>(null)
+  const [expanded, setExpanded] = useState<keyof ContextBreakdownProjection['items'] | 'claudeAgents' | null>(null)
   const rootRef = useRef<HTMLSpanElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const context = contextOccupancy(pressure)
@@ -88,11 +88,33 @@ export function ContextMeter({ useProjection, t, openToolSettings }: ContextMete
     assigned = end
     return { ...row, tokens }
   })
+  const displayCategories = categories.flatMap<{
+    key: string
+    label: typeof ROWS[number]['label'] | 'context.claudeAgents'
+    color: string | undefined
+    tokens: number
+    group?: keyof ContextBreakdownProjection['items'] | 'claudeAgents'
+    items: ContextBreakdownProjection['items']['agents']
+  }>(row => {
+    const items = 'group' in row ? breakdown?.items[row.group] ?? [] : []
+    if (row.key !== 'agentsTokens') return [{ ...row, items }]
+    const builtIn = items.filter(item => ['standard', 'ptc', 'minimal', 'cordis'].includes(item.name))
+    const imported = items.filter(item => !['standard', 'ptc', 'minimal', 'cordis'].includes(item.name))
+    if (imported.length === 0) return [{ ...row, items: builtIn }]
+    const total = items.reduce((sum, item) => sum + item.tokens, 0)
+    const builtInTokens = total === 0 ? 0
+      : Math.round(row.tokens * builtIn.reduce((sum, item) => sum + item.tokens, 0) / total)
+    return [
+      { ...row, tokens: builtInTokens, items: builtIn },
+      { ...row, key: 'claudeAgents', label: 'context.claudeAgents', group: 'claudeAgents',
+        tokens: row.tokens - builtInTokens, items: imported },
+    ]
+  })
   const since = used - anchored
   const reserve = compaction?.reserveTokens ?? 0
   const free = window - used - reserve
   const rows = [
-    ...categories,
+    ...displayCategories,
     { key: 'since', label: 'context.since', color: css.colorTools, tokens: since },
     { key: 'reserve', label: 'context.reserve', color: css.colorReserve, tokens: reserve },
     { key: 'free', label: 'context.free', color: css.colorFree, tokens: free },
@@ -129,18 +151,19 @@ export function ContextMeter({ useProjection, t, openToolSettings }: ContextMete
             ))}
           </div>
           <dl className={css.rows}>
-            {rows.map(row => (
-              <div key={row.key} className={css.row}>
+            {rows.map(row => {
+              const group = 'group' in row ? row.group : undefined
+              return <div key={row.key} className={css.row}>
                 <dt><span className={`${css.swatch} ${row.color}`} aria-hidden />
-                  {'group' in row
-                    ? <button type="button" className={css.category} aria-expanded={expanded === row.group}
-                        onClick={() => { setExpanded(expanded === row.group ? null : row.group) }}>{t(row.label)}</button>
+                  {group !== undefined
+                    ? <button type="button" className={css.category} aria-expanded={expanded === group}
+                        onClick={() => { setExpanded(expanded === group ? null : group) }}>{t(row.label)}</button>
                     : t(row.label)}
                 </dt>
                 <dd title={`~${row.tokens}`}>{`~${formatTokens(row.tokens, t)}`}</dd>
                 <dd>{percentage(row.tokens)}</dd>
               </div>
-            ))}
+            })}
             {DEFERRED.map(row => (
               <div key={row.key} className={css.row}>
                 <dt><span className={`${css.swatch} ${css.colorReserve}`} aria-hidden />{t(row.label)}</dt>
@@ -148,17 +171,18 @@ export function ContextMeter({ useProjection, t, openToolSettings }: ContextMete
               </div>
             ))}
           </dl>
-          {categories.filter(row => 'group' in row).map(row => {
-            if (!('group' in row)) return null
-            const items = breakdown?.items[row.group] ?? []
+          {displayCategories.map(row => {
+            const group = row.group
+            if (group === undefined) return null
+            const items = row.items
             const total = items.reduce((sum, item) => sum + (item.deferred ? 0 : item.tokens), 0)
             let itemCumulative = 0
             let itemAssigned = 0
             return (
-              <details key={row.group} className={css.group} open={expanded === row.group}>
+              <details key={group} className={css.group} open={expanded === group}>
                 <summary onClick={event => {
                   event.preventDefault()
-                  setExpanded(expanded === row.group ? null : row.group)
+                  setExpanded(expanded === group ? null : group)
                 }}>{t(row.label)}<span>{items.length}</span></summary>
                 {row.group === 'builtinTools' && <button type="button" className={css.settings}
                   onClick={() => { setOpen(false); openToolSettings() }}>{t('context.toolSettings')}</button>}

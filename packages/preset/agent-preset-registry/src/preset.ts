@@ -26,4 +26,6 @@ export interface Config {
   default: string
   /** User-selected default; edited through Settings. */
   selectedDefault: Volatile<string | undefined>
+  /** Read Claude Code agent types at startup; changes require a restart. */
+  readClaudeAgentTypes: Volatile<boolean>
 }

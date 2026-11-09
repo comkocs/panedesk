@@ -95,6 +95,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
   static Config = z.object({
     default: z.string().required(),
     selectedDefault: z.string().volatile(),
+    readClaudeAgentTypes: z.boolean().default(false).volatile(),
   })
   private readonly owner: Context
   private readonly definitions = new Map<string, Definition>()
@@ -113,6 +114,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
   }
 
   async [Service.init](): Promise<void> {
+    if (!this.config.readClaudeAgentTypes.get()) return
     await this.importClaudeAgents({ home: homedir(), workspace: this.owner.get('profileContext')?.cwd ?? process.cwd() })
   }
 

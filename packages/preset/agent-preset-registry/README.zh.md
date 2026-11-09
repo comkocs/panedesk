@@ -42,8 +42,9 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `default` | 必填 | 未显式指定时使用的 preset ID |
+| `readClaudeAgentTypes` | `false` | 启动时导入 Claude Code 类型；修改后需重启 |
 
-Web 声明来自 `dsh-web-app` bundle。注册表还在启动时读取一次 `~/.claude/agents/*.md` 与工作区 `.claude/agents/*.md`，项目同名定义覆盖用户定义。导入类型挂载组合后的 `preset-standard` 插件列表，再叠加其指令和执行期工具守卫，并把映射后的工具名保存在组合代际元数据中，供子代理呈现过滤读取。导入保留模型／强度偏好，不解析提供方。指令插件使用 `@panedesk/dsh-agent-preset-registry/claude-agent-instructions` 子路径：源码启动通过工作区别名解析，安装版加载已发布的 `lib/types/claude-agent-instructions.js` 导出。派遣时从实时目录解析模型偏好，无命中则使用父级路由，显式模型覆盖优先。启动时缺少提供方不会让这些类型变成 broken。`selectedDefault` volatile 字段为新会话覆盖部署默认值。
+Web 声明来自 `dsh-web-app` bundle。注册表仅在启用 `readClaudeAgentTypes`（缺省关闭）时于启动阶段读取一次 `~/.claude/agents/*.md` 与工作区 `.claude/agents/*.md`，项目同名定义覆盖用户定义。在设置 → Panedesk 中修改此选项，重启 Panedesk 后生效。关闭时不读取这两处目录，导入类型不会进入注册表、上下文面板或委派工具说明；内置模式和模型／提供商委派照常可用。导入类型挂载组合后的 `preset-standard` 插件列表，再叠加其指令和执行期工具守卫，并把映射后的工具名保存在组合代际元数据中，供子代理呈现过滤读取。导入保留模型／强度偏好，不解析提供方。指令插件使用 `@panedesk/dsh-agent-preset-registry/claude-agent-instructions` 子路径：源码启动通过工作区别名解析，安装版加载已发布的 `lib/types/claude-agent-instructions.js` 导出。派遣时从实时目录解析模型偏好，无命中则使用父级路由，显式模型覆盖优先。启动时缺少提供方不会让这些类型变成 broken。`selectedDefault` volatile 字段为新会话覆盖部署默认值。
 
 远端列表以 `importedAgent` 标记导入的 Claude 代理类型，顶层模式选择器隐藏这些条目。导入、解析和按预设 ID 派遣仍使用完整注册表。
 
