@@ -41,6 +41,7 @@ type RowTranslate = WorkspaceBrowserProps['t']
 type RowRenderSlots = PropsRenderSlots<
   | 'sidebar.workspaces.session.menu.item'
   | 'sidebar.workspaces.session.row.action'
+  | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
 >['renderSlot']
 
@@ -586,6 +587,7 @@ export function SessionNodeItem({
 } & PropsRenderSlots<
   | 'sidebar.workspaces.session.menu.item'
   | 'sidebar.workspaces.session.row.action'
+  | 'sidebar.session.row.leading'
   | 'sidebar.session.row.hover'
 >) {
   const row = node
@@ -667,6 +669,7 @@ export function SessionNodeItem({
       <span className={css.slot}>
         <SessionStatusDots statuses={statuses} />
       </span>
+      {renderSlot('sidebar.session.row.leading', { sessionId: node.id })}
       <span
         ref={titleRef}
         className={css.title}

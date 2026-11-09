@@ -67,7 +67,7 @@ Session rows render the runtime's live `pendingInteraction` classification: appr
 
 ### Active Schedule markers
 
-Grouped and flat Session rows show no scheduled-task clock mark in the row: the run dot occupies the leading cell on every row. Active scheduled tasks remain listed on the row's hover card, and the mark's own read and the meaning of its active-task condition belong to [ui-schedule](../ui-schedule/README.md).
+Grouped and flat Session rows show the scheduled-task clock mark beside the run dot through the row's leading slot. Active scheduled tasks remain listed on the row's hover card, and the mark's own read and the meaning of its active-task condition belong to [ui-schedule](../ui-schedule/README.md).
 
 -----
 
@@ -91,7 +91,7 @@ The package injects the Client `remoteAccess` service and provides the root stan
 
 The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored.
 
-The browser entry also declares two root-scoped `list` child seats on each Session row: `sidebar.session.row.leading`, currently left unrendered because the run dot occupies the leading cell on every row, and `sidebar.session.row.hover`, mounted only while that row's hover card is open. Both take the row's Session identity and nothing else, so an occupant reads its own data by that id; a Session-scoped seat would force a Session binding, which would activate and retain every listed Session.
+The browser entry also declares two root-scoped `list` child seats on each Session row: `sidebar.session.row.leading`, rendered immediately after the run dot, and `sidebar.session.row.hover`, mounted only while that row's hover card is open. Both take the row's Session identity and nothing else, so an occupant reads its own data by that id; a Session-scoped seat would force a Session binding, which would activate and retain every listed Session.
 
 Client callers can pass `prompt` and `clearPreviousDraft` in the second argument to `uiWorkspace.startSession`. A prompt is plain text; structured drafts are handled internally during restoration and Workspace transfer. Without clearing, existing text or attachments are preserved; explicit clearing replaces only the target Session's text and inline references, leaving attachments intact. Option values are captured before asynchronous creation and applied to the exact retained binding before navigation commits. Superseded navigation does not write content; a submission-blocked input refuses preparation and keeps the previous selection. Calls without options create a fresh Session using the current Agent preset definition. Workspace reconnection and explicit draft preparation may reuse an existing blank Session. The [draft initialization decision](../../../.agents/notes/implemented/architecture/2026-09-30-structured-draft-initialization.md) describes the input owner's data flow.
 
