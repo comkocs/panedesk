@@ -5,6 +5,7 @@
 ### Fixed
 
 - Dialogs stay inside the window, keep their title and buttons visible and scroll their content.
+- Pasting several lines into an opening message splits them into presets, and presets are reordered by a drag handle or move buttons.
 
 ## 1.8.0
 
