@@ -15,6 +15,8 @@ kind: "package-bundle"
 
 运行 `dsh --profile web`，获得浏览器内的聊天、模型与设置管理以及会话历史，并与其他 dsh 表层共用同一套模型访问、工具与安全默认值。启动时会打印带 token 的 URL，通常还会在默认浏览器中打开；SSH 会话和 `--no-open` 需要手动打开。你可以更改端口、允许额外 authority、绑定一个具体的本机 IP，并用自己提供的证书直接提供 HTTPS；通配地址会被拒绝。跨机访问使用剥离前缀代理后公告的 HTTP(S) URL、监听器 TLS，或非 loopback 绑定上的明文 HTTP。一次性的命令行任务应使用 headless 配置。
 
+所有随附预设（包含 minimal）都装配 `panedesk_settings`。Panedesk 设置页共用白话指引和可复制的 AI 请求，特色设置之后提供产品自带功能目录。
+
 ## 目录
 
 - [使用本包](#use-this-package)

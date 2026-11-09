@@ -66,6 +66,7 @@ export function NodesSection({ useResource, t, act, configure, openPath }: Props
   return <section className={css.section}>
     <header><h2><IconPanedeskNode size={20} /> {t('title')}</h2><Button disabled={pending} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button></header>
     <p>{t('description')}</p>
+    <details><summary>{t('advanced')}</summary>
     <article className={css.card}>
       <div className={css.actions}><Switch checked={data?.enabled ?? false} label={t('enable')}
         disabled={pending || !data?.configured} onChange={enabled => { void save({ enabled }) }} />
@@ -150,5 +151,6 @@ export function NodesSection({ useResource, t, act, configure, openPath }: Props
       {confirmation && <p>{t(confirmation.action.kind === 'rebuild' ? 'rebuild'
         : confirmation.action.kind === 'callback' ? confirmation.action.request.action : confirmation.action.action)} · {confirmation.target}</p>}
     </Modal>
+    </details>
   </section>
 }

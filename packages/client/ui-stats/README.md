@@ -27,40 +27,6 @@ A compact icon at `conversation.session.header.actions`, order 30, opens the cha
 
 Settings → Panedesk → Statistics explains the feature, enablement default, global scope and refresh interval. It shows the active profile configuration file and the local journal directory as absolute Host paths, with native opening buttons. `stats.locations()` remains readable while statistics are disabled. Unknown storage providers show no invented path. The local journal reads JSONL records below each node's `events` and `imports` directories; statistics does not modify them.
 
+Statistics uses recorded data. Database storage can hold a readable ledger copy, while local sessions remain on this computer; it is not live session synchronization. The shared Panedesk header provides a copyable `panedesk_settings` request for the refresh interval.
+
 Charts share one fixed-range snapshot. Existing workspace membership, session directories and parent relationships associate sessions with projects; unmatched sessions remain unlinked. Project and session selectors narrow number cards, model token bars and Beijing-aligned daily bars. The modal stays inside the window: the description, filters and status row stay fixed while the data region scrolls, and durations display in minutes with two decimals. The relationship section starts at the current or selected session; per-call records stay collapsed behind a toggle and paginate at 30 calls per page, each bar's length matching that call's duration against the page's longest, with start and end times in the text and the hover tooltip. Missing measurements remain unknown; incomplete scans and failed refreshes are labeled. Pause retains a snapshot and refresh retries explicitly.
-
-<a id="model-experience"></a>
-## Model Experience
-
-### Ledger observation
-
-#### What the model sees
-
-Statistics registers no tools, prompts or Session messages. Configuration changes affect statistics reads only.
-
-#### Token effect
-
-Reads and refreshes dispatch no model requests and consume no model tokens.
-
-#### KV Cache effect
-
-The plugin neither changes model request prefixes nor refreshes caches.
-
-## Known Limitations and Deferred Work
-
-<a id="known-limitations-and-deferred-work"></a>
-
-- Projects require existing workspace or session metadata; internal ledger attribution is not treated as a project.
-- Costs are reference estimates, not actual payments or subscription charges. Missing prices, tokens or duration remain unknown.
-- Record bars compare each call's measured duration with the longest call on the same page; they do not describe full subagent lifetimes. Unfinished calls have no known duration and show no bar; sessions without calls on the current page are not listed.
-- Filtering uses all call details from the selected snapshot. Large ranges can be expensive; selection is local to the open modal and there is no export workflow.
-
-<a id="dev-note"></a>
-### Dev Note
-
-<details>
-<summary>Working context for maintainers — click to expand</summary>
-
-Charts use React and CSS with existing theme aliases. No charting dependency or separate statistics data service is required.
-
-</details>

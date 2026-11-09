@@ -61,6 +61,9 @@ import * as ToolStrReplaceEditor from '@panedesk/dsh-tool-str-replace-editor'
 import TerminalSessionService from '@panedesk/dsh-terminal'
 import * as ToolPty from '@panedesk/dsh-tool-terminal'
 import * as ToolGoal from '@panedesk/dsh-tool-goal'
+import * as ToolPanedeskSettings from '@panedesk/dsh-tool-panedesk-settings'
+import type SettingsService from '@panedesk/dsh-settings'
+import type { ConfigEditor } from '@panedesk/dsh-config-editor'
 import * as ToolSchedule from '@panedesk/dsh-tool-schedule'
 import * as ToolSeat from '@panedesk/dsh-tool-seat'
 import * as ToolSeatMessages from '@panedesk/dsh-tool-seat-messages'
@@ -436,6 +439,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-panedesk-settings',
+    dir: 'tool-panedesk-settings',
+    source: 'packages/settings/tool-panedesk-settings/src/index.ts',
+    requires: ['ctx.tools', 'ctx.settings', 'ctx.configEditor'],
+    writes: ['tool/call', 'profile settings for write', 'tool/result'],
+    async mount(ctx) {
+      ctx.provide('configEditor', {} as ConfigEditor)
+      ctx.provide('settings', {} as SettingsService)
+      await ctx.plugin(ToolPanedeskSettings)
+    },
+    note: 'Read lists only editable Panedesk preferences; write uses the Settings writer and reports before and after. Owner-only operations remain manual.',
   },
   {
     pkg: '@panedesk/dsh-tool-goal',

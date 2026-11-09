@@ -7,12 +7,14 @@
   },
   "files": [
     "src/index.ts",
-    "src/types.ts"
+    "src/types.ts",
+    "src/product-features.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../settings/settings" },
-    { "path": "../../session/session-title" }
+    { "path": "../../session/session-title" },
+    { "path": "../../typert/protocol" }
   ]
 }

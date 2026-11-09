@@ -2859,6 +2859,9 @@ importers:
       '@panedesk/dsh-tool-jobs':
         specifier: workspace:*
         version: link:../../jobs/tool-jobs
+      '@panedesk/dsh-tool-panedesk-settings':
+        specifier: workspace:*
+        version: link:../../settings/tool-panedesk-settings
       '@panedesk/dsh-tool-present':
         specifier: workspace:*
         version: link:../../deliverables/tool-present
@@ -4048,6 +4051,9 @@ importers:
       '@panedesk/dsh-tool-jobs':
         specifier: workspace:*
         version: link:../../jobs/tool-jobs
+      '@panedesk/dsh-tool-panedesk-settings':
+        specifier: workspace:*
+        version: link:../../settings/tool-panedesk-settings
       '@panedesk/dsh-tool-present':
         specifier: workspace:*
         version: link:../../deliverables/tool-present
@@ -6873,6 +6879,9 @@ importers:
 
   packages/client/ui-settings-general:
     dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -16160,6 +16169,24 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+
+  packages/settings/tool-panedesk-settings:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-config-editor':
+        specifier: workspace:*
+        version: link:../../boot/config-editor
+      '@panedesk/dsh-settings':
+        specifier: workspace:*
+        version: link:../settings
+      '@panedesk/dsh-storage-postgres':
+        specifier: workspace:*
+        version: link:../../storage/storage-postgres
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/shell/bash-local:
     dependencies:

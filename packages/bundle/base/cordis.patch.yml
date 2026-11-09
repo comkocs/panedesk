@@ -504,6 +504,9 @@
     - id: tool-goal
       name: '@panedesk/dsh-tool-goal'
 
+    - id: tool-panedesk-settings
+      name: '@panedesk/dsh-tool-panedesk-settings'
+
     # Consecutive-repeat reminders on the tool chain.
     - id: repeat-tool-reminder
       name: '@panedesk/dsh-repeat-tool-reminder'

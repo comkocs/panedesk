@@ -1,5 +1,6 @@
 /** Complete node settings copy in English and Chinese. */
 export const en = {
+  advanced: 'Advanced (not needed on one machine)',
   title: 'Nodes', description: 'Connect multiple machines; leave this off when using only one machine.',
   enable: 'Enable node connections', enabledLabel: 'Enabled', disabledLabel: 'Disabled',
   defaultOff: 'Disabled by default. Turning this off stops peer connections and automatic refresh.',
@@ -43,6 +44,7 @@ export const en = {
 export type NodesKey = keyof typeof en
 /** Chinese dictionary preserves the complete English key set. */
 export const zh: Record<NodesKey, string> = {
+  advanced: '高级(单机用不着)',
   title: '节点', description: '多台机器互连时用；只在一台机器上用就不用开。',
   enable: '启用节点互连', enabledLabel: '已启用', disabledLabel: '已关闭',
   defaultOff: '缺省关闭。关闭后停止连接对端与自动刷新。',

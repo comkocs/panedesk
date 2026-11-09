@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Every base-backed `dsh --profile` surface runs on `dsh-base`, so those surfaces share a model connection, the full tool set, durable session history, and workspace safety defaults. The shipped `sdk-minimal` profile deliberately uses a complete standalone tree instead. You rarely touch this bundle directly — shipped base-backed profiles already include it, and a custom base-backed profile names it first. When you need different defaults, change your profile patch or add a later bundle; this package is not a library you import.
 
+The default tool set includes `panedesk_settings` for reading editable Panedesk preferences and writing one named item through the same writer as Settings, with before/after output. Unlisted operations remain manual-only.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

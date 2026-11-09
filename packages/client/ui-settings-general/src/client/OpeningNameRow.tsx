@@ -1,5 +1,5 @@
 /** Panedesk feature settings sample selection, staged writes, and opening-title preview. */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, Switch } from '@panedesk/dsh-client-ui-primitives'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
@@ -27,21 +27,32 @@ export interface OpeningNameRowInjected {
 
 type RowProps = PropsRuntime<'settings.panedesk.item'> & PropsLocale<'settings'> & InjectFace<OpeningNameRowInjected>
 
-/** Derive anchors from the nearest left separator/whitespace and the next right whitespace. */
+/** Keep path anchors relative to the Markdown file rather than its drive or parent directories. */
 function selectedPattern(sample: string, a: number, b: number): OpeningNamePattern {
-  let leftStart = a
-  while (leftStart > 0) {
+  a += sample.slice(a, b).length - sample.slice(a, b).trimStart().length
+  b -= sample.slice(a, b).length - sample.slice(a, b).trimEnd().length
+  const markdown = /\.md\b/iu.exec(sample)
+  const tail = markdown !== null && a >= markdown.index + markdown[0].length
+  let leftStart = tail ? markdown.index : a
+  while (!tail && leftStart > 0) {
     const character = sample[leftStart - 1]!
-    if (/\s/u.test(character)) break
+    if (/\s/u.test(character)) {
+      if (leftStart === a) {
+        leftStart--
+        while (leftStart > 0 && !/[\s/\\]/u.test(sample[leftStart - 1]!)) leftStart--
+      }
+      break
+    }
     leftStart--
     if (character === '/' || character === '\\') break
   }
   const space = sample.slice(b).search(/\s/u)
+  const rightEnd = space === 0 ? /^\s+\S*/u.exec(sample.slice(b))![0].length : space
   return {
     sample,
     selected: sample.slice(a, b),
     left: sample.slice(leftStart, a),
-    right: sample.slice(b, space < 0 ? sample.length : b + space),
+    right: sample.slice(b, rightEnd < 0 ? sample.length : b + rightEnd),
   }
 }
 
@@ -51,6 +62,7 @@ function selectedPattern(sample: string, a: number, b: number): OpeningNamePatte
  * @returns the opening-name editor with immediate local-date preview.
  */
 export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, openPath, t }: RowProps) {
+  const textarea = useRef<HTMLTextAreaElement>(null)
   const snapshot = useOpeningName(value => value)
   const documentPath = useDocument(value => value.view?.documentPath)
   const enabled = snapshot.value?.openingNameEnabled ?? true
@@ -60,7 +72,7 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
   const pattern = draft?.pattern ?? snapshot.value?.openingName
   const sample = pattern?.sample ?? ''
   const selected = pattern?.selected ?? ''
-  const valid = selected.length > 0 && !/\s/u.test(selected)
+  const valid = selected.trim().length > 0
   const writable = snapshot.status === 'ready' && snapshot.writable && !busy
   const date = new Date()
   const folder = extractOpeningFolder(sample)
@@ -84,6 +96,21 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
       else setFailed(true)
     }).catch(() => { setFailed(true) }).finally(() => { setBusy(false) })
   }
+  const markdown = /\.md\b/iu.exec(sample)
+  const fileStart = markdown === null ? 0 : Math.max(sample.lastIndexOf('/', markdown.index), sample.lastIndexOf('\\', markdown.index)) + 1
+  const choose = (part: 'folder' | 'file' | 'after'): void => {
+    if (markdown === null) return
+    const end = markdown.index + markdown[0].length
+    const folderEnd = fileStart - 1
+    const folderStart = Math.max(sample.lastIndexOf('/', folderEnd - 1), sample.lastIndexOf('\\', folderEnd - 1)) + 1
+    const a = part === 'after' ? end : part === 'file' ? fileStart : folderStart
+    const b = part === 'after' ? sample.length : part === 'file' ? end - 3 : folderEnd
+    textarea.current?.focus()
+    textarea.current?.setSelectionRange(a, b)
+    const next = selectedPattern(sample, a, b)
+    stage(next)
+    if (next.selected.length > 0) persist(next)
+  }
   const run = (action: () => Promise<boolean>): void => {
     setBusy(true)
     setFailed(false)
@@ -104,16 +131,23 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
         <Button size="sm" disabled={busy} onClick={() => { run(() => openPath(documentPath, 'reveal')) }}>{t('openingName.openDirectory')}</Button>
       </div>
     </div>}
-    <textarea id="panedesk-opening-name" className={css.sample} rows={3} value={sample} disabled={!writable}
+    <textarea ref={textarea} id="panedesk-opening-name" className={css.sample} rows={3} value={sample} readOnly={!writable}
       onChange={event => { stage({ sample: event.currentTarget.value, selected: '', left: '', right: '' }) }}
       onSelect={(event) => {
         const { value, selectionStart, selectionEnd } = event.currentTarget
-        if (selectionStart !== selectionEnd) {
+        if (writable && selectionStart !== selectionEnd) {
           const next = selectedPattern(value, selectionStart, selectionEnd)
+          if (next.selected === pattern?.selected && next.left === pattern.left && next.right === pattern.right) return
           stage(next)
-          if (next.selected.length > 0 && !/\s/u.test(next.selected)) persist(next)
+          if (next.selected.length > 0) persist(next)
         }
       }} />
+    <p className={css.description}>{t('openingName.selectionHint')}</p>
+    <div className={css.actions}>
+      <Button size="sm" disabled={!writable || markdown === null || fileStart === 0} onClick={() => { choose('folder') }}>{t('openingName.folder')}</Button>
+      <Button size="sm" disabled={!writable || markdown === null} onClick={() => { choose('file') }}>{t('openingName.file')}</Button>
+      <Button size="sm" disabled={!writable || markdown === null} onClick={() => { choose('after') }}>{t('openingName.after')}</Button>
+    </div>
     <p className={css.description} aria-live="polite">{t('openingName.preview', { title: preview })}</p>
     <p className={css.description}>{t('openingName.folderPreview', { title: folderPreview })}</p>
     {selected.length > 0 && !valid && <p role="alert">{t('openingName.invalid')}</p>}

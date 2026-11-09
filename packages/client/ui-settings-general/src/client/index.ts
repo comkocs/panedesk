@@ -45,6 +45,9 @@ import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.ts
 import { SettingsDocumentStore } from './settings-document-store.ts'
 import { HostReleasePrompt, type HostReleasePromptInjected } from './HostReleasePrompt.tsx'
 import { en, zh, type SettingsKey } from './locales.ts'
+import contribution from '@panedesk/dsh-client-ui-settings-general/remote'
+import { ProductFeaturesSection, type ProductFeaturesInjected } from './ProductFeaturesSection.tsx'
+import { en as productEn, zh as productZh, type ProductFeatureKey } from './product-locales.ts'
 
 export type {
   CloseLabelProps, HeaderContentProps, TriggerContentProps,
@@ -61,6 +64,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Shell chrome + shell-owned General section copy. */
     settings: SettingsKey
+    productFeatures: ProductFeatureKey
   }
 }
 
@@ -79,7 +83,24 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settin
  * section, each once its slot declaration is on the ledger.
  * @param ctx - client root context.
  */
-export function apply(ctx: ClientContext): void {
+export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  const disposeRemote = await ctx.remote.$mount(contribution)
+  ctx.effect(() => ctx.locale.register('productFeatures', { en: productEn, zh: productZh }))
+  ctx.inject(['remote.productFeatures'], scope => {
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section', id: 'product-features', group: 'panedesk', order: 1,
+      label: () => scope.locale.bind('productFeatures')('title'), locale: 'productFeatures',
+      inject: (): ProductFeaturesInjected => ({
+        hooks: { document: scope.configForms.describe() },
+        open: async key => {
+          const result = await scope.remote.productFeatures.locations()
+          if (!result.ok) return false
+          const path = result.value[key]
+          return (await scope.remote.session.openWorkspacePath({ path })).ok
+        },
+      }),
+    }, ProductFeaturesSection))
+  })
   const openingNameForm = ctx.configForms.get<OpeningNameSettings>('ui-settings-general')
   ctx.slots.inject('settings.panedesk.item', () => ctx.slots.register({
     name: 'settings.panedesk.item', id: 'opening-auto-name', order: 10, locale: NS,
@@ -277,4 +298,5 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'host-release-change', locale: NS, inject: releasePromptInjected,
   }, HostReleasePrompt))
+  return disposeRemote
 }

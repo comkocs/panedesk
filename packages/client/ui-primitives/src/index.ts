@@ -2,6 +2,8 @@
  * Cordis-free React primitives styled only through `--dsw-*` tokens.
  */
 
+export { SettingsPageHeader } from './SettingsPageHeader.tsx'
+export type { SettingsPageHeaderProps } from './SettingsPageHeader.tsx'
 export type { CodeToolbarLabels } from './CodeToolbar.tsx'
 export { StateDot } from './StateDot.tsx'
 export type { StateDotState } from './StateDot.tsx'

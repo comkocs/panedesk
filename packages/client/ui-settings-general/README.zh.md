@@ -54,7 +54,11 @@ Web 与桌面端的通用设置在核心偏好之后显示当前发布版本，�
 
 「Panedesk」组的第一个分区为 `panedesk-features`，显示为「Panedesk 特色设置」。该页声明并渲染 root scope 的 `settings.panedesk.item` 列表，供功能包贡献设置行。开窗命名编辑器注册顺序为 `10`，外部子代理登记文件行紧随其后，顺序为 `20`。
 
-`settings.panedesk.item` 中的 `opening-auto-name` 行通过共享配置表单编辑 Host 的 `ui-settings-general.openingName` 配置。在多行输入框贴入开窗词，选中非空且不含空白的名称，查看即时名称与日期预览，以及缺省路径文件夹预览；有效选取立即保存，失败草稿可通过保存按钮重试。样句、选中文本及推导的左右锚保存在活动档的 `cordis.patch.yml` 中；清除截取部位恢复继承配置，其缺省为未设置。全局开关 `openingNameEnabled` 缺省启用；关闭后沿用自动标题且不附日期。两项功能均标明全局范围，并显示 profile patch 的绝对路径、所在目录与就地打开文件和目录操作。写入以修订号防止覆盖并发修改，失败时保留草稿。Web 与桌面端始终注册此行，不依赖标题配置表单。[会话标题](../../session/session-title/README.zh.md#choosing-a-title-source)定义匹配、自动更新、创建日期及手动改名优先规则。
+`settings.panedesk.item` 中的 `opening-auto-name` 行通过共享配置表单编辑 Host 的 `ui-settings-general.openingName` 配置。在多行输入框贴入开窗词，选中非空名称（仅去掉首尾空白，保留内部空白），查看即时名称与日期预览，以及缺省路径文件夹预览；有效选取立即保存，失败草稿可通过保存按钮重试。样句、选中文本及推导的左右锚保存在活动档的 `cordis.patch.yml` 中；清除截取部位恢复继承配置，其缺省为未设置。全局开关 `openingNameEnabled` 缺省启用；关闭后沿用自动标题且不附日期。两项功能均标明全局范围，并显示 profile patch 的绝对路径、所在目录与就地打开文件和目录操作。写入以修订号防止覆盖并发修改，失败时保留草稿。Web 与桌面端始终注册此行，不依赖标题配置表单。[会话标题](../../session/session-title/README.zh.md#choosing-a-title-source)定义匹配、自动更新、创建日期及手动改名优先规则。
+
+所有 Panedesk 组分区共用三行页头（这是什么、你要不要动、可复制的 AI 请求）；工具不可执行的动作明确标为只能手动。项目开窗、数据库连接与技能提供三步初次使用说明。开窗命名提供文件夹、`.md` 之前文件名和 `.md` 之后文本三个高亮快捷选区，仍可拖选或双击。
+
+`product-features` 分区以顺序 `1` 紧随特色设置，列出 25 项可展开的编号功能，每项有引入版本、五行说明与宿主持有的路径打开动作。兼容记忆使用 `~/.claude/projects/<工作目录编码>/memory/`，目录编码把非字母数字字符换成 `-`；按钮打开 projects 根目录，不读取记忆文件。
 
 ### 打开配置文件
 

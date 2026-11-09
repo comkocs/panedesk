@@ -6,6 +6,7 @@ import type { OpeningNamePattern } from '@panedesk/dsh-session-title/types'
 import type { Volatile, Context } from '@panedesk/cordis'
 
 import z from '@panedesk/schemastery'
+import ProductFeatures from './product-features.ts'
 
 /** Runtime preferences projected to the browser. */
 export interface Config {
@@ -32,6 +33,7 @@ export const Config = z.object({
  * @param config Live global opening-name and welcome preferences.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['settings'], child => { child.plugin(ProductFeatures) })
   ctx.inject(['sessionTitle'], child => {
     child.effect(() => child.sessionTitle.configureOpeningName({
       enabled: () => config.openingNameEnabled.get(),
