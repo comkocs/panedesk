@@ -23,7 +23,7 @@ The provider exposes the workflow-pack guide and resources through the skill reg
 
 This [skill subsystem](../../../docs/subsystems/skills.md) provider registers `workflow-pack` for user and model invocation. Its body is the portable [getting-started guide](../../../templates/workflow-pack/getting-started.md), with the complete pack exposed as a directory resource. Choose one of three guides: [requirements review](../../../templates/workflow-pack/requirements-review.md) for product design, getting-started for workflow setup, or [workflow checkup](../../../templates/workflow-pack/workflow-checkup.md) for an existing project. Read the matching guide before writing project files; loading the skill does not write files or start models.
 
-The build copies `templates/workflow-pack/` into `lib/workflow-pack/`. Maintain the template source only. An absolute `assetRoot` can override the packaged resource directory; incomplete resources fail plugin activation.
+The build copies `templates/workflow-pack/` into `lib/workflow-pack/`. Maintain the template source only. Desktop builds unpack this directory into `app.asar.unpacked`; the provider exposes that real directory as the resource base for script commands and template copies. Development paths without an `app.asar` component are unchanged. An absolute `assetRoot` can override the packaged resource directory; incomplete resources fail plugin activation.
 
 <a id="dev-note"></a>
 ## Dev Note

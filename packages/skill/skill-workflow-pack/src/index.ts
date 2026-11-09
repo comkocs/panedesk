@@ -1,4 +1,4 @@
-/** Bundled project-start guidance with portable workflow-pack resources. */
+/** Bundled project-start guidance with workflow-pack resources outside ASAR in desktop builds. */
 import { readFileSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve, sep } from 'node:path'
@@ -28,7 +28,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const root = config.assetRoot ?? fileURLToPath(new URL(
     import.meta.url.endsWith('/src/index.ts') ? '../../../../templates/workflow-pack/' : './workflow-pack/', import.meta.url))
   if (!isAbsolute(root)) throw new Error('skill-workflow-pack: assetRoot must be absolute')
-  const directory = resolve(root)
+  const directory = resolve(root).replace(/([\\/])app\.asar([\\/])/u, '$1app.asar.unpacked$2')
   const locator = join(directory, 'getting-started.md')
   readFileSync(locator, 'utf8')
   for (const resource of ['requirements-review.md', 'workflow-checkup.md', 'entries.jsonl', 'tools/trim.py', 'profiles']) statSync(join(directory, resource))

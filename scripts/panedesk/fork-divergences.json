@@ -6333,12 +6333,13 @@
       "id": "workflow-pack-product-onboarding",
       "description": "Compose portable workflow guidance and saved first-entry project choices.",
       "origin": "Workflow pack and project onboarding integration",
-      "reason": "Integrate the portable bilingual 225-rule workflow pack with requirements-review, getting-started, and workflow-checkup entry guides, medium-or-larger software inference, three opening reads with an on-demand operational-rules section index, two-session starts that expand only under strain, and ten workflow-checkup categories. Preserve per-workspace first-entry guidance through owned plugins, product settings, bundle declarations, compiler aggregates, and translation pairing scope. The generic pairing-scope regression is suitable for upstream contribution; product defaults remain downstream policy.",
+      "reason": "Integrate the portable bilingual 225-rule workflow pack with requirements-review, getting-started, and workflow-checkup entry guides, medium-or-larger software inference, three opening reads with an on-demand operational-rules section index, two-session starts that expand only under strain, and ten workflow-checkup categories. Preserve per-workspace first-entry guidance through owned plugins, product settings, bundle declarations, compiler aggregates, and translation pairing scope. Desktop packaging unpacks the complete workflow resource directory outside ASAR, and the skill provider resolves its resource base to that real directory so external script commands and template copies can access it. The generic pairing-scope regression and ASAR resource-path fix are suitable for upstream contribution; product defaults remain downstream policy.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "templates/workflow-pack/",
           "packages/skill/skill-workflow-pack/",
+          "apps/desktop/scripts/electron-builder-config.mjs",
           "packages/bundle/full/package.json",
           "packages/bundle/web-app/package.json",
           "packages/bundle/web-app/cordis.patch.yml",

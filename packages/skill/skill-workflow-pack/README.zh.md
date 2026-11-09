@@ -23,7 +23,7 @@ kind: "package-reference"
 
 这个[技能子系统](../../../docs/subsystems/skills.zh.md)提供方注册可由用户和模型调用的 `workflow-pack`。正文是便携的[开局向导](../../../templates/workflow-pack/getting-started.zh.md)，完整包作为目录资源提供。按需选三个入口之一：[核对产品需求](../../../templates/workflow-pack/requirements-review.zh.md)设计产品、开局向导搭建工作流，或[优化工作流](../../../templates/workflow-pack/workflow-checkup.zh.md)体检已有项目。写项目文件前先读对应向导；加载技能不会写文件或启动模型。
 
-构建将 `templates/workflow-pack/` 复制到 `lib/workflow-pack/`，只维护模板源。绝对路径 `assetRoot` 可覆盖打包资源目录；资源不完整时插件激活失败。
+构建将 `templates/workflow-pack/` 复制到 `lib/workflow-pack/`，只维护模板源。桌面构建将该目录解包到 `app.asar.unpacked`；提供方将这个真实目录作为运行脚本命令和复制模板的资源基目录。不含 `app.asar` 路径段的开发态路径保持不变。绝对路径 `assetRoot` 可覆盖打包资源目录；资源不完整时插件激活失败。
 
 <a id="dev-note"></a>
 ## 开发备注
