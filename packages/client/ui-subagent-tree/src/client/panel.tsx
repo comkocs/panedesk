@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { IconPanedeskSubagentTree } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Modal, StateDot, Tag } from '@panedesk/dsh-client-ui-primitives'
 import type { ResourceStatus } from '@panedesk/dsh-client-resources/client'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SubagentTreeNode, SubagentTreeView } from '../types.ts'
 import type { SubagentTreeData } from './index.ts'
@@ -34,6 +34,7 @@ export type SubagentTreeActionProps =
 /** Full props for the right-sidebar tree tab body. */
 export type SubagentTreeTabProps =
   PropsRuntime<'sidebar.right.pane.tab'>
+  & PropsRenderSlots<'subagent.tree.details'>
   & PropsLocale<'subagentTree'>
   & InjectFace<SubagentTreeLabels>
 
@@ -90,7 +91,7 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
  * @param props - Framework tab props, localized copy, and the resource reader.
  * @returns The tree table with per-row monitoring and active-node Stop controls.
  */
-export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: SubagentTreeTabProps) {
+export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelOf, stop }: SubagentTreeTabProps) {
   const [stopError, setStopError] = useState(false)
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
   const stopNode = async (node: SubagentTreeNode): Promise<void> => {
@@ -127,7 +128,8 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: S
         <th scope="col">{t('cacheHitRate')}</th>
         <th scope="col"><span aria-hidden="true">{t('monitor')}</span></th>
       </tr></thead>
-      <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}>
+      <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}
+        onClick={() => { setMonitoredId(nodeKey(node)) }}>
         <td style={{ paddingLeft: `${8 + depth * 18}px` }}>
           <StateDot className={css.statusDot} state={isActive(node.status) ? 'done' : 'idle'} />
           <span className={css.label}>{label}</span>
@@ -143,12 +145,18 @@ export function SubagentTreeTab({ useResource, useTabInfo, t, labelOf, stop }: S
         <td>{node.cacheHitRate === null ? t('unknown') : `${Math.round(node.cacheHitRate * 100)}%`}</td>
         <td><Button variant="ghost" className={css.monitorButton} onClick={() => { setMonitoredId(nodeKey(node)) }}>{t('monitor')}</Button>
           {isActive(node.status) && <Button variant="ghost" className={css.stop} disabled={stopping.has(node.sessionId)}
-            onClick={() => { void stopNode(node) }}>{t('stop')}</Button>}</td>
+            onClick={event => { event.stopPropagation(); void stopNode(node) }}>{t('stop')}</Button>}</td>
       </tr>)}</tbody>
     </table>}
     <Modal open={monitored !== undefined} onClose={() => { setMonitoredId(null) }}
       title={t('monitorTitle')} closeLabel={t('monitorClose')} contentClassName={css.monitorContent ?? ''}>
-      {monitored !== undefined && <MonitoringView node={monitored.node} label={monitored.label} t={t} number={number} time={time} />}
+      {monitored !== undefined && <>
+        {!monitored.node.external && monitored.node.parentSessionId !== null && renderSlot('subagent.tree.details', {
+          parentSessionId: monitored.node.parentSessionId, childSessionId: monitored.node.sessionId,
+          label: monitored.label, close: () => { setMonitoredId(null) },
+        })}
+        <MonitoringView node={monitored.node} label={monitored.label} t={t} number={number} time={time} />
+      </>}
     </Modal>
   </section>
 }

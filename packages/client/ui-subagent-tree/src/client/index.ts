@@ -33,6 +33,15 @@ export const SUBAGENT_TREE_ADDRESS = 'dsh-resource://subagenttree/session/'
 export type SubagentTreeData = Awaited<ReturnType<TypertClientRemote['subagentTree']['read']>> extends RemoteResult<infer V> ? V : never
 
 declare module '@panedesk/dsh-client-ui-slots' {
+  interface SlotMap {
+    /** Native child preview and navigation contributed by the subagent UI. */
+    'subagent.tree.details': {
+      kind: 'single'
+      scope: 'session'
+      owner: { parentSessionId: SessionId; childSessionId: SessionId; label: string; close: () => void }
+    }
+  }
+
   interface LocaleNamespaceMap {
     /** Subagent tree copy. */
     'subagentTree': SubagentTreeKey
@@ -167,6 +176,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
       name: 'sidebar.right.pane.tab',
       key: SUBAGENT_TREE_ID,
+      children: { 'subagent.tree.details': { kind: 'single', scope: 'session' } },
       locale: 'subagentTree',
       inject: (): SubagentTreeLabels => ({ labelOf, stop }),
     }, SubagentTreeTab))

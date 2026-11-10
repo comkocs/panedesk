@@ -27,12 +27,17 @@
     },
     {
       "id": "subagent-sidebar-preserves-main-width",
-      "description": "Open catalog and agent-map conversations in the right Sidebar without narrowing the main Session",
+      "description": "Open catalog, tree-detail and agent-map conversations in the right Sidebar without narrowing the main Session",
       "origin": "Panedesk subagent navigation",
-      "reason": "Reuse addressed subagent chat tabs, expand ordinary desktop windows and restore them on close, and overlay maximized or native-fullscreen windows while leaving ordinary Session navigation unchanged.",
+      "reason": "Tree rows expose the shared task preview and addressed chat action. Ordinary desktop windows consume right-side space before shifting left, cap outer bounds to the work area, and restore the saved rectangle on close; maximized and native-fullscreen windows keep their overlay behavior.",
       "match": {
         "type": "behavior",
         "paths": [
+          "packages/client/ui-subagent-tree/src/client/index.ts",
+          "packages/client/ui-subagent-tree/src/client/panel.tsx",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-subagent/src/client/SubagentTaskPreview.tsx",
           "packages/client/ui-subagent/src/client/index.ts",
           "packages/client/ui-subagent/src/client/sidebar-chat/index.tsx",
           "packages/client/ui-subagent/README.md",
