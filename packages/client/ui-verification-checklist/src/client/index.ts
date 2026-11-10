@@ -4,6 +4,7 @@
  */
 import type { Context as ClientContext } from '@panedesk/cordis'
 import type { ActivityCategory } from '@panedesk/dsh-activity-category/types'
+import type {} from '@panedesk/dsh-verification-policy/remote'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
