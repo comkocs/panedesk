@@ -15900,6 +15900,9 @@ importers:
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../session-projection
+      '@panedesk/dsh-session-projection-cache':
+        specifier: workspace:*
+        version: link:../session-projection-cache
       '@panedesk/dsh-workspace':
         specifier: workspace:*
         version: link:../../workspace/workspace

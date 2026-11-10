@@ -6,6 +6,7 @@
 import { Context, FiberState, Service, type Fiber, type Volatile } from '@panedesk/cordis'
 import { extractOpeningFolder, extractOpeningName } from './opening-name.ts'
 import type {} from '@panedesk/dsh-session-persistence'
+import type {} from '@panedesk/dsh-session-projection-cache'
 import type {} from '@panedesk/dsh-workspace'
 import z from '@panedesk/schemastery'
 import { z as zod } from 'zod'
@@ -666,7 +667,7 @@ export class SessionTitleService extends Service {
     })
   }
 
-  /** Include closed sessions and live titles; no await separates allocation from the caller's append. */
+  /** Reserve cached closed-session titles and live projections without opening stored logs. */
   private async automaticTitle(session: Session, name: string): Promise<string> {
     if (!this.openingEnabled() || !isOpeningSession(session)) return name
     const base = name + openingDateSuffix(session)
@@ -679,17 +680,18 @@ export class SessionTitleService extends Service {
       && header.parentSession === undefined && header.origin !== 'subagent'
       && (workspace === undefined ? header.cwd === session.header.cwd
         : workspace.sessionIds.includes(header.id) || header.cwd === workspace.path)
+    const cache = this.ctx.get('sessionProjectionCache')
     for (const { header } of stored) {
-      if (!belongs(header) || this.ctx.sessions.get(header.id) !== undefined || persistence === undefined) continue
-      await using reader = await persistence.open(header.id, 'read')
-      const title = foldSessionTitle((await reader.read()).events)?.title
-      if (title !== undefined) titlesBySession.set(header.id, title)
+      if (!belongs(header) || this.ctx.sessions.get(header.id) !== undefined) continue
+      const snapshot = cache?.cachedSnapshot(header, ['title']) ?? cache?.cachedPredecessorTitle(header)
+      const title = snapshot?.values.title
+      if (typeof title === 'string') titlesBySession.set(header.id, title)
     }
     // Read live titles after storage awaits, including sessions opened during allocation.
     for (const other of this.ctx.sessions.list()) {
       if (!belongs(other.header)) continue
-      const title = this.get(other)?.title
-      if (title !== undefined) titlesBySession.set(other.id, title)
+      const title = this.ctx.sessionProjections.stateOf(other, 'title')
+      if (typeof title === 'string') titlesBySession.set(other.id, title)
     }
     const titles = new Set(titlesBySession.values())
     const current = this.get(session)?.title

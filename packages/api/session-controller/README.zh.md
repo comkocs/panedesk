@@ -49,7 +49,7 @@ Client 列表行和驻留 Session 使用当前 `sessionListMetadata` 投影纠�
 
 `session.create` 返回一个用于新对话的 Session，响应指明实际使用的 Session。指定 Workspace 的创建与挂接同删除共用注册表变更队列：先受理的创建在删除前完成挂接，先受理的删除则让创建在产生任何 Agent 前以 `workspace/not-found` 拒绝。请求指明的 `sessionId` 在满足以下条件时被复用：仍为空白（尚未开始任何轮次）、属于请求的目录、是请求的工作区中未归档的成员，且未被其他写者占用；活动 Session 原地复用，持久化 Session 被恢复并持续持有其写锁。被复用的 Session 运行请求的 `agentPreset`，请求未指明时运行配置的默认 preset：不解析它记录的 preset，变更在 Agent 发布前记录为 `agent-preset/selected`。指明的 Session 若已开始、不满足工作区归属，或被其他写者占用，则保持不变，改为新建 Session。没有对应已存储 Session 的 `sessionId` 成为新 Session 的标识。指明其他目录中的 Session 返回 `session/conflict`，指明由 subagent 路由拥有的 Session 返回 `session/agent-busy`；这两项检查先于 preset 解析。指明同一标识的创建请求按到达顺序执行，preset 解析也包含在内，每个响应报告其自身请求完成时该 Session 运行的 preset。`session.list` 根据缓存元数据列出持久化空白会话，不打开冷日志正文。
 
-Client 列表刷新保留未变化的行对象，并在顺序和值均相同时复用条目数组。每行的 `retainedBy` 包含正数的本地引用来源计数，Host 元数据刷新不能覆盖它们。缓存成员检查使用每次刷新构建的 ID 集合，因此对账成本随当前列表和保留缓存的规模线性增长。 Host 摘要更新会替换运行状态与 Agent 可用性；本地 create/fork 响应只补充已有行缺失的元数据。普通 Session 被移除后，仅在目录仍有子项时保留其投影 store。
+Client 列表行暴露 Host 的 `agentAvailable` 提示，与本地引用保留状态独立；刷新也会保留仅可用性发生变化的更新。没有 Host 摘要的替代行不提供该提示。Client 列表刷新保留未变化的行对象，并在顺序和值均相同时复用条目数组。每行的 `retainedBy` 包含正数的本地引用来源计数，Host 元数据刷新不能覆盖它们。缓存成员检查使用每次刷新构建的 ID 集合，因此对账成本随当前列表和保留缓存的规模线性增长。 Host 摘要更新会替换运行状态与 Agent 可用性；本地 create/fork 响应只补充已有行缺失的元数据。普通 Session 被移除后，仅在目录仍有子项时保留其投影 store。
 
 发出的 control baseline、follow 快照、显式投影读取，以及存在的列表投影块，均包含来自 `kernelStatus.snapshot().services.sessionLedger` 的可选 `accountingStatus: { ledger: 'mounted' | 'missing' | 'disabled' | 'failed'; cause?: string }`。可选的 `cache: { status, cause? }` 携带缓存层的同类状态与诊断码。启动审计前或 Host 未提供该服务时省略此字段。它描述当前 Host，而不是历史 Session 的记账状态，不写入投影缓存或 Session 日志，复用已有 Remote 方法与投影传输。原因是稳定诊断码，不是异常消息。启动快照不提供持续健康检查。
 

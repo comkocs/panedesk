@@ -20,6 +20,8 @@ export interface SessionListEntry {
   createdAt?: number
   updatedAt: number
   running: boolean
+  /** Latest Host Agent availability; not inferred from Client retention. */
+  agentAvailable: boolean
   /**
    * New Session presentation and reuse eligibility, reconciled with
    * `sessionListMetadata`; lists hide blank sessions (filtering stays with the consumer).
@@ -70,9 +72,8 @@ export function flattenLineage(
       return
     }
     visited.add(s.sessionId)
-    const { agentAvailable: _agentAvailable, ...row } = s
     out.push({
-      ...row,
+      ...s,
       depth,
     })
     const kids = children.get(s.sessionId)
