@@ -104,6 +104,11 @@ export interface SidebarPanelMetadata {
   order: number
   /** Row title and accessible name: resolved label, or the id when omitted. */
   label: string
+  /**
+   * Click handler for a row that does not open a main panel. Omission keeps
+   * the main-panel selection. The function itself is not compared for equality.
+   */
+  activate?: () => void
 }
 
 /**

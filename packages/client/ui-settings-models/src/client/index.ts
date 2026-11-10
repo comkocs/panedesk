@@ -13,9 +13,12 @@ import type {} from '@panedesk/dsh-client-ui-settings/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
+// Type-only: the `sidebar.panellist` list this plugin's Model API row registers into.
+import type {} from '@panedesk/dsh-client-ui-sidebar/client'
 // Type-only: pulls the ctx.remote merge and the forwarded-event key face
 // (settings/credentials invalidations ride the allowlist) into this program.
 import type {} from '@panedesk/dsh-api-remotes/client'
+import { ModelApiEntryIcon } from './ModelApiEntryIcon.tsx'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
 import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
@@ -66,7 +69,7 @@ export function refreshIfLoaded(controller: ModelsSettingsStore): void {
  */
 export const inject = [
   'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings', 'remote.session',
-  'configForms', 'settingsSchema',
+  'configForms', 'settingsSchema', 'settingsNavigation',
 ]
 
 /**
@@ -149,6 +152,16 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'ui-settings-models: pushed invalidations')
 
+  // Below New Session and above Plugins (order 0) and Automation tasks (order 10).
+  // The row does not open a main panel: its inject face carries the click.
+  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+    name: 'sidebar.panellist',
+    id: 'models',
+    order: -10,
+    label: () => t('entry'),
+    locale: NS,
+    inject: () => ({ activate: () => { ctx.settingsNavigation.openSection('models') } }),
+  }, ModelApiEntryIcon))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'models',

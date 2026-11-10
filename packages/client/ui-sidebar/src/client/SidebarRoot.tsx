@@ -39,7 +39,7 @@ const COLLAPSE_SETTLE_MS = 150
 const SCROLLBAR_LINGER_MS = 2000
 
 type PanelRowProps =
-  Pick<SidebarPanelMetadata, 'id' | 'label' | 'badge'>
+  Pick<SidebarPanelMetadata, 'id' | 'label' | 'badge' | 'activate'>
   & Pick<SidebarSectionOwnerProps, 'wide'>
   & Pick<PropsRuntime<'sidebar'>, 'usePanelInfo'>
   & Pick<InjectFace<SidebarRootInjected>, 'selectPanel'>
@@ -53,8 +53,8 @@ function panelBadgeText(count: number | null): string | undefined {
 }
 
 /** Each panel row subscribes only to its own selection state. */
-function PanelRow({ id, label, badge, wide, usePanelInfo, selectPanel, renderSlot }: PanelRowProps) {
-  const active = usePanelInfo(info => info.activePanelId === id)
+function PanelRow({ id, label, badge, activate, wide, usePanelInfo, selectPanel, renderSlot }: PanelRowProps) {
+  const active = usePanelInfo(info => activate === undefined && info.activePanelId === id)
   const published = badge
   const shown = published == null ? undefined : panelBadgeText(published.count)
   const badgeText = shown === undefined || published == null
@@ -67,7 +67,7 @@ function PanelRow({ id, label, badge, wide, usePanelInfo, selectPanel, renderSlo
         className={clsx(css.panelRow, active && css.panelActive)}
         aria-label={label}
         aria-current={active ? 'page' : undefined}
-        onClick={() => { selectPanel(id) }}
+        onClick={() => { if (activate !== undefined) activate(); else selectPanel(id) }}
       >
         <span className={css.panelGlyph} aria-hidden="true">
           {renderSlot('sidebar.panellist', { size: wide ? 16 : 18, active }, { only: id })}
@@ -286,6 +286,7 @@ export function SidebarRoot({
               id={panel.id}
               label={panel.label}
               {...(panel.badge !== undefined ? { badge: panel.badge } : {})}
+              {...(panel.activate !== undefined ? { activate: panel.activate } : {})}
               wide={wide}
               usePanelInfo={usePanelInfo}
               selectPanel={selectPanel}
