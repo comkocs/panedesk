@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-ledger-app",
   "description": "Offline ledger application plugin scaffold",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "publishConfig": {
     "access": "public"
   },

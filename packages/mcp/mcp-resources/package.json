@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-mcp-resources",
   "description": "Scoped MCP resource discovery and reading through shared model tools",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "publishConfig": {
     "access": "public"
   },

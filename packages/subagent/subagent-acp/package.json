@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-subagent-acp",
   "description": "Out-of-process ACP subagent backend: drives a child agent in a spawned subprocess over the Agent Client Protocol",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "publishConfig": {
     "access": "public"
   },

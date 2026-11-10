@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-office-to-pdf",
   "description": "Shared Office-to-PDF conversion with bounded queues and caching",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "publishConfig": {
     "access": "public"
   },
