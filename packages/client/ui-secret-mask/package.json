@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-secret-mask",
   "description": "Web display masking for recognized credentials in sent user text",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

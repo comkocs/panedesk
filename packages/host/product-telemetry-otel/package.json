@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-host-product-telemetry-otel",
   "description": "Explicit product usage events exported through OpenTelemetry HTTP logs",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

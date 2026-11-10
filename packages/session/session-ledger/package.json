@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-session-ledger",
   "description": "Durable call and lifecycle ledger service definitions",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

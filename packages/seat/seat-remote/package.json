@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-seat-remote",
   "description": "Seat remote consumer scaffold",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm",
   "description": "Provider-neutral LLM service interface for the DeepSeek Harness",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

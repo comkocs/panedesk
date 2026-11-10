@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-util-workspace-path",
   "description": "Browser-safe Workspace path and display helpers",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },

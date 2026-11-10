@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-goal-round-driver",
   "description": "Race-fenced same-session goal-round driver",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "publishConfig": {
     "access": "public"
   },
