@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0
+
+### Added
+
+- A per-project trace store: each project can turn on trace recording (off by default; turning it on lets any window of the project write to its local SQLite trace database), which automatically records session and agent starts and ends, message delivery and receipts, deliverables and change summaries with durable diffs, without copying transcripts.
+- Trace tools for models (items, timeline, references, comments, session linking, decisions) and a read-only `trace` CLI that exports items as JSON or Markdown.
+- A Trace panel with items, timeline, unassigned activity and export, and a Decisions view with provenance, history and revert, plus an optional strict mode where decisions are proposed by a designated planning window and confirmed by the user.
+
+### Changed
+
+- Verification switches move into the project trace database when trace recording is on.
+
 ## 1.9.0
 
 ### Added
