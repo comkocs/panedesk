@@ -138,6 +138,7 @@ function renderProviderEditor({ target, row, ...props }: ProviderEditorRenderPro
       {...target.nativeAuth === undefined ? {} : { nativeAuth: target.nativeAuth }}
       {...row.credential === undefined ? {} : { credential: row.credential }}
       {...row.credentialChecks === undefined ? {} : { credentialChecks: row.credentialChecks }}
+      customizedOpen
       {...props}
     />
   )
@@ -621,6 +622,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   await controller.load()
                   return undefined
                 }}
+                revision={namespace.revision}
+                onProtocolSaved={() => { announceSaved(target) }}
               />}
               {renderSlot(
                 'settings.models.provider-card',

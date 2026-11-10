@@ -10,7 +10,8 @@ import { defaultRecognizedSelection } from './recognize.ts'
 import type { RecognizeOrderBasis } from './recognize.ts'
 import type { ModelProbeOutcome, ModelsOperations } from './operations.ts'
 import type { en } from './locales.ts'
-import { ProbeAttemptFacts } from './ProtocolProbe.tsx'
+import { ProbeAttemptFacts, ProtocolProbe } from './ProtocolProbe.tsx'
+import type { ProbeTarget } from './ModelListEditor.tsx'
 import styles from './ModelsSection.module.css'
 
 /** Copy keys this card renders. */
@@ -46,6 +47,14 @@ export interface RecognizeModelsProps {
   readonly configuredModels?: readonly LlmDiscoveredModel[] | undefined
   /** Persist the selected catalog through the existing settings owner. */
   readonly onAdopt?: ((models: readonly LlmDiscoveredModel[]) => Promise<string | undefined>) | undefined
+  /**
+   * Settings revision a saved protocol writes against, and the refresh a
+   * successful save runs. Both come from the provider row: the list offers the
+   * same protocol action as an editable model row.
+   */
+  readonly revision?: number | undefined
+  /** Refresh the provider directory after a protocol save commits. */
+  readonly onProtocolSaved?: (() => void) | undefined
 }
 
 /** One recognition result the card can show. */
@@ -144,6 +153,14 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
     }
   }
 
+  // The route's stored endpoint is what the protocol matrix asks. Naming the
+  // route lets an adapter that already describes it answer from its registry.
+  const probeTarget: ProbeTarget = {
+    settingsNs,
+    provider,
+    ...endpoint?.baseURL === undefined || endpoint.baseURL.length === 0 ? {} : { baseURL: endpoint.baseURL },
+    ...endpoint?.api === undefined ? {} : { api: endpoint.api },
+  }
   const configuredIds = new Set(props.configuredModels?.map(model => model.id))
   const additions = [...recognized?.checked ?? []].filter(id => !configuredIds.has(id)).length
   const removals = [...configuredIds].filter(id => !recognized?.checked.has(id)).length
@@ -178,6 +195,16 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
                     />
                     <span className={styles['candidateId']}>{model.name ?? model.id}</span>
                     {configuredIds.has(model.id) ? <span>{t('recognizedAdded')}</span> : null}
+                    <ProtocolProbe
+                      target={probeTarget}
+                      model={model.id}
+                      imageDeclared={model.inputModalities?.includes('image') === true}
+                      operations={operations}
+                      t={t}
+                      disabled={disabled || busy}
+                      revision={props.revision}
+                      onSaved={() => { props.onProtocolSaved?.() }}
+                    />
                   </label>
                 </li>
               ))}

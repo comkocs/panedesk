@@ -58,11 +58,13 @@ export function StorageSettingsPage({ useResource, save, test, migrate, open, t 
       <Button variant="outline" disabled={busy} onClick={() => { setRevision(value => value + 1) }}>{t('refresh')}</Button>
     </div>
     <p>{t('migrationHint')}</p>
-    <Button variant="outline" disabled={busy || status?.settings.backend !== 'postgres' || draft !== null} onClick={() => { void perform(async () => {
-      const result = await migrate()
-      if (!result.ok) throw new Error(result.error.message)
-      setMessage(t('copied', { count: result.value })); setRevision(value => value + 1)
-    }) }}>{t('migrate')}</Button>
+    <div className={css.controls}>
+      <Button variant="outline" disabled={busy || status?.settings.backend !== 'postgres' || draft !== null} onClick={() => { void perform(async () => {
+        const result = await migrate()
+        if (!result.ok) throw new Error(result.error.message)
+        setMessage(t('copied', { count: result.value })); setRevision(value => value + 1)
+      }) }}>{t('migrate')}</Button>
+    </div>
     {status?.restartRequired && <p role="status">{t('restart')}</p>}
     {resource.status === 'failed' && <p role="alert">{t('error')}</p>}
     {message && <p role="status">{message}</p>}

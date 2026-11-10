@@ -16223,6 +16223,28 @@
           "packages/client/ui-workspace/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "settings-label-width-buttons-and-provider-edit",
+      "description": "Size settings buttons to their labels, open a provider row's model catalog from Edit, and offer protocol probes on recognized model rows",
+      "origin": "Panedesk 1.8.4",
+      "reason": "Column flex and a single-column grid were stretching settings actions to the row width; those actions now size to their labels. Edit on a provider row opens its card with Customized settings already open, and each recognized model row offers the same protocol probe as an editable model row. The new-session mode group reads Built-in modes.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+          "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+          "packages/client/ui-settings-models/src/client/ProviderEditor.tsx",
+          "packages/client/ui-settings-models/src/client/RecognizeModels.tsx",
+          "packages/client/ui-settings-models/src/client/ProtocolProbe.tsx",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-storage/src/client/page.tsx",
+          "packages/client/ui-agent-preset/src/client/locales.ts",
+          "packages/client/ui-agent-preset/README.md",
+          "packages/client/ui-agent-preset/README.zh.md"
+        ]
+      }
     }
   ]
 }
