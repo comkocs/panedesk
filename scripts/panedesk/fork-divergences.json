@@ -16304,6 +16304,21 @@
       }
     },
     {
+      "id": "settings-dialog-scrollable-body",
+      "description": "Constrain the shared Settings body below its fixed header and keep the dialog within the viewport",
+      "origin": "Panedesk 1.8.6",
+      "reason": "Give the shared Settings shell an explicit viewport height cap and a zero-minimum body grid row so long sections, including provider cards and protocol-probe results, stay inside the body scroll region without changing page behavior.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "packages/client/ui-settings-general/src/client/SettingsRoot.module.css",
+          "packages/client/ui-settings-general/README.md",
+          "packages/client/ui-settings-general/README.zh.md",
+          "packages/client/ui-settings-general/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "settings-label-width-buttons-and-provider-edit",
       "description": "Size settings buttons to their labels, open a provider row's model catalog from Edit, and offer protocol probes on recognized model rows",
       "origin": "Panedesk 1.8.4",
