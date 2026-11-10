@@ -87,7 +87,8 @@
   z-index: 1;
   display: flex;
   width: 800px;
-  height: min(800px, calc(100vh - 2 * max(24px, var(--dsh-frame-overlay-top, 24px))));
+  height: 800px;
+  max-height: calc(100vh - 2 * max(24px, var(--dsh-frame-overlay-top, 24px)));
   max-width: calc(100vw - 48px);
   border-radius: var(--dsw-radius-panel);
   overflow: hidden;
@@ -209,8 +210,9 @@
 .content {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 /* Header (figma .Header 501:29981): h54, pad (10,20,14,8), close right. */
@@ -254,7 +256,6 @@
 
 /* Options area (figma Options 501:29983): pad (24,0,24,24), scrolls. */
 .options {
-  flex: 1;
   min-height: 0;
   padding: 0 24px 24px;
   overflow-y: auto;
