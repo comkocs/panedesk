@@ -198,6 +198,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   tokenMeter: 'token-meter.md',
   toolResultPruner: 'compaction.md',
   tools: 'tools.md',
+  activityCategory: 'tools.md',
+  verificationPolicy: 'tools.md',
   typert: 'typert.md',
   typertGateway: 'typert.md',
   remoteAccess: 'typert.md',
@@ -1251,6 +1253,13 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  ActivityClassification: 'command classification is owned by packages/guard/activity-category/README.md',
+  ActivitySummary: 'task activity totals are owned by packages/guard/activity-category/README.md',
+  VerificationTaskRestrictions: 'task category prohibitions are owned by packages/guard/verification-policy/README.md',
+  VerificationView: 'workspace verification settings are owned by packages/guard/verification-policy/README.md',
+  VerificationWorkspaceRequest: 'workspace settings identity is owned by packages/guard/verification-policy/src/types.ts',
+  VerificationSaveRequest: 'workspace settings replacement is owned by packages/guard/verification-policy/src/types.ts',
+  VerificationTaskRequest: 'task verification switch is owned by packages/guard/verification-policy/src/types.ts',
   StorageStatus: 'storage selection and runtime status are owned by packages/storage/storage-postgres/README.md',
   StorageSettingsInput: 'saved storage selection input is owned by packages/storage/storage-postgres/README.md',
   ConnectionResult: 'storage connection probe result is owned by packages/storage/storage-postgres/README.md',

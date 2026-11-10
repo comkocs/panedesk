@@ -82,6 +82,37 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'activityCategory',
+    summary: 'Task classification and timing service.',
+    description: 'Task classification and timing service. It never returns policy decisions or cancels execution.',
+    methods: [
+      {
+        signature: 'async classify(toolName: string, args: Readonly<Record<string, unknown>>, session: Session): Promise<ActivityClassification>',
+        description: 'Classify using this task\'s confirmed new files, including descendant writes.',
+        parameters: [{ name: 'toolName', description: 'Runtime tool name, including nested PTC calls.' }, { name: 'args', description: 'Parsed tool arguments.' }, { name: 'session', description: 'Calling session.' }],
+        returns: 'Primary category and independent script tag.',
+      },
+      {
+        signature: 'async read(sessionId: SessionId, snapshot?: LedgerSnapshot): Promise<ActivitySummary | null>',
+        description: 'Query durable totals for a session\'s latest task, retaining them after completion.',
+        parameters: [{ name: 'sessionId', description: 'Calling session identity.' }, { name: 'snapshot', description: 'Optional already-authorized tree ledger snapshot to avoid a second scan.' }],
+        returns: 'Category counts, milliseconds, shares and latest activity, or null without evidence.',
+      },
+      {
+        signature: 'taskIdentity(session: Session): { taskId: string; rootTaskId: string }',
+        description: 'Identify this task and its captured root turn, including child runs started during an older turn.',
+        parameters: [{ name: 'session', description: 'Calling session.' }],
+        returns: 'Current task id and owning root-turn id.',
+      },
+      {
+        signature: 'async readRootTurn(session: Session): Promise<ActivitySummary | null>',
+        description: 'Read all operations attributed to this root turn, including every descendant task.',
+        parameters: [{ name: 'session', description: 'Calling root or descendant session.' }],
+        returns: 'Root-turn totals with overlapping script time counted once.',
+      },
+    ],
+  },
+  {
     key: 'agentDefaultModel',
     summary: 'Owns the default model selection independently of any Host or transport.',
     description: 'Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.',
@@ -5928,6 +5959,46 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'verificationPolicy',
+    summary: 'Policy is not registered with model-editable settings; remote writes use owner authentication.',
+    description: 'Policy is not registered with model-editable settings; remote writes use owner authentication.',
+    methods: [
+      {
+        signature: 'addTaskProhibitions(request: VerificationTaskRestrictions): void',
+        description: 'Append checklist prohibitions for an exact task without changing workspace settings.',
+        parameters: [{ name: 'request', description: 'Task identity and shared category ids; takes effect on its next tool call.' }],
+      },
+      {
+        signature: '@Remote prohibitTaskCategories(request: VerificationTaskRestrictions): void',
+        description: 'Remote entry for the checklist panel. Appends categories for the exact current task.',
+        parameters: [{ name: 'request', description: 'Session, current activity task id, and category ids to forbid.' }],
+      },
+      {
+        signature: 'testsStopped(taskId: string): boolean',
+        description: 'Read the exact task\'s tree-checkbox state.',
+        parameters: [{ name: 'taskId', description: 'Activity task identity.' }],
+        returns: 'Whether subsequent tests and self-written scripts are prohibited by the row control.',
+      },
+      {
+        signature: '@Remote readWorkspace(request: VerificationWorkspaceRequest): VerificationView',
+        description: 'Read current workspace switches for settings and checklist grey-out decisions.',
+        parameters: [{ name: 'request', description: 'Selected workspace identity.' }],
+        returns: 'Versioned saved switches and the three product presets.',
+      },
+      {
+        signature: '@Remote async saveWorkspace(request: VerificationSaveRequest): Promise<VerificationView>',
+        description: 'Replace workspace switches without writing project files or model settings.',
+        parameters: [{ name: 'request', description: 'Workspace identity and complete settings.' }],
+        returns: 'Persisted settings and presets.',
+      },
+      {
+        signature: '@Remote setTestsStopped(request: VerificationTaskRequest): void',
+        description: 'Toggle the running tree row without stopping its current process.',
+        parameters: [{ name: 'request', description: 'Exact task identity and checkbox state.' }],
+      },
+    ],
+  },
+  {
     key: 'web',
     summary: 'The web access service.',
     description: 'The web access service. Registered as `ctx.web` (one instance per context).\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `WEB_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one registered usable provider → that provider.\n- No id configured, multiple usable providers → `WEB_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `WEB_PROVIDER_UNAVAILABLE`.',
@@ -7207,6 +7278,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AccountWallet {\n    readonly currency: \'CNY\' | \'USD\';\n    readonly balance: string;\n}',
   },
   {
+    name: 'ActivityCategory',
+    declaration: 'export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;',
+  },
+  {
+    name: 'ActivityClassification',
+    declaration: 'export interface ActivityClassification {\n    category: ActivityCategory;\n    selfWrittenScript: boolean;\n}',
+  },
+  {
+    name: 'ActivitySummary',
+    declaration: 'export interface ActivitySummary {\n    taskId: string;\n    startedAt: number;\n    totals: ActivityTotal[];\n    totalMs: number;\n    verificationMs: number;\n    current: CurrentActivity | null;\n}',
+  },
+  {
+    name: 'ActivityTotal',
+    declaration: 'export interface ActivityTotal {\n    category: ActivityCategory;\n    count: number;\n    durationMs: number;\n    share: number;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -8025,6 +8112,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CronScheduleRecord',
     declaration: 'export interface CronScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'cron\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly expression: string;\n    readonly timeZone: string;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'CurrentActivity',
+    declaration: 'export interface CurrentActivity extends ActivityClassification {\n    startedAt: number;\n    durationMs: number;\n    active: boolean;\n}',
   },
   {
     name: 'DailyInput',
@@ -8956,7 +9047,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerAuxiliaryFact',
-    declaration: 'export type LedgerAuxiliaryFact = {\n    kind: \'wait/start\' | \'wait/end\';\n    interval: LedgerInterval;\n} | {\n    kind: \'cache/break\' | \'cache/evidence\';\n    evidence: LedgerCacheEvidence;\n} | {\n    kind: \'retry\';\n    phase: \'scheduled\' | \'started\' | \'exhausted\';\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    httpStatus?: number;\n} | {\n    kind: \'compaction\';\n    committedSeq: number;\n    committedAt: number;\n    peakContextUsageTokens?: number;\n    peakContextEstimatedTokens?: number;\n} | {\n    kind: \'alert\';\n    alert: LedgerAlert;\n} | {\n    kind: \'delivery\';\n    paths: readonly string[];\n    state: LedgerRunFinish[\'deliveryState\'];\n    errorArtifact?: string;\n} | {\n    kind: \'process/observed\';\n    identity: LedgerProcessIdentity;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    exitCode?: number;\n    signal?: string;\n} | {\n    kind: \'policy/denied\';\n    operation: \'model\' | \'effort\' | \'tool\';\n    requested: string;\n    definition: string;\n    reason: string;\n};',
+    declaration: 'export type LedgerAuxiliaryFact = {\n    kind: \'activity/start\';\n    activityId: Branded<\'ActivityId\'>;\n    taskId: Branded<\'ActivityTaskId\'>;\n    taskStartedAt: number;\n    ancestorTaskIds: readonly string[];\n    category: string;\n    selfWrittenScript: boolean;\n    startedAt: number;\n} | {\n    kind: \'activity/end\';\n    activityId: Branded<\'ActivityId\'>;\n    taskId: Branded<\'ActivityTaskId\'>;\n    durationMs: number;\n    createdFiles: readonly string[];\n} | {\n    kind: \'wait/start\' | \'wait/end\';\n    interval: LedgerInterval;\n} | {\n    kind: \'cache/break\' | \'cache/evidence\';\n    evidence: LedgerCacheEvidence;\n} | {\n    kind: \'retry\';\n    phase: \'scheduled\' | \'started\' | \'exhausted\';\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    httpStatus?: number;\n} | {\n    kind: \'compaction\';\n    committedSeq: number;\n    committedAt: number;\n    peakContextUsageTokens?: number;\n    peakContextEstimatedTokens?: number;\n} | {\n    kind: \'alert\';\n    alert: LedgerAlert;\n} | {\n    kind: \'delivery\';\n    paths: readonly string[];\n    state: LedgerRunFinish[\'deliveryState\'];\n    errorArtifact?: string;\n} | {\n    kind: \'process/observed\';\n    identity: LedgerProcessIdentity;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    exitCode?: number;\n    signal?: string;\n} | {\n    kind: \'policy/denied\';\n    operation: \'model\' | \'effort\' | \'tool\';\n    requested: string;\n    definition: string;\n    reason: string;\n};',
   },
   {
     name: 'LedgerCacheEvidence',
@@ -12472,7 +12563,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentTreeNode',
-    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly external?: {\n        readonly title: string;\n        readonly type: string;\n        readonly startedAt: number | null;\n        readonly endedAt: number | null;\n    };\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly contextTokens?: number;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
+    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly external?: {\n        readonly title: string;\n        readonly type: string;\n        readonly startedAt: number | null;\n        readonly endedAt: number | null;\n    };\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly contextTokens?: number;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly activity?: import(\'@panedesk/dsh-activity-category/types\').ActivitySummary | null;\n    readonly verificationTaskId?: string;\n    readonly testsStopped?: boolean;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
   },
   {
     name: 'SubagentTreeRequest',
@@ -13169,6 +13260,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserQuestionState',
     declaration: 'export type UserQuestionState = \'open\' | \'continued\';',
+  },
+  {
+    name: 'VerificationPreset',
+    declaration: 'export type VerificationPreset = \'default\' | \'unlimited\' | \'build-only\';',
+  },
+  {
+    name: 'VerificationSaveRequest',
+    declaration: 'export interface VerificationSaveRequest extends VerificationWorkspaceRequest {\n    settings: VerificationSettings;\n}',
+  },
+  {
+    name: 'VerificationSettings',
+    declaration: 'export interface VerificationSettings {\n    version: 1;\n    enabled: boolean;\n    fullTests: \'allow\' | \'once\' | \'deny\';\n    mutation: boolean;\n    scripts: boolean;\n    ci: boolean;\n    focusedTests: boolean;\n    clientMinutes: number | null;\n    budget: {\n        minutes: number | null;\n        percent: number | null;\n        action: \'ask\' | \'deny\';\n    };\n}',
+  },
+  {
+    name: 'VerificationTaskRequest',
+    declaration: 'export interface VerificationTaskRequest {\n    sessionId: SessionId;\n    taskId: string;\n    prohibited: boolean;\n}',
+  },
+  {
+    name: 'VerificationTaskRestrictions',
+    declaration: 'export interface VerificationTaskRestrictions {\n    sessionId: SessionId;\n    taskId: string;\n    categories: readonly ActivityCategory[];\n}',
+  },
+  {
+    name: 'VerificationView',
+    declaration: 'export interface VerificationView {\n    settings: VerificationSettings;\n    presets: Record<VerificationPreset, VerificationSettings>;\n}',
+  },
+  {
+    name: 'VerificationWorkspaceRequest',
+    declaration: 'export interface VerificationWorkspaceRequest {\n    workspaceId: WorkspaceId;\n}',
   },
   {
     name: 'VerifiedWebhookDelivery',

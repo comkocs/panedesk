@@ -501,6 +501,45 @@ The full presentation field docs live in [`packages/core/tools/src/presentation.
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxactivitycategory--activitycategoryservice"></a>
+
+### `ctx.activityCategory` — `ActivityCategoryService`
+
+Task classification and timing service. It never returns policy decisions or cancels execution.
+
+```ts cordis-catalog
+/** Classify using this task's confirmed new files, including descendant writes.
+ * @param toolName Runtime tool name, including nested PTC calls.
+ * @param args Parsed tool arguments.
+ * @param session Calling session.
+ * @returns Primary category and independent script tag.
+ */
+async classify(toolName: string, args: Readonly<Record<string, unknown>>, session: Session): Promise<ActivityClassification>
+
+/** Query durable totals for a session's latest task, retaining them after completion.
+ * @param sessionId Calling session identity.
+ * @param snapshot Optional already-authorized tree ledger snapshot to avoid a second scan.
+ * @returns Category counts, milliseconds, shares and latest activity, or null without evidence.
+ */
+async read(sessionId: SessionId, snapshot?: LedgerSnapshot): Promise<ActivitySummary | null>
+
+/** Identify this task and its captured root turn, including child runs started during an older turn.
+ * @param session Calling session.
+ * @returns Current task id and owning root-turn id.
+ */
+taskIdentity(session: Session): { taskId: string; rootTaskId: string }
+
+/** Read all operations attributed to this root turn, including every descendant task.
+ * @param session Calling root or descendant session.
+ * @returns Root-turn totals with overlapping script time counted once.
+ */
+async readRootTurn(session: Session): Promise<ActivitySummary | null>
+```
+
+Types: [LedgerSnapshot](session-telemetry.md) · [Session](session.md) · [SessionId](core.md)
+
+Source: [`packages/guard/activity-category/src/index.ts`](../../packages/guard/activity-category/src/index.ts)
+
 <a id="ctxtools--toolruntime"></a>
 
 ### `ctx.tools` — `ToolRuntime`
@@ -605,6 +644,49 @@ async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>
 Types: [AssembleContext](system-prompt.md) · [ScopeKey](scope.md)
 
 Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index.ts)
+
+<a id="ctxverificationpolicy--verificationpolicy"></a>
+
+### `ctx.verificationPolicy` — `VerificationPolicy`
+
+Policy is not registered with model-editable settings; remote writes use owner authentication.
+
+```ts cordis-catalog
+/** Append checklist prohibitions for an exact task without changing workspace settings.
+ * @param request Task identity and shared category ids; takes effect on its next tool call.
+ */
+addTaskProhibitions(request: VerificationTaskRestrictions): void
+
+/** Remote entry for the checklist panel. Appends categories for the exact current task.
+ * @param request Session, current activity task id, and category ids to forbid.
+ */
+@Remote prohibitTaskCategories(request: VerificationTaskRestrictions): void
+
+/** Read the exact task's tree-checkbox state.
+ * @param taskId Activity task identity.
+ * @returns Whether subsequent tests and self-written scripts are prohibited by the row control.
+ */
+testsStopped(taskId: string): boolean
+
+/** Read current workspace switches for settings and checklist grey-out decisions.
+ * @param request Selected workspace identity.
+ * @returns Versioned saved switches and the three product presets.
+ */
+@Remote readWorkspace(request: VerificationWorkspaceRequest): VerificationView
+
+/** Replace workspace switches without writing project files or model settings.
+ * @param request Workspace identity and complete settings.
+ * @returns Persisted settings and presets.
+ */
+@Remote async saveWorkspace(request: VerificationSaveRequest): Promise<VerificationView>
+
+/** Toggle the running tree row without stopping its current process.
+ * @param request Exact task identity and checkbox state.
+ */
+@Remote setTestsStopped(request: VerificationTaskRequest): void
+```
+
+Source: [`packages/guard/verification-policy/src/index.ts`](../../packages/guard/verification-policy/src/index.ts)
 
 <a id="tools-events"></a>
 

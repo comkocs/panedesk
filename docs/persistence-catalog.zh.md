@@ -86,6 +86,7 @@
 | `event:turn/end` | event | `97eefbc3e975784b2afcfc9c964b6af3ac6125ab91553758072a553e847c7e42` | [`{ type: "turn/end" }`](#persistence-type-sha256-97eefbc3e975784b2afcfc9c964b6af3ac6125ab91553758072a553e847c7e42) |
 | `event:turn/start` | event | `aa0957eca50aeb28bcd2e6930b95809926edacb550c8c340ba526ba6b861b3d8` | [`{ type: "turn/start" }`](#persistence-type-sha256-aa0957eca50aeb28bcd2e6930b95809926edacb550c8c340ba526ba6b861b3d8) |
 | `event:user/message` | event | `55ed93dabc12a312ce531d0492f740381b426084c91d6c3e85e40e8a2d835678` | [`{ type: "user/message" }`](#persistence-type-sha256-55ed93dabc12a312ce531d0492f740381b426084c91d6c3e85e40e8a2d835678) |
+| `event:verification/write` | event | `85b6fc9e04792b8f3f97a872cb0e83e2c27b0008e81c13f047abcf36d912f7c4` | [`{ type: "verification/write" }`](#persistence-type-sha256-85b6fc9e04792b8f3f97a872cb0e83e2c27b0008e81c13f047abcf36d912f7c4) |
 | `event:web/deepseek-search-llm-request` | event | `0c556c9b9f2a96238a6b9bbb99e748206cbff2ed6203041c9571f04ae5802f52` | [`{ type: "web/deepseek-search-llm-request" }`](#persistence-type-sha256-0c556c9b9f2a96238a6b9bbb99e748206cbff2ed6203041c9571f04ae5802f52) |
 | `event:working-directory/change` | event | `124aa62078ca3311353b39cc3bf6c75da281338be6bbf672f8b361d828cddca3` | [`{ type: "working-directory/change" }`](#persistence-type-sha256-124aa62078ca3311353b39cc3bf6c75da281338be6bbf672f8b361d828cddca3) |
 | `event:workspace/changes` | event | `e308ccf867a5398e316e0af8cb6ce238a8d33a63b9b384c8250a686786285f72` | [`{ type: "workspace/changes" }`](#persistence-type-sha256-e308ccf867a5398e316e0af8cb6ce238a8d33a63b9b384c8250a686786285f72) |
@@ -1354,6 +1355,22 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 来源：[`packages/core/session/src/types.ts:318`](../packages/core/session/src/types.ts)
 
+### `verification/*`
+
+<a id="verificationwrite--log-only"></a>
+
+#### `verification/write` — log-only
+
+```ts persistence-catalog
+/**
+ * Whole checklist list for one session; the latest write wins on replay.
+ * @param checklists - every requirement's checklist after this submission.
+ */
+'verification/write': { checklists: VerificationChecklistSubmission[] }
+```
+
+来源：[`packages/todo/tool-verification-checklist/src/types.ts:45`](../packages/todo/tool-verification-checklist/src/types.ts)
+
 ### `web/*`
 
 <a id="webdeepseek-search-llm-request--log-only"></a>
@@ -1652,6 +1669,14 @@ SHA-256: `254dce209e735f9cb6f6b7aec0354712b1611759ec02af4d35a96f2081e666f6`
 
 `"blocked"`
 
+<a id="persistence-type-sha256-956c53576fb34143fbdf1ed7ea33969467a352bdf615177ffdf30cf19a80f244"></a>
+
+### `"build"`
+
+SHA-256: `956c53576fb34143fbdf1ed7ea33969467a352bdf615177ffdf30cf19a80f244`
+
+`"build"`
+
 <a id="persistence-type-sha256-d4e4d575abeb4b72d616dc65c17ac0eaa943cc135609395044c38d5afcb10e31"></a>
 
 ### `"canceled"`
@@ -1692,6 +1717,14 @@ SHA-256: `14230f9b8b5797bb7e8c621fa636531cfbde2ffba1ef5f1fd058216ff21952a0`
 
 `"chunk"`
 
+<a id="persistence-type-sha256-758bb78c3ad4dba2bbecd255ec0994968560e2397fb07cd7c76267f44f8f6e29"></a>
+
+### `"ci"`
+
+SHA-256: `758bb78c3ad4dba2bbecd255ec0994968560e2397fb07cd7c76267f44f8f6e29`
+
+`"ci"`
+
 <a id="persistence-type-sha256-9f1b07ed49bb8f50b6fe3c2357f88357a473e4b5889c7afc327caca8df37d659"></a>
 
 ### `"claimed"`
@@ -1715,6 +1748,14 @@ SHA-256: `aff60ef947c18b012644852bdd0d5bfe72065e061dd563787c76c646b4a10f6b`
 SHA-256: `e7e154d47d5fbc5366330fb4dade1f108c6dfe4335044d21ded14b7bf1dce084`
 
 `"clear"`
+
+<a id="persistence-type-sha256-0cf8b305bb456f0e6e4496002b843c9b1070027671197a073e08c5217e59948a"></a>
+
+### `"client"`
+
+SHA-256: `0cf8b305bb456f0e6e4496002b843c9b1070027671197a073e08c5217e59948a`
+
+`"client"`
 
 <a id="persistence-type-sha256-15495614ccfa9cbdeefb0ec2abd76406435f4c6ff3dae42acae8e09ef42025c9"></a>
 
@@ -2346,6 +2387,14 @@ SHA-256: `1d5f04a03ea75fc8eeece544129eba0f49f0c82046e9c404461920390135c7b2`
 
 `"model/selection"`
 
+<a id="persistence-type-sha256-ff7bda0c64a36c804164a83d1ae58b1dbddc59d23751b415700ac57447cbd29a"></a>
+
+### `"mutation"`
+
+SHA-256: `ff7bda0c64a36c804164a83d1ae58b1dbddc59d23751b415700ac57447cbd29a`
+
+`"mutation"`
+
 <a id="persistence-type-sha256-b1f62380f6746fedd629e71065e3583cef83334875b499ac9665c2eb87acfbf5"></a>
 
 ### `"negative"`
@@ -2538,6 +2587,14 @@ SHA-256: `cf0cd3b1b263b0b67850e970c20867eed50a922767a9eeb6d96cf2a4705a4b28`
 
 `"queue"`
 
+<a id="persistence-type-sha256-f35369370732d3517cae1d8ecb6a00cddd1c43788597bdb1358247affc4ba6f6"></a>
+
+### `"read"`
+
+SHA-256: `f35369370732d3517cae1d8ecb6a00cddd1c43788597bdb1358247affc4ba6f6`
+
+`"read"`
+
 <a id="persistence-type-sha256-12a0cfa619ac4a5fc6c3e8e359c8dae15769edc61497a575935c78d5842f8e42"></a>
 
 ### `"read-only"`
@@ -2713,6 +2770,14 @@ SHA-256: `0e7b2a97f54f1afdb8cdfad1635abe9145327db539bfb69b4045c19d8c17755d`
 SHA-256: `29aa673eaba60cbc388f505248bf698c80c13d080f4ee2ff3312ba1950e34e77`
 
 `"scheduled"`
+
+<a id="persistence-type-sha256-6a0a807e2a4f8898fea35c3bcb6d9523f0ac3be26b9fa3247ab8f58bca4d62ca"></a>
+
+### `"script"`
+
+SHA-256: `6a0a807e2a4f8898fea35c3bcb6d9523f0ac3be26b9fa3247ab8f58bca4d62ca`
+
+`"script"`
 
 <a id="persistence-type-sha256-07eccc9ea2f9b5439d76cc77d5e062936677d43f07a23da749819b0a22ee36b7"></a>
 
@@ -2985,6 +3050,22 @@ SHA-256: `b57ae1b37e52bee0a21cbdace168dc6a15582bcda8c306dad962c5dcc8a8e28b`
 SHA-256: `5cb63db9fe57dc09c3a1c2b84c3edf73ff5b62960155d8436a2377a5c43ce32c`
 
 `"teardown"`
+
+<a id="persistence-type-sha256-6c71a388075cfe29b614612518c5709a1ff5a2a72f9e9612108a00c1714b319e"></a>
+
+### `"test-focused"`
+
+SHA-256: `6c71a388075cfe29b614612518c5709a1ff5a2a72f9e9612108a00c1714b319e`
+
+`"test-focused"`
+
+<a id="persistence-type-sha256-d52540ee9046d25483292fb398e3700a0b2f7a24da57796fc9cd6f479434de75"></a>
+
+### `"test-full"`
+
+SHA-256: `d52540ee9046d25483292fb398e3700a0b2f7a24da57796fc9cd6f479434de75`
+
+`"test-full"`
 
 <a id="persistence-type-sha256-4e44c9118152f6829634bfd508e47669ab0497caffa380c94b4be91f9390d35d"></a>
 
@@ -3274,6 +3355,22 @@ SHA-256: `de25352d2dc4196309bd84b5bac6319f6d5c898ea0e82bb5ae66c5738d0d426f`
 
 `"user/message"`
 
+<a id="persistence-type-sha256-bd7bb451f2e29b71372f0628dac5143f261a269fd9fe6bf3aad44e7eeb7c452e"></a>
+
+### `"verification/write"`
+
+SHA-256: `bd7bb451f2e29b71372f0628dac5143f261a269fd9fe6bf3aad44e7eeb7c452e`
+
+`"verification/write"`
+
+<a id="persistence-type-sha256-dfcb3bb4a8ae89baa1b7d60e8afa7a9e0b333563084c82d2be6b904a3903a449"></a>
+
+### `"wait"`
+
+SHA-256: `dfcb3bb4a8ae89baa1b7d60e8afa7a9e0b333563084c82d2be6b904a3903a449`
+
+`"wait"`
+
 <a id="persistence-type-sha256-6f611bed14b2106542480c4a230b4a83baf76dc0d8ac0cd13319a7cb8dae7675"></a>
 
 ### `"web/deepseek-search-llm-request"`
@@ -3337,6 +3434,14 @@ SHA-256: `a3edd1efd1fef21b72c55e213c8a8b24196b091abde2b89db52be0b2aaae3cfa`
 SHA-256: `8e8155594e07812356b67d732196dda894b0f9c91a5969d51612cf490b0a016d`
 
 `"workspace/changes"`
+
+<a id="persistence-type-sha256-18ecff74ae9ce1a1b76d9eff9339b5c273d3aefbc4db31dca30c43b9cd3c5b0f"></a>
+
+### `"write"`
+
+SHA-256: `18ecff74ae9ce1a1b76d9eff9339b5c273d3aefbc4db31dca30c43b9cd3c5b0f`
+
+`"write"`
 
 <a id="persistence-type-sha256-93d38436347f67c9022aacbc4472e283d722bcab8eb73fc376aaf7b6a6b9fb35"></a>
 
@@ -5885,6 +5990,84 @@ SHA-256: `6f9887de8a963b8b3b5cb1ed023afe4ccf5eb11fd146c6ae09f92a713414beab`
 
 [`UserMessage`](#persistence-type-sha256-786e476429ca5a65f449c23a0e70271533654e56127ba87c014ba11fec16d81a) 的数组。
 
+<a id="persistence-type-sha256-1e56059574540d0d7f7c44babf6c76904bdbed75fe31317f6d2f907a0ed8e4a4"></a>
+
+<a id="persistence-type-packagestodotool-verification-checklistsrctypestsverificationchecklistcategory"></a>
+
+<a id="persistence-type-verificationchecklistcategory"></a>
+
+### `VerificationChecklistCategory`
+
+SHA-256: `1e56059574540d0d7f7c44babf6c76904bdbed75fe31317f6d2f907a0ed8e4a4`
+
+来源：[`packages/todo/tool-verification-checklist/src/types.ts:19`](../packages/todo/tool-verification-checklist/src/types.ts)
+
+以下类型之一：
+
+- `"build"`
+- `"ci"`
+- `"wait"`
+- `"write"`
+- `"client"`
+- `"model"`
+- `"mutation"`
+- `"other"`
+- `"read"`
+- `"script"`
+- `"test-focused"`
+- `"test-full"`
+
+<a id="persistence-type-sha256-e5d3c54dd53af4353746050ab4764c011c80e3f6528f83792390580051563f56"></a>
+
+<a id="persistence-type-packagestodotool-verification-checklistsrctypestsverificationchecklistitem"></a>
+
+<a id="persistence-type-verificationchecklistitem"></a>
+
+### `VerificationChecklistItem`
+
+SHA-256: `e5d3c54dd53af4353746050ab4764c011c80e3f6528f83792390580051563f56`
+
+来源：[`packages/todo/tool-verification-checklist/src/types.ts:22`](../packages/todo/tool-verification-checklist/src/types.ts)
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `category` | 必需 | [`VerificationChecklistCategory`](#persistence-type-sha256-1e56059574540d0d7f7c44babf6c76904bdbed75fe31317f6d2f907a0ed8e4a4) |
+| `minutes` | 必需 | `number` |
+| `note` | 必需 | `string` |
+
+<a id="persistence-type-sha256-a459365240f8c4835f09b3d55cd712f7966c6ef5008a32c579ca49a1c8970414"></a>
+
+### `VerificationChecklistItem[]`
+
+SHA-256: `a459365240f8c4835f09b3d55cd712f7966c6ef5008a32c579ca49a1c8970414`
+
+[`VerificationChecklistItem`](#persistence-type-sha256-e5d3c54dd53af4353746050ab4764c011c80e3f6528f83792390580051563f56) 的数组。
+
+<a id="persistence-type-sha256-f473fd2e2d8455ede62485cb427ce03612a3bd8f0b1ea411c15b605bf596f466"></a>
+
+<a id="persistence-type-packagestodotool-verification-checklistsrctypestsverificationchecklistsubmission"></a>
+
+<a id="persistence-type-verificationchecklistsubmission"></a>
+
+### `VerificationChecklistSubmission`
+
+SHA-256: `f473fd2e2d8455ede62485cb427ce03612a3bd8f0b1ea411c15b605bf596f466`
+
+来源：[`packages/todo/tool-verification-checklist/src/types.ts:32`](../packages/todo/tool-verification-checklist/src/types.ts)
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `items` | 必需 | [`VerificationChecklistItem[]`](#persistence-type-sha256-a459365240f8c4835f09b3d55cd712f7966c6ef5008a32c579ca49a1c8970414) |
+| `title` | 必需 | `string` |
+
+<a id="persistence-type-sha256-44029ac982c74dfa1ff6569b133514a51a87adea42b8e973491e0e982556b16f"></a>
+
+### `VerificationChecklistSubmission[]`
+
+SHA-256: `44029ac982c74dfa1ff6569b133514a51a87adea42b8e973491e0e982556b16f`
+
+[`VerificationChecklistSubmission`](#persistence-type-sha256-f473fd2e2d8455ede62485cb427ce03612a3bd8f0b1ea411c15b605bf596f466) 的数组。
+
 <a id="persistence-type-sha256-c2deb7c9183735d4e0fffddf5c623f4e34daa1c8e96b111982e957dfcbbcf896"></a>
 
 <a id="persistence-type-packagesworkflowworkflowsrctypestsworkflowagentoutcome"></a>
@@ -6484,6 +6667,18 @@ SHA-256: `4f91f187baeabef5c7950c4780d31bbe39f3345dff591a6cf26ac7e135ac1cf4`
 SHA-256: `df843efd87c78cf8de98f8e0d0216956cd568d0d0e56a22c853663e274aa1a18`
 
 [`{ capturedFormatVersion?, capturedThroughSeq, compacted, inputIndex, … }`](#persistence-type-sha256-4f91f187baeabef5c7950c4780d31bbe39f3345dff591a6cf26ac7e135ac1cf4) 的数组。
+
+<a id="persistence-type-sha256-283b7c516593e4c53112a8daa2eb86234033f61557e3a7c0305e6970508d6129"></a>
+
+### `{ checklists }`
+
+SHA-256: `283b7c516593e4c53112a8daa2eb86234033f61557e3a7c0305e6970508d6129`
+
+来源：[`packages/todo/tool-verification-checklist/src/types.ts:45`](../packages/todo/tool-verification-checklist/src/types.ts)
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `checklists` | 必需 | [`VerificationChecklistSubmission[]`](#persistence-type-sha256-44029ac982c74dfa1ff6569b133514a51a87adea42b8e973491e0e982556b16f) |
 
 <a id="persistence-type-sha256-0e10d7c096b47e61defe372a5fc8bd37d835199410eac44367f95c45082498bd"></a>
 
@@ -9844,6 +10039,22 @@ SHA-256: `55ed93dabc12a312ce531d0492f740381b426084c91d6c3e85e40e8a2d835678`
 | `surfaceOp` | 必需 | [`SurfaceOp`](#persistence-type-sha256-335e242de1fcc17b6ca920fc420d71bec2d76e53e37955c00948b65ab77f05c5) |
 | `time` | 必需 | `number` |
 | `type` | 必需 | `"user/message"` |
+
+<a id="persistence-type-sha256-85b6fc9e04792b8f3f97a872cb0e83e2c27b0008e81c13f047abcf36d912f7c4"></a>
+
+<a id="persistence-type-eventverificationwrite"></a>
+
+### `{ type: "verification/write" }`
+
+SHA-256: `85b6fc9e04792b8f3f97a872cb0e83e2c27b0008e81c13f047abcf36d912f7c4`
+
+| 属性 | 存在性 | 类型 |
+|---|---|---|
+| `data` | 必需 | [`{ checklists }`](#persistence-type-sha256-283b7c516593e4c53112a8daa2eb86234033f61557e3a7c0305e6970508d6129) |
+| `ignorable` | 可选 | `true` |
+| `seq` | 必需 | `number` |
+| `time` | 必需 | `number` |
+| `type` | 必需 | `"verification/write"` |
 
 <a id="persistence-type-sha256-0c556c9b9f2a96238a6b9bbb99e748206cbff2ed6203041c9571f04ae5802f52"></a>
 

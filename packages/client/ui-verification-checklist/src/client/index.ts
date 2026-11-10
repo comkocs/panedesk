@@ -108,4 +108,3 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   try { await ui } catch (error) { await ui.dispose(); await disposeVerification(); throw error }
   return async () => { await ui.dispose(); await disposeVerification() }
 }
-

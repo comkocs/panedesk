@@ -35,6 +35,35 @@ export interface AcpConfig {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-acp -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-activity-category -->
+<a id="panedeskdsh-activity-category"></a>
+
+## `@panedesk/dsh-activity-category`
+
+- `inject`: `tools` · `llm` · `agents` · `sessions` · `sessionLedger` · `workingDirectory`
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/guard/activity-category/src/index.ts:25`](../packages/guard/activity-category/src/index.ts)
+
+```ts config-catalog
+/** Path-keyed workspace rules, persisted in the active product profile, not project files. */
+export interface Config {
+  /** Ordered command overrides keyed by canonical workspace path. */
+  projects: Volatile<Record<string, ActivityRule[]>>
+}
+
+/** A workspace override; the first matching nonempty literal wins. */
+export interface ActivityRule {
+  /** Nonempty literal substring to match in the command. */
+  contains: string
+  /** Primary activity category assigned to a matching command. */
+  category: ActivityCategory
+}
+
+/** Stable category ids shared by classification, accounting and verification consumers. */
+export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-activity-category -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-agent-default-model -->
 <a id="panedeskdsh-agent-default-model"></a>
 
@@ -848,7 +877,7 @@ export interface Config {
 
 - `inject`: `typert`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/client/ui-subagent-tree/src/index.ts:23`](../packages/client/ui-subagent-tree/src/index.ts)
+- `source`: [`packages/client/ui-subagent-tree/src/index.ts:25`](../packages/client/ui-subagent-tree/src/index.ts)
 
 ```ts config-catalog
 /** Explicit subagent-tree availability and refresh cadence. */
@@ -5569,6 +5598,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-settings-session-log` | — | [`packages/client/ui-settings-session-log/src/index.ts`](../packages/client/ui-settings-session-log/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-shell` | — | [`packages/client/ui-settings-shell/src/index.ts`](../packages/client/ui-settings-shell/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-subagent` | — | [`packages/client/ui-settings-subagent/src/index.ts`](../packages/client/ui-settings-subagent/src/index.ts) |
+| `@panedesk/dsh-client-ui-settings-verification` | — | [`packages/client/ui-settings-verification/src/index.ts`](../packages/client/ui-settings-verification/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-web-search` | — | [`packages/client/ui-settings-web-search/src/index.ts`](../packages/client/ui-settings-web-search/src/index.ts) |
 | `@panedesk/dsh-client-ui-shortcuts` | — | [`packages/client/ui-shortcuts/src/index.ts`](../packages/client/ui-shortcuts/src/index.ts) |
 | `@panedesk/dsh-client-ui-sidebar` | — | [`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts) |
@@ -5583,6 +5613,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-tool` | — | [`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts) |
 | `@panedesk/dsh-client-ui-trajectory` | — | [`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts) |
 | `@panedesk/dsh-client-ui-user-questions` | — | [`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts) |
+| `@panedesk/dsh-client-ui-verification-checklist` | — | [`packages/client/ui-verification-checklist/src/index.ts`](../packages/client/ui-verification-checklist/src/index.ts) |
 | `@panedesk/dsh-client-ui-workflow-run` | — | [`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts) |
 | `@panedesk/dsh-client-ui-workspace` | — | [`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts) |
 | `@panedesk/dsh-command-compact` | `commands` · `compaction` | [`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts) |
@@ -5632,8 +5663,10 @@ export interface Config {
 | `@panedesk/dsh-tool-seat-messages` | — | [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts) |
 | `@panedesk/dsh-tool-session-ops` | `tools` · `sessionController` · `permissionPresets` · `sessionProjections` · `workingDirectory` · `settings` · `agentDefaultModel` · `workspaceRegistry` | [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts) |
 | `@panedesk/dsh-tool-subagent-control` | `tools` · `subagents` | [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts) |
+| `@panedesk/dsh-tool-verification-checklist` | `tools` · `sessionProjections` | [`packages/todo/tool-verification-checklist/src/index.ts`](../packages/todo/tool-verification-checklist/src/index.ts) |
 | `@panedesk/dsh-tool-working-directory` | `tools` · `workingDirectory` | [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts) |
 | `@panedesk/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
+| `@panedesk/dsh-verification-policy` | `typert` · `tools` · `activityCategory` · `storageDomain` · `workspaceRegistry` · `workingDirectory` · `systemPrompt` · `sessionLedger` · `sessions` | [`packages/guard/verification-policy/src/index.ts`](../packages/guard/verification-policy/src/index.ts) |
 | `@panedesk/dsh-webhook` | `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` | [`packages/experimental/webhook/src/index.ts`](../packages/experimental/webhook/src/index.ts) |
 | `@panedesk/dsh-workspace` | `storageDomain` · `sessionPersistence` | [`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts) |
 <!-- END GENERATED config-catalog:no-config -->

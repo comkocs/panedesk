@@ -115,6 +115,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-settings-session-log` | no | General settings control for Session-log upload with DeepSeek API requests |
 | `@panedesk/dsh-client-ui-settings-shell` | no | Settings page of the shell executor on the panedesk web client's Plugins page: the command timeout and the per-stream output cap of the shell namespace |
 | `@panedesk/dsh-client-ui-settings-subagent` | no | Settings page of Subagent delegation on the panedesk web client's Plugins page: recursion depth, parallel capacity, and the models agents may choose for subagents |
+| `@panedesk/dsh-client-ui-settings-verification` | no | Per-workspace verification settings in the Panedesk settings group |
 | `@panedesk/dsh-client-ui-settings-web-search` | no | Settings page of the DeepSeek web-search provider on the panedesk web client's Plugins page: its API key, endpoint, and per-request search budget |
 | `@panedesk/dsh-client-ui-shortcuts` | no | Keyboard shortcut reference, recording, and local preference editing |
 | `@panedesk/dsh-client-ui-sidebar` | no | Sidebar plugin: session multi-level tree, search, grouping, state dots |
@@ -133,6 +134,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-tool` | no | Client Tool call-tree renderer and keyed per-tool presentation slot |
 | `@panedesk/dsh-client-ui-trajectory` | no | Trajectory event ledger with an interactive timing overview: pure-consumer plugin registering into the conversation ViewMap (no service) |
 | `@panedesk/dsh-client-ui-user-questions` | no | Web ask_user_question composer takeover and plan-review presentation UI |
+| `@panedesk/dsh-client-ui-verification-checklist` | no | Right-sidebar verification checklist grouped by requirement |
 | `@panedesk/dsh-client-ui-workflow-run` | no | Durable workflow-run Conversation Node and nested member disclosure for panedesk web |
 | `@panedesk/dsh-client-ui-workspace` | no | Workspace picker plugin: one WorkspacePicker registered into the sidebar and empty-state workspace slots |
 
@@ -281,8 +283,10 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@panedesk/dsh-activity-category` | yes | Display-only task activity classification and durable execution timing |
 | `@panedesk/dsh-repeat-tool-reminder` | yes | Repeat-tool-call guard plugin: advisory reminders when an agent loops on identical tool calls |
 | `@panedesk/dsh-tool-call-timeout-policy` | no | Tool-call timeout policy: a tools/execute wrapper that arms a per-tool deadline on exec.signal and returns TOOL_TIMEOUT when it wins |
+| `@panedesk/dsh-verification-policy` | no | Workspace verification switches enforced before native and programmatic tool execution |
 
 ## host
 
@@ -529,6 +533,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@panedesk/dsh-tool-todo` | yes | Model-facing todo_write tool over the DeepSeek Harness event-sourced session log |
+| `@panedesk/dsh-tool-verification-checklist` | no | Model-facing verification_checklist tool over the session log |
 
 ## typert
 

@@ -884,6 +884,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation.',
   },
   {
+    key: 'activityCategory', pkg: 'activity-category', title: 'Task activity classification and timing', mode: 'service',
+    note: 'Classifies tool executions and model streams and records task activity totals without enforcing verification policy.',
+  },
+  {
+    key: 'verificationPolicy', pkg: 'verification-policy', title: 'Workspace verification policy', mode: 'service',
+    note: 'Uses activity classification and timing to enforce workspace verification switches and task category prohibitions before tool execution.',
+  },
+  {
     key: 'userQuestions',
     pkg: 'user-questions',
     title: 'Human question/answer seam',

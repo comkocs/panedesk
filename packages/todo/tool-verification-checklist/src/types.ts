@@ -40,7 +40,6 @@ declare module '@panedesk/dsh-session/types' {
   interface SessionEventMap {
     /**
      * Whole checklist list for one session; the latest write wins on replay.
-     * @mode replay
      * @param checklists - every requirement's checklist after this submission.
      */
     'verification/write': { checklists: VerificationChecklistSubmission[] }

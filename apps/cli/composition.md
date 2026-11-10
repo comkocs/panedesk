@@ -176,6 +176,8 @@ flowchart LR
   cfg --> plugin_dsh_base_workflow_ptc
   plugin_dsh_base_tool_workflow["tool-workflow<br/>@panedesk/dsh-tool-workflow"]
   cfg --> plugin_dsh_base_tool_workflow
+  plugin_dsh_base_activity_category["activity-category<br/>@panedesk/dsh-activity-category"]
+  cfg --> plugin_dsh_base_activity_category
   plugin_dsh_base_timeout_policy["timeout-policy<br/>@panedesk/dsh-tool-call-timeout-policy"]
   cfg --> plugin_dsh_base_timeout_policy
   plugin_dsh_base_spill_local["spill-local<br/>@panedesk/dsh-spill-local"]
@@ -190,6 +192,8 @@ flowchart LR
   cfg --> plugin_dsh_base_image_offload
   plugin_dsh_base_tool_todo["tool-todo<br/>@panedesk/dsh-tool-todo"]
   cfg --> plugin_dsh_base_tool_todo
+  plugin_dsh_base_tool_verification_checklist["tool-verification-checklist<br/>@panedesk/dsh-tool-verification-checklist"]
+  cfg --> plugin_dsh_base_tool_verification_checklist
   plugin_dsh_base_tool_goal["tool-goal<br/>@panedesk/dsh-tool-goal"]
   cfg --> plugin_dsh_base_tool_goal
   plugin_dsh_base_tool_panedesk_settings["tool-panedesk-settings<br/>@panedesk/dsh-tool-panedesk-settings"]
@@ -308,6 +312,7 @@ flowchart LR
 | `ptc-runtime` | `@panedesk/dsh-ptc-runtime-node` |
 | `workflow-ptc` | `@panedesk/dsh-workflow-ptc` |
 | `tool-workflow` | `@panedesk/dsh-tool-workflow` |
+| `activity-category` | `@panedesk/dsh-activity-category` |
 | `timeout-policy` | `@panedesk/dsh-tool-call-timeout-policy` |
 | `spill-local` | `@panedesk/dsh-spill-local` |
 | `spill-policy` | `@panedesk/dsh-spill-policy` |
@@ -315,6 +320,7 @@ flowchart LR
 | `tool-result-pruner` | `@panedesk/dsh-compaction-tool-result-pruner` |
 | `image-offload` | `@panedesk/dsh-compaction-image-offload` |
 | `tool-todo` | `@panedesk/dsh-tool-todo` |
+| `tool-verification-checklist` | `@panedesk/dsh-tool-verification-checklist` |
 | `tool-goal` | `@panedesk/dsh-tool-goal` |
 | `tool-panedesk-settings` | `@panedesk/dsh-tool-panedesk-settings` |
 | `repeat-tool-reminder` | `@panedesk/dsh-repeat-tool-reminder` |

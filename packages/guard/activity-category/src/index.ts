@@ -22,7 +22,10 @@ export type { ActivityRule, ActivitySession, ActivityClassification } from './cl
 export type * from './types.ts'
 
 /** Path-keyed workspace rules, persisted in the active product profile, not project files. */
-export interface Config { projects: Volatile<Record<string, ActivityRule[]>> }
+export interface Config {
+  /** Ordered command overrides keyed by canonical workspace path. */
+  projects: Volatile<Record<string, ActivityRule[]>>
+}
 
 interface Task {
   id: Branded<'ActivityTaskId'>

@@ -4,7 +4,9 @@ import type { ActivityCategory } from './categories.ts'
 
 /** A workspace override; the first matching nonempty literal wins. */
 export interface ActivityRule {
+  /** Nonempty literal substring to match in the command. */
   contains: string
+  /** Primary activity category assigned to a matching command. */
   category: ActivityCategory
 }
 
