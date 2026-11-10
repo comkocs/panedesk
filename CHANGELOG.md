@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.1
+
+### Fixed
+
+- Panedesk 1.9.0 failed to start because the agent tree and the verification checklist panel mounted the verification remote a second time; they now share the one mounted by Verification settings.
+
 ## 1.9.0
 
 ### Added
