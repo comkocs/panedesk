@@ -2,8 +2,15 @@
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ConfigForm } from '@panedesk/dsh-client-ui-settings/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
+import type { ModelCatalog } from '@panedesk/dsh-api-remotes/client'
 import type { OpeningPreset } from '../types.ts'
 import type {} from './locales.ts'
+
+/** Current Host choices loaded when the preset editor opens. */
+export interface PresetChoices {
+  models: ModelCatalog['groups']
+  permissions: { id: string; label: string }[]
+}
 
 /** Shared configuration and feature-local actions; components receive no services. */
 export interface PresetsInjected {
@@ -13,6 +20,8 @@ export interface PresetsInjected {
   }
   savePresets: (presets: OpeningPreset[], revision: number | undefined) => Promise<boolean>
   namePreset: (prompt: string) => string
+  loadChoices: () => Promise<PresetChoices>
+  inferDirectory: (prompt: string) => Promise<string>
   importPresets: (text: string, table: boolean) => Promise<OpeningPreset[]>
   pickDirectory: () => Promise<string | null>
   droppedPaths: (files: File[]) => string[]
