@@ -372,9 +372,9 @@ export function apply(ctx: Context, config: Config = Config({})): void {
               throw new Error(`ui-conversation: session "${nextId}" resolved no binding`)
             }
             concreteConversation(ctx).rebindDraftFiles(nextId, attachmentIds)
-            if (draft.text !== '') {
-              next.setDraft(draft)
-              from.setDraft('')
+            if (draft.text !== '' || attachmentIds.length > 0) {
+              next.setDraft(attachmentIds.length > 0 ? { ...draft, attachmentIds } : draft)
+              from.setDraft({ text: '', references: [], attachmentIds: [] })
             }
             if (attachmentIds.length > 0) {
               for (const id of attachmentIds) from.removeAttachment(id)

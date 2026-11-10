@@ -1,5 +1,6 @@
 /** Semantic draft snapshots shared by storage, programmatic input, and editor restoration. */
 import { z } from 'zod'
+import type { DraftAttachmentId } from './contract/input.ts'
 import type { DraftInput, DraftReference, DraftSnapshot, Occurrence } from './contract/draft-editor.ts'
 
 const referenceSchema = z.object({
@@ -21,6 +22,7 @@ const snapshotSchema = z.object({
   text: z.string(),
   references: z.array(referenceSchema),
   command: commandSchema.optional(),
+  attachmentIds: z.array(z.string().min(1)).optional(),
 }).refine((draft) => {
   const spelling = draft.command?.token.trimEnd()
   if (spelling !== undefined && (!/^\/\S/u.test(spelling) || !draft.text.startsWith(spelling))) return false
@@ -44,6 +46,7 @@ export function resolveDraftInput(input: DraftInput): DraftSnapshot {
     text: input.text,
     references: input.references.map(copyReference),
     ...(input.command === undefined ? {} : { command: { token: input.command.token } }),
+    ...(input.attachmentIds === undefined ? {} : { attachmentIds: [...input.attachmentIds] }),
   }
 }
 
@@ -64,6 +67,9 @@ export function parseStoredDraft(value: unknown): DraftSnapshot | undefined {
       ...(invalid === undefined ? {} : { invalid }),
     })),
     ...(parsed.data.command === undefined ? {} : { command: { token: parsed.data.command.token } }),
+    ...(parsed.data.attachmentIds === undefined
+      ? {}
+      : { attachmentIds: parsed.data.attachmentIds as DraftAttachmentId[] }),
   }
 }
 
@@ -72,13 +78,20 @@ export function parseStoredDraft(value: unknown): DraftSnapshot | undefined {
  * @param text - current clipboard projection.
  * @param occurrences - matching reference projections from the same document revision.
  * @param commandToken - claim token of the command chip opening the document, if any.
+ * @param attachmentIds - unsent browser-owned attachment ids still on this draft.
  * @returns an editor-independent snapshot.
  */
-export function snapshotDraft(text: string, occurrences: readonly Occurrence[], commandToken?: string): DraftSnapshot {
+export function snapshotDraft(
+  text: string,
+  occurrences: readonly Occurrence[],
+  commandToken?: string,
+  attachmentIds?: readonly DraftAttachmentId[],
+): DraftSnapshot {
   return {
     text,
     references: occurrences.map(copyReference),
     ...(commandToken === undefined ? {} : { command: { token: commandToken } }),
+    ...(attachmentIds === undefined || attachmentIds.length === 0 ? {} : { attachmentIds: [...attachmentIds] }),
   }
 }
 

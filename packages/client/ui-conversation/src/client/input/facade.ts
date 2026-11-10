@@ -97,6 +97,11 @@ function projectionContentChanged(prev: EditorProjection, next: EditorProjection
 
 const EMPTY_QUEUE: InboxState['next-turn'] = []
 
+/** Attachment-id lists are equal when they carry the same ids in the same order. */
+function sameAttachmentIds(left: readonly DraftAttachmentId[], right: readonly DraftAttachmentId[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index])
+}
+
 /** Unavailable catalogs contain no named text references. */
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 
@@ -147,7 +152,11 @@ export class SessionInputShell implements SessionInput {
   private readonly unregister: () => void
   private noticeSeq = 0
   private lastPublishedDraft: DraftSnapshot | undefined
-  private draftSnapshotCache: { revision: number; value: DraftSnapshot } | undefined
+  private draftSnapshotCache: {
+    revision: number
+    attachmentIds: readonly DraftAttachmentId[]
+    value: DraftSnapshot
+  } | undefined
   private attachmentIds: readonly DraftAttachmentId[] = []
   private disposed = false
   /** Conversation store writer for the current semantic document. */
@@ -223,6 +232,10 @@ export class SessionInputShell implements SessionInput {
   setDraft(text: DraftInput): void {
     const draft = resolveDraftInput(text)
     this.cancelCommandRestore()
+    // The editor update publishes the snapshot, so attachment ids land first.
+    if (draft.attachmentIds !== undefined) {
+      this.attachmentIds = [...draft.attachmentIds]
+    }
     if (draft.references.length === 0) this.draftEditor.setDraft(draft.text)
     else this.draftEditor.restoreDraft(draft.text, draft.references)
     if (draft.command === undefined) return
@@ -278,11 +291,14 @@ export class SessionInputShell implements SessionInput {
     this.commandRestore = undefined
   }
 
-  /** Current semantic document, stable until its content revision changes. */
+  /** Current semantic document, stable until its content revision or attachment ids change. */
   get draftSnapshot(): DraftSnapshot {
-    if (this.draftSnapshotCache?.revision === this.rev) return this.draftSnapshotCache.value
-    const value = snapshotDraft(this.projection.clipboardText, this.projection.occurrences, this.projection.command?.token)
-    this.draftSnapshotCache = { revision: this.rev, value }
+    const cached = this.draftSnapshotCache
+    if (cached?.revision === this.rev && sameAttachmentIds(cached.attachmentIds, this.attachmentIds)) return cached.value
+    const value = snapshotDraft(
+      this.projection.clipboardText, this.projection.occurrences, this.projection.command?.token, this.attachmentIds,
+    )
+    this.draftSnapshotCache = { revision: this.rev, attachmentIds: this.attachmentIds, value }
     return value
   }
 
@@ -303,7 +319,7 @@ export class SessionInputShell implements SessionInput {
     if (options.clearPreviousDraft !== true && (this.snapshot.draft !== '' || this.attachmentIds.length > 0)) {
       return 'preserved'
     }
-    this.setDraft(options.prompt ?? '')
+    this.setDraft({ text: options.prompt ?? '', references: [], attachmentIds: [] })
     return 'applied'
   }
 
@@ -608,13 +624,14 @@ export class SessionInputShell implements SessionInput {
   // ---- wiring-layer extras (not on the frozen SessionInput face) ----
 
   /**
-   * Teardown the shell and return every browser-owned attachment still retained by
-   * the draft or an unsettled default send.
+   * Teardown the shell. Unsent draft attachments stay registered for the next
+   * shell of this Session; only ids held by an unsettled default send are
+   * returned for release, because that send can no longer restore them.
    * @returns attachment ids the scope disposer must release.
    */
   dispose(): readonly DraftAttachmentId[] {
     if (this.disposed) return []
-    const retained = new Set(this.attachmentIds)
+    const retained = new Set<DraftAttachmentId>()
     for (const record of this.detachedDrafts.values()) {
       for (const attachmentId of record.attachmentIds) retained.add(attachmentId)
     }

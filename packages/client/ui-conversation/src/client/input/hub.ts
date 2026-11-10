@@ -1,8 +1,9 @@
 /**
  * Session-bound input registry and default-send routing for Conversation.
  * Each retained Session binding owns one shell, its input listeners, and its
- * catalog subscription. Saved drafts enter the model before the first lookup
- * returns; Session-scope disposal releases the shell and its resources.
+ * catalog subscription. Saved drafts, including unsent attachment ids, enter
+ * the model before the first lookup returns; Session-scope disposal releases
+ * the shell and attachments held only by an unsettled send.
  */
 import type {} from '@panedesk/dsh-client-product-analytics/client'
 import type { ModelSelectionProjection } from '@panedesk/dsh-api-session-controller/types'
@@ -167,7 +168,11 @@ export class InputHub implements SessionInputResolver {
         return () => { shell.refreshLexiconSubscription() }
       }, 'conversation.input: reference catalogs')
     })
-    shell.setDraft(readConversationDraft(binding.sessionId))
+    const saved = readConversationDraft(binding.sessionId)
+    if (saved.attachmentIds !== undefined && saved.attachmentIds.length > 0) {
+      shell.addAttachments(saved.attachmentIds)
+    }
+    shell.setDraft(saved)
     return shell
   }
 
