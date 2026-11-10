@@ -25172,7 +25172,7 @@
         "packages/llm/llm/src/brand.ts:67",
         "packages/schedule/schedule/src/types.ts:36",
         "packages/session/message-delivery/src/types.ts:10",
-        "packages/session/session-title/src/index.ts:46",
+        "packages/session/session-title/src/index.ts:47",
         "packages/session/session-title/src/types.ts:29",
         "packages/util/brand/src/index.ts:18",
         "packages/workflow/workflow/src/types.ts:13"

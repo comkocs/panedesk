@@ -3821,7 +3821,7 @@ export enum SessionTelemetryMode {
 
 - `inject`: `sessions` · `sessionProjections`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/session/session-title/src/index.ts:60`](../packages/session/session-title/src/index.ts)
+- `source`: [`packages/session/session-title/src/index.ts:61`](../packages/session/session-title/src/index.ts)
 
 ```ts config-catalog
 /** Required deterministic fallback and accepted-title limits. */

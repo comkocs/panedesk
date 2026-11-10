@@ -192,8 +192,8 @@
   en: 282316510d79354f
   zh: f1d824d7f1b399a9
 /session-persistence-event-catalog/events/session/session-title-log-only:
-  en: bf45bcf89cc0a0ab
-  zh: 68e8d46ce76aec37
+  en: 31bc2df146e95449
+  zh: f4b5d616c5546813
 /session-persistence-event-catalog/events/session/session-title-llm-request-log-only:
   en: 50d9e29d3d2bfe52
   zh: 3ff1d959cf7776b9
@@ -1479,8 +1479,8 @@
   en: 4b5246acd5392c7c
   zh: 9ecdaaa44f379ea9
 /session-persistence-event-catalog/resolved-persistence-types/string:
-  en: 41c3ab24fbf51dae
-  zh: 30b67aaa1d908a5f
+  en: a0ac89d8f4489495
+  zh: 3c70789ab9317582
 /session-persistence-event-catalog/resolved-persistence-types/string~2:
   en: 0089620bf4638263
   zh: 1922bef1713094bb
