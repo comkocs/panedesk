@@ -16223,6 +16223,19 @@
           "packages/client/ui-workspace/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "session-draft-attachments-survive-switch",
+      "description": "Keep unsent pasted images with a session draft across session switches",
+      "origin": "Panedesk composer draft retention",
+      "reason": "Unsent browser attachments are stored with the per-session draft and stay registered when that session's input shell is torn down, so switching sessions or opening a new session and returning shows them again. Sending or removing one releases it; a reload still drops the browser File objects.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-conversation/src/client/contract/draft-editor.ts",
+          "packages/client/ui-conversation/src/client/draft.ts"
+        ]
+      }
     }
   ]
 }

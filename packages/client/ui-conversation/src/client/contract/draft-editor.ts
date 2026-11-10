@@ -1,6 +1,6 @@
 /** Editor-facing ranges, reference projections, and the composer keyboard interface. */
 import type { LexicalEditor } from 'lexical'
-import type { InputState } from './input.ts'
+import type { DraftAttachmentId, InputState } from './input.ts'
 import type { InputSubmitMode } from './composer-submission.ts'
 
 /** Pick-time draft span guarded by the input revision. */
@@ -41,6 +41,11 @@ export interface DraftSnapshot {
   readonly text: string
   readonly references: readonly DraftReference[]
   readonly command?: DraftCommand
+  /**
+   * Unsent browser-owned attachment ids, kept with the text so a Session switch
+   * restores the same rail. Absent on drafts saved before attachment ids were stored.
+   */
+  readonly attachmentIds?: readonly DraftAttachmentId[]
 }
 
 /** Plain initial text or an existing document with explicit reference identities. */
