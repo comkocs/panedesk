@@ -6,7 +6,7 @@
  * has none. The pi-ai profile records that derivation as `apiKeyEnv` only when
  * a key is entered; a blank key materializes a reference-free profile for
  * provider-native authentication);
- * the collapsed 自定义设置 area carries the per-family extras (`baseURL` for
+ * the 自定义设置 area carries the per-family extras (`baseURL` for
  * both families, DeepSeek's id/name/context-window model catalog, and the
  * display name and wire protocol of a pi-ai route the adapter does not ship —
  * the two fields the create card asked that route for, editable here for the
@@ -101,6 +101,11 @@ export interface ProviderEditorProps {
   submitBusyLabelKey?: keyof typeof en
   /** Close the editor; `changed` reports whether an Apply committed. */
   onClose: (changed: boolean) => void
+  /**
+   * Open the customized fold when the card mounts. A row's Edit lands on the
+   * model catalog; the add card leaves the fold closed.
+   */
+  customizedOpen?: boolean
   /** Called on a credential form submission before the save starts. */
   onSubmitCredential?: () => void
   /**
@@ -446,7 +451,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
             {credentialHint === undefined ? null : <p id={`${props.provider}-credential-hint`} className={styles[missingRefs ? 'notice' : detectedRef === undefined ? 'advancedHint' : 'savedNotice']}>{credentialHint}</p>}
             {shownKeyFailure === undefined ? null : <p className={styles['error']}>{t(shownKeyFailure)}</p>}
           </div>}
-        {props.credentialOnly === true ? null : <details className={styles['customized']}>
+        {props.credentialOnly === true ? null : <details className={styles['customized']} {...props.customizedOpen === true ? { open: true } : {}}>
           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
           <div className={styles['customizedBody']}>
             {/* The name and the protocol are the create card's two remaining

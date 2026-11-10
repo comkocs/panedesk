@@ -11,6 +11,12 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* A lone action inside the column (the load-failure retry) sizes to its label.
+   The column itself stays stretched: the provider list and the intro fill it. */
+.section > .secondaryButton {
+  align-self: flex-start;
+}
+
 .title {
   margin: 0;
   font-size: 16px;
@@ -337,20 +343,18 @@
   gap: 12px;
 }
 
-/* The one entry to the add card, spanning the same width as the rows above. */
+/* The one entry to the add card, sized to its label like other settings buttons. */
 .addActions {
   display: flex;
 }
 
 .addButton {
-  /* Overrides the shared button base above: this is not a pill sitting in a
-     footer but the last slot of the provider list, so it fills the row and
-     repeats the row cards' corner. Dashed, like every other "nothing here yet"
+  /* Overrides the shared button base above: the last slot of the provider
+     list, sized to its label. Dashed, like every other "nothing here yet"
      affordance on this page, to read as a place rather than a command. */
-  flex: 1 1 0;
-  min-width: 180px;
+  flex: none;
+  padding: 0 16px;
   gap: 6px;
-  height: 44px;
   border: 1px dashed var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-lg);
 }
@@ -811,10 +815,23 @@ select.input {
 
 .candidateLabel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
   cursor: pointer;
+}
+
+/* The protocol action sits on its own line under the model name, sized to its
+   label; its result matrix then uses the full row. */
+.protocolProbe {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.protocolProbe > .secondaryButton {
+  align-self: flex-start;
+  width: fit-content;
 }
 
 .candidateId {
@@ -840,4 +857,10 @@ select.input {
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* The recognize and try-once actions size to their labels. The column stays
+   stretched because the typed-id field and the discovered list fill it. */
+.recognize > .secondaryButton {
+  align-self: flex-start;
 }

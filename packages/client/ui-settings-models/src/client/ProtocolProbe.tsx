@@ -110,7 +110,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
       if (ok) props.onSaved()
     } finally { setBusy(false) }
   }
-  return <div>
+  return <div className={styles['protocolProbe']}>
     <button type="button" className={styles['secondaryButton']} aria-busy={busy} disabled={props.disabled || busy || model.trim().length === 0} onClick={() => { void probe() }}>
       {t(busy ? 'protocolProbing' : 'protocolProbe')}
     </button>

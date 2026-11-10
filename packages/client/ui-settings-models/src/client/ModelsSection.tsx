@@ -138,6 +138,7 @@ function renderProviderEditor({ target, row, ...props }: ProviderEditorRenderPro
       {...target.nativeAuth === undefined ? {} : { nativeAuth: target.nativeAuth }}
       {...row.credential === undefined ? {} : { credential: row.credential }}
       {...row.credentialChecks === undefined ? {} : { credentialChecks: row.credentialChecks }}
+      customizedOpen
       {...props}
     />
   )
@@ -621,6 +622,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   await controller.load()
                   return undefined
                 }}
+                revision={namespace.revision}
+                onProtocolSaved={() => { announceSaved(target) }}
               />}
               {renderSlot(
                 'settings.models.provider-card',
@@ -771,7 +774,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           : catalogOffered || customOffered
             ? (
               // One entry for both ways to gain a provider; the card behind it
-              // splits them. Full width, so it lines up with the rows above.
+              // splits them.
               <div className={styles['addActions']}>
                 <button
                   type="button"
