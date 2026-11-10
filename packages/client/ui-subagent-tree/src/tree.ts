@@ -52,6 +52,8 @@ export interface SubagentSessionFacts {
 export interface SubagentTranscriptFacts {
   /** Latest own turn activity; absent when no turn event was observed. */
   readonly activity?: 'running' | 'idle' | 'stopped'
+  /** Task activity accounting joined by the Host beside transcript facts. */
+  readonly categoryActivity?: import('@panedesk/dsh-activity-category/types').ActivitySummary | null
   /** Latest observed provider/model display label from the session's own log; `null` stays unknown. */
   readonly model: string | null
   /** Why `model` is absent, when it is. */
@@ -291,6 +293,7 @@ export function assembleSubagentTree(
       runs: fact.runs,
       calls: fact.calls,
       lastToolCall: transcript?.lastToolCall ?? null,
+      activity: transcript?.categoryActivity ?? null,
       seat: fact.seat,
       taskId: fact.taskId,
     })

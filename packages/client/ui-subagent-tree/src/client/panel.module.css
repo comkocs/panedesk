@@ -1,3 +1,5 @@
+.activityDock { position: relative; font-size: 12px; max-width: 420px; }
+.activityDock[open] { padding: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
 .stop { color: var(--dsw-alias-state-error-primary); }
 .status[data-end-reason='completed'] { color: var(--dsw-alias-state-success-primary); }
 .status[data-end-reason='cancelled'], .status[data-end-reason='killed'] { color: var(--dsw-alias-state-warn-primary); }

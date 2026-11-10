@@ -2616,6 +2616,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-activity-category':
+        specifier: workspace:*
+        version: link:../../guard/activity-category
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
@@ -8080,6 +8083,9 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
+      '@panedesk/dsh-activity-category':
+        specifier: workspace:*
+        version: link:../../guard/activity-category
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
@@ -12764,6 +12770,46 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+
+  packages/guard/activity-category:
+    dependencies:
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-settings':
+        specifier: workspace:*
+        version: link:../../settings/settings
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
 
   packages/guard/repeat-tool-reminder:
     dependencies:

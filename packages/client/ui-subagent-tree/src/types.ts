@@ -108,6 +108,8 @@ export interface SubagentTreeNode {
   readonly calls: number
   /** Most recent transcript tool invocation; `null` when none is recorded. */
   readonly lastToolCall: SubagentLastToolCall | null
+  /** Latest task's observed activity; absent on old or external sessions. */
+  readonly activity?: import('@panedesk/dsh-activity-category/types').ActivitySummary | null
   /** Seat identity of the latest attributed row; `null` when no row carries one. */
   readonly seat: string | null
   /** Linked task id of the latest attributed row; `null` when absent. */

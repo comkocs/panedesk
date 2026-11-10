@@ -1,0 +1,32 @@
+{
+  "name": "@panedesk/dsh-activity-category",
+  "description": "Display-only task activity classification and durable execution timing",
+  "version": "1.8.6",
+  "type": "module",
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/guard/activity-category" },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./types": { "types": "./lib/types/types.d.ts" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "lib/types/**/*.d.ts"],
+  "license": "MIT",
+  "peerDependencies": { "@panedesk/cordis": "workspace:~" },
+  "dependencies": { "@panedesk/schemastery": "workspace:~", "@panedesk/dsh-brand": "workspace:*", "@panedesk/dsh-session-ledger": "workspace:*" },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-working-directory": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*",
+    "@panedesk/dsh-settings": "workspace:*"
+  }
+}

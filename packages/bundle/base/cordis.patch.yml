@@ -465,6 +465,9 @@
     - id: tool-workflow
       name: '@panedesk/dsh-tool-workflow'
 
+    - id: activity-category
+      name: '@panedesk/dsh-activity-category'
+
     - id: timeout-policy
       name: '@panedesk/dsh-tool-call-timeout-policy'
 

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Read-only ledger selection, coverage-aware statistics and safe exports over the optional session ledger. The concrete Cordis service never launches a model or reads conversation transcripts.
 
+JSONL round trips retain activity start/end auxiliary rows, including task identities, timing and confirmed created-file paths. These rows do not add model calls or token usage.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

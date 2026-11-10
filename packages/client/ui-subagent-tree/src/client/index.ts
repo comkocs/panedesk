@@ -22,6 +22,8 @@ import { SubagentTreeAction, SubagentTreeTab, type SubagentTreeActions, type Sub
 import { en, zh, type SubagentTreeKey } from './locales.ts'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import { RegistrySettingsRow, type RegistrySettings, type RegistrySettingsFace } from './settings.tsx'
+import { ParentActivity } from './activity.tsx'
+import { ActivitySettingsRow, type ActivitySettings, type ActivitySettingsFace } from './activity-settings.tsx'
 
 /** Stable implementation identity for the tree tab body and pill registration. */
 export const SUBAGENT_TREE_ID = '@panedesk/dsh-client-ui-subagent-tree'
@@ -111,6 +113,14 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     scope.effect(() => scope.locale.register('subagentTree', { en, zh }), 'subagentTree: locale')
     const t = scope.locale.bind('subagentTree')
     scope.inject(['configForms'], settings => {
+      const activityForm = settings.configForms.get<ActivitySettings>('activity-category')
+      settings.effect(() => settings.configForms.whileServed(['activity-category'], () => settings.slots.inject('settings.panedesk.item', () =>
+        settings.slots.register({
+          name: 'settings.panedesk.item', id: 'activity-category-rules', order: 21, locale: 'subagentTree',
+          inject: (): ActivitySettingsFace => ({ hooks: { activityRules: activityForm },
+            saveRules: (path, rows) => activityForm.mutate([{ op: 'set', path: ['projects', path], value: rows.map(row => ({ ...row })) }]),
+          }),
+        }, ActivitySettingsRow))))
       const namespace = 'ui-subagent-tree'
       const form = settings.configForms.get<RegistrySettings>(namespace)
       settings.effect(() => settings.configForms.whileServed([namespace], () => settings.slots.inject('settings.panedesk.item', () =>
@@ -180,6 +190,9 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       locale: 'subagentTree',
       inject: (): SubagentTreeLabels => ({ labelOf, stop }),
     }, SubagentTreeTab))
+    scope.slots.inject('conversation.composer.dock', () => scope.slots.register({
+      name: 'conversation.composer.dock', id: 'activity-category-totals', order: 30, locale: 'subagentTree',
+    }, ParentActivity))
     ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
       name: 'conversation.session.header.actions',
       id: 'subagent-tree',

@@ -23,6 +23,7 @@
   "peerDependencies": { "@panedesk/cordis": "workspace:~" },
   "dependencies": { "@panedesk/dsh-typert-protocol": "workspace:*", "@panedesk/schemastery": "workspace:~", "zod": "^4.4.3" },
   "devDependencies": {
+    "@panedesk/dsh-activity-category": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",

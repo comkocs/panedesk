@@ -3,6 +3,7 @@
   "compilerOptions": { "rootDir": "src", "outDir": "lib/types", "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo" },
   "files": ["src/index.ts", "src/types.ts", "src/tree.ts", "src/transcript.ts", "src/external-registry.ts"],
   "references": [
+    { "path": "../../guard/activity-category" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../typert/protocol" },

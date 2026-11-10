@@ -191,6 +191,7 @@
       "@panedesk/dsh-session/fork": ["./packages/core/session/src/fork.ts"],
       "@panedesk/dsh-session-projection/types": ["./packages/session/session-projection/src/types.ts"],
       "@panedesk/dsh-tool-todo/types": ["./packages/todo/tool-todo/src/types.ts"],
+      "@panedesk/dsh-activity-category/types": ["./packages/guard/activity-category/src/types.ts"],
       "@panedesk/dsh-tool-todo/client": ["./packages/todo/tool-todo/src/client.ts"],
       "@panedesk/dsh-session-title/types": ["./packages/session/session-title/src/types.ts"],
       "@panedesk/dsh-session-title/client": ["./packages/session/session-title/src/client.ts"],
@@ -429,6 +430,7 @@
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@panedesk/dsh-acp": ["./packages/acp/acp/src"],
       "@panedesk/dsh-acp-app": ["./packages/bundle/acp-app/src"],
+      "@panedesk/dsh-activity-category": ["./packages/guard/activity-category/src"],
       "@panedesk/dsh-agent": ["./packages/core/agent/src"],
       "@panedesk/dsh-agent-default-model": ["./packages/core/agent-default-model/src"],
       "@panedesk/dsh-agent-instructions": ["./packages/context/agent-instructions/src"],

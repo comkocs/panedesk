@@ -10,6 +10,7 @@ import type { SubagentTreeData } from './index.ts'
 import type { SubagentTreeKey } from './locales.ts'
 import { isActive, modelColor, type SubagentTreeUI } from './presentation.ts'
 import css from './panel.module.css'
+import { ActivityCell, ActivityTable, treeActivityTotals } from './activity.tsx'
 
 /** Registration-side face for opening the tree tab of one session. */
 export interface SubagentTreeActions {
@@ -118,11 +119,14 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
     <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(message)}</p>
     {stopError && <p role="alert">{t('stopFailed')}</p>}
     {view?.externalRegistryUnreadable && <p role="alert">{t('registryError')}</p>}
+    <p>{t('activityNote')}</p>
+    {view && <details><summary>{t('treeTotals')}</summary><ActivityTable totals={treeActivityTotals(rows.map(row => row.node))} t={t} /></details>}
     {view && <table className={css.table}>
       <caption className={css.caption}>{t('title')}</caption>
       <thead><tr>
         <th scope="col">{t('session')}</th>
         <th scope="col">{t('status')}</th>
+        <th scope="col">{t('activity')}</th>
         <th scope="col">{t('model')}</th>
         <th scope="col">{t('tokens')}</th>
         <th scope="col">{t('cacheHitRate')}</th>
@@ -136,6 +140,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
         <td className={css.status} data-end-reason={node.endReason}>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
+        <td><ActivityCell activity={node.external ? null : node.activity} t={t} /></td>
         <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
           {node.contextTokens === undefined ? t('contextUnknown') : t('context', { value: new Intl.NumberFormat(undefined,
@@ -156,6 +161,8 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
           label: monitored.label, close: () => { setMonitoredId(null) },
         })}
         <MonitoringView node={monitored.node} label={monitored.label} t={t} number={number} time={time} />
+        <h3>{t('activityTotals')}</h3>
+        <ActivityTable totals={monitored.node.external ? undefined : monitored.node.activity?.totals} t={t} />
       </>}
     </Modal>
   </section>

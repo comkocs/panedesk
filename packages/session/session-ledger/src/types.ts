@@ -87,7 +87,7 @@ export type LedgerWatermark = Branded<'LedgerWatermark'>
 /** Runtime-observed terminal classification; upstream detail remains separate. */
 export type LedgerEndReason = 'completed' | 'timeout' | 'killed' | 'error' | 'cancelled'
 /** Fact categories in the append-only journal. */
-export type LedgerEventKind = 'call/start' | 'call/end' | 'run/start' | 'run/end' | 'wait/start' | 'wait/end' | 'cache/break' | 'cache/evidence' | 'retry' | 'compaction' | 'alert' | 'delivery' | 'process/observed' | 'policy/denied'
+export type LedgerEventKind = 'activity/start' | 'activity/end' | 'call/start' | 'call/end' | 'run/start' | 'run/end' | 'wait/start' | 'wait/end' | 'cache/break' | 'cache/evidence' | 'retry' | 'compaction' | 'alert' | 'delivery' | 'process/observed' | 'policy/denied'
 /** Projection categories; event rows do not count as additional billable calls. */
 export type LedgerRowKind = 'call' | 'run' | 'event'
 /** Missing evidence is not zero usage. */
@@ -387,6 +387,8 @@ export interface LedgerLifecycle {
 }
 /** Auxiliary observations retain explicit categories without becoming billable call rows. */
 export type LedgerAuxiliaryFact =
+  | { kind: 'activity/start'; activityId: Branded<'ActivityId'>; taskId: Branded<'ActivityTaskId'>; taskStartedAt: number; ancestorTaskIds: readonly string[]; category: string; selfWrittenScript: boolean; startedAt: number }
+  | { kind: 'activity/end'; activityId: Branded<'ActivityId'>; taskId: Branded<'ActivityTaskId'>; durationMs: number; createdFiles: readonly string[] }
   | { kind: 'wait/start' | 'wait/end'; interval: LedgerInterval }
   | { kind: 'cache/break' | 'cache/evidence'; evidence: LedgerCacheEvidence }
   | { kind: 'retry'; phase: 'scheduled' | 'started' | 'exhausted'; logicalRequestId: LedgerRequestId; attemptIndex: number; httpStatus?: number }

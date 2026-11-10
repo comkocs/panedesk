@@ -112,9 +112,18 @@ function assertEvent(value: unknown): asserts value is LedgerEvent {
   for (const key of ['eventId', 'nodeId', 'runId', 'sessionId', 'kind']) {
     if (typeof event[key] !== 'string' || !event[key]) throw new Error('Missing ledger identity')
   }
-  const kinds = ['call/start', 'call/end', 'run/start', 'run/end', 'wait/start', 'wait/end', 'cache/break', 'cache/evidence', 'retry', 'compaction', 'alert', 'delivery', 'process/observed', 'policy/denied']
+  const kinds = ['activity/start', 'activity/end', 'call/start', 'call/end', 'run/start', 'run/end', 'wait/start', 'wait/end', 'cache/break', 'cache/evidence', 'retry', 'compaction', 'alert', 'delivery', 'process/observed', 'policy/denied']
   if (!kinds.includes(String(event.kind))) throw new Error('Unknown ledger event kind')
-  if (String(event.kind).startsWith('call/') || String(event.kind).startsWith('run/')) {
+  if (event.kind === 'activity/start') {
+    strings(event, ['activityId', 'taskId', 'category'])
+    numbers(event, ['taskStartedAt', 'startedAt'])
+    stringArray(event.ancestorTaskIds)
+    if (typeof event.selfWrittenScript !== 'boolean') throw new Error('Invalid activity script tag')
+  } else if (event.kind === 'activity/end') {
+    strings(event, ['activityId', 'taskId'])
+    numbers(event, ['durationMs'])
+    stringArray(event.createdFiles)
+  } else if (String(event.kind).startsWith('call/') || String(event.kind).startsWith('run/')) {
     const data = record(event.data)
     if (String(event.kind).startsWith('call/') && (typeof data.callId !== 'string' || data.callId !== event.callId)) throw new Error('Mismatched ledger call identity')
     if (String(event.kind).startsWith('run/') && data.runId !== event.runId) throw new Error('Mismatched ledger run identity')

@@ -13,6 +13,8 @@ Open a session's subagent tree from its header into a right-sidebar tab. Nested 
 
 External-registry settings actions use shared outlined buttons.
 
+Native rows show their current category and elapsed `mm:ss`, retaining the last category while idle. Monitoring details retain per-task category counts, cumulative time and shares; the tree offers whole-tree totals, and the composer dock places the parent's table beside context usage. All four views reuse the same tree resource and the activity service's durable ledger facts. The Panedesk features page includes workspace-selected command-contains rules, empty by default, stored under `activity-category.projects` by canonical workspace path. External registry nodes are not classified; tests hidden inside newly written scripts carry the self-written-script tag, and remote CI is visible only as its push or trigger. Script time overlaps its primary category and is not added to the denominator twice.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

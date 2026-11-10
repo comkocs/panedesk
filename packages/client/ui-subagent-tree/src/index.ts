@@ -9,6 +9,7 @@
 import { readFile } from 'node:fs/promises'
 import type { Context, Volatile } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-settings'
+import type {} from '@panedesk/dsh-activity-category'
 import type {} from '@panedesk/dsh-session-ledger'
 import type { SessionQueryEngine } from '@panedesk/dsh-session-query'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -109,7 +110,9 @@ export default class SubagentTreeService extends TypertRemoteService {
     const reader = this.ctx.get('sessionQuery')
     const transcripts = new Map<SessionId, SubagentTranscriptFacts>()
     for (const fact of facts) {
-      transcripts.set(fact.sessionId, await this.readTranscript(fact.sessionId, reader))
+      const transcript = await this.readTranscript(fact.sessionId, reader)
+      const categoryActivity = await this.ctx.get('activityCategory')?.read(fact.sessionId, snapshot) ?? null
+      transcripts.set(fact.sessionId, { ...transcript, categoryActivity })
       if (this.cancelled()) throw new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {})
     }
     const root = assembleSubagentTree(facts, transcripts, request.sessionId)

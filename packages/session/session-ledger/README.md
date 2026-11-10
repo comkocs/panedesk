@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Durable call and lifecycle accounting. The package exposes `SessionLedger`, public types, and the local `JournalSessionLedger` provider. The full service owns model-stream accounting independently of the optional cache plugin.
 
+Activity producers may append `activity/start` and `activity/end` auxiliary facts with task and operation identities, category, script tag, observed timing and confirmed newly created paths. They remain event rows, never billable model calls. The activity service owns classification and task aggregation. Readers predating these event kinds report unknown journal facts as incomplete; current readers retain existing call and run facts unchanged.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

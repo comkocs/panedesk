@@ -103,6 +103,7 @@
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-jobs-local": "workspace:*",
     "@panedesk/dsh-tool-call-timeout-policy": "workspace:*",
+    "@panedesk/dsh-activity-category": "workspace:*",
     "@panedesk/dsh-token-meter": "workspace:*",
     "@panedesk/dsh-tool-bash": "workspace:*",
     "@panedesk/dsh-tool-present": "workspace:*",

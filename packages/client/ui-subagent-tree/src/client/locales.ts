@@ -1,5 +1,16 @@
 /** Typed English and Chinese subagent-tree copy, including unknown and recovery states. */
 export const en = {
+  activity: 'Activity', activityTotals: 'Time by category', treeTotals: 'Whole-tree totals',
+  activityNow: 'Doing: {category} · elapsed {time}', activityLast: 'Last: {category} · {time}',
+  activityCount: 'Count', activityShare: 'Share', activityTime: 'Time',
+  activityNote: 'External registry nodes are not classified. Tests inside newly written scripts are tagged as self-written scripts. Remote CI contents are unknown; only the push or trigger is classified. Script time overlaps its primary category.',
+  'category.write': 'Write code', 'category.read': 'Read and search', 'category.build': 'Build',
+  'category.test-focused': 'Focused tests', 'category.test-full': 'Full tests', 'category.mutation': 'Mutation tests',
+  'category.client': 'Client / end-to-end', 'category.ci': 'Push / CI trigger', 'category.script': 'Self-written script',
+  'category.wait': 'Wait', 'category.model': 'Model', 'category.other': 'Other commands',
+  activityRules: 'Workspace activity rules', activityRulesHint: 'Command contains literal text → category. First match wins. Empty by default.',
+  activityContains: 'Command contains', activityCategory: 'Category', activityAdd: 'Add rule', activityRemove: 'Remove rule',
+  activityWorkspace: 'Workspace', activityChooseWorkspace: 'Choose a workspace',
   title: 'Subagent tree', open: 'Open the subagent tree in the right sidebar',
   description: 'Parent-child tree with per-node usage, monitoring and Stop controls.',
   stop: 'Stop', stopFailed: 'Could not stop the node. Check the connection and node status, then retry.',
@@ -49,6 +60,17 @@ export const en = {
 export type SubagentTreeKey = keyof typeof en
 /** Chinese copy has the same complete key set. */
 export const zh = {
+  activity: '活动', activityTotals: '各类累计用时', treeTotals: '全树合计',
+  activityNow: '正在做:{category} · 已 {time}', activityLast: '上一类:{category} · {time}',
+  activityCount: '次数', activityShare: '占比', activityTime: '累计时长',
+  activityNote: '外部登记节点不归类；包进新写脚本的测试归自写脚本运行；远端 CI 只看得到推送或触发。自写脚本用时与主类重叠，不重复计入总量。',
+  'category.write': '写代码', 'category.read': '读与搜', 'category.build': '编译构建',
+  'category.test-focused': '改动面测试', 'category.test-full': '全量测试', 'category.mutation': '变异测试',
+  'category.client': '启动客户端 / 端到端', 'category.ci': '推送触发 CI', 'category.script': '自写脚本运行',
+  'category.wait': '等待', 'category.model': '模型', 'category.other': '其他命令',
+  activityRules: '工作区活动归类规则', activityRulesHint: '命令含文字 → 归类；首个匹配生效，缺省空表。',
+  activityContains: '命令含文字', activityCategory: '归类', activityAdd: '添加规则', activityRemove: '删除规则',
+  activityWorkspace: '工作区', activityChooseWorkspace: '选择工作区',
   title: '子代理树', open: '在右栏打开子代理树',
   description: '父子会话树，逐节点展示用量、监测与停止操作。',
   stop: '停止', stopFailed: '停止失败，请检查连接与节点状态后重试。',

@@ -116,6 +116,8 @@ function validRow(value: unknown): value is LedgerRow {
     const e = value.event
     if (!object(e) || e.schemaVersion !== 1 || !strings(e, ['eventId', 'nodeId', 'runId', 'sessionId']) || !number(e.observedAt)) return false
     switch (e.kind) {
+      case 'activity/start': return strings(e, ['activityId', 'taskId', 'category']) && number(e.taskStartedAt) && number(e.startedAt) && typeof e.selfWrittenScript === 'boolean' && Array.isArray(e.ancestorTaskIds) && e.ancestorTaskIds.every(id => typeof id === 'string')
+      case 'activity/end': return strings(e, ['activityId', 'taskId']) && number(e.durationMs) && Array.isArray(e.createdFiles) && e.createdFiles.every(path => typeof path === 'string')
       case 'cache/evidence': case 'cache/break': return cache(e.evidence)
       case 'process/observed': return identity(e.identity) && ['confirmed', 'unknown', 'dead'].includes(String(e.liveness))
       case 'alert': return object(e.alert) && strings(e.alert, ['code', 'message']) && typeof e.alert.redacted === 'boolean'

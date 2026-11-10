@@ -1,6 +1,13 @@
 {
   "divergences": [
     {
+      "id": "task-activity-category-timing",
+      "description": "Classify tool and model activity and show task-scoped time by category",
+      "origin": "Panedesk activity visibility",
+      "reason": "Reuse durable ledger facts for display-only task totals, workspace literal rules, native tree monitoring and the parent composer; expose shared classification for verification consumers.",
+      "match": { "type": "behavior", "paths": ["packages/guard/activity-category/**", "packages/session/session-ledger/**", "packages/session/ledger-query/**", "packages/client/ui-subagent-tree/**", "packages/bundle/base/**", "tsconfig.host.json", "tsconfig.base.json", "pnpm-lock.yaml"] }
+    },
+    {
       "id": "new-session-avoids-cold-log-reads",
       "description": "Use live blank candidates and cached titles when opening new sessions",
       "origin": "Panedesk new session responsiveness",
