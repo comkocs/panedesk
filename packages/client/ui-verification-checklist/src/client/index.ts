@@ -4,8 +4,8 @@
  */
 import type { Context as ClientContext } from '@panedesk/cordis'
 import type { ActivityCategory } from '@panedesk/dsh-activity-category/types'
+import type {} from '@panedesk/dsh-verification-policy/remote'
 import type { SessionId } from '@panedesk/dsh-session/types'
-import verificationContribution from '@panedesk/dsh-verification-policy/remote'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
@@ -67,12 +67,11 @@ export function parseVerificationChecklistAddress(value: string): SessionId | un
 export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTabs', 'sidebarRight', 'sessions']
 
 /**
- * Mount the verification Remote, the session-header pill, and the right-sidebar tab.
+ * Register the session-header pill and the right-sidebar tab over the shared verification Remote.
  * @param ctx - Client plugin lifetime and registries.
- * @returns Disposal of the Remote mount and every registry contribution.
+ * @returns Disposal of every registry contribution.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
-  const disposeVerification = await ctx.remote.$mount(verificationContribution)
   const ui = ctx.inject(['remote.verificationPolicy'], scope => {
     scope.effect(() => scope.locale.register('verificationChecklist', { en, zh }), 'verificationChecklist: locale')
     const t = scope.locale.bind('verificationChecklist')
@@ -105,6 +104,6 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }),
     }, VerificationChecklistAction))
   })
-  try { await ui } catch (error) { await ui.dispose(); await disposeVerification(); throw error }
-  return async () => { await ui.dispose(); await disposeVerification() }
+  try { await ui } catch (error) { await ui.dispose(); throw error }
+  return async () => { await ui.dispose() }
 }
