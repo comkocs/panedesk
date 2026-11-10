@@ -577,8 +577,8 @@ export function SessionNodeItem({
   currentId: string | undefined
   /** The row is inside the browser's multi-selection. */
   multiSelected?: boolean
-  /** Toggle this row, or extend the selection through it. */
-  onSelectClick?: ((id: SessionNode['id'], mode: 'toggle' | 'range') => void) | undefined
+  /** Toggle this row, extend the selection through it, or record a plain open as the anchor. */
+  onSelectClick?: ((id: SessionNode['id'], mode: 'toggle' | 'range' | 'anchor') => void) | undefined
   /** Open the bulk menu when this row is part of a multi-selection. */
   onBulkMenu?: ((id: SessionNode['id'], pos: { x: number; y: number }) => void) | undefined
   now: number
@@ -633,11 +633,12 @@ export function SessionNodeItem({
       aria-description={row.archived ? t('toast.archivedNotOpenable') : undefined}
       onClick={(e) => {
         // Modifier clicks edit the multi-selection and never open the Session.
-        // A plain click opens it and the browser clears the selection.
+        // A plain click opens it and records the row as the range anchor.
         if (onSelectClick !== undefined && (e.shiftKey || e.ctrlKey || e.metaKey)) {
           onSelectClick(node.id, e.shiftKey ? 'range' : 'toggle')
           return
         }
+        onSelectClick?.(node.id, 'anchor')
         onOpen(node.id)
       }}
       // A blank placeholder has no menu; right-clicking any other row opens

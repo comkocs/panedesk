@@ -239,7 +239,7 @@ export type WorkspaceBrowserInjected = {
   setDirectoryBusy: (busy: boolean) => void
   /**
    * Create a fresh Session, or preserve a reusable blank with explicit draft options.
-   * Without an explicit Workspace, inherit the current Session Workspace,
+   * Without an explicit Workspace, inherit the open Session's Workspace,
    * then the recent Workspace, or clear into the New Session view.
    */
   startSession: (workspaceId?: WorkspaceId, options?: StartSessionOptions) => void

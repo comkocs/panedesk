@@ -81,7 +81,7 @@ export interface UiWorkspace {
   /**
    * Reuse a blank Session or create one; repeated requests while opening are ignored. A creation the Host
    * refuses is shown through the Workspace notice and leaves the selection as it was.
-   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
+   * @param workspaceId - explicit target; absent inherits the open Session's Workspace or, with none open, the most recent Workspace.
    * @param options - initial content and the reused blank's preset; existing text or attachments
    * are preserved unless clearPreviousDraft is true.
    */
@@ -326,9 +326,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
     const current = this.mainReference?.sessionId
+    // A subagent Session keeps its parent's directory, so its own id is absent
+    // from every Workspace account; walk to the nearest ancestor that is a member.
     const currentWorkspaceId = current === undefined
       ? undefined
-      : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
+      : workspaceOfSession(current, workspace.items, sessions.byId)
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
@@ -547,6 +549,31 @@ function creationFailureMessage(error: unknown): string {
   const refused = sessionCreateErrorOf(error)
   if (refused !== undefined) return `${refused.rpcError.code}: ${refused.rpcError.message}`
   return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * The Workspace that accounts the Session, or the nearest ancestor that one
+ * does. A subagent Session is absent from every Workspace account while its
+ * parent stays a member of the directory both share.
+ * @param sessionId - the open Session.
+ * @param workspaces - current Workspace accounts.
+ * @param sessions - current Session summaries, carrying parent links.
+ * @returns the accounting Workspace, or undefined when no ancestor is a member.
+ */
+function workspaceOfSession(
+  sessionId: SessionId,
+  workspaces: readonly WorkspaceView[],
+  sessions: SessionListState['byId'],
+): WorkspaceId | undefined {
+  const seen = new Set<SessionId>()
+  let current: SessionId | undefined = sessionId
+  while (current !== undefined && !seen.has(current)) {
+    seen.add(current)
+    const owner = workspaces.find(item => item.sessionIds.includes(current as SessionId))
+    if (owner !== undefined) return owner.workspaceId
+    current = sessions[current]?.parentId
+  }
+  return undefined
 }
 
 /** Stable tie-breaking follows Host Workspace order. */
