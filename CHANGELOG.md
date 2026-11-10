@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0
+
+### Added
+
+- Activity categories with live "now doing" time per agent in the agent tree, a per-category time table for each run, the whole tree and the main session, and per-workspace custom command rules.
+- Per-workspace Verification settings (full test runs once per turn by default, mutation tests off, presets Default / Unlimited (count only) / Build only, an optional verification time budget and a wait limit for launching clients) enforced before tool execution, with a "No more tests" switch on running agents in the agent tree.
+- A verification checklist tool and a Verification panel in the right sidebar where unchecking an item blocks that kind of check for the task.
+
 ## 1.8.6
 
 ### Added
