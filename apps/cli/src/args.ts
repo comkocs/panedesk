@@ -75,8 +75,15 @@ interface InitInvocation {
   args: string[]
 }
 
+/** Read recorded project activity without booting a profile. */
+interface TraceInvocation {
+  mode: 'trace'
+  /** Raw arguments parsed by the trace subcommand. */
+  args: string[]
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation | InitInvocation
+export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation | InitInvocation | TraceInvocation
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
@@ -266,9 +273,18 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       })
   }
 
+  if (first === 'trace') {
+    program.command('trace')
+      .description('read project items, timelines, decisions, or JSON/Markdown exports without writing the database')
+      .passThroughOptions()
+      .allowUnknownOption()
+      .argument('[args...]', 'trace subcommand and options (items, timeline, decisions, export; --workspace <path>)')
+      .action((args: string[]) => { resolved = { mode: 'trace', args } })
+  }
+
   try {
     // A leading token containing whitespace is a task for the default profile, not a profile name.
-    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'init'
+    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'init' && first !== 'trace'
       && !/\s/.test(first)
       ? ['--profile', ...argv]
       : argv

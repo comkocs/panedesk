@@ -510,6 +510,7 @@
     { "path": "./packages/guard/activity-category" },
     { "path": "./packages/guard/verification-policy" },
     { "path": "./packages/trace/trace-store" },
+    { "path": "./packages/trace/tool-trace" },
     { "path": "./packages/test-support/agent-loop-testkit" },
     { "path": "./packages/acp/acp" },
     { "path": "./packages/bundle/acp-app" },

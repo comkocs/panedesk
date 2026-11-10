@@ -25,6 +25,17 @@
 
 Web 启动被拒绝时，不挂载任何 profile 插件。其他 profile 保持非零退出行为。
 
+## 只读项目事项记录
+
+`panedesk trace items`、`panedesk trace timeline 1 --cursor 10 --limit 100` 和 `panedesk trace decisions` 输出 JSON。`panedesk trace export 1 --format json|md` 将事项、完整时间线、引用元数据、留言和拍板历史导出到 stdout；Markdown 导出可提交到 git。使用 `panedesk trace --workspace /path/to/project items` 选择其他工作区。命令将当前目录或最近的已登记祖先目录与本地 `<home>/storages/project-traces.json` 映射匹配，其中 `<home>` 遵循 `PANEDESK_HOME`，缺省为 `~/.panedesk`。事项记录必须已开启。命令通过 `node:sqlite` 以只读模式打开 `<home>/projects/<projectId>/trace.sqlite`，读取后关闭，绝不启动 Host 或初始化数据库。本地映射缺失时明确报错；此离线命令不读取自定义后端或 PostgreSQL 中的映射。引用仍为指针，不复制会话或附件正文。
+
+```sh
+panedesk trace items
+panedesk trace timeline 1 --limit 100
+panedesk trace decisions
+panedesk trace --workspace /path/to/project export 1 --format md > trace-item.md
+```
+
 ## 应用参数
 
 启动器只解析自身的 flag，并将其后的所有内容交给已启动的 profile；注入该 profile 的任意应用插件都可以解析这份共享的不可变快照（[`dsh-cmdline`](../../packages/boot/cmdline/README.zh.md)）。启动器无法识别的第一个 token 标志着应用参数的开始：

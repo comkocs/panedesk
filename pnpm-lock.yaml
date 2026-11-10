@@ -4099,6 +4099,9 @@ importers:
       '@panedesk/dsh-tool-todo':
         specifier: workspace:*
         version: link:../../todo/tool-todo
+      '@panedesk/dsh-tool-trace':
+        specifier: workspace:*
+        version: link:../../trace/tool-trace
       '@panedesk/dsh-tool-verification-checklist':
         specifier: workspace:*
         version: link:../../todo/tool-verification-checklist
@@ -18662,6 +18665,24 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+
+  packages/trace/tool-trace:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-trace-store':
+        specifier: workspace:*
+        version: link:../trace-store
 
   packages/trace/trace-store:
     dependencies:

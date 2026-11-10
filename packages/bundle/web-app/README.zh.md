@@ -17,7 +17,7 @@ kind: "package-bundle"
 
 所有随附预设（包含 minimal）继承基础装配的同一个 `panedesk_settings` 实例，让工具页与模型共用一份禁用偏好。Windows 的 shell 条目跟随启动时解析的 Bash 选择，保留显式环境覆盖，只挂载 Bash 或 PowerShell 之一；minimal 同时把选定的 Bash 可执行文件交给持久终端。其他平台保留原有 shell 默认值。Panedesk 设置页共用白话指引和可复制的 AI 请求，特色设置之后提供产品自带功能目录。
 
-Web／桌面共用装配挂载按需开启的 `trace-store` 服务、`verification-policy`、`ui-settings-verification` 与验证清单面板。事项记录和严格拍板缺省关闭；开启记录后才建立项目数据库。工作区开关在原生与嵌套程序化工具调用前裁决，不允许通过 `panedesk_settings` 修改。
+Web／桌面共用装配挂载按需开启的 `trace-store` 服务、六个 `tool-trace` 模型工具、`verification-policy`、`ui-settings-verification` 与验证清单面板。事项工具沿用设置 → 工具开关；已开启记录的会话会收到关联当前会话并记录拍板的提示。事项记录和严格拍板缺省关闭；开启记录后才建立项目数据库。工作区开关在原生与嵌套程序化工具调用前裁决，不允许通过 `panedesk_settings` 修改。
 
 ## 目录
 

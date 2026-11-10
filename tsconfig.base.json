@@ -32,6 +32,7 @@
       "@panedesk/dsh-db-connections/types": ["./packages/database/db-connections/src/types.ts"],
       "@panedesk/dsh-tool-sql": ["./packages/database/tool-sql/src/index.ts"],
       "@panedesk/dsh-storage-postgres/types": ["./packages/storage/storage-postgres/src/types.ts"],
+      "@panedesk/dsh-tool-trace": ["./packages/trace/tool-trace/src/index.ts"],
       "@panedesk/dsh-trace-store": ["./packages/trace/trace-store/src/index.ts"],
       "@panedesk/dsh-trace-store/types": ["./packages/trace/trace-store/src/types.ts"],
       "@panedesk/dsh-verification-policy": ["./packages/guard/verification-policy/src/index.ts"],

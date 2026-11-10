@@ -361,6 +361,9 @@
     - id: trace-store
       name: '@panedesk/dsh-trace-store'
 
+    - id: tool-trace
+      name: '@panedesk/dsh-tool-trace'
+
     - id: verification-policy
       name: '@panedesk/dsh-verification-policy'
 
