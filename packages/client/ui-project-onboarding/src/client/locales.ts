@@ -2,8 +2,9 @@
 import { workflowDefaults } from '../workflow-defaults.ts'
 export const zh = {
   presetsTitle: '开窗词预设', opening: '开窗词', managePresets: '管理预设…', addPreset: '添加预设', editPresets: '添加 / 编辑预设',
-  presetName: '名字（不超过 20 字）', presetPrompt: '开窗词', presetDirectories: '文件夹（每行一个）',
-  dropDirectories: '多选拖入文件夹，或点击添加文件夹', addDirectory: '添加文件夹', presetModel: '模型（提供方/模型，可附档位）',
+  presetName: '名字（不超过 20 字）', presetPrompt: '开窗词', presetDirectories: '文件夹',
+  dropDirectory: '从开窗词推断文件夹，或拖入文件夹', changeDirectory: '修改文件夹', presetModel: '模型',
+  presetEffort: '推理档位', defaultEffort: '默认', noPresets: '还没有开窗词预设。', presetsAdded: '已添加 {count} 条',
   presetPermission: '权限档', followCurrent: '跟随当前', deletePreset: '删除', reorderPresets: '拖动把手或用上移、下移排序；红色缺项补齐后才能保存。',
   dragPreset: '拖动预设', movePresetUp: '上移', movePresetDown: '下移', expandPreset: '展开', collapsePreset: '收起',
   splitPresets: '已按行拆成 {count} 条 ·', undoSplit: '撤销',
@@ -63,8 +64,9 @@ export type ProjectOnboardingKey = keyof typeof zh
 /** English project guidance and settings copy. */
 export const en = {
   presetsTitle: 'Opening presets', opening: 'Opening', managePresets: 'Manage presets…', addPreset: 'Add preset', editPresets: 'Add / edit presets',
-  presetName: 'Name (up to 20 characters)', presetPrompt: 'Opening text', presetDirectories: 'Directories (one per line)',
-  dropDirectories: 'Drop multiple folders or choose Add folder', addDirectory: 'Add folder', presetModel: 'Model (provider/model, optional effort)',
+  presetName: 'Name (up to 20 characters)', presetPrompt: 'Opening text', presetDirectories: 'Folder',
+  dropDirectory: 'Infer from opening text or drop a folder', changeDirectory: 'Change folder', presetModel: 'Model',
+  presetEffort: 'Reasoning effort', defaultEffort: 'Default', noPresets: 'No opening presets yet.', presetsAdded: 'Added {count} presets',
   presetPermission: 'Permission preset', followCurrent: 'Follow current', deletePreset: 'Delete', reorderPresets: 'Drag handles or use Move up / Move down to reorder. Complete fields marked in red before saving.',
   dragPreset: 'Drag preset', movePresetUp: 'Move up', movePresetDown: 'Move down', expandPreset: 'Expand', collapsePreset: 'Collapse',
   splitPresets: 'Split into {count} presets ·', undoSplit: 'Undo',

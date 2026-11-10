@@ -31,7 +31,7 @@ export const inject = ['slots', 'locale', 'remote', 'configForms']
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.projectOpening', 'remote.session', 'remote.settings', 'uiWorkspace', 'workspaces', 'sessions', 'conversation', 'settingsNavigation'], (ctx) => {
+  const ui = ctx.inject(['remote.projectOpening', 'remote.session', 'remote.settings', 'remote.permissionPresets', 'uiWorkspace', 'workspaces', 'sessions', 'conversation', 'settingsNavigation'], (ctx) => {
     ctx.effect(() => ctx.locale.register('projectOnboarding', { en, zh }))
     const mirror = ctx.configForms.describe()
     const presets = ctx.configForms.get<{ openingPresets: OpeningPreset[] }>('ui-project-onboarding')
@@ -44,6 +44,17 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       hooks: { presets, document: mirror },
       savePresets: (value, revision) => presets.mutate([{ op: 'set', path: ['openingPresets'], value: value.map(row => ({ ...row })) }], revision),
       namePreset: prompt => openingPresetName(prompt, naming.getSnapshot().value?.openingName),
+      loadChoices: async () => {
+        const [models, permissions] = await Promise.all([ctx.remote.session.modelCatalog(), ctx.remote.permissionPresets.catalog()])
+        if (!models.ok) throw new Error(models.error.message)
+        if (!permissions.ok) throw new Error(permissions.error.message)
+        return { models: models.value.groups, permissions: permissions.value.options.map(option => ({ id: option.value, label: option.name })) }
+      },
+      inferDirectory: async prompt => {
+        const inferred = await ctx.remote.projectOpening.inferDirectories([prompt])
+        if (!inferred.ok) throw new Error(inferred.error.message)
+        return inferred.value[0]!
+      },
       importPresets: async (text, table) => {
         const rows = importPresets(text, table)
         if (!table) {

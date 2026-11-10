@@ -1,5 +1,10 @@
 .modal { width: min(720px, 100%); }
 .editor { display: grid; gap: 12px; }
+.editor > button { justify-self: start; }
+.folder { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.folderPath { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folderPath[aria-invalid='true'] { color: var(--dsw-alias-state-error-primary); }
+.choice { display: grid; gap: 4px; min-width: 0; }
 .row { position: relative; display: grid; gap: 8px; min-width: 0; margin: 0; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 8px; padding: 12px; }
 .summary { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) repeat(4, auto); align-items: center; gap: 4px; }
 .summaryText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
