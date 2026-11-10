@@ -1,6 +1,9 @@
 /** Bounded task-flow preview over the same retained child and Chat target as its detail view. */
 import { useMemo } from 'react'
-import type { FactoryComponentPropsOf, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
+import type { FactoryComponentPropsOf, PropsLocale, PropsRenderFactories, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
+import { Button } from '@panedesk/dsh-client-ui-primitives'
+import type {} from '@panedesk/dsh-client-ui-subagent-tree/client'
+import type { SubagentCatalogInjected } from './SubagentHeaderLineage.tsx'
 import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
 import type { ToolCallBlock } from '@panedesk/dsh-client-ui-conversation/client'
 import { subagentChatAddress } from './sidebar-chat/index.tsx'
@@ -45,6 +48,24 @@ export function SubagentTaskPreview({ address, label, status, metrics, useResour
       ? <PreviewHeading {...input} />
       : <SessionProvider session={resource.value.reference}>{renderSlot('subagent.task-preview.flow', input)}</SessionProvider>}
   </div>
+}
+
+/**
+ * Show the map's task preview and sidebar navigation for a native tree row.
+ * @param props - Direct parent and child identity, the owning session, and navigation.
+ * @returns The conversation action and its live task preview.
+ */
+export function SubagentTreeDetails({ parentSessionId, childSessionId, label, close, useSessions,
+  openChild, renderFactorySlot, t }: PropsRuntime<'subagent.tree.details'> & PropsRenderFactories
+  & PropsLocale<typeof NS> & Pick<SubagentCatalogInjected, 'openChild'>) {
+  const mode = useSessions(state => state.projectionsBySession[parentSessionId]?.values.subagentCatalog
+    ?.find(entry => entry.id === childSessionId)?.mode ?? 'unknown')
+  if (mode === 'external') return null
+  const address: SubagentAddress = { parentSessionId, childSessionId, mode }
+  return <>
+    <Button variant="ghost" onClick={() => { openChild(address); close() }}>{t('map.open')}</Button>
+    {renderFactorySlot('subagent.task-preview', { address, label, status: '', metrics: '' })}
+  </>
 }
 
 function callSummary(call: ToolCallBlock): string {

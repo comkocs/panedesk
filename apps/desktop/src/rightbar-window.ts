@@ -31,18 +31,23 @@ export class RightbarWindow {
     if (!window.isMaximized() && !window.isFullScreen()) {
       if (this.width === 0) {
         if (this.original !== undefined) {
-          const { x, width } = this.original.bounds
-          window.setBounds({ x, width })
+          window.setBounds(this.original.bounds, false)
           this.original = undefined
         }
       } else {
         const zoom = window.webContents.getZoomFactor()
-        this.original ??= { bounds: window.getBounds(), contentWidth: window.getContentBounds().width / zoom }
+        this.original ??= { bounds: window.getBounds(), contentWidth: window.getContentBounds().width }
         const { bounds, contentWidth } = this.original
         const workArea = screen.getDisplayMatching(bounds).workArea
-        const width = bounds.width + Math.round(this.width * zoom)
-        window.setBounds({ x: Math.min(bounds.x, workArea.x + workArea.width - width), width })
-        mainWidth = contentWidth
+        // Window bounds and workArea are outer-frame DIP; only sidebar CSS pixels need zoom conversion.
+        const width = Math.min(workArea.width, bounds.width + Math.round(this.width * zoom))
+        const rightSpace = Math.max(0, workArea.x + workArea.width - bounds.x - bounds.width)
+        const leftGrowth = Math.max(0, width - bounds.width - rightSpace)
+        const x = Math.max(workArea.x, Math.min(bounds.x - leftGrowth, workArea.x + workArea.width - width))
+        const height = Math.min(bounds.height, workArea.height)
+        const y = Math.max(workArea.y, Math.min(bounds.y, workArea.y + workArea.height - height))
+        window.setBounds({ x, y, width, height }, false)
+        mainWidth = contentWidth / zoom
       }
     }
     window.webContents.send(DESKTOP_IPC.rightbarGeometry, mainWidth)

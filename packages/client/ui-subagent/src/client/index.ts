@@ -14,7 +14,7 @@ import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import type {} from '@panedesk/dsh-client-ui-session/client'
 import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
-import { SubagentTaskFlow, SubagentTaskPreview } from './SubagentTaskPreview.tsx'
+import { SubagentTaskFlow, SubagentTaskPreview, SubagentTreeDetails } from './SubagentTaskPreview.tsx'
 import { AgentMap, type AgentMapInjected } from './AgentMap.tsx'
 import type {} from '@panedesk/dsh-api-job-controller/client'
 import type {} from '@panedesk/dsh-client-ui-subagent-tree/client'
@@ -84,6 +84,15 @@ export function apply(ctx: ClientContext): void {
       void ctx.sessions.refreshProjections(parentSessionId)
     },
   })
+  ctx.slots.inject('subagent.tree.details', () => ctx.slots.register({
+    name: 'subagent.tree.details',
+    locale: NS,
+    inject: (sessionId: SessionId): Pick<SubagentCatalogInjected, 'openChild'> => ({
+      openChild: address => ctx.sidebarRight.openResourceIn(sessionId, subagentChatAddress(address), {
+        kind: 'subagentchat', preferNewPane: true,
+      }),
+    }),
+  }, SubagentTreeDetails))
   ctx.slots.inject(
     'conversation.session.header.lineage',
     () => ctx.slots.register({
