@@ -1,7 +1,7 @@
 /** Project trace records shared by Host consumers and generated remote clients. */
 import type { Branded } from '@panedesk/dsh-brand'
-import type { SessionId } from '@panedesk/dsh-session'
-import type { WorkspaceId } from '@panedesk/dsh-workspace'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 
 /** Stable identity of one home-owned project database. */
 export type ProjectId = Branded<'TraceProjectId'>
