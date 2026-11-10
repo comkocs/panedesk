@@ -351,10 +351,9 @@ function titleSources(
 ): void {
   const references = array(data['messageSeqs'], 'title messageSeqs')
   const titleSource = record(data['source'], 'title source')
-  const emptyTitleCitations = titleSource['kind'] === 'user'
-    || (titleSource['kind'] === 'provider' && titleSource['provider'] === 'panedesk-opening-name')
-  if (event.type === 'session/title' && (references.length === 0) !== emptyTitleCitations) {
-    throw new SessionFormatError('session/title messageSeqs must be empty exactly for a user title or an opening preset title')
+  const openingName = titleSource['kind'] === 'provider' && titleSource['provider'] === 'panedesk-opening-name'
+  if (event.type === 'session/title' && !openingName && (references.length === 0) !== (titleSource['kind'] === 'user')) {
+    throw new SessionFormatError('session/title messageSeqs must be empty exactly for a user title')
   }
   const seen = new Set<number>()
   for (const value of references) {
