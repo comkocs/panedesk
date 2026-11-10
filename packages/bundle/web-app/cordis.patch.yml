@@ -370,6 +370,9 @@
     - id: ui-verification-checklist
       name: '@panedesk/dsh-client-ui-verification-checklist'
 
+    - id: ui-trace
+      name: '@panedesk/dsh-client-ui-trace'
+
     - id: ui-storage
       name: '@panedesk/dsh-client-ui-storage'
 

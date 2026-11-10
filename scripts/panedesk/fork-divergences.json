@@ -16434,5 +16434,22 @@
         ]
       }
     }
+,
+    {
+      "id": "project-trace-panel",
+      "description": "Add the project item panel, decision view, and workspace recording switches",
+      "origin": "Panedesk project activity",
+      "reason": "Show opt-in project items, unassigned activity, and decisions in the right sidebar, and keep the recording switches on the Panedesk features page. Strict mode adds proposal confirmation; the default shows none.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-trace/**",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "tsconfig.base.json",
+          "tsconfig.client.json"
+        ]
+      }
+    }
 ]
 }
