@@ -350,8 +350,11 @@ function titleSources(
   events: readonly SessionFormatEvent[], event: SessionFormatEvent, data: SessionFormatJsonObject, knownEventTypes: ReadonlySet<string>,
 ): void {
   const references = array(data['messageSeqs'], 'title messageSeqs')
-  if (event.type === 'session/title' && (references.length === 0) !== (record(data['source'], 'title source')['kind'] === 'user')) {
-    throw new SessionFormatError('session/title messageSeqs must be empty exactly for a user title')
+  const titleSource = record(data['source'], 'title source')
+  const emptyTitleCitations = titleSource['kind'] === 'user'
+    || (titleSource['kind'] === 'provider' && titleSource['provider'] === 'panedesk-opening-name')
+  if (event.type === 'session/title' && (references.length === 0) !== emptyTitleCitations) {
+    throw new SessionFormatError('session/title messageSeqs must be empty exactly for a user title or an opening preset title')
   }
   const seen = new Set<number>()
   for (const value of references) {

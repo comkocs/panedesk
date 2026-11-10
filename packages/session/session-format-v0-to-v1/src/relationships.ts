@@ -426,8 +426,10 @@ function assertTitleSources(
   const seqs = data['messageSeqs'] as readonly number[]
   if (event.type === 'session/title') {
     const titleSource = releasedV0Record(data['source'], `session/title ${event.seq} source`)
-    if ((seqs.length === 0) !== (titleSource['kind'] === 'user')) {
-      throw new SessionFormatError(`session/title ${event.seq} messageSeqs must be empty exactly for a user title`)
+    const emptyTitleCitations = titleSource['kind'] === 'user'
+      || (titleSource['kind'] === 'provider' && titleSource['provider'] === 'panedesk-opening-name')
+    if ((seqs.length === 0) !== emptyTitleCitations) {
+      throw new SessionFormatError(`session/title ${event.seq} messageSeqs must be empty exactly for a user title or an opening preset title`)
     }
   }
   const selected: Array<{ readonly seq: number; readonly text: string }> = []
