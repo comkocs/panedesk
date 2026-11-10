@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { defineDomain, domainTable } from '@panedesk/dsh-storage-domain'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { VerificationSettings, VerificationPreset } from './types.ts'
+import type {} from '@panedesk/dsh-trace-store'
 
 const settingsSchema = z.object({
   version: z.literal(1).default(1), enabled: z.boolean().default(true),
@@ -34,10 +35,20 @@ export async function openVerificationStorage(ctx: Context) {
   const domain = await ctx.storageDomain.open(spec)
   ctx.effect(() => () => domain.close())
   const table = domain.table('settings')
+  const key = 'verification-policy'
+  ctx.inject(['traceStore'], traceCtx => {
+    traceCtx.effect(() => traceCtx.traceStore.registerSettingSource(key,
+      workspaceId => JSON.stringify(table.get(workspaceId) ?? presets.default)))
+  })
   return {
-    read: (workspaceId: WorkspaceId): VerificationSettings => table.get(workspaceId) ?? presets.default,
+    read: (workspaceId: WorkspaceId): VerificationSettings => {
+      const saved = ctx.get('traceStore')?.readSetting(workspaceId, key)
+      return saved === undefined ? table.get(workspaceId) ?? presets.default : settingsSchema.parse(JSON.parse(saved))
+    },
     save: async (workspaceId: WorkspaceId, settings: VerificationSettings): Promise<void> => {
-      await table.put(workspaceId, settingsSchema.parse(settings))
+      const parsed = settingsSchema.parse(settings)
+      if (await ctx.get('traceStore')?.saveSetting(workspaceId, key, JSON.stringify(parsed))) return
+      await table.put(workspaceId, parsed)
     },
   }
 }

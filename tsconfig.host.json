@@ -509,6 +509,7 @@
     { "path": "./packages/guard/timeout-policy" },
     { "path": "./packages/guard/activity-category" },
     { "path": "./packages/guard/verification-policy" },
+    { "path": "./packages/trace/trace-store" },
     { "path": "./packages/test-support/agent-loop-testkit" },
     { "path": "./packages/acp/acp" },
     { "path": "./packages/bundle/acp-app" },

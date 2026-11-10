@@ -1572,6 +1572,9 @@ importers:
       '@panedesk/dsh-subagent':
         specifier: workspace:*
         version: link:../../subagent/subagent
+      '@panedesk/dsh-trace-store':
+        specifier: workspace:*
+        version: link:../../trace/trace-store
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
@@ -4105,6 +4108,9 @@ importers:
       '@panedesk/dsh-tool-workflow':
         specifier: workspace:*
         version: link:../../workflow/tool-workflow
+      '@panedesk/dsh-trace-store':
+        specifier: workspace:*
+        version: link:../../trace/trace-store
       '@panedesk/dsh-verification-policy':
         specifier: workspace:*
         version: link:../../guard/verification-policy
@@ -13028,6 +13034,9 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+      '@panedesk/dsh-trace-store':
+        specifier: workspace:*
+        version: link:../../trace/trace-store
       '@panedesk/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
@@ -18653,6 +18662,55 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+
+  packages/trace/trace-store:
+    dependencies:
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
+      '@panedesk/dsh-scope':
+        specifier: workspace:*
+        version: link:../../core/scope
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-persistence':
+        specifier: workspace:*
+        version: link:../../session/session-persistence
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@panedesk/dsh-tool-present':
+        specifier: workspace:*
+        version: link:../../deliverables/tool-present
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
+      '@panedesk/dsh-workspace-changes':
+        specifier: workspace:*
+        version: link:../../deliverables/workspace-changes
 
   packages/typert/generator:
     dependencies:

@@ -69,11 +69,15 @@ export type WorkspaceFileDiff =
     hunks: WorkspaceDiffHunk[]
     /** True when the line comparison exceeded the plugin's `diffTimeoutMs` and every line is shown as replaced. */
     coarse: boolean
+    /** Tagged content hash (`git-blob:` or `sha1:`); null denotes an absent or uncaptured side. */
+    beforeHash: string | null
+    /** Tagged content hash (`git-blob:` or `sha1:`); null denotes an absent or uncaptured side. */
+    afterHash: string | null
   }
   /** A side git reported as binary or that holds a NUL byte; no lines are served. */
-  | { kind: 'binary'; path: string; display: string }
+  | { kind: 'binary'; path: string; display: string; beforeHash: string | null; afterHash: string | null }
   /** A side larger than the plugin's `maxFileBytes`; no lines are served. */
-  | { kind: 'oversized'; path: string; display: string }
+  | { kind: 'oversized'; path: string; display: string; beforeHash: string | null; afterHash: string | null }
 
 /** Serves the summaries and file comparisons the recorder keeps for live Sessions. */
 export interface WorkspaceChanges {
@@ -108,6 +112,22 @@ declare module '@panedesk/dsh-session/types' {
 }
 
 declare module '@panedesk/cordis' {
+  interface Events {
+    /**
+     * Allow a consumer to request child-session change capture without changing top-level defaults.
+     * @param session Live child session.
+     * @mode bail
+     */
+    'workspace-changes/include-child'(session: import('@panedesk/dsh-session').Session): boolean | void
+    /**
+     * Publish a ready summary while its temporary comparison sources are still retained.
+     * @param session Owning session.
+     * @param seq Announcing event sequence.
+     * @param summary Completed summary.
+     * @mode parallel
+     */
+    'workspace-changes/recorded'(session: import('@panedesk/dsh-session').Session, seq: number, summary: WorkspaceChangesSummary): Promise<void> | void
+  }
   interface Context {
     /** Per-turn changed-file summaries and comparisons of live Sessions. */
     workspaceChanges: WorkspaceChanges

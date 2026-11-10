@@ -56,9 +56,11 @@ export const Config: z<Config> = z.object({
   diffTimeoutMs: z.number().default(100),
 })
 
-function eligible(session: Session): string | undefined {
+function eligible(ctx: Context, session: Session): string | undefined {
   const { cwd, origin, delegationDepth } = session.header
-  return origin === 'subagent' || (delegationDepth ?? 0) > 0 ? undefined : cwd
+  if ((origin === 'subagent' || (delegationDepth ?? 0) > 0)
+    && ctx.bail('workspace-changes/include-child', session) !== true) return undefined
+  return cwd
 }
 
 /**
@@ -103,11 +105,11 @@ export function apply(ctx: Context, config: Config): void {
   const recorders = new Map<Session, TurnRecorder>()
   const mutations = new WeakMap<object, TurnRecorder>()
   const byId = new Map<SessionId, TurnRecorder>()
-  const forget = (session: Session): Promise<void> => {
+  const forget = async (session: Session): Promise<void> => {
     const recorder = recorders.get(session)
+    await recorder?.dispose()
     recorders.delete(session)
     byId.delete(session.id)
-    return recorder?.dispose() ?? Promise.resolve()
   }
   ctx.effect(() => async () => {
     lifetime.abort()
@@ -136,6 +138,7 @@ export function apply(ctx: Context, config: Config): void {
         git: gitRunner(), tempRoot: tmpdir(), maxFiles: config.maxFiles,
         maxFileBytes: config.maxFileBytes, diffTimeoutMs: config.diffTimeoutMs,
         warn: (message) => { ctx.logger.warn(message) },
+        recorded: (owner, seq, summary) => ctx.parallel('workspace-changes/recorded', owner, seq, summary),
       })
       recorders.set(session, recorder)
       byId.set(session.id, recorder)
@@ -144,7 +147,7 @@ export function apply(ctx: Context, config: Config): void {
   }
   ctx.on('session/event', (session, event) => {
     if (event.type === 'turn/start') {
-      const cwd = eligible(session)
+      const cwd = eligible(ctx, session)
       if (cwd !== undefined) recorderFor(session, cwd).start(event.data.turn)
       return
     }

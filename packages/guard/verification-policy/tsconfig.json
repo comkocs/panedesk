@@ -9,6 +9,7 @@
     { "path": "../../util/timeout" },
     { "path": "../../typert/protocol" },
     { "path": "../../core/agent" },
+    { "path": "../../trace/trace-store" },
     { "path": "../../core/session" },
     { "path": "../../core/tools" },
     { "path": "../../core/system-prompt" },

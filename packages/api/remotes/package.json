@@ -75,6 +75,7 @@
     "@panedesk/dsh-credentials": "workspace:*",
     "@panedesk/dsh-file-reference": "workspace:*",
     "@panedesk/dsh-goal": "workspace:*",
+    "@panedesk/dsh-trace-store": "workspace:*",
     "@panedesk/dsh-host-plugin-inventory": "workspace:*",
     "@panedesk/dsh-host-bash-setup": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",

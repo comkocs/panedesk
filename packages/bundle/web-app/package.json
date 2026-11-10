@@ -59,6 +59,7 @@
     "@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp": "workspace:*",
     "@panedesk/dsh-client-ui-storage": "workspace:*",
     "@panedesk/dsh-verification-policy": "workspace:*",
+    "@panedesk/dsh-trace-store": "workspace:*",
     "@panedesk/dsh-client-ui-settings-verification": "workspace:*",
     "@panedesk/dsh-client-ui-verification-checklist": "workspace:*",
     "@panedesk/dsh-client-ui-database-connections": "workspace:*",

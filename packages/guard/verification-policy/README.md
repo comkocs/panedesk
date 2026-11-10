@@ -13,7 +13,7 @@ The Web/Desktop composition installs `verificationPolicy`. It consumes the activ
 
 ## Use this package
 
-Settings are workspace-keyed records in the `workspace-verification` storage-domain, table `settings`, with `version: 1`. `src/storage.ts` owns all persistence reads and writes so a later database migration replaces one adapter. Nothing is written into the project or exposed through `panedesk_settings`.
+Settings are workspace-keyed records with `version: 1`. Without project recording they remain in the `workspace-verification` storage-domain, table `settings`. Enabling project recording copies the original settings unchanged into the project SQLite `settings` table; failed migration leaves the original adapter active. `src/storage.ts` selects storage without changing admission decisions. Disabling recording selects the original workspace settings again; the project copy is retained for re-enabling. Nothing is written into the project or exposed through `panedesk_settings`.
 
 Default allows one full test run across a root user's turn and all its child runs, denies mutation tests and allows other categories. Unlimited allows all categories without limits. Build only denies full, focused and mutation tests, self-written scripts and CI triggers, and caps client waits at five minutes. Numeric limits are otherwise unlimited. Custom settings support a per-task verification-minute budget or a percentage of all observed task time; builds count as verification and script overlap counts once.
 

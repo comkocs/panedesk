@@ -16417,6 +16417,22 @@
           "apps/desktop/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "project-trace-store",
+      "description": "Add opt-in project items, activity references, and immutable decisions in SQLite",
+      "origin": "Panedesk project activity",
+      "reason": "Keep project recording disabled by default, capture existing Host facts with durable diff references, and migrate enabled-workspace verification settings without changing admission decisions.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/trace-store/**",
+          "packages/guard/verification-policy/src/storage.ts",
+          "packages/deliverables/workspace-changes/src/**",
+          "packages/api/remotes/src/client/index.ts",
+          "packages/bundle/web-app/cordis.patch.yml"
+        ]
+      }
     }
 ]
 }

@@ -358,6 +358,9 @@
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
 
+    - id: trace-store
+      name: '@panedesk/dsh-trace-store'
+
     - id: verification-policy
       name: '@panedesk/dsh-verification-policy'
 

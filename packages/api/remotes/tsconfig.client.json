@@ -13,6 +13,7 @@
   "references": [
     { "path": "../../client/product-analytics/tsconfig.client.json" },
     { "path": "../../llm/llm-cache" },
+    { "path": "../../trace/trace-store" },
     {
       "path": "../../../vendor/cordis"
     },

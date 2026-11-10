@@ -1,7 +1,7 @@
 /** Per-Session turn recorder: snapshots, captures around file-tool edits, the turn-end diff, and the records kept until disposal. */
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import { captureFile, sameCapture, type Capture } from './capture.ts'
 import { compareText } from './compare.ts'
@@ -25,6 +25,8 @@ export interface RecorderEnvironment {
   diffTimeoutMs: number
   /** Failure reporter; a failed turn records nothing and the next turn retries. */
   warn: (message: string) => void
+  /** Await durable consumers before the recorder releases comparison sources. */
+  recorded?: (session: Session, seq: number, summary: WorkspaceChangesSummary) => Promise<void>
 }
 
 /** Canonical paths every comparison and display uses, resolved once per Session. */
@@ -57,7 +59,7 @@ type ContentSource =
  * turn was recorded, or the two sides to read and compare when asked for.
  */
 type FileSources =
-  | { refusal: 'binary' | 'oversized' }
+  | { refusal: 'binary' | 'oversized'; before: ContentSource | Capture; after: ContentSource | Capture }
   | { refusal?: undefined; before: ContentSource; after: ContentSource }
 
 /** A served summary with the content sources of its listed files, index-aligned with `summary.files`. */
@@ -222,13 +224,15 @@ export class TurnRecorder {
     const sources = record?.sources[index]
     if (file === undefined || sources === undefined) return undefined
     const { path, display } = file
-    if (sources.refusal !== undefined) return { kind: sources.refusal, path, display }
     const combined = AbortSignal.any([signal, this.lifetime.signal])
     try {
+      const [beforeHash, afterHash] = await Promise.all([this.contentHash(sources.before, combined), this.contentHash(sources.after, combined)])
+      if (sources.refusal !== undefined) return { kind: sources.refusal, path, display, beforeHash, afterHash }
       const [before, after] = await Promise.all([this.readSide(sources.before, combined), this.readSide(sources.after, combined)])
-      if (before === OVERSIZED || after === OVERSIZED) return { kind: 'oversized', path, display }
+      if (before === OVERSIZED || after === OVERSIZED) return { kind: 'oversized', path, display, beforeHash, afterHash }
       const { hunks, coarse } = compareText(before, after, this.env.diffTimeoutMs)
-      return { kind: 'text', path, display, before: before !== null, after: after !== null, hunks, coarse }
+      return { kind: 'text', path, display, before: before !== null, after: after !== null, hunks, coarse,
+        beforeHash, afterHash }
     } catch (error: unknown) {
       // Disposal removes the temporary directory under a running read; the Session is gone either way.
       if (this.lifetime.signal.aborted) return undefined
@@ -237,13 +241,13 @@ export class TurnRecorder {
   }
 
   /**
-   * Abort queued work, forget every record, and remove the temporary directory.
+   * Drain queued work and durable consumers, then forget records and remove temporary files.
    * @returns once the temporary directory is gone.
    */
   async dispose(): Promise<void> {
+    await this.chain
     this.lifetime.abort()
     this.records.clear()
-    await this.chain
     if (this.scratch !== undefined) await rm(await this.scratch, { recursive: true, force: true })
   }
 
@@ -282,6 +286,18 @@ export class TurnRecorder {
     return this.repository
   }
 
+  private async contentHash(source: ContentSource | Capture, signal: AbortSignal): Promise<string | null> {
+    switch (source.kind) {
+      case 'absent': case 'oversized': return null
+      case 'file': return `sha1:${basename(source.file)}`
+      case 'snapshot': {
+        const { git, workspace } = source.repository
+        const blob = await treeBlob(git, workspace, source.tree, source.path, signal)
+        return blob === null ? null : `git-blob:${blob.oid}`
+      }
+    }
+  }
+
   /** One side's text, null for an absent file, or {@link OVERSIZED} for a snapshot side beyond the byte cap. */
   private async readSide(source: ContentSource, signal: AbortSignal): Promise<string | null | typeof OVERSIZED> {
     switch (source.kind) {
@@ -314,7 +330,8 @@ export class TurnRecorder {
         const absolute = resolve(root, entry.path)
         listed.set(absolute, {
           file: changedFile(paths, root, absolute, entry),
-          sources: entry.binary ? { refusal: 'binary' } : {
+          sources: {
+            ...entry.binary ? { refusal: 'binary' as const } : {},
             before: { kind: 'snapshot', repository, tree: baseline.tree, path: entry.oldPath ?? entry.path },
             after: { kind: 'snapshot', repository, tree: after, path: entry.path },
           },
@@ -363,6 +380,7 @@ export class TurnRecorder {
       sources: kept.map(entry => entry.sources),
     })
     state.recordedAfterSeq = event.seq
+    await this.env.recorded?.(this.session, event.seq, this.records.get(event.seq)!.summary)
   }
 
   /**
@@ -373,9 +391,9 @@ export class TurnRecorder {
   private async compared(paths: Paths, root: string, absolute: string, before: Capture, after: Capture): Promise<Listed> {
     const list = (counts: Counts, sources: FileSources): Listed => ({ file: changedFile(paths, root, absolute, counts), sources })
     if (before.kind === 'oversized' || after.kind === 'oversized') {
-      return list({ added: 0, deleted: 0, binary: false, oversized: true }, { refusal: 'oversized' })
+      return list({ added: 0, deleted: 0, binary: false, oversized: true }, { refusal: 'oversized', before, after })
     }
-    if (isBinary(before) || isBinary(after)) return list({ added: 0, deleted: 0, binary: true }, { refusal: 'binary' })
+    if (isBinary(before) || isBinary(after)) return list({ added: 0, deleted: 0, binary: true }, { refusal: 'binary', before, after })
     const text = async (side: typeof before): Promise<string | null> => side.kind === 'file' ? readFile(side.file, 'utf8') : null
     const { added, deleted } = compareText(await text(before), await text(after), this.env.diffTimeoutMs)
     return list({ added, deleted, binary: false }, { before, after })

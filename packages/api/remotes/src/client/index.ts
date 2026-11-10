@@ -10,6 +10,9 @@ import accountRemote from '@panedesk/dsh-api-account-controller/remote'
 import settingsControllerRemote from '@panedesk/dsh-api-settings-controller/remote'
 import officeToPdfRemote from '@panedesk/dsh-office-to-pdf/remote'
 import goalsRemote from '@panedesk/dsh-goal/remote'
+import traceStoreRemote from '@panedesk/dsh-trace-store/remote'
+export type {} from '@panedesk/dsh-trace-store/remote'
+export type * from '@panedesk/dsh-trace-store/types'
 import scheduleRemote from '@panedesk/dsh-schedule/remote'
 import llmRemote from '@panedesk/dsh-llm/remote'
 import cacheViewRemote from '@panedesk/dsh-llm-cache/remote'
@@ -192,7 +195,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   try {
     for (const contribution of [
       productAnalyticsRemote, agentPresetsRemote, commandsRemote, settingsControllerRemote, accountRemote,
-      goalsRemote, llmRemote, cacheViewRemote, dynamicRemote, scheduleRemote,
+      goalsRemote, traceStoreRemote, llmRemote, cacheViewRemote, dynamicRemote, scheduleRemote,
       pluginInventoryRemote, pluginManagerRemote, pluginMarketRemote, pluginRegistryProbeRemote,
       bashSetupRemote,
       messageFeedbackRemote, sessionFeedbackRemote,

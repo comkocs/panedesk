@@ -1,0 +1,41 @@
+{
+  "name": "@panedesk/dsh-trace-store",
+  "description": "Opt-in per-project SQLite activity, items, and decision history",
+  "version": "1.9.0",
+  "type": "module",
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/trace/trace-store" },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./types": { "types": "./lib/types/types.d.ts" },
+    "./typert": { "types": "./lib/typert.host.d.ts", "default": "./lib/typert.host.js" },
+    "./remote": { "types": "./lib/typert.remote-client.d.ts", "default": "./lib/typert.remote-client.js" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": ["lib/index.js", "lib/types/**/*.d.ts", "lib/typert.host.js", "lib/typert.host.d.ts", "lib/typert.remote-client.js", "lib/typert.remote-client.d.ts", "locale/*.json"],
+  "license": "MIT",
+  "peerDependencies": { "@panedesk/cordis": "workspace:~" },
+  "dependencies": {
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-scope": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-message-delivery": "workspace:*",
+    "@panedesk/dsh-tool-present": "workspace:*",
+    "@panedesk/dsh-workspace-changes": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
+  }
+}
