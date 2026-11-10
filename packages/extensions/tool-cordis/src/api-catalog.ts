@@ -5795,6 +5795,175 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'traceStore',
+    summary: 'Project operations are available to every window after the workspace\'s one-time opt-in.',
+    description: 'Project operations are available to every window after the workspace\'s one-time opt-in.',
+    methods: [
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) status(request: WorkspaceRequest): TraceStatus',
+        description: 'Read workspace switches without opening an unselected project.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }],
+        returns: 'Saved switches, or disabled defaults.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) enable(request: WorkspaceRequest): Promise<TraceStatus>',
+        description: 'Authorize recording once; an existing project identity is reused.',
+        parameters: [{ name: 'request', description: 'Workspace and optional UI window.' }],
+        returns: 'Committed switches.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) disable(request: WorkspaceRequest): Promise<TraceStatus>',
+        description: 'Stop new capture while retaining the database and stable mapping.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }],
+        returns: 'Committed disabled switches.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) associateProject(request: WorkspaceRequest & { projectId: ProjectId }): Promise<TraceStatus>',
+        description: 'Associate another workspace with an already registered project without scanning project directories.',
+        parameters: [{ name: 'request', description: 'Workspace and known project identity.' }],
+        returns: 'Committed mapping; association does not turn recording on.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) setStrict(request: WorkspaceRequest & { strict: boolean; plannerSessionId: SessionId | null }): Promise<TraceStatus>',
+        description: 'Strict mode requires recording and a designated non-subagent planning session.',
+        parameters: [{ name: 'request', description: 'Workspace, strict switch, and planning session; null clears the planner when disabling.' }],
+        returns: 'Committed switches.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) createItem(request: WorkspaceRequest & { title: string }): Promise<TraceItem>',
+        description: 'Create an open item and its creation event atomically.',
+        parameters: [{ name: 'request', description: 'Workspace and title.' }],
+        returns: 'Created item with automatic attribution.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) closeItem(request: ItemRequest): Promise<void>',
+        description: 'Close an item without deleting its history.',
+        parameters: [{ name: 'request', description: 'Workspace and item number.' }],
+        returns: 'Resolution after the status and event commit.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) voidItem(request: ItemRequest): Promise<void>',
+        description: 'Void an item without deleting its history.',
+        parameters: [{ name: 'request', description: 'Workspace and item number.' }],
+        returns: 'Resolution after the status and event commit.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) listItems(request: WorkspaceRequest): TraceItem[]',
+        description: 'List items in creation order.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }],
+        returns: 'Project items including closed and void records.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) timeline(request: TimelineRequest): TimelinePage',
+        description: 'Page a single item\'s timeline, or unassigned activity, by monotonic event number.',
+        parameters: [{ name: 'request', description: 'Workspace, item filter, exclusive cursor (default zero), and page size (default 100).' }],
+        returns: 'Ordered events, references, and continuation cursor.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) assignEvents(request: ItemRequest & { eventIds: number[] }): Promise<void>',
+        description: 'Assign only previously unassigned events; their references follow the event.',
+        parameters: [{ name: 'request', description: 'Workspace, destination item, and exact event numbers.' }],
+        returns: 'Resolution after assignment and audit event commit.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) comment(request: ItemRequest & { body: string }): Promise<void>',
+        description: 'Append an item comment and its timeline fact atomically.',
+        parameters: [{ name: 'request', description: 'Workspace, item, and comment text.' }],
+        returns: 'Resolution after commit.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId, session: request => request.targetSessionId } }) linkSession(request: ItemRequest & { targetSessionId: SessionId }): Promise<void>',
+        description: 'Associate subsequent activity of this session and its descendants with an item.',
+        parameters: [{ name: 'request', description: 'Workspace, item and target session.' }],
+        returns: 'Resolution after association and audit fact commit.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) writeDecision(request: DecisionWriteRequest): Promise<DecisionRevision>',
+        description: 'Write an active decision normally, or a planning-window proposal in strict mode.',
+        parameters: [{ name: 'request', description: 'Workspace, optional decision id, item, title and body.' }],
+        returns: 'Newly appended immutable revision.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) confirmDecision(request: DecisionRevisionRequest): Promise<DecisionRevision>',
+        description: 'Confirm the exact outstanding proposal as a new active revision; only the user may confirm.',
+        parameters: [{ name: 'request', description: 'Workspace, decision and proposed revision.' }],
+        returns: 'New active revision.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) rejectDecision(request: DecisionRevisionRequest): Promise<DecisionRevision>',
+        description: 'Reject the exact outstanding proposal without replacing the active decision.',
+        parameters: [{ name: 'request', description: 'Workspace, decision and proposed revision.' }],
+        returns: 'New rejection revision.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) revertDecision(request: WorkspaceRequest & { decisionId: DecisionId }): Promise<DecisionRevision>',
+        description: 'Restore the previous effective version as a new revision; strict mode makes this a planner proposal.',
+        parameters: [{ name: 'request', description: 'Workspace and decision identity.' }],
+        returns: 'Reversion revision, or a proposed reversion in strict mode.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) listDecisions(request: WorkspaceRequest): DecisionRevision[]',
+        description: 'Return only currently effective decisions, not pending or rejected proposals.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }],
+        returns: 'Current effective revisions.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) decisionHistory(request: WorkspaceRequest & { decisionId?: DecisionId }): DecisionRevision[]',
+        description: 'Read all revisions, including pending proposals and rejected versions.',
+        parameters: [{ name: 'request', description: 'Workspace and optional decision identity; omission returns the entire project\'s history.' }],
+        returns: 'Immutable revisions in decision/revision order.',
+      },
+      {
+        signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent>',
+        description: 'Read a referenced session slice from SessionPersistence, or a durable diff file.',
+        parameters: [{ name: 'request', description: 'Workspace and database-owned reference identity.' }],
+        returns: 'Reference metadata and source JSON text; attachments return their declared path.',
+      },
+      {
+        signature: 'registerSettingSource(key: string, read: SettingSource): () => void',
+        description: 'Register the original settings source for migration on enable and after Host restart.',
+        parameters: [{ name: 'key', description: 'Settings family owned by the caller, never exposed as a remote mutation.' }, { name: 'read', description: 'Read the original workspace value as JSON text.' }],
+        returns: 'Disposer for the registration.',
+      },
+      {
+        signature: 'readSetting(workspaceId: WorkspaceId, key: string): string | undefined',
+        description: 'Synchronous policy reads retain the existing tool-admission timing.',
+        parameters: [{ name: 'workspaceId', description: 'Workspace selection.' }, { name: 'key', description: 'Registered settings family.' }],
+        returns: 'Saved JSON text, or undefined when disabled or migration did not commit.',
+      },
+      {
+        signature: 'saveSetting(workspaceId: WorkspaceId, key: string, value: string): Promise<boolean>',
+        description: 'Replace a migrated setting; unmigrated/disabled workspaces stay on their original adapter.',
+        parameters: [{ name: 'workspaceId', description: 'Workspace selection.' }, { name: 'key', description: 'Registered settings family.' }, { name: 'value', description: 'Validated JSON text from the owning adapter.' }],
+        returns: 'True when committed to SQLite; false asks the adapter to use its original storage.',
+      },
+      {
+        signature: 'async workspaceForSession(id: SessionId): Promise<WorkspaceId | undefined>',
+        description: 'Resolve a session through its own workspace or its durable parent chain, without listing session storage.',
+        parameters: [{ name: 'id', description: 'Session identity.' }],
+        returns: 'Owning workspace when registered.',
+      },
+      {
+        signature: 'recordsSession(session: Session): boolean',
+        description: 'Check capture eligibility synchronously, including a child whose parent owns the workspace.',
+        parameters: [{ name: 'session', description: 'Live session.' }],
+        returns: 'Whether the owning workspace has recording enabled.',
+      },
+      {
+        signature: 'async capture(sessionId: SessionId, fact: { type: string; key: string; payload: string; seqStart?: number; seqEnd?: number; time: number; observedSessionId?: SessionId; model?: string | undefined; actor?: TraceSource[\'actor\'] | undefined }, references: Omit<TraceReference, \'id\' | \'eventId\'>[] = []): Promise<void>',
+        description: 'Commit an observed fact and references through the same single writer used by manual operations.',
+        parameters: [{ name: 'sessionId', description: 'Observed session identity.' }, { name: 'fact', description: 'Deterministic event metadata and optional sequence range.' }, { name: 'references', description: 'Metadata prepared before the transaction; diff files must already be durable.' }],
+        returns: 'Resolution after commit or opt-out; duplicates do not create references.',
+      },
+      {
+        signature: 'async diffDirectory(session: Session): Promise<string | undefined>',
+        description: 'Locate durable diffs for an enabled live session; no other project is opened or scanned.',
+        parameters: [{ name: 'session', description: 'Live session.' }],
+        returns: 'Project diff directory, or undefined when recording is off.',
+      },
+    ],
+  },
+  {
     key: 'translator',
     summary: 'One Host service with explicit routing, cancellation and quiescent unload.',
     description: 'One Host service with explicit routing, cancellation and quiescent unload.',
@@ -7206,6 +7375,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'info', description: 'the run\'s identity snapshot (id + meta).' }],
   },
   {
+    name: 'workspace-changes/include-child',
+    mode: 'bail',
+    signature: '\'workspace-changes/include-child\'(session: import(\'@panedesk/dsh-session\').Session): boolean | void',
+    summary: 'Allow a consumer to request child-session change capture without changing top-level defaults.',
+    description: 'Allow a consumer to request child-session change capture without changing top-level defaults.',
+    parameters: [{ name: 'session', description: 'Live child session.' }],
+  },
+  {
+    name: 'workspace-changes/recorded',
+    mode: 'parallel',
+    signature: '\'workspace-changes/recorded\'(session: import(\'@panedesk/dsh-session\').Session, seq: number, summary: WorkspaceChangesSummary): Promise<void> | void',
+    summary: 'Publish a ready summary while its temporary comparison sources are still retained.',
+    description: 'Publish a ready summary while its temporary comparison sources are still retained.',
+    parameters: [{ name: 'session', description: 'Owning session.' }, { name: 'seq', description: 'Announcing event sequence.' }, { name: 'summary', description: 'Completed summary.' }],
+  },
+  {
     name: 'workspace/session-activity',
     mode: 'waterfall',
     signature: '\'workspace/session-activity\'( request: SessionActivityRequest, next: () => Promise<readonly SessionActivity[]>, ): Promise<readonly SessionActivity[]>',
@@ -8130,6 +8315,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface DatabaseConnection {\n    id: string;\n    name: string;\n    host: string;\n    port: number;\n    user: string;\n    database: string;\n    ssl: boolean;\n    modelEnabled: boolean;\n    ssh: {\n        enabled: boolean;\n        host: string;\n        port: number;\n        user: string;\n        privateKeyPath: string;\n    };\n}',
   },
   {
+    name: 'DecisionId',
+    declaration: 'export type DecisionId = Branded<\'TraceDecisionId\'>;',
+  },
+  {
+    name: 'DecisionRevision',
+    declaration: 'export interface DecisionRevision {\n    id: DecisionId;\n    revision: number;\n    itemId: ItemId | null;\n    title: string;\n    body: string;\n    status: \'active\' | \'proposed\' | \'rejected\' | \'reverted\';\n    source: TraceSource;\n}',
+  },
+  {
+    name: 'DecisionRevisionRequest',
+    declaration: 'export interface DecisionRevisionRequest extends WorkspaceRequest {\n    decisionId: DecisionId;\n    revision: number;\n}',
+  },
+  {
+    name: 'DecisionWriteRequest',
+    declaration: 'export interface DecisionWriteRequest extends WorkspaceRequest {\n    decisionId?: DecisionId;\n    itemId: ItemId | null;\n    title: string;\n    body: string;\n}',
+  },
+  {
     name: 'DeepSeekLlmApiExtensionMap',
     declaration: 'export interface DeepSeekLlmApiExtensionMap {\n}',
   },
@@ -8844,6 +9045,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'InvokeRemoteRequest',
     declaration: 'export interface InvokeRemoteRequest {\n    readonly namespace: string;\n    readonly method: string;\n    readonly args: Readonly<Record<string, unknown>>;\n    readonly uplink?: AsyncIterable<unknown>;\n    readonly uplinkWindow?: RemoteUplinkWindow | undefined;\n    readonly peer: PeerScope;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'ItemId',
+    declaration: 'export type ItemId = number;',
+  },
+  {
+    name: 'ItemRequest',
+    declaration: 'export interface ItemRequest extends WorkspaceRequest {\n    itemId: ItemId;\n}',
   },
   {
     name: 'JobAppendOptions',
@@ -10334,6 +10543,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ProfileReconciliation {\n    warnings: string[];\n    pending: PendingModule[];\n    restartReason?: \'module-comparison\' | \'package-moved\';\n}',
   },
   {
+    name: 'ProjectId',
+    declaration: 'export type ProjectId = Branded<\'TraceProjectId\'>;',
+  },
+  {
     name: 'ProjectionChangeListener',
     declaration: 'export type ProjectionChangeListener = (session: Session, key: Extract<keyof SessionProjectionMap, string>, value: unknown, seq: SessionSeq) => void;',
   },
@@ -10484,6 +10697,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'ReferenceContent',
+    declaration: 'export interface ReferenceContent {\n    reference: TraceReference;\n    text: string;\n}',
+  },
+  {
+    name: 'ReferenceId',
+    declaration: 'export type ReferenceId = Branded<\'TraceReferenceId\'>;',
   },
   {
     name: 'RegisterSeatWaitRequest',
@@ -12854,6 +13075,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TimedUserQuestionResult = AskUserQuestionAnswer | {\n    pending: true;\n    callId: ToolCallId;\n};',
   },
   {
+    name: 'TimelinePage',
+    declaration: 'export interface TimelinePage {\n    events: TraceEvent[];\n    nextCursor: number | null;\n    refs: TraceReference[];\n}',
+  },
+  {
+    name: 'TimelineRequest',
+    declaration: 'export interface TimelineRequest extends WorkspaceRequest {\n    itemId: ItemId | null;\n    cursor?: number;\n    limit?: number;\n}',
+  },
+  {
     name: 'TimeOutOfRangeError',
     declaration: 'export interface TimeOutOfRangeError {\n    readonly code: \'time_out_of_range\';\n    readonly message: string;\n}',
   },
@@ -13028,6 +13257,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ToolUseSummary',
     declaration: 'export interface ToolUseSummary {\n    tool_use_id: string;\n    tool: string;\n    input: Record<string, unknown>;\n}',
+  },
+  {
+    name: 'TraceEvent',
+    declaration: 'export interface TraceEvent {\n    id: number;\n    itemId: ItemId | null;\n    type: string;\n    sessionId: SessionId | null;\n    seqStart: number | null;\n    seqEnd: number | null;\n    source: TraceSource;\n    payload: string;\n    dedupKey: string;\n}',
+  },
+  {
+    name: 'TraceItem',
+    declaration: 'export interface TraceItem {\n    id: ItemId;\n    title: string;\n    status: \'open\' | \'closed\' | \'void\';\n    source: TraceSource;\n}',
+  },
+  {
+    name: 'TraceReference',
+    declaration: 'export type TraceReference = {\n    id: ReferenceId;\n    eventId: number;\n    kind: \'session-slice\' | \'attachment\' | \'change\';\n    sessionId: SessionId | null;\n    seqStart: number | null;\n    seqEnd: number | null;\n    path: string | null;\n    beforeHash: string | null;\n    afterHash: string | null;\n    summary: string;\n    diffFile: string | null;\n};',
+  },
+  {
+    name: 'TraceSource',
+    declaration: 'export interface TraceSource {\n    actor: \'user\' | \'planner\' | \'executor\' | \'subagent\';\n    sessionId: SessionId | null;\n    model: string | null;\n    time: number;\n}',
+  },
+  {
+    name: 'TraceStatus',
+    declaration: 'export interface TraceStatus {\n    projectId: ProjectId | null;\n    enabled: boolean;\n    strict: boolean;\n    plannerSessionId: SessionId | null;\n}',
   },
   {
     name: 'Transcript',
@@ -13575,7 +13824,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileDiff',
-    declaration: 'export type WorkspaceFileDiff = {\n    kind: \'text\';\n    path: string;\n    display: string;\n    before: boolean;\n    after: boolean;\n    hunks: WorkspaceDiffHunk[];\n    coarse: boolean;\n} | {\n    kind: \'binary\';\n    path: string;\n    display: string;\n} | {\n    kind: \'oversized\';\n    path: string;\n    display: string;\n};',
+    declaration: 'export type WorkspaceFileDiff = {\n    kind: \'text\';\n    path: string;\n    display: string;\n    before: boolean;\n    after: boolean;\n    hunks: WorkspaceDiffHunk[];\n    coarse: boolean;\n    beforeHash: string | null;\n    afterHash: string | null;\n} | {\n    kind: \'binary\';\n    path: string;\n    display: string;\n    beforeHash: string | null;\n    afterHash: string | null;\n} | {\n    kind: \'oversized\';\n    path: string;\n    display: string;\n    beforeHash: string | null;\n    afterHash: string | null;\n};',
   },
   {
     name: 'WorkspaceFileRange',
@@ -13628,6 +13877,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceRenameRequest',
     declaration: 'export interface WorkspaceRenameRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'WorkspaceRequest',
+    declaration: 'export interface WorkspaceRequest {\n    workspaceId: WorkspaceId;\n    sessionId?: SessionId;\n}',
   },
   {
     name: 'WorkspaceUnarchiveSessionRequest',

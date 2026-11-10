@@ -263,6 +263,11 @@ flowchart LR
   svc_activityCategory["ctx.activityCategory<br/>Task activity classification and timing"]
   pkg_verification_policy["verification-policy"]
   svc_verificationPolicy["ctx.verificationPolicy<br/>Workspace verification policy"]
+  pkg_trace_store["trace-store"]
+  svc_traceStore["ctx.traceStore<br/>Project trace records and decisions"]
+  pkg_tool_trace["tool-trace"]
+  pkg_api_remotes["api-remotes"]
+  pkg_client_ui_trace["client-ui-trace"]
   pkg_user_questions["user-questions"]
   svc_userQuestions["ctx.userQuestions<br/>Human question/answer seam"]
   pkg_plan_mode["plan-mode"]
@@ -615,6 +620,7 @@ flowchart LR
   pkg_token_meter --> svc_tokenMeter
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
+  pkg_trace_store --> svc_traceStore
   pkg_typert_registry --> svc_typert
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
@@ -835,6 +841,10 @@ flowchart LR
   svc_tools --> pkg_tool_terminal
   svc_tools --> pkg_tool_todo
   svc_tools --> pkg_tool_web
+  svc_traceStore --> pkg_api_remotes
+  svc_traceStore --> pkg_client_ui_trace
+  svc_traceStore --> pkg_tool_trace
+  svc_traceStore --> pkg_verification_policy
   svc_translator --> pkg_experimental_client_ui_cot_translation
   svc_typert --> pkg_api_gateway
   svc_typert --> pkg_typert_loader
@@ -983,6 +993,7 @@ flowchart LR
 | `ctx.tools` | `core` | [`tools`](../packages/core/tools) | - | [`agent-loop`](../packages/core/agent-loop), [`tool-ask-user`](../packages/interaction/tool-ask-user), [`tool-bash`](../packages/shell/tool-bash), [`tool-cordis`](../packages/extensions/tool-cordis), [`tool-fs`](../packages/fs/tool-fs), [`tool-terminal`](../packages/experimental/tool-terminal), [`tool-skill`](../packages/skill/tool-skill), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-todo`](../packages/todo/tool-todo), [`tool-web`](../packages/web/tool-web) | - | Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation. |
 | `ctx.activityCategory` | `service` | [`activity-category`](../packages/guard/activity-category) | - | - | - | Classifies tool executions and model streams and records task activity totals without enforcing verification policy. |
 | `ctx.verificationPolicy` | `service` | [`verification-policy`](../packages/guard/verification-policy) | - | - | - | Uses activity classification and timing to enforce workspace verification switches and task category prohibitions before tool execution. |
+| `ctx.traceStore` | `service` | [`trace-store`](../packages/trace/trace-store) | - | [`tool-trace`](../packages/trace/tool-trace), [`api-remotes`](../packages/api/remotes), [`verification-policy`](../packages/guard/verification-policy), [`client-ui-trace`](../packages/client/ui-trace) | - | Stores opt-in project activity, references, verification settings, and immutable decision revisions in SQLite. |
 | `ctx.userQuestions` | `seam` | [`user-questions`](../packages/interaction/user-questions) | - | [`tool-ask-user`](../packages/interaction/tool-ask-user) | - | UI front ends provide the active human-answer provider; tool-ask-user pauses a tool call on the provider-neutral ask() promise. |
 | `ctx.planMode` | `core` | [`plan-mode`](../packages/plan/plan-mode) | - | - | - | Folds logged plan/mode state, flushes user selections at turn boundaries, renders deployment-owned guidance, registers /plan, and keeps the plan-exit schema stable across transitions. |
 | `ctx.agentPresets` | `core` | [`agent-preset-registry`](../packages/preset/agent-preset-registry) | - | - | - | Eagerly mounts YAML-declared preset revisions, binds Agents and cold readers to scoped contributions, and retains retired revisions until their last user releases them. |

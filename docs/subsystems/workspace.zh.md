@@ -306,6 +306,186 @@ Types: [Agent](core.zh.md) · [RemoteStream](typert.zh.md) · [SessionId](core.z
 
 Source: [`packages/api/terminal-controller/src/index.ts`](../../packages/api/terminal-controller/src/index.ts)
 
+<a id="ctxtracestore--tracestore"></a>
+
+### `ctx.traceStore` — `TraceStore`
+
+Project operations are available to every window after the workspace's one-time opt-in.
+
+```ts cordis-catalog
+/** Read workspace switches without opening an unselected project.
+ * @param request Workspace selection.
+ * @returns Saved switches, or disabled defaults.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) status(request: WorkspaceRequest): TraceStatus
+
+/** Authorize recording once; an existing project identity is reused.
+ * @param request Workspace and optional UI window.
+ * @returns Committed switches.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) enable(request: WorkspaceRequest): Promise<TraceStatus>
+
+/** Stop new capture while retaining the database and stable mapping.
+ * @param request Workspace selection.
+ * @returns Committed disabled switches.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) disable(request: WorkspaceRequest): Promise<TraceStatus>
+
+/** Associate another workspace with an already registered project without scanning project directories.
+ * @param request Workspace and known project identity.
+ * @returns Committed mapping; association does not turn recording on.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) associateProject(request: WorkspaceRequest & { projectId: ProjectId }): Promise<TraceStatus>
+
+/** Strict mode requires recording and a designated non-subagent planning session.
+ * @param request Workspace, strict switch, and planning session; null clears the planner when disabling.
+ * @returns Committed switches.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) setStrict(request: WorkspaceRequest & { strict: boolean; plannerSessionId: SessionId | null }): Promise<TraceStatus>
+
+/** Create an open item and its creation event atomically.
+ * @param request Workspace and title.
+ * @returns Created item with automatic attribution.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) createItem(request: WorkspaceRequest & { title: string }): Promise<TraceItem>
+
+/** Close an item without deleting its history.
+ * @param request Workspace and item number.
+ * @returns Resolution after the status and event commit.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) closeItem(request: ItemRequest): Promise<void>
+
+/** Void an item without deleting its history.
+ * @param request Workspace and item number.
+ * @returns Resolution after the status and event commit.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) voidItem(request: ItemRequest): Promise<void>
+
+/** List items in creation order.
+ * @param request Workspace selection.
+ * @returns Project items including closed and void records.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) listItems(request: WorkspaceRequest): TraceItem[]
+
+/** Page a single item's timeline, or unassigned activity, by monotonic event number.
+ * @param request Workspace, item filter, exclusive cursor (default zero), and page size (default 100).
+ * @returns Ordered events, references, and continuation cursor.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) timeline(request: TimelineRequest): TimelinePage
+
+/** Assign only previously unassigned events; their references follow the event.
+ * @param request Workspace, destination item, and exact event numbers.
+ * @returns Resolution after assignment and audit event commit.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) assignEvents(request: ItemRequest & { eventIds: number[] }): Promise<void>
+
+/** Append an item comment and its timeline fact atomically.
+ * @param request Workspace, item, and comment text.
+ * @returns Resolution after commit.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) comment(request: ItemRequest & { body: string }): Promise<void>
+
+/** Associate subsequent activity of this session and its descendants with an item.
+ * @param request Workspace, item and target session.
+ * @returns Resolution after association and audit fact commit.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId, session: request => request.targetSessionId } }) linkSession(request: ItemRequest & { targetSessionId: SessionId }): Promise<void>
+
+/** Write an active decision normally, or a planning-window proposal in strict mode.
+ * @param request Workspace, optional decision id, item, title and body.
+ * @returns Newly appended immutable revision.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) writeDecision(request: DecisionWriteRequest): Promise<DecisionRevision>
+
+/** Confirm the exact outstanding proposal as a new active revision; only the user may confirm.
+ * @param request Workspace, decision and proposed revision.
+ * @returns New active revision.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) confirmDecision(request: DecisionRevisionRequest): Promise<DecisionRevision>
+
+/** Reject the exact outstanding proposal without replacing the active decision.
+ * @param request Workspace, decision and proposed revision.
+ * @returns New rejection revision.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) rejectDecision(request: DecisionRevisionRequest): Promise<DecisionRevision>
+
+/** Restore the previous effective version as a new revision; strict mode makes this a planner proposal.
+ * @param request Workspace and decision identity.
+ * @returns Reversion revision, or a proposed reversion in strict mode.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) revertDecision(request: WorkspaceRequest & { decisionId: DecisionId }): Promise<DecisionRevision>
+
+/** Return only currently effective decisions, not pending or rejected proposals.
+ * @param request Workspace selection.
+ * @returns Current effective revisions.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) listDecisions(request: WorkspaceRequest): DecisionRevision[]
+
+/** Read all revisions, including pending proposals and rejected versions.
+ * @param request Workspace and optional decision identity; omission returns the entire project's history.
+ * @returns Immutable revisions in decision/revision order.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) decisionHistory(request: WorkspaceRequest & { decisionId?: DecisionId }): DecisionRevision[]
+
+/** Read a referenced session slice from SessionPersistence, or a durable diff file.
+ * @param request Workspace and database-owned reference identity.
+ * @returns Reference metadata and source JSON text; attachments return their declared path.
+ */
+@Remote({ resources: { workspace: request => request.workspaceId } }) async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent>
+
+/** Register the original settings source for migration on enable and after Host restart.
+ * @param key Settings family owned by the caller, never exposed as a remote mutation.
+ * @param read Read the original workspace value as JSON text.
+ * @returns Disposer for the registration.
+ */
+registerSettingSource(key: string, read: SettingSource): () => void
+
+/** Synchronous policy reads retain the existing tool-admission timing.
+ * @param workspaceId Workspace selection.
+ * @param key Registered settings family.
+ * @returns Saved JSON text, or undefined when disabled or migration did not commit.
+ */
+readSetting(workspaceId: WorkspaceId, key: string): string | undefined
+
+/** Replace a migrated setting; unmigrated/disabled workspaces stay on their original adapter.
+ * @param workspaceId Workspace selection.
+ * @param key Registered settings family.
+ * @param value Validated JSON text from the owning adapter.
+ * @returns True when committed to SQLite; false asks the adapter to use its original storage.
+ */
+saveSetting(workspaceId: WorkspaceId, key: string, value: string): Promise<boolean>
+
+/** Resolve a session through its own workspace or its durable parent chain, without listing session storage.
+ * @param id Session identity.
+ * @returns Owning workspace when registered.
+ */
+async workspaceForSession(id: SessionId): Promise<WorkspaceId | undefined>
+
+/** Check capture eligibility synchronously, including a child whose parent owns the workspace.
+ * @param session Live session.
+ * @returns Whether the owning workspace has recording enabled.
+ */
+recordsSession(session: Session): boolean
+
+/** Commit an observed fact and references through the same single writer used by manual operations.
+ * @param sessionId Observed session identity.
+ * @param fact Deterministic event metadata and optional sequence range.
+ * @param references Metadata prepared before the transaction; diff files must already be durable.
+ * @returns Resolution after commit or opt-out; duplicates do not create references.
+ */
+async capture(sessionId: SessionId, fact: { type: string; key: string; payload: string; seqStart?: number; seqEnd?: number; time: number; observedSessionId?: SessionId; model?: string | undefined; actor?: TraceSource['actor'] | undefined }, references: Omit<TraceReference, 'id' | 'eventId'>[] = []): Promise<void>
+
+/** Locate durable diffs for an enabled live session; no other project is opened or scanned.
+ * @param session Live session.
+ * @returns Project diff directory, or undefined when recording is off.
+ */
+async diffDirectory(session: Session): Promise<string | undefined>
+```
+
+Types: [Session](session.zh.md) · [SessionId](core.zh.md)
+
+Source: [`packages/trace/trace-store/src/index.ts`](../../packages/trace/trace-store/src/index.ts)
+
 <a id="ctxworkspacecontroller--workspacecontroller"></a>
 
 ### `ctx.workspaceController` — `WorkspaceController`

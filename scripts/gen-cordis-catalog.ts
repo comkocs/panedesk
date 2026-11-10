@@ -200,6 +200,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   tools: 'tools.md',
   activityCategory: 'tools.md',
   verificationPolicy: 'tools.md',
+  traceStore: 'workspace.md',
   typert: 'typert.md',
   typertGateway: 'typert.md',
   remoteAccess: 'typert.md',
@@ -337,6 +338,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'webserver': 'web-server.md',
   'workflow': 'workflow.md',
   'workspace': 'workspace.md',
+  'workspace-changes': 'deliverables.md',
 }
 
 /**
@@ -1253,6 +1255,22 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  ProjectId: 'project identity is owned by packages/trace/trace-store/src/types.ts',
+  TraceStatus: 'project recording switches are owned by packages/trace/trace-store/src/types.ts',
+  WorkspaceRequest: 'trace workspace selection is owned by packages/trace/trace-store/src/types.ts',
+  TraceSource: 'trace attribution is owned by packages/trace/trace-store/src/types.ts',
+  TraceItem: 'project item records are owned by packages/trace/trace-store/src/types.ts',
+  ItemRequest: 'trace item selection is owned by packages/trace/trace-store/src/types.ts',
+  TimelineRequest: 'timeline selection is owned by packages/trace/trace-store/src/types.ts',
+  TimelinePage: 'timeline pages are owned by packages/trace/trace-store/src/types.ts',
+  TraceReference: 'durable trace references are owned by packages/trace/trace-store/src/types.ts',
+  ReferenceId: 'trace reference identity is owned by packages/trace/trace-store/src/types.ts',
+  ReferenceContent: 'trace reference reads are owned by packages/trace/trace-store/src/types.ts',
+  DecisionId: 'trace decision identity is owned by packages/trace/trace-store/src/types.ts',
+  DecisionRevision: 'immutable decision revisions are owned by packages/trace/trace-store/src/types.ts',
+  DecisionWriteRequest: 'decision writes are owned by packages/trace/trace-store/src/types.ts',
+  DecisionRevisionRequest: 'decision revision selection is owned by packages/trace/trace-store/src/types.ts',
+  SettingSource: 'verification settings migration is owned by packages/trace/trace-store/README.md',
   ActivityClassification: 'command classification is owned by packages/guard/activity-category/README.md',
   ActivitySummary: 'task activity totals are owned by packages/guard/activity-category/README.md',
   VerificationTaskRestrictions: 'task category prohibitions are owned by packages/guard/verification-policy/README.md',

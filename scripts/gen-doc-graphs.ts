@@ -892,6 +892,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Uses activity classification and timing to enforce workspace verification switches and task category prohibitions before tool execution.',
   },
   {
+    key: 'traceStore', pkg: 'trace-store', title: 'Project trace records and decisions', mode: 'service',
+    consumers: ['tool-trace', 'api-remotes', 'verification-policy', 'client-ui-trace'],
+    note: 'Stores opt-in project activity, references, verification settings, and immutable decision revisions in SQLite.',
+  },
+  {
     key: 'userQuestions',
     pkg: 'user-questions',
     title: 'Human question/answer seam',
@@ -1415,7 +1420,7 @@ type CallSiteIndex = Map<ts.SignatureDeclaration | ts.JSDocSignature, ts.CallExp
  * must appear here — the prefilter drops non-members before any branch runs,
  * so a branch for an unlisted name is silently dead.
  */
-const EVENT_API_METHODS = new Set(['on', 'once', 'emit', 'parallel', 'serial', 'waterfall', 'dispatch'])
+const EVENT_API_METHODS = new Set(['on', 'once', 'emit', 'parallel', 'serial', 'waterfall', 'bail', 'dispatch'])
 
 /**
  * Collect event dispatch/listener relations from real cross-file receiver types.
@@ -1573,7 +1578,7 @@ export class EventRelationCollector {
             const eventNames = this.eventNamesFromCall(node, receiverKind)
             if (method === 'on' || method === 'once') {
               for (const event of eventNames) this.ensure(event).listeners.add(source.pkg)
-            } else if (method === 'emit' || method === 'parallel' || method === 'serial' || method === 'waterfall') {
+            } else if (method === 'emit' || method === 'parallel' || method === 'serial' || method === 'waterfall' || method === 'bail') {
               for (const event of eventNames) this.addDispatcher(event, source.pkg, method)
             }
           }

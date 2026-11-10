@@ -5609,6 +5609,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-client-ui-storage` | `postgresStorage` | [`packages/client/ui-storage/src/index.ts`](../packages/client/ui-storage/src/index.ts) |
 | `@panedesk/dsh-client-ui-subagent` | — | [`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts) |
 | `@panedesk/dsh-client-ui-tool` | — | [`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts) |
+| `@panedesk/dsh-client-ui-trace` | — | [`packages/client/ui-trace/src/index.ts`](../packages/client/ui-trace/src/index.ts) |
 | `@panedesk/dsh-client-ui-trajectory` | — | [`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts) |
 | `@panedesk/dsh-client-ui-user-questions` | — | [`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts) |
 | `@panedesk/dsh-client-ui-verification-checklist` | — | [`packages/client/ui-verification-checklist/src/index.ts`](../packages/client/ui-verification-checklist/src/index.ts) |
@@ -5661,8 +5662,10 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-tool-seat-messages` | — | [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts) |
 | `@panedesk/dsh-tool-session-ops` | `tools` · `sessionController` · `permissionPresets` · `sessionProjections` · `workingDirectory` · `settings` · `agentDefaultModel` · `workspaceRegistry` | [`packages/session/tool-session-ops/src/index.ts`](../packages/session/tool-session-ops/src/index.ts) |
 | `@panedesk/dsh-tool-subagent-control` | `tools` · `subagents` | [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts) |
+| `@panedesk/dsh-tool-trace` | `tools` · `agents` · `systemPrompt` · `traceStore` | [`packages/trace/tool-trace/src/index.ts`](../packages/trace/tool-trace/src/index.ts) |
 | `@panedesk/dsh-tool-verification-checklist` | `tools` · `sessionProjections` | [`packages/todo/tool-verification-checklist/src/index.ts`](../packages/todo/tool-verification-checklist/src/index.ts) |
 | `@panedesk/dsh-tool-working-directory` | `tools` · `workingDirectory` | [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts) |
+| `@panedesk/dsh-trace-store` | `typert` · `storageDomain` · `workspaceRegistry` · `sessions` · `agents` · `sessionPersistence` | [`packages/trace/trace-store/src/index.ts`](../packages/trace/trace-store/src/index.ts) |
 | `@panedesk/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
 | `@panedesk/dsh-verification-policy` | `typert` · `tools` · `activityCategory` · `storageDomain` · `workspaceRegistry` · `workingDirectory` · `systemPrompt` · `sessionLedger` · `sessions` | [`packages/guard/verification-policy/src/index.ts`](../packages/guard/verification-policy/src/index.ts) |
 | `@panedesk/dsh-webhook` | `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` | [`packages/experimental/webhook/src/index.ts`](../packages/experimental/webhook/src/index.ts) |

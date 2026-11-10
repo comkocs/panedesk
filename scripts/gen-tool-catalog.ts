@@ -83,6 +83,8 @@ import * as StagehandBrowserTools from '@panedesk/dsh-experimental-browser-use-s
 import type TeamService from '@panedesk/dsh-experimental-agent-team'
 import * as ToolTeam from '@panedesk/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@panedesk/dsh-tool-todo'
+import * as ToolTrace from '@panedesk/dsh-tool-trace'
+import type TraceStore from '@panedesk/dsh-trace-store'
 import * as ToolVerificationChecklist from '@panedesk/dsh-tool-verification-checklist'
 import type PluginManager from '@panedesk/dsh-plugin-manager'
 import * as PluginManagerTools from '@panedesk/dsh-plugin-manager/tools'
@@ -709,6 +711,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-trace',
+    dir: 'tool-trace',
+    source: 'packages/trace/tool-trace/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.systemPrompt', 'ctx.traceStore'],
+    writes: ['tool/call', 'tool/result', 'project trace items, comments, session links, and decision revisions'],
+    async mount(ctx) {
+      // Schema harvest neither executes trace operations nor opens a project database.
+      ctx.provide('traceStore', {} as TraceStore)
+      await ctx.plugin(ToolTrace)
+    },
   },
   {
     pkg: '@panedesk/dsh-tool-verification-checklist',

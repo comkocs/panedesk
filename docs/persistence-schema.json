@@ -28236,7 +28236,7 @@
       "names": [],
       "sources": [
         "packages/core/session/src/types.ts:297",
-        "packages/deliverables/workspace-changes/src/types.ts:106"
+        "packages/deliverables/workspace-changes/src/types.ts:110"
       ]
     },
     {

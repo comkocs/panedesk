@@ -175,4 +175,48 @@ diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Pro
 Types: [SessionId](core.zh.md)
 
 Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
+
+<a id="workspace-changes-events"></a>
+
+### `workspace-changes/*` events
+
+<a id="workspace-changesinclude-child--bail"></a>
+
+#### `workspace-changes/include-child` — bail
+
+Allow a consumer to request child-session change capture without changing top-level defaults.
+
+```ts cordis-catalog
+/**
+ * Allow a consumer to request child-session change capture without changing top-level defaults.
+ * @param session Live child session.
+ * @mode bail
+ */
+'workspace-changes/include-child'(session: import('@panedesk/dsh-session').Session): boolean | void
+```
+
+Types: [Session](session.zh.md)
+
+Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
+
+<a id="workspace-changesrecorded--parallel"></a>
+
+#### `workspace-changes/recorded` — parallel
+
+Publish a ready summary while its temporary comparison sources are still retained.
+
+```ts cordis-catalog
+/**
+ * Publish a ready summary while its temporary comparison sources are still retained.
+ * @param session Owning session.
+ * @param seq Announcing event sequence.
+ * @param summary Completed summary.
+ * @mode parallel
+ */
+'workspace-changes/recorded'(session: import('@panedesk/dsh-session').Session, seq: number, summary: WorkspaceChangesSummary): Promise<void> | void
+```
+
+Types: [Session](session.zh.md)
+
+Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
 <!-- END GENERATED cordis-surface -->

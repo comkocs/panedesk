@@ -132,6 +132,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-subagent-tree` | yes | Owner-authorized read-only subagent parent-child tree with per-node monitoring |
 | `@panedesk/dsh-client-ui-theme` | yes | Theme plugin: Host bootstrap for the pre-plugin palette; DOM-free ThemeRuntime for light/dark/system state; --dsw-* token styles and Appearance settings row |
 | `@panedesk/dsh-client-ui-tool` | no | Client Tool call-tree renderer and keyed per-tool presentation slot |
+| `@panedesk/dsh-client-ui-trace` | no | Project item panel, decision view, and workspace recording switches |
 | `@panedesk/dsh-client-ui-trajectory` | no | Trajectory event ledger with an interactive timing overview: pure-consumer plugin registering into the conversation ViewMap (no service) |
 | `@panedesk/dsh-client-ui-user-questions` | no | Web ask_user_question composer takeover and plan-review presentation UI |
 | `@panedesk/dsh-client-ui-verification-checklist` | no | Right-sidebar verification checklist grouped by requirement |
@@ -534,6 +535,13 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@panedesk/dsh-tool-todo` | yes | Model-facing todo_write tool over the DeepSeek Harness event-sourced session log |
 | `@panedesk/dsh-tool-verification-checklist` | no | Model-facing verification_checklist tool over the session log |
+
+## trace
+
+| Package | Config | Description |
+|---|---|---|
+| `@panedesk/dsh-tool-trace` | no | Model-facing project items, timelines, references, comments, session links, and decisions |
+| `@panedesk/dsh-trace-store` | no | Opt-in per-project SQLite activity, items, and decision history |
 
 ## typert
 
