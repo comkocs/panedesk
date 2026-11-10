@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-plugin-market-generator",
   "description": "Reference generator of plugin market index files from a list of npm packages and Git repositories",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {

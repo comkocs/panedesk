@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-workspace-dependencies",
   "description": "The load_workspace_dependencies tool: absolute paths into a bundled Python, Node.js, and pnpm payload",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },

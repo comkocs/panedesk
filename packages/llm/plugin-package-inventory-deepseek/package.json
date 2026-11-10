@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-plugin-package-inventory-deepseek",
   "description": "Active Loader-backed plugin package inventory for official DeepSeek LLM API requests",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },

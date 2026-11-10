@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tmux-context",
   "description": "Opt-in durable per-step context with this agent's tmux pane and window location",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },

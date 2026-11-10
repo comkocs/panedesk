@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-agent-loop-testkit",
   "description": "Prerequisite mounting, production AgentLoop drivers, and Inbox stubs for tests",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },

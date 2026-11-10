@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-goal",
   "description": "Event-sourced same-session goal state and lifecycle service for the DeepSeek Harness",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },

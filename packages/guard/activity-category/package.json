@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-activity-category",
   "description": "Display-only task activity classification and durable execution timing",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/guard/activity-category" },

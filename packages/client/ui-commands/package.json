@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-commands",
   "description": "Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "publishConfig": {
     "access": "public"
   },
