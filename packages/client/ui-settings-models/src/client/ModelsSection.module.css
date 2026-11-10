@@ -343,20 +343,18 @@
   gap: 12px;
 }
 
-/* The one entry to the add card, spanning the same width as the rows above. */
+/* The one entry to the add card, sized to its label like other settings buttons. */
 .addActions {
   display: flex;
 }
 
 .addButton {
-  /* Overrides the shared button base above: this is not a pill sitting in a
-     footer but the last slot of the provider list, so it fills the row and
-     repeats the row cards' corner. Dashed, like every other "nothing here yet"
+  /* Overrides the shared button base above: the last slot of the provider
+     list, sized to its label. Dashed, like every other "nothing here yet"
      affordance on this page, to read as a place rather than a command. */
-  flex: 1 1 0;
-  min-width: 180px;
+  flex: none;
+  padding: 0 16px;
   gap: 6px;
-  height: 44px;
   border: 1px dashed var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-lg);
 }

@@ -774,7 +774,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           : catalogOffered || customOffered
             ? (
               // One entry for both ways to gain a provider; the card behind it
-              // splits them. Full width, so it lines up with the rows above.
+              // splits them.
               <div className={styles['addActions']}>
                 <button
                   type="button"
