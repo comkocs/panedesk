@@ -1,8 +1,7 @@
 /** Product-owned preset editing and selection without automatic submission. */
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { Button, IconTrashOutlineRegular, Menu, Modal, SettingsPageHeader } from '@panedesk/dsh-client-ui-primitives'
 import type { MenuEntry } from '@panedesk/dsh-client-ui-primitives'
-import type { SessionId } from '@panedesk/dsh-session/types'
 import type { OpeningPreset } from '../types.ts'
 import { presetName } from '../preset-name.ts'
 import { importPresets } from './preset-import.ts'
@@ -11,15 +10,18 @@ import { PresetSelect } from './PresetSelect.tsx'
 import css from './OpeningPresets.module.css'
 
 /** Editable local rows are persisted atomically through the shared product form. */
-function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: PresetChoices; revision: number | undefined }) {
+function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: PresetChoices; revision: number | undefined; currentDirectory: string | undefined }) {
   const { t } = props
   const writable = props.usePresets(form => form.status === 'ready' && form.writable)
   const [rows, setRows] = useState(() => props.initial.map(row => ({ ...row, directories: row.directories.slice(0, 1), id: crypto.randomUUID(), expanded: false })))
   const [added, setAdded] = useState<{ id: string; count: number }>()
   const scrolled = useRef<string | undefined>(undefined)
-  const models = props.choices.models.flatMap(group => group.models.map(model => ({ ...model,
+  const models = props.choices.models.flatMap(group => group.models.map(model => ({ ...model, provider: group.id,
     key: `${group.id}/${model.id}`, label: `${group.name} / ${model.name}` })))
-  const modelOptions = [{ id: '', label: t('followCurrent') }, ...models.map(model => ({ id: model.key, label: model.label }))]
+  const uniqueModels = models.filter((model, index) => models.findIndex(other => other.key === model.key) === index)
+  const modelOptions = [{ id: '', label: t('followCurrent') }, ...uniqueModels.map(model => ({ id: model.key,
+    label: uniqueModels.some(other => other !== model && other.provider === model.provider && other.name === model.name)
+      ? `${model.label} (${model.id})` : model.label }))]
   const [split, setSplit] = useState<{ before: typeof rows; count: number }>()
   const [paste, setPaste] = useState('')
   const [error, setError] = useState('')
@@ -37,13 +39,17 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: Prese
   }
   return <div className={css.editor}>
     <label>{t('importText')}<textarea disabled={busy} value={paste} onChange={event => setPaste(event.target.value)} /></label>
-    <div className={css.actions}>{([false, true] as const).map(table => <Button key={String(table)} variant="outline" disabled={busy}
+    <div className={css.actions}>{([false, true] as const).map(table => <Fragment key={String(table)}><Button variant="outline" disabled={busy}
       onClick={() => void run(async () => {
-        const imported = (await props.importPresets(paste, table)).map(row => ({ ...row, directories: row.directories.slice(0, 1), id: crypto.randomUUID(), expanded: false }))
+        const imported = (await props.importPresets(paste, table)).map(row => ({ ...row,
+          directories: (row.directories.length ? row.directories : !table && props.currentDirectory ? [props.currentDirectory] : []).slice(0, 1),
+          id: crypto.randomUUID(), expanded: false }))
         setRows([...rows, ...imported])
         setAdded(imported.length ? { id: imported[0]!.id, count: imported.length } : undefined)
       })}>
-      {t(table ? 'importTable' : 'batchPaste')}</Button>)}</div>
+      {t(table ? 'importTable' : 'batchPaste')}</Button>
+      {!table && added && <span key={added.id} className={css.saved} role="status" onAnimationEnd={() => setAdded(undefined)}>{t('presetsAdded').replace('{count}', String(added.count))}</span>}
+    </Fragment>)}</div>
     {split && <div className={css.actions} role="status">
       {t('splitPresets').replace('{count}', String(split.count))}
       <Button size="sm" disabled={busy} onClick={() => { setRows(split.before); setSplit(undefined) }}>{t('undoSplit')}</Button>
@@ -95,7 +101,6 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: Prese
         <Button size="sm" aria-expanded={row.expanded} onClick={() => update(index, { expanded: !row.expanded })}>{t(row.expanded ? 'collapsePreset' : 'expandPreset')}</Button>
         <Button size="sm" aria-label={t('deletePreset')} icon={<IconTrashOutlineRegular />} onClick={() => setRows(rows.filter((_, at) => at !== index))} />
       </div>
-      {added?.id === row.id && <span role="status">{t('presetsAdded').replace('{count}', String(added.count))}</span>}
       {row.expanded && <>
         <label>{t('presetPrompt')}<textarea value={row.prompt} aria-invalid={!row.prompt.trim()} onPaste={event => {
           const text = event.clipboardData.getData('text/plain')
@@ -166,16 +171,18 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: Prese
 }
 
 /** Settings and quick access use the same editor initialization, including an empty list. */
-function PresetEditor(props: PresetsProps & { choices: PresetChoices | undefined; close: () => void }) {
+function PresetEditor(props: PresetsProps & Pick<PresetSettingsProps, 'useSessions' | 'useWorkspaces'> & { choices: PresetChoices | undefined; close: () => void; currentDirectory?: string | undefined }) {
   const form = props.usePresets(value => value)
   const presets = form.value?.openingPresets ?? []
+  const sessionId = props.useSessions(value => Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id)
+  const directory = props.useWorkspaces(value => value.items.find(item => sessionId !== undefined && item.sessionIds.includes(sessionId))?.path)
   return <Modal className={css.modal!} open={props.choices !== undefined} title={props.t('presetsTitle')} closeLabel={props.t('close')} onClose={props.close} closeOnMaskClick={false}>
-    {props.choices && <Editor {...props} choices={props.choices} initial={presets} revision={form.revision} />}
+    {props.choices && <Editor {...props} choices={props.choices} initial={presets} revision={form.revision} currentDirectory={props.currentDirectory ?? directory} />}
   </Modal>
 }
 
 /** Shared settings and quick-panel management controls. */
-function Management(props: PresetsProps) {
+function Management(props: PresetSettingsProps) {
   const [choices, setChoices] = useState<PresetChoices>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -211,7 +218,7 @@ export function OpeningPresetSettings(props: PresetSettingsProps) {
 }
 
 /** Selector rows prioritize the current directory; other presets are grouped by directory. */
-function Picker(props: PresetsProps & { currentDirectory: string | undefined; sessionId: SessionId | undefined; quick?: boolean }) {
+function Picker(props: PresetPickerProps & { quick?: boolean }) {
   const presets = props.usePresets(state => state.value?.openingPresets ?? [])
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
