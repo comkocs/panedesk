@@ -222,7 +222,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const sessions = this.sessions.list.getSnapshot()
     const blank = sessions.ids.find((id) => {
       const summary = sessions.byId[id]
-      return summary !== undefined && summary.blank && summary.cwd === workspace.path
+      return summary !== undefined && summary.agentAvailable && summary.blank && summary.cwd === workspace.path
         && workspace.sessionIds.includes(id) && !archived.includes(id)
     })
     return this.createNamed({

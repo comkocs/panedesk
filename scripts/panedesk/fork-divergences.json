@@ -1,6 +1,31 @@
 {
   "divergences": [
     {
+      "id": "new-session-avoids-cold-log-reads",
+      "description": "Use live blank candidates and cached titles when opening new sessions",
+      "origin": "Panedesk new session responsiveness",
+      "reason": "Skip cold blank candidates during ordinary Workspace creation and allocate opening titles from existing live projections and stored checkpoints instead of replaying old logs. Saved-session restoration retains its history reads; missing or stale title checkpoints can miss a name collision.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-workspace/src/client/navigation.ts",
+          "packages/client/ui-workspace/README.md",
+          "packages/client/ui-workspace/README.zh.md",
+          "packages/api/session-controller/src/client/sessions/lineage.ts",
+          "packages/api/session-controller/src/client/sessions/manager.ts",
+          "packages/api/session-controller/src/client/sessions/service.ts",
+          "packages/api/session-controller/README.md",
+          "packages/api/session-controller/README.zh.md",
+          "packages/session/session-title/src/index.ts",
+          "packages/session/session-title/package.json",
+          "packages/session/session-title/tsconfig.json",
+          "packages/session/session-title/README.md",
+          "packages/session/session-title/README.zh.md",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "subagent-sidebar-preserves-main-width",
       "description": "Open catalog and agent-map conversations in the right Sidebar without narrowing the main Session",
       "origin": "Panedesk subagent navigation",
