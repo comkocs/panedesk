@@ -4,6 +4,7 @@ import type { ActivityCategory, ActivityTotal } from '@panedesk/dsh-activity-cat
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { VerificationSettings } from '@panedesk/dsh-verification-policy/types'
+import type {} from '@panedesk/dsh-client-ui-settings-verification/client'
 import type { VerificationChecklistCategory, VerificationChecklistSubmission } from '@panedesk/dsh-tool-verification-checklist/client'
 import { activityTime } from './activity.tsx'
 import css from './panel.module.css'

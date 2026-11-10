@@ -39,6 +39,7 @@
     "@panedesk/dsh-client-ui-renderer": "workspace:*",
     "@panedesk/dsh-client-ui-sidebar-right": "workspace:*",
     "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-settings-verification": "workspace:*",
     "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-client-ui-slots": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",

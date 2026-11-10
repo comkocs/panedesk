@@ -8176,6 +8176,9 @@ importers:
       '@panedesk/dsh-client-ui-settings':
         specifier: workspace:*
         version: link:../ui-settings
+      '@panedesk/dsh-client-ui-settings-verification':
+        specifier: workspace:*
+        version: link:../ui-settings-verification
       '@panedesk/dsh-client-ui-sidebar-right':
         specifier: workspace:*
         version: link:../ui-sidebar-right
