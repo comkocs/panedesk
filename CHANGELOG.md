@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.8.6
+
+### Added
+
+- A Model API entry in the sidebar, between New Session and Plugins, opens model settings.
+
+### Fixed
+
+- The settings dialog body scrolls and the dialog stays within the window.
+- Clicking an agent in the agent tree shows its details and can open its session in the right sidebar.
+- Widening the window for the right sidebar grows to the right first and stays within the screen.
+- Batch-pasted opening presets get an inferred folder or the current workspace, the added count shows next to Batch paste, and models that share a name are labeled with their IDs.
+
+### Changed
+
+- The right panel first opens at 17% of the window instead of 45%.
+- The main window first opens at twice the previous default size, within 90% of the screen.
+
 ## 1.8.5
 
 ### Fixed
