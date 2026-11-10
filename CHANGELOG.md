@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.8.4
+
+### Fixed
+
+- Sessions named from an opening preset before their first message no longer make the stored log unreadable, so creating sessions and choosing presets work again after updating, and preset sessions are titled with the preset name and date.
+- Pasted images stay in a session's unsent draft when switching sessions.
+- Shift-click in the sidebar selects a range starting from the open session.
+- New sessions start in the open session's workspace.
+- A provider's Edit opens its model settings, and every listed model offers a protocol probe.
+
+### Changed
+
+- The opening preset editor has one folder with Change folder, pickers for model, reasoning effort and permission, no blank card on open, and stays open when clicking outside.
+- Settings buttons are sized to their labels.
+- The mode picker group is named Built-in modes.
+- Agent sessions opened from the agent tree or map open in the right sidebar and widen the window instead of narrowing the main session.
+
 ## 1.8.3
 
 ### Added
