@@ -40,6 +40,19 @@ interface SidebarPanelRegistration {
   badge?: { getSnapshot(): SidebarPanelMetadata['badge']; subscribe(fn: () => void): () => void }
 }
 
+/**
+ * Click handler declared on a panel-list inject face. The slot ledger keeps
+ * kind fields only, so a row that must not select a main panel returns this
+ * from `inject` and the shell calls it instead.
+ * @param face - the entry's inject return, when the entry declared one.
+ * @returns a click handler, or undefined when the row selects its main panel.
+ */
+function panelActivate(face: Record<string, unknown> | undefined): (() => void) | undefined {
+  const activate = face?.['activate']
+  if (typeof activate !== 'function') return undefined
+  return () => { Reflect.apply(activate, undefined, []) }
+}
+
 /** Whether two projected badge values are the same display fact. */
 function sameBadge(left: SidebarPanelMetadata['badge'], right: SidebarPanelMetadata['badge']): boolean {
   if (left === right) return true
@@ -65,8 +78,8 @@ export function apply(ctx: ClientContext): void {
   const badgeStops = new Map<MainPanelId, { source: NonNullable<SidebarPanelRegistration['badge']>; stop: () => void }>()
   const syncPanels = (): void => {
     const live = new Set<MainPanelId>()
-    const next = ctx.slots.entriesOfSlot('sidebar.panellist').map(({ options }) => {
-      const panel = options as SidebarPanelRegistration
+    const next = ctx.slots.entriesOfSlot('sidebar.panellist').map((entry) => {
+      const panel = entry.options as SidebarPanelRegistration
       // The list registration requires an id; StoredEntry erases the slot kind.
       const id = panel.id as MainPanelId
       live.add(id)
@@ -81,6 +94,8 @@ export function apply(ctx: ClientContext): void {
       }
       const row: SidebarPanelMetadata = { id, order: panel.order ?? 0, label: resolveSlotLabel(panel.label) ?? id }
       if (source !== undefined) row.badge = source.getSnapshot() ?? null
+      const activate = panelActivate(entry.inject?.())
+      if (activate !== undefined) row.activate = activate
       return row
     }).sort((a, b) => a.order - b.order)
     for (const [id, current] of badgeStops) {
@@ -93,6 +108,7 @@ export function apply(ctx: ClientContext): void {
       const candidate = next[index] as SidebarPanelMetadata
       return panel.id === candidate.id && panel.order === candidate.order && panel.label === candidate.label
         && sameBadge(panel.badge, candidate.badge)
+        && (panel.activate !== undefined) === (candidate.activate !== undefined)
     })) return
     panels.set(next)
   }

@@ -31,7 +31,8 @@
       "inject": [
         "@panedesk/dsh-client-ui-settings",
         "@panedesk/dsh-client-locale",
-        "@panedesk/dsh-api-remotes"
+        "@panedesk/dsh-api-remotes",
+        "@panedesk/dsh-client-ui-sidebar"
       ],
       "platform": "web"
     }
@@ -53,6 +54,7 @@
     "@panedesk/dsh-client-test-runtime": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-sidebar": "workspace:*",
     "@panedesk/dsh-client-ui-slots": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "react": "^18.2.0",

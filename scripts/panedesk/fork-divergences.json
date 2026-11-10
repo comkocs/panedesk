@@ -16324,6 +16324,29 @@
           "packages/client/ui-agent-preset/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "sidebar-model-api-entry",
+      "description": "Add a sidebar Model API row that opens Settings on the Models page.",
+      "origin": "Sidebar model settings entry",
+      "reason": "The row sits between New Session and Plugins, uses the existing API glyph, and opens the registered models section without selecting a main panel.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-models/src/client/index.ts",
+          "packages/client/ui-settings-models/src/client/locales.ts",
+          "packages/client/ui-settings-models/src/client/ModelApiEntryIcon.tsx",
+          "packages/client/ui-settings-models/package.json",
+          "packages/client/ui-settings-models/tsconfig.json",
+          "packages/client/ui-settings-models/README.md",
+          "packages/client/ui-settings-models/README.zh.md",
+          "packages/client/ui-sidebar/src/client/index.ts",
+          "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+          "packages/client/ui-sidebar/src/client/contract/slots.ts",
+          "packages/client/ui-sidebar/README.md",
+          "packages/client/ui-sidebar/README.zh.md"
+        ]
+      }
     }
   ]
 }
