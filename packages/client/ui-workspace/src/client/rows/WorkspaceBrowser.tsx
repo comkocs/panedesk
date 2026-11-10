@@ -274,8 +274,8 @@ type SessionTreeProps = Pick<
   workspaceReady: boolean
   /** Session ids in the browser's multi-selection, in click order. */
   selectedIds: ReadonlySet<SessionNode['id']>
-  /** Toggle one row, or replace the selection with the inclusive display range. */
-  onSelectClick: (id: SessionNode['id'], mode: 'toggle' | 'range') => void
+  /** Toggle one row, replace the selection with the inclusive display range, or record a plain open as the anchor. */
+  onSelectClick: (id: SessionNode['id'], mode: 'toggle' | 'range' | 'anchor') => void
   /** Open the bulk menu on a right click inside the selection. */
   onBulkMenu: (id: SessionNode['id'], pos: { x: number; y: number }) => void
   /** Drop the multi-selection when the pointer lands on list padding. */
@@ -1176,8 +1176,10 @@ export function WorkspaceBrowser({
   const saveSessionOrder = (accountKey: string, order: readonly string[]): void => {
     actions.setSessionOrder(accountKey, order, activeSessionOrders)
   }
-  // Multi-selection lives with the browser: the anchor is the last plain or
-  // toggle click, and a range click fills every displayed row between them.
+  // Multi-selection lives with the browser. The anchor is the last plain open
+  // or toggle click, kept across a plain open that clears the highlighted ids;
+  // a range click fills every displayed row between the anchor — or the open
+  // Session, when no anchor is recorded yet — and the clicked row.
   const [selection, setSelection] = useState<{
     ids: readonly SessionId[]
     anchor: SessionId | undefined
@@ -1192,14 +1194,20 @@ export function WorkspaceBrowser({
       ? current
       : ids)
   }
-  const selectClick = (sessionId: SessionId, mode: 'toggle' | 'range'): void => {
+  const selectClick = (sessionId: SessionId, mode: 'toggle' | 'range' | 'anchor'): void => {
     setSelection((current) => {
-      if (mode === 'range' && current.anchor !== undefined) {
-        const from = displayedSessionIds.indexOf(current.anchor)
+      if (mode === 'anchor') return { ids: [], anchor: sessionId }
+      const anchor = mode === 'range'
+        ? current.anchor ?? (mainSessionId !== undefined && displayedSessionIds.includes(mainSessionId)
+          ? mainSessionId
+          : undefined)
+        : undefined
+      if (anchor !== undefined) {
+        const from = displayedSessionIds.indexOf(anchor)
         const to = displayedSessionIds.indexOf(sessionId)
         if (from !== -1 && to !== -1) {
           const [start, end] = from <= to ? [from, to] : [to, from]
-          return { ids: displayedSessionIds.slice(start, end + 1), anchor: current.anchor }
+          return { ids: displayedSessionIds.slice(start, end + 1), anchor }
         }
       }
       const ids = current.ids.includes(sessionId)
@@ -1211,8 +1219,8 @@ export function WorkspaceBrowser({
   const clearSelection = (): void => { setSelection({ ids: [], anchor: undefined }) }
   const openBulkMenu = (_sessionId: SessionId, pos: { x: number; y: number }): void => { setBulkMenu(pos) }
   const guardedOpen = (sessionId: SessionId): void => {
-    clearSelection()
     if (archivedSessionIds.includes(sessionId)) {
+      clearSelection()
       notifyArchivedNotOpenable()
       return
     }

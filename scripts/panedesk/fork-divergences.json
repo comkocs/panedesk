@@ -3136,6 +3136,7 @@
           "docs/event-producer-consumer.md",
           "docs/event-producer-consumer.zh.md",
           "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+          "packages/client/ui-sidebar/src/client/index.ts",
           "packages/client/ui-sidebar/src/client/contract/slots.ts",
           "packages/client/ui-sidebar/tests/sidebar-root.client.spec.tsx",
           "packages/client/ui-sidebar/README.md",
