@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-agent",
   "description": "Agent interface, registry, initiator scope, and event vocabulary for the DeepSeek Harness",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "publishConfig": {
     "access": "public"
   },

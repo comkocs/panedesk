@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-inbox",
   "description": "Owner-authorized received message states and mailbox isolation warnings",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-inbox" },

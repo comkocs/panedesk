@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-session-telemetry",
   "description": "SessionTelemetryBackend seam for the DeepSeek Harness: session-event capture, projection, redaction, and handoff to a reporting backend",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "publishConfig": {
     "access": "public"
   },

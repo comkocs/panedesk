@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-cot-translation-bundle",
   "description": "Experimental machine translation of expanded reasoning",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"

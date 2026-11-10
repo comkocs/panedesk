@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-api-remote-access",
   "description": "Method-level Remote access control for non-owner Peers and the per-Peer access snapshot",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "publishConfig": {
     "access": "public"
   },

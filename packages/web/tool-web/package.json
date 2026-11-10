@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-web",
   "description": "Model-facing web tools (web_search, web_fetch) over the DeepSeek Harness web capability seam (ctx.web)",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "publishConfig": {
     "access": "public"
   },

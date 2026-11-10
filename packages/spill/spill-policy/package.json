@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-spill-policy",
   "description": "Token-budgeted tool-result retention with recoverable text and image paths",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "publishConfig": {
     "access": "public"
   },

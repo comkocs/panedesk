@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-schedule",
   "description": "Host task management page and Session reminder catalog",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
