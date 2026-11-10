@@ -18,9 +18,10 @@ function Editor(props: PresetsProps & { initial: OpeningPreset[]; choices: Prese
   const scrolled = useRef<string | undefined>(undefined)
   const models = props.choices.models.flatMap(group => group.models.map(model => ({ ...model, provider: group.id,
     key: `${group.id}/${model.id}`, label: `${group.name} / ${model.name}` })))
-  const uniqueModels = models.filter((model, index) => models.findIndex(other => other.key === model.key
-    || (other.provider === model.provider && other.name === model.name)) === index)
-  const modelOptions = [{ id: '', label: t('followCurrent') }, ...uniqueModels.map(model => ({ id: model.key, label: model.label }))]
+  const uniqueModels = models.filter((model, index) => models.findIndex(other => other.key === model.key) === index)
+  const modelOptions = [{ id: '', label: t('followCurrent') }, ...uniqueModels.map(model => ({ id: model.key,
+    label: uniqueModels.some(other => other !== model && other.provider === model.provider && other.name === model.name)
+      ? `${model.label} (${model.id})` : model.label }))]
   const [split, setSplit] = useState<{ before: typeof rows; count: number }>()
   const [paste, setPaste] = useState('')
   const [error, setError] = useState('')
