@@ -166,6 +166,7 @@ export function registerSidebarChat(ctx: Context, t: TranslateNS<typeof NS>): vo
   ctx.effect(() => ctx.sidebarRightTabs.register({
     id: SUBAGENT_CHAT_ID,
     kind: 'subagentchat',
+    preserveMainWidth: true,
     patterns: [`${SUBAGENT_CHAT_ADDRESS}**`],
     priority: 'builtin',
     canOpen: address => parseSubagentChatAddress(address) !== undefined,

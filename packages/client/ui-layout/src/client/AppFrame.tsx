@@ -157,7 +157,9 @@ export function AppFrame({
     }
   }, [actions])
 
-  const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
+  const preserved = layoutInfo.preserveMainWidth || layoutInfo.desktopMainWidth !== null
+  const mainWidth = layoutInfo.desktopMainWidth ?? viewport
+  const narrow = mainWidth < SIDEBAR_AUTO_COLLAPSE
   const sidebarCollapsed = narrow ? !layoutInfo.narrowExpanded : layoutInfo.sidebar === 0
   const sidebarPreference = sidebarCollapsed
     ? 0
@@ -170,8 +172,12 @@ export function AppFrame({
     || document.documentElement.hasAttribute('data-windows-titlebar') ? 0 : SIDEBAR_COLLAPSED
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
   // include that space before the occupant's first shown report arrives.
-  const normal = computeColumns(viewport, !layoutInfo.rightbarShown && narrow ? 0 : sidebarPreference, rightbarPreference, collapsedWidth)
-  const cols = computeColumns(viewport, sidebarPreference, layoutInfo.rightbarTrack ? rightbarPreference : 0, collapsedWidth)
+  const normal = preserved
+    ? { ...computeColumns(mainWidth, sidebarPreference, 0, collapsedWidth), rightbar: Math.min(viewport, rightbarPreference) }
+    : computeColumns(viewport, !layoutInfo.rightbarShown && narrow ? 0 : sidebarPreference, rightbarPreference, collapsedWidth)
+  const cols = preserved
+    ? computeColumns(mainWidth, sidebarPreference, 0, collapsedWidth)
+    : computeColumns(viewport, sidebarPreference, layoutInfo.rightbarTrack ? rightbarPreference : 0, collapsedWidth)
   const colsRef = useRef(cols)
   colsRef.current = cols
   const rightbarWidth = useRef(normal.rightbar)
@@ -262,8 +268,10 @@ export function AppFrame({
       style={{
         ...(document.documentElement.hasAttribute('data-windows-titlebar')
           ? { '--dsh-windows-sidebar-width': `${cols.sidebar}px` } : {}),
-        gridTemplateColumns:
-          `${cols.sidebar}px minmax(${cols.rightbar === 0 ? 0 : CENTER_MIN}px, 1fr) minmax(0px, ${rightbarMax}px)`,
+        gridTemplateColumns: preserved
+          ? `${cols.sidebar}px ${cols.center}px minmax(0px, 1fr)`
+          : `${cols.sidebar}px minmax(${cols.rightbar === 0 ? 0 : CENTER_MIN}px, 1fr) minmax(0px, ${rightbarMax}px)`,
+        ...(preserved ? { transition: 'none' } : {}),
       }}
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-rightbar-collapsed={cols.rightbar === 0 || undefined}

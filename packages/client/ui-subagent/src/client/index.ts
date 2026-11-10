@@ -71,16 +71,15 @@ export function apply(ctx: ClientContext): void {
     name: 'subagent.task-preview.flow',
     locale: NS,
   }, SubagentTaskFlow))
+  const openChildAside = (address: SubagentAddress): void => {
+    ctx.sidebarRight.openResource(subagentChatAddress(address), {
+      kind: 'subagentchat',
+      preferNewPane: true,
+    })
+  }
   const catalogActions = (_parentSessionId: SessionId): SubagentCatalogInjected => ({
-    openChild(address: SubagentAddress) {
-      ctx.uiWorkspace.openSession(address)
-    },
-    openChildAside(address: SubagentAddress) {
-      ctx.sidebarRight.openResource(subagentChatAddress(address), {
-        kind: 'subagentchat',
-        preferNewPane: true,
-      })
-    },
+    openChild: openChildAside,
+    openChildAside,
     refreshProjection(parentSessionId: SessionId) {
       void ctx.sessions.refreshProjections(parentSessionId)
     },

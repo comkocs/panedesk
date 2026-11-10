@@ -61,6 +61,7 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+import { RightbarWindow } from './rightbar-window.ts'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -733,6 +734,7 @@ async function main(): Promise<void> {
     callback({ requestHeaders: { ...headers, origin: target.origin, cookie: hostCookie, 'sec-fetch-site': 'same-origin' } })
   })
 
+  let rightbarWindow: RightbarWindow
   const assertMainApplication = (event: IpcMainInvokeEvent): BrowserWindow => {
     const owner = mainWindow
     if (owner === undefined || event.sender !== owner.webContents || event.senderFrame !== owner.webContents.mainFrame
@@ -742,6 +744,10 @@ async function main(): Promise<void> {
   ipcMain.on(PLATFORM_IPC.bootstrap, (event) => {
     try { event.returnValue = platformView.bootstrap(event) }
     catch { event.returnValue = null }
+  })
+  ipcMain.handle(DESKTOP_IPC.rightbarWidth, (event, width: unknown) => {
+    assertMainApplication(event)
+    rightbarWindow.setWidth(platformBounds({ x: 0, y: 0, width, height: 0 }).width)
   })
   ipcMain.handle(PLATFORM_IPC.open, (event, page: unknown, bounds: unknown) => {
     const owner = assertMainApplication(event)
@@ -1080,6 +1086,7 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload, false, true)
     mainWindow = window
+    rightbarWindow = new RightbarWindow(window)
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))
     shortcuts.attach(window)
     window.on('focus', automaticCheck)

@@ -186,8 +186,8 @@ export function apply(ctx: ClientContext): void {
       },
     }
     const injected: Omit<SidebarRightInjected, 'keyedHooks' | 'occurrence' | 'closeTab' | 'measureRoom'> = {
-      syncPresentation({ shown, track, fullscreen }) {
-        if (shown) layout.openRightbar(track, fullscreen)
+      syncPresentation({ shown, track, fullscreen, preserveMainWidth }) {
+        if (shown) layout.openRightbar(track, fullscreen, preserveMainWidth)
         else layout.closeRightbar()
       },
       reportAutoFullscreen: (value) => { autoFullscreen = value },

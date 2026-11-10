@@ -36,7 +36,7 @@ import type {
 } from '@panedesk/dsh-client-ui-slots'
 import type {} from '../contract/slots.ts'
 import type { DockIntents, DockMode, FloatRect, TabId, TabRecord, TabRenderer } from '@panedesk/dsh-client-ui-dockkit'
-import { canSplit, dockPaneIds, DockLayout, findPaneContentTab } from '@panedesk/dsh-client-ui-dockkit'
+import { canSplit, dockPaneIds, DockLayout, findPaneContentTab, getPane } from '@panedesk/dsh-client-ui-dockkit'
 import type { HalvesFit, LayoutState, PaneId } from '@panedesk/dsh-client-ui-dockkit'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import { GUIDE_KIND, pageAddress } from '../contract/seed.ts'
@@ -64,6 +64,8 @@ export interface SidebarRightPresentation {
   readonly track: boolean
   /** Whether the panel fills the viewport, independently of its retained track. */
   readonly fullscreen: boolean
+  /** Keep the main column unchanged instead of reserving its space. */
+  readonly preserveMainWidth?: boolean
 }
 
 /** What this package needs from its host beyond the framework shares. */
@@ -356,8 +358,12 @@ export function RightbarSeat({
   // One store instance per session, so this map holds this session's surface.
   const shortcuts = useShortcuts(entries => entries)
   const surface = useStore(state => state.bySession[sessionId])
+  const types = useTabTypes(value => value)
+  const preserveMainWidth = surface !== undefined && dockPaneIds(surface.layout).some(id =>
+    getPane(surface.layout, id).tabs.some(tabId =>
+      types.find(type => type.kind === surface.layout.tabs[tabId]?.kind)?.preserveMainWidth === true))
   const shown = active && surface !== undefined && surface.layout.expanded
-  const autoFullscreen = viewportWidth < 768
+  const autoFullscreen = !preserveMainWidth && viewportWidth < 768
   const fullscreen = autoFullscreen || surface?.layout.mode === 'fullscreen'
   const panelRef = useRef<HTMLDivElement | null>(null)
   // A reading never re-renders anything: the service applies it when it splits.
@@ -371,8 +377,8 @@ export function RightbarSeat({
   }, [actions, sessionId, surface, active])
 
   useLayoutEffect(() => {
-    if (shown && !fullscreen && !canShow) actions.setExpanded(sessionId, false)
-  }, [actions, sessionId, shown, fullscreen, canShow])
+    if (shown && !fullscreen && !canShow && !preserveMainWidth) actions.setExpanded(sessionId, false)
+  }, [actions, sessionId, shown, fullscreen, canShow, preserveMainWidth])
 
   // Read only when the fullscreen command runs, after this commit has settled.
   useLayoutEffect(() => { reportAutoFullscreen(autoFullscreen) }, [reportAutoFullscreen, autoFullscreen])
@@ -395,7 +401,7 @@ export function RightbarSeat({
           && animation.playState !== 'finished' && animation.playState !== 'idle')
         : []
       if (entering.length === 0) {
-        syncPresentation({ shown, track, fullscreen })
+        syncPresentation({ shown, track, fullscreen, preserveMainWidth })
         return
       }
       // Cancellation can replace the transition or remove it for reduced motion.
@@ -403,7 +409,7 @@ export function RightbarSeat({
     }
     reportWhenCovered()
     return () => { disposed = true }
-  }, [sessionId, shown, track, fullscreen, syncPresentation, active])
+  }, [sessionId, shown, track, fullscreen, preserveMainWidth, syncPresentation, active])
   // Leaving is part of that report: a seat that unmounts with its session must
   // hand the track back rather than leave one sized for a surface nobody draws.
   useLayoutEffect(() => active
