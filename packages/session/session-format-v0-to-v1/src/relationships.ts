@@ -426,7 +426,8 @@ function assertTitleSources(
   const seqs = data['messageSeqs'] as readonly number[]
   if (event.type === 'session/title') {
     const titleSource = releasedV0Record(data['source'], `session/title ${event.seq} source`)
-    if ((seqs.length === 0) !== (titleSource['kind'] === 'user')) {
+    const openingName = titleSource['kind'] === 'provider' && titleSource['provider'] === 'panedesk-opening-name'
+    if (!openingName && (seqs.length === 0) !== (titleSource['kind'] === 'user')) {
       throw new SessionFormatError(`session/title ${event.seq} messageSeqs must be empty exactly for a user title`)
     }
   }
