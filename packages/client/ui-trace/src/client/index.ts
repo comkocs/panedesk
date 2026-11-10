@@ -4,7 +4,7 @@
  */
 import type { Context as ClientContext } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session/types'
-import traceContribution from '@panedesk/dsh-trace-store/remote'
+import type {} from '@panedesk/dsh-trace-store/remote'
 import type { DecisionId, DecisionRevision, ItemId, ProjectId, ReferenceContent, ReferenceId, TimelinePage, TraceItem, TraceStatus } from '@panedesk/dsh-trace-store/types'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
@@ -112,15 +112,14 @@ export function parseTraceAddress(value: string): SessionId | undefined {
   try { return decodeURIComponent(parts[1] as string) as SessionId } catch (_invalidEncoding) { return undefined }
 }
 
-/** Required registries and the generated trace transport mount. */
+/** Required registries and the shared trace transport. */
 export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTabs', 'sidebarRight', 'settingsNavigation']
 
-/** Mount the trace Remote, the settings row, and the right-sidebar tab.
+/** Register the settings row and the right-sidebar tab over the shared trace Remote.
  * @param ctx - Client plugin lifetime and registries.
- * @returns Disposal of the Remote mount and every registry contribution.
+ * @returns Disposal of every registry contribution.
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
-  const disposeRemote = await ctx.remote.$mount(traceContribution)
   const ui = ctx.inject(['remote.traceStore'], scope => {
     scope.effect(() => scope.locale.register('trace', { en, zh }), 'trace: locale')
     const t = scope.locale.bind('trace')
@@ -194,6 +193,6 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }),
     }, TraceAction))
   })
-  try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }
-  return async () => { await ui.dispose(); await disposeRemote() }
+  try { await ui } catch (error) { await ui.dispose(); throw error }
+  return async () => { await ui.dispose() }
 }
