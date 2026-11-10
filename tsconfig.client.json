@@ -60,6 +60,7 @@
     { "path": "./packages/client/ui-storage/tsconfig.client.json" },
     { "path": "./packages/client/ui-settings-verification" },
     { "path": "./packages/client/ui-verification-checklist" },
+    { "path": "./packages/client/ui-trace" },
     { "path": "./packages/client/ui-nodes/tsconfig.client.json" },
     { "path": "./apps/desktop/tsconfig.client.json" },
     { "path": "./packages/util/atomic-write" },

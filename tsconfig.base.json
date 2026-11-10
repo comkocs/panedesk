@@ -202,6 +202,8 @@
       "@panedesk/dsh-tool-verification-checklist/client": ["./packages/todo/tool-verification-checklist/src/client.ts"],
       "@panedesk/dsh-client-ui-verification-checklist": ["./packages/client/ui-verification-checklist/src/index.ts"],
       "@panedesk/dsh-client-ui-verification-checklist/client": ["./packages/client/ui-verification-checklist/src/client/index.ts"],
+      "@panedesk/dsh-client-ui-trace": ["./packages/client/ui-trace/src/index.ts"],
+      "@panedesk/dsh-client-ui-trace/client": ["./packages/client/ui-trace/src/client/index.ts"],
       "@panedesk/dsh-activity-category/types": ["./packages/guard/activity-category/src/types.ts"],
       "@panedesk/dsh-tool-todo/client": ["./packages/todo/tool-todo/src/client.ts"],
       "@panedesk/dsh-session-title/types": ["./packages/session/session-title/src/types.ts"],

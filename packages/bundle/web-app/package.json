@@ -63,6 +63,7 @@
     "@panedesk/dsh-tool-trace": "workspace:*",
     "@panedesk/dsh-client-ui-settings-verification": "workspace:*",
     "@panedesk/dsh-client-ui-verification-checklist": "workspace:*",
+    "@panedesk/dsh-client-ui-trace": "workspace:*",
     "@panedesk/dsh-client-ui-database-connections": "workspace:*",
     "@panedesk/dsh-agent-instructions": "workspace:*",
     "@panedesk/dsh-agent-preset": "workspace:*",
