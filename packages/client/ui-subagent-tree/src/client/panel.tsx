@@ -22,6 +22,10 @@ export interface SubagentTreeActions {
 export interface SubagentTreeLabels {
   /** Stop the node and its running descendants. */
   stop: SubagentTreeUI['stop']
+  /** Open workspace verification settings. */
+  openVerification(this: void): void
+  /** Change subsequent-test policy for this exact task. */
+  setTestsStopped(this: void, node: SubagentTreeNode, prohibited: boolean): Promise<void>
   /** Display label of one session; falls back to its id at the registration site. */
   labelOf(this: void, sessionId: SessionId): string
 }
@@ -92,7 +96,8 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
  * @param props - Framework tab props, localized copy, and the resource reader.
  * @returns The tree table with per-row monitoring and active-node Stop controls.
  */
-export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelOf, stop }: SubagentTreeTabProps) {
+export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelOf, stop, openVerification, setTestsStopped }: SubagentTreeTabProps) {
+  const [verificationError, setVerificationError] = useState(false)
   const [stopError, setStopError] = useState(false)
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
   const stopNode = async (node: SubagentTreeNode): Promise<void> => {
@@ -114,6 +119,8 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
     { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(value)
   return <section className={css.tab} data-subagent-tree="">
     <h1 className={css.heading}>{t('title')}</h1>
+    <Button variant="outline" onClick={openVerification}>{t('verification')}</Button>
+    {verificationError && <p role="alert">{t('verificationFailed')}</p>}
     <p>{t('description')}</p>
     <p>{t('transcriptNote')}</p>
     <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(message)}</p>
@@ -140,7 +147,15 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
         <td className={css.status} data-end-reason={node.endReason}>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
-        <td><ActivityCell activity={node.external ? null : node.activity} t={t} /></td>
+        <td><ActivityCell activity={node.external ? null : node.activity} t={t} />
+          {!node.external && node.parentSessionId !== null && isActive(node.status) && node.verificationTaskId !== undefined && <label onClick={event => { event.stopPropagation() }}>
+            <input key={node.verificationTaskId} type="checkbox" checked={node.testsStopped ?? false}
+              onChange={event => {
+                setVerificationError(false)
+                void setTestsStopped(node, event.target.checked).catch((_error: unknown) => { setVerificationError(true) })
+              }} />{t('stopTests')}
+          </label>}
+        </td>
         <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
           {node.contextTokens === undefined ? t('contextUnknown') : t('context', { value: new Intl.NumberFormat(undefined,

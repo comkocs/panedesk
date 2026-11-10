@@ -4,6 +4,7 @@
   "include": ["src/client", "src/types.ts", "src/css-modules.d.ts"],
   "references": [
     { "path": "../../guard/activity-category" },
+    { "path": "../../guard/verification-policy" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../typert/protocol" },
     { "path": "../../core/session" },

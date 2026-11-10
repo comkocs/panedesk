@@ -110,6 +110,10 @@ export interface SubagentTreeNode {
   readonly lastToolCall: SubagentLastToolCall | null
   /** Latest task's observed activity; absent on old or external sessions. */
   readonly activity?: import('@panedesk/dsh-activity-category/types').ActivitySummary | null
+  /** Activity task identity used by task-scoped row controls. */
+  readonly verificationTaskId?: string
+  /** User disabled subsequent tests and self-written scripts for this run. */
+  readonly testsStopped?: boolean
   /** Seat identity of the latest attributed row; `null` when no row carries one. */
   readonly seat: string | null
   /** Linked task id of the latest attributed row; `null` when absent. */

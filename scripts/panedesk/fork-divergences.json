@@ -1,6 +1,13 @@
 {
   "divergences": [
     {
+      "id": "workspace-verification-switches",
+      "description": "Enforce workspace verification switches before native and programmatic tool calls",
+      "origin": "Panedesk verification controls",
+      "reason": "Keep user-owned switches in versioned workspace storage, share activity classification and timing, limit full tests across a root turn, and expose task restrictions to verification checklists.",
+      "match": { "type": "behavior", "paths": ["packages/guard/verification-policy/**", "packages/guard/activity-category/**", "packages/client/ui-settings-verification/**", "packages/client/ui-subagent-tree/**", "packages/client/ui-settings-general/**", "packages/bundle/web-app/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
+    },
+    {
       "id": "task-activity-category-timing",
       "description": "Classify tool and model activity and show task-scoped time by category",
       "origin": "Panedesk activity visibility",

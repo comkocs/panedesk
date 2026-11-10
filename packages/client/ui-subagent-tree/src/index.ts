@@ -10,6 +10,7 @@ import { readFile } from 'node:fs/promises'
 import type { Context, Volatile } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-settings'
 import type {} from '@panedesk/dsh-activity-category'
+import type {} from '@panedesk/dsh-verification-policy'
 import type {} from '@panedesk/dsh-session-ledger'
 import type { SessionQueryEngine } from '@panedesk/dsh-session-query'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -131,9 +132,14 @@ export default class SubagentTreeService extends TypertRemoteService {
       }
     }
     if (this.cancelled()) throw new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {})
-    const withExternal = (node: typeof root): typeof root => ({ ...node,
-      children: [...node.children.map(withExternal), ...externalRegistryNodes(text, node.sessionId, asOf)],
-    })
+    const withExternal = (node: typeof root): typeof root => {
+      const session = this.ctx.get('sessions')?.get(node.sessionId)
+      const taskId = session === undefined ? node.activity?.taskId : this.ctx.get('activityCategory')?.taskIdentity(session).taskId
+      return { ...node,
+        ...taskId === undefined ? {} : { verificationTaskId: taskId, testsStopped: this.ctx.get('verificationPolicy')?.testsStopped(taskId) ?? false },
+        children: [...node.children.map(withExternal), ...externalRegistryNodes(text, node.sessionId, asOf)],
+      }
+    }
     return { asOf, complete: snapshot.complete, root: withExternal(root), externalRegistryUnreadable,
       refreshIntervalMs: this.config.refreshIntervalMs }
   }

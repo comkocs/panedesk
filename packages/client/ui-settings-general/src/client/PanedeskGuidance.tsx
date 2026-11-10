@@ -13,6 +13,7 @@ const pages = {
   stats: 'stats',
   'data-storage': 'storage',
   nodes: 'nodes',
+  verification: 'verification',
 } as const
 
 /**

@@ -3853,6 +3853,9 @@ importers:
       '@panedesk/dsh-client-ui-settings-subagent':
         specifier: workspace:*
         version: link:../../client/ui-settings-subagent
+      '@panedesk/dsh-client-ui-settings-verification':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-verification
       '@panedesk/dsh-client-ui-settings-web-search':
         specifier: workspace:*
         version: link:../../client/ui-settings-web-search
@@ -4090,6 +4093,9 @@ importers:
       '@panedesk/dsh-tool-workflow':
         specifier: workspace:*
         version: link:../../workflow/tool-workflow
+      '@panedesk/dsh-verification-policy':
+        specifier: workspace:*
+        version: link:../../guard/verification-policy
       '@panedesk/dsh-web-frontend':
         specifier: workspace:*
         version: link:../../../apps/web
@@ -7237,6 +7243,48 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
 
+  packages/client/ui-settings-verification:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-client-ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@panedesk/dsh-verification-policy':
+        specifier: workspace:*
+        version: link:../../guard/verification-policy
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
   packages/client/ui-settings-web-search:
     devDependencies:
       '@panedesk/cordis':
@@ -8140,6 +8188,9 @@ importers:
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../settings/settings
+      '@panedesk/dsh-verification-policy':
+        specifier: workspace:*
+        version: link:../../guard/verification-policy
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -12856,6 +12907,49 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+
+  packages/guard/verification-policy:
+    dependencies:
+      '@panedesk/dsh-activity-category':
+        specifier: workspace:*
+        version: link:../activity-category
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/dsh-timeout':
+        specifier: workspace:*
+        version: link:../../util/timeout
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
 
   packages/host/directory-picker:
     devDependencies:

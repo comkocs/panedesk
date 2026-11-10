@@ -9,6 +9,7 @@ import { isActive, modelColor, type SubagentTreeUI } from './presentation.ts'
 export type { SubagentTreeUI } from './presentation.ts'
 export type { SubagentTreeNode } from '../types.ts'
 import contribution from '@panedesk/dsh-client-ui-subagent-tree/remote'
+import verificationContribution from '@panedesk/dsh-verification-policy/remote'
 import type {} from '@panedesk/dsh-api-session-controller/client'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
@@ -87,7 +88,7 @@ export function parseSubagentTreeAddress(value: string): SessionId | undefined {
 }
 
 /** Required registries and the generated transport mount. */
-export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTabs', 'sidebarRight', 'sessions']
+export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTabs', 'sidebarRight', 'sessions', 'settingsNavigation']
 
 /**
  * Mount the read-only namespace, the tree resource with its refresh loop, the
@@ -97,7 +98,8 @@ export const inject = ['remote', 'slots', 'locale', 'resources', 'sidebarRightTa
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.subagentTree', 'remote.subagents', 'remote.session', 'sessions'], (scope) => {
+  const disposeVerification = await ctx.remote.$mount(verificationContribution)
+  const ui = ctx.inject(['remote.subagentTree', 'remote.subagents', 'remote.session', 'remote.verificationPolicy', 'sessions'], (scope) => {
     const stop = async (node: SubagentTreeNode, selected = true): Promise<void> => {
       for (const child of node.children) await stop(child, false)
       if (!selected && !isActive(node.status)) return
@@ -188,7 +190,14 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       key: SUBAGENT_TREE_ID,
       children: { 'subagent.tree.details': { kind: 'single', scope: 'session' } },
       locale: 'subagentTree',
-      inject: (): SubagentTreeLabels => ({ labelOf, stop }),
+      inject: (): SubagentTreeLabels => ({ labelOf, stop,
+        openVerification: () => { scope.settingsNavigation.openSection('verification') },
+        setTestsStopped: async (node, prohibited) => {
+          const result = await scope.remote.verificationPolicy.setTestsStopped({ sessionId: node.sessionId,
+            taskId: node.verificationTaskId!, prohibited })
+          if (!result.ok) throw result.error
+        },
+      }),
     }, SubagentTreeTab))
     scope.slots.inject('conversation.composer.dock', () => scope.slots.register({
       name: 'conversation.composer.dock', id: 'activity-category-totals', order: 30, locale: 'subagentTree',
@@ -204,6 +213,6 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       }),
     }, SubagentTreeAction))
   })
-  try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }
-  return async () => { await ui.dispose(); await disposeRemote() }
+  try { await ui } catch (error) { await ui.dispose(); await disposeVerification(); await disposeRemote(); throw error }
+  return async () => { await ui.dispose(); await disposeVerification(); await disposeRemote() }
 }

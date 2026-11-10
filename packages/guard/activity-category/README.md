@@ -21,6 +21,8 @@ The ordered default rules distinguish edits, reads/searches, builds, focused/ful
 
 Tool execution uses `tools/execute`; model timing wraps `llm/stream`. Start/end auxiliary facts use the existing call journal, with monotonic elapsed measurements and no model content. Finished totals survive process restarts. Unmatched starts tick only while the service knows the operation is live; a restart does not invent continued execution. Counts sum operations and durations sum observed execution time, so concurrent operations can exceed wall time. The script tag overlaps its primary category and never adds to the denominator a second time. The existing tree resource supplies all activity views at its configured refresh cadence.
 
+`taskIdentity(session)` exposes the current task and its captured root turn. `readRootTurn(session)` totals that turn's own and descendant operations; each child captures ancestor task ids at activation, so later parent turns do not reassign old work. Task summaries expose `verificationMs`, counting builds, tests, client launches, CI triggers and self-written scripts once per operation, even when script and primary tags overlap.
+
 ## Model Experience
 
 ### Display-only accounting

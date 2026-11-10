@@ -26,5 +26,7 @@ export interface ActivitySummary {
   startedAt: number
   totals: ActivityTotal[]
   totalMs: number
+  /** Verification time counts each operation once, including overlapping script tags. */
+  verificationMs: number
   current: CurrentActivity | null
 }

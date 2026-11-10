@@ -17,6 +17,8 @@ Run `dsh --profile web` for browser chat, model and settings management, and ses
 
 All shipped presets, including minimal, inherit the single base `panedesk_settings` instance so the Tools page and model share one disabled-tool preference. On Windows their shell rows follow the boot-resolved Bash selection, retaining the explicit environment override; only Bash or PowerShell is mounted. Minimal also supplies the selected Bash executable to its persistent terminal. Other platforms keep their existing shell defaults. Panedesk Settings pages share plain-language guidance and copyable AI requests; a built-in feature reference follows Panedesk features.
 
+The shared Web/Desktop composition mounts `verification-policy` and `ui-settings-verification`. Workspace-owned switches are enforced before native and nested programmatic tool calls and are not writable through `panedesk_settings`.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

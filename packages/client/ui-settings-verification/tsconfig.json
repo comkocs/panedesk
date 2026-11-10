@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../guard/verification-policy" },
+    { "path": "../../workspace/workspace" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../api/gateway/tsconfig.client.json" },
+    { "path": "../locale/tsconfig.client.json" },
+    { "path": "../resources" },
+    { "path": "../ui-slots" },
+    { "path": "../ui-renderer" },
+    { "path": "../ui-primitives" },
+    { "path": "../ui-settings/tsconfig.client.json" },
+    { "path": "../ui-workspace" }
+  ]
+}

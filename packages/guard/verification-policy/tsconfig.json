@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../activity-category" },
+    { "path": "../../storage/storage-domain" },
+    { "path": "../../util/timeout" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../core/tools" },
+    { "path": "../../core/system-prompt" },
+    { "path": "../../session/session-ledger" },
+    { "path": "../../session/working-directory" },
+    { "path": "../../workspace/workspace" }
+  ]
+}

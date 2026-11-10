@@ -1,5 +1,6 @@
 /** Typed English and Chinese subagent-tree copy, including unknown and recovery states. */
 export const en = {
+  verification: 'Verification', stopTests: 'No more tests', verificationFailed: 'Could not change verification policy. Check the connection and retry.',
   activity: 'Activity', activityTotals: 'Time by category', treeTotals: 'Whole-tree totals',
   activityNow: 'Doing: {category} · elapsed {time}', activityLast: 'Last: {category} · {time}',
   activityCount: 'Count', activityShare: 'Share', activityTime: 'Time',
@@ -60,6 +61,7 @@ export const en = {
 export type SubagentTreeKey = keyof typeof en
 /** Chinese copy has the same complete key set. */
 export const zh = {
+  verification: '验证', stopTests: '禁止再测试', verificationFailed: '无法修改验证策略，请检查连接后重试。',
   activity: '活动', activityTotals: '各类累计用时', treeTotals: '全树合计',
   activityNow: '正在做:{category} · 已 {time}', activityLast: '上一类:{category} · {time}',
   activityCount: '次数', activityShare: '占比', activityTime: '累计时长',

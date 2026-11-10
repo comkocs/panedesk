@@ -358,6 +358,12 @@
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
 
+    - id: verification-policy
+      name: '@panedesk/dsh-verification-policy'
+
+    - id: ui-settings-verification
+      name: '@panedesk/dsh-client-ui-settings-verification'
+
     - id: ui-storage
       name: '@panedesk/dsh-client-ui-storage'
 

@@ -4,6 +4,7 @@
   "files": ["src/index.ts", "src/types.ts", "src/tree.ts", "src/transcript.ts", "src/external-registry.ts"],
   "references": [
     { "path": "../../guard/activity-category" },
+    { "path": "../../guard/verification-policy" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../typert/protocol" },
