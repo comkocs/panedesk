@@ -16324,6 +16324,21 @@
           "packages/client/ui-agent-preset/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "narrow-right-panel-first-open",
+      "description": "Open the right panel narrow on first use",
+      "origin": "Panedesk layout",
+      "reason": "The right panel and the agent tree first open at 17% of the frame instead of nearly half of it, so they start as a side column; users can still drag it wider and the width they choose is kept.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-layout/src/client/columns.ts",
+          "packages/client/ui-layout/src/client/stores.ts",
+          "packages/client/ui-layout/README.md",
+          "packages/client/ui-layout/README.zh.md"
+        ]
+      }
     }
-  ]
+]
 }
