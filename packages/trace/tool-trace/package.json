@@ -1,0 +1,28 @@
+{
+  "name": "@panedesk/dsh-tool-trace",
+  "description": "Model-facing project items, timelines, references, comments, session links, and decisions",
+  "version": "1.9.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": ["lib/index.js", "lib/types/**/*.d.ts", "locale/*.json"],
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-trace-store": "workspace:*"
+  }
+}

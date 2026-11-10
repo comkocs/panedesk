@@ -25,6 +25,17 @@ On POSIX, the CLI re-executes with `--disable-sigusr1` before loading a profile 
 
 A refused Web launch mounts no profile plugins. Other profiles retain their nonzero-exit behavior.
 
+## Read-only project traces
+
+`panedesk trace items`, `panedesk trace timeline 1 --cursor 10 --limit 100`, and `panedesk trace decisions` print JSON. `panedesk trace export 1 --format json|md` exports the item, complete timeline, reference metadata, comments, and decision history to stdout; Markdown exports can be committed to git. Use `panedesk trace --workspace /path/to/project items` to select another workspace. The current directory or its closest registered ancestor is matched against the local `<home>/storages/project-traces.json` mapping, where `<home>` follows `PANEDESK_HOME` or defaults to `~/.panedesk`. Recording must be enabled. The command opens `<home>/projects/<projectId>/trace.sqlite` with `node:sqlite` in read-only mode, closes it after reading, and never starts a Host or initializes a database. A missing local mapping fails visibly; custom or PostgreSQL-backed mapping storage is not read by this offline command. References remain pointers rather than copied conversation or attachment text.
+
+```sh
+panedesk trace items
+panedesk trace timeline 1 --limit 100
+panedesk trace decisions
+panedesk trace --workspace /path/to/project export 1 --format md > trace-item.md
+```
+
 ## App arguments
 
 The launcher parses only its own flags and hands everything after them to the booted profile, where any injected app plugin may parse the shared immutable snapshot ([`dsh-cmdline`](../../packages/boot/cmdline/README.md)). The first token the launcher does not recognize starts the app's arguments:

@@ -16433,6 +16433,22 @@
           "packages/bundle/web-app/cordis.patch.yml"
         ]
       }
+    },
+    {
+      "id": "project-trace-model-tools-and-cli",
+      "description": "Expose project trace operations to models and offline read-only command-line consumers",
+      "origin": "Panedesk project activity",
+      "reason": "Use the existing Host service for six scoped tools and replayable recording guidance, while other software reads the local project mapping and SQLite database without starting a writer.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/tool-trace/**",
+          "apps/cli/src/trace.ts",
+          "apps/cli/src/args.ts",
+          "apps/cli/src/bin.ts",
+          "packages/bundle/web-app/cordis.patch.yml"
+        ]
+      }
     }
 ]
 }
