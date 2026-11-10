@@ -25,6 +25,7 @@ todo 组为 agent（智能体）提供可用于规划的会话级任务列表：
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [`tool-todo`](tool-todo/README.zh.md) | 让 agent 维护会话任务列表：规划任务、更新状态、跟踪进度 | 注册到 `ctx.tools` |
+| [`tool-verification-checklist`](tool-verification-checklist/README.zh.md) | 让 agent 在开工前按需求提交验证清单 | 注册到 `ctx.tools` |
 
 -----
 

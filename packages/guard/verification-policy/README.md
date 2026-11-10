@@ -21,7 +21,9 @@ Default allows one full test run across a root user's turn and all its child run
 
 Client launches use the existing cooperative deadline on `tools/execute`, propagate abort to the tool, and return `VERIFICATION_CLIENT_TIMEOUT` after execution settles. Policy settings appear as one read-only system-prompt line for root and child agents, recorded through the existing system-message projection.
 
-The package entry's default service exposes `addTaskProhibitions(request: VerificationTaskRestrictions): void` for checklist consumers and remote `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` for settings and grey-out decisions. The former appends category ids for an exact activity task; workspace settings remain unchanged. The tree checkbox has separate reversible state, so unchecking it does not remove checklist prohibitions.
+The package entry's default service exposes `addTaskProhibitions(request: VerificationTaskRestrictions): void` and its remote wrapper `prohibitTaskCategories(request: VerificationTaskRestrictions): void` for checklist consumers, and remote `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` for settings and grey-out decisions. Both prohibition methods append category ids for an exact activity task; workspace settings remain unchanged. The tree checkbox has separate reversible state, so unchecking it does not remove checklist prohibitions.
+
+The same system-prompt line tells the agent to call `verification_checklist` with a one-sentence requirement title and its planned checks before starting work, or to submit an empty items array when there is nothing to verify.
 
 ## Model Experience
 
@@ -29,7 +31,7 @@ The package entry's default service exposes `addTaskProhibitions(request: Verifi
 
 #### What the model sees
 
-One read-only policy line, fixed bilingual category refusals, an explicit already-used-full-run prefix, budget approval prompts and client timeout errors. No settings mutation tool is added.
+One read-only policy line, fixed bilingual category refusals, an explicit already-used-full-run prefix, budget approval prompts and client timeout errors. The policy line also carries this instruction: "Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array." No settings mutation tool is added.
 
 #### Token effect
 

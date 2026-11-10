@@ -83,6 +83,7 @@ import * as StagehandBrowserTools from '@panedesk/dsh-experimental-browser-use-s
 import type TeamService from '@panedesk/dsh-experimental-agent-team'
 import * as ToolTeam from '@panedesk/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@panedesk/dsh-tool-todo'
+import * as ToolVerificationChecklist from '@panedesk/dsh-tool-verification-checklist'
 import type PluginManager from '@panedesk/dsh-plugin-manager'
 import * as PluginManagerTools from '@panedesk/dsh-plugin-manager/tools'
 import type PluginMarket from '@panedesk/dsh-plugin-market'
@@ -708,6 +709,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-verification-checklist',
+    dir: 'tool-verification-checklist',
+    source: 'packages/todo/tool-verification-checklist/src/index.ts',
+    requires: ['ctx.tools', 'owning Agent session'],
+    writes: ['tool/call', 'verification/write', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolVerificationChecklist)
+    },
+    note:
+      'verification_checklist records one requirement title and its planned checks. Submitting the same title replaces that requirement; an empty items array records that there is nothing to verify. The list stays across turns.',
   },
   {
     pkg: '@panedesk/dsh-tool-working-directory',

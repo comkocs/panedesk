@@ -70,7 +70,7 @@ export default class VerificationPolicy extends TypertRemoteService {
       if (context.agent !== undefined) {
         const settings = this.forSession(context.agent.session)
         assembly.sections.push({ name: 'verification-policy', interpolate: false,
-          text: `Verification policy (read-only; enforced before tools): ${JSON.stringify(settings)}` })
+          text: `Verification policy (read-only; enforced before tools): ${JSON.stringify(settings)}\nBefore you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.` })
       }
       return assembly
     })
@@ -142,6 +142,14 @@ export default class VerificationPolicy extends TypertRemoteService {
     const categories = this.prohibited.get(request.taskId) ?? new Set<ActivityCategory>()
     for (const category of request.categories) categories.add(category)
     this.prohibited.set(request.taskId, categories)
+  }
+
+  /** Remote entry for the checklist panel. Appends categories for the exact current task.
+   * @param request Session, current activity task id, and category ids to forbid.
+   */
+  @Remote
+  prohibitTaskCategories(request: VerificationTaskRestrictions): void {
+    this.addTaskProhibitions(request)
   }
 
   /** Read the exact task's tree-checkbox state.

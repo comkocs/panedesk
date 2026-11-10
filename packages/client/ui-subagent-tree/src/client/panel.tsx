@@ -5,7 +5,9 @@ import { Button, Modal, StateDot, Tag } from '@panedesk/dsh-client-ui-primitives
 import type { ResourceStatus } from '@panedesk/dsh-client-resources/client'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { SessionId } from '@panedesk/dsh-session/types'
+import type { ActivityCategory } from '@panedesk/dsh-activity-category/types'
 import type { SubagentTreeNode, SubagentTreeView } from '../types.ts'
+import { NodeChecklist } from './checklist.tsx'
 import type { SubagentTreeData } from './index.ts'
 import type { SubagentTreeKey } from './locales.ts'
 import { isActive, modelColor, type SubagentTreeUI } from './presentation.ts'
@@ -26,6 +28,8 @@ export interface SubagentTreeLabels {
   openVerification(this: void): void
   /** Change subsequent-test policy for this exact task. */
   setTestsStopped(this: void, node: SubagentTreeNode, prohibited: boolean): Promise<void>
+  /** Append one checklist category to the exact task's prohibitions. */
+  prohibitChecklist(this: void, sessionId: SessionId, taskId: string, category: ActivityCategory): Promise<void>
   /** Display label of one session; falls back to its id at the registration site. */
   labelOf(this: void, sessionId: SessionId): string
 }
@@ -96,7 +100,7 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
  * @param props - Framework tab props, localized copy, and the resource reader.
  * @returns The tree table with per-row monitoring and active-node Stop controls.
  */
-export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelOf, stop, openVerification, setTestsStopped }: SubagentTreeTabProps) {
+export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorkspaces, renderSlot, t, labelOf, stop, openVerification, setTestsStopped, prohibitChecklist }: SubagentTreeTabProps) {
   const [verificationError, setVerificationError] = useState(false)
   const [stopError, setStopError] = useState(false)
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
@@ -178,6 +182,9 @@ export function SubagentTreeTab({ useResource, useTabInfo, renderSlot, t, labelO
         <MonitoringView node={monitored.node} label={monitored.label} t={t} number={number} time={time} />
         <h3>{t('activityTotals')}</h3>
         <ActivityTable totals={monitored.node.external ? undefined : monitored.node.activity?.totals} t={t} />
+        {!monitored.node.external && <NodeChecklist sessionId={monitored.node.sessionId} taskId={monitored.node.verificationTaskId}
+          totals={monitored.node.activity?.totals} useSessions={useSessions} useWorkspaces={useWorkspaces} useResource={useResource}
+          prohibit={prohibitChecklist} t={t} />}
       </>}
     </Modal>
   </section>

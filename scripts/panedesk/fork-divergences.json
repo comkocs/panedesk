@@ -1,11 +1,18 @@
 {
   "divergences": [
     {
+      "id": "verification-checklist",
+      "description": "Record a per-requirement verification checklist and show it beside observed activity time",
+      "origin": "Panedesk verification checklist",
+      "reason": "Let an agent submit planned checks before work, keep them across turns, grey out categories the workspace has turned off, and append a prohibition when a check is turned off.",
+      "match": { "type": "behavior", "paths": ["packages/todo/tool-verification-checklist/**", "packages/client/ui-verification-checklist/**", "packages/client/ui-subagent-tree/**", "packages/guard/verification-policy/**", "packages/bundle/base/**", "packages/bundle/web-app/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
+    },
+    {
       "id": "workspace-verification-switches",
       "description": "Enforce workspace verification switches before native and programmatic tool calls",
       "origin": "Panedesk verification controls",
       "reason": "Keep user-owned switches in versioned workspace storage, share activity classification and timing, limit full tests across a root turn, and expose task restrictions to verification checklists.",
-      "match": { "type": "behavior", "paths": ["packages/guard/verification-policy/**", "packages/guard/activity-category/**", "packages/client/ui-settings-verification/**", "packages/client/ui-subagent-tree/**", "packages/client/ui-settings-general/**", "packages/bundle/web-app/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
+      "match": { "type": "behavior", "paths": ["packages/guard/verification-policy/**", "packages/guard/activity-category/**", "packages/client/ui-settings-verification/**", "packages/client/ui-verification-checklist/**", "packages/client/ui-subagent-tree/**", "packages/todo/tool-verification-checklist/**", "packages/client/ui-settings-general/**", "packages/bundle/web-app/**", "packages/bundle/base/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
     },
     {
       "id": "task-activity-category-timing",

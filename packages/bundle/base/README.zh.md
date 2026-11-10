@@ -13,7 +13,7 @@ kind: "package-bundle"
 
 缺省工具集包含 `panedesk_settings`，用于读取可改的 Panedesk 偏好，并按项名通过设置页同一写口修改、回显前后值。未列出的操作仍只能手动。其 `disabledTools` 偏好默认不向普通会话提供六个可选工具，详见[设置工具](../../settings/tool-panedesk-settings/README.zh.md)。`exit_plan_mode` 仅在计划模式提供。Windows 继续只挂载选定的 Bash 或 PowerShell 工具。
 
-基础装配包含[只展示的活动计量](../../guard/activity-category/README.zh.md)，记录工具／模型时长与任务类别，不启用验证拒绝；工作区归类规则缺省为空。
+基础装配包含[只展示的活动计量](../../guard/activity-category/README.zh.md)，记录工具／模型时长与任务类别，不启用验证拒绝；工作区归类规则缺省为空。它同时挂载[验证清单工具](../../todo/tool-verification-checklist/README.zh.md)，记录计划检查项，提交不等待批准。
 
 ## 目录
 

@@ -1,0 +1,49 @@
+{
+  "name": "@panedesk/dsh-tool-verification-checklist",
+  "description": "Model-facing verification_checklist tool over the session log",
+  "version": "1.8.6",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/todo/tool-verification-checklist"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/types/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
+  }
+}

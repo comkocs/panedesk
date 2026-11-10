@@ -56,6 +56,9 @@ export const en = {
   lastToolCall: 'Latest tool call', lastToolCallAt: 'at {time}', noToolCall: 'None recorded',
   seat: 'Seat', noSeat: 'No seat attributed', taskId: 'Linked task', noTask: 'None',
   session: 'Session', children: 'Children', root: 'This session',
+  checklist: 'Verification checklist', checklistEstimated: 'Estimated {minutes} min', checklistActual: 'Actual {time}',
+  checklistUnknown: 'Actual unknown', checklistForbidden: 'Turned off for this workspace', checklistUndeclared: 'Undeclared',
+  checklistFailed: 'Could not record the prohibition. Check the connection and retry.',
 } satisfies Record<string, string>
 /** Subagent-tree dictionary keys. */
 export type SubagentTreeKey = keyof typeof en
@@ -117,4 +120,7 @@ export const zh = {
   lastToolCall: '最近工具调用', lastToolCallAt: '于 {time}', noToolCall: '无记录',
   seat: '所属位', noSeat: '无位归属', taskId: '关联单', noTask: '无',
   session: '会话', children: '子节点', root: '本会话',
+  checklist: '验证清单', checklistEstimated: '预计 {minutes} 分钟', checklistActual: '实际 {time}',
+  checklistUnknown: '实际未知', checklistForbidden: '本工作区已关闭', checklistUndeclared: '未申报',
+  checklistFailed: '无法记录禁止项，请检查连接后重试。',
 } satisfies Record<string, string>

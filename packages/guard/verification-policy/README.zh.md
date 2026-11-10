@@ -21,7 +21,9 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 客户端启动在 `tools/execute` 套既有协作式截止时间，将取消信号传给工具，等待执行结算后返回 `VERIFICATION_CLIENT_TIMEOUT`。根代理与子代理系统提示均附一行只读设置，并由既有系统消息投影记录。
 
-包入口默认服务提供 `addTaskProhibitions(request: VerificationTaskRestrictions): void` 给清单消费者，以及远端 `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` 给设置与灰显判断。前者向精确活动任务追加类别号，不改工作区设置。树行勾选另有可逆状态，取消勾选不会移除清单禁止项。
+包入口默认服务提供 `addTaskProhibitions(request: VerificationTaskRestrictions): void` 及其远端包装 `prohibitTaskCategories(request: VerificationTaskRestrictions): void` 给清单消费者，以及远端 `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` 给设置与灰显判断。两个禁止方法都向精确活动任务追加类别号，不改工作区设置。树行勾选另有可逆状态，取消勾选不会移除清单禁止项。
+
+同一行系统提示要求代理开工前调用 `verification_checklist`，提交一句需求标题和计划检查项；没有要验证的内容时提交空的 items 数组。
 
 ## 模型体验
 
@@ -29,7 +31,7 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 #### 模型看到什么
 
-一行只读策略、固定双语类别拒绝、明确的全量已用前缀、预算审批提示与客户端超时错误。不新增设置修改工具。
+一行只读策略、固定双语类别拒绝、明确的全量已用前缀、预算审批提示与客户端超时错误。该行同时带这条指示：「Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.」不新增设置修改工具。
 
 #### Token 影响
 

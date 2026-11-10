@@ -22,6 +22,7 @@ import { RemoteError, remoteErrorOf, type RemoteResult, type TypertClientRemote 
 import { SubagentTreeAction, SubagentTreeTab, type SubagentTreeActions, type SubagentTreeLabels } from './panel.tsx'
 import { en, zh, type SubagentTreeKey } from './locales.ts'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
+import type {} from '@panedesk/dsh-tool-verification-checklist/client'
 import { RegistrySettingsRow, type RegistrySettings, type RegistrySettingsFace } from './settings.tsx'
 import { ParentActivity } from './activity.tsx'
 import { ActivitySettingsRow, type ActivitySettings, type ActivitySettingsFace } from './activity-settings.tsx'
@@ -195,6 +196,10 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         setTestsStopped: async (node, prohibited) => {
           const result = await scope.remote.verificationPolicy.setTestsStopped({ sessionId: node.sessionId,
             taskId: node.verificationTaskId!, prohibited })
+          if (!result.ok) throw result.error
+        },
+        prohibitChecklist: async (sessionId, taskId, category) => {
+          const result = await scope.remote.verificationPolicy.prohibitTaskCategories({ sessionId, taskId, categories: [category] })
           if (!result.ok) throw result.error
         },
       }),

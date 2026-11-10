@@ -33,6 +33,10 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.muted {
+  color: var(--dsw-alias-label-secondary);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

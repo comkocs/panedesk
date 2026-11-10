@@ -1,0 +1,27 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../guard/activity-category" },
+    { "path": "../../guard/verification-policy" },
+    { "path": "../../todo/tool-verification-checklist" },
+    { "path": "../../core/session" },
+    { "path": "../../session/session-projection" },
+    { "path": "../../workspace/workspace" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../api/gateway/tsconfig.client.json" },
+    { "path": "../../api/workspace-controller/tsconfig.client.json" },
+    { "path": "../locale/tsconfig.client.json" },
+    { "path": "../resources" },
+    { "path": "../ui-slots" },
+    { "path": "../ui-renderer" },
+    { "path": "../ui-primitives" },
+    { "path": "../ui-conversation/tsconfig.client.json" },
+    { "path": "../ui-sidebar-right" },
+    { "path": "../ui-session" },
+    { "path": "../ui-settings-verification" },
+    { "path": "../ui-subagent-tree/tsconfig.client.json" }
+  ]
+}

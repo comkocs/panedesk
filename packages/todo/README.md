@@ -25,6 +25,7 @@ The todo group gives agents a session-level task list to plan with: add tasks, m
 | Package | Role | ctx key |
 |---|---|---|
 | [`tool-todo`](tool-todo/README.md) | Lets the agent maintain a session task list: plan tasks, update status, and track progress | registers on `ctx.tools` |
+| [`tool-verification-checklist`](tool-verification-checklist/README.md) | Lets the agent submit a per-requirement verification checklist before starting work | registers on `ctx.tools` |
 
 -----
 

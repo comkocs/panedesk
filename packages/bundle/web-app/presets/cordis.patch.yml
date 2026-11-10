@@ -113,6 +113,8 @@
             name: '@panedesk/dsh-tool-todo'
             config:
               allowParallelInProgress: true
+          - id: tool-verification-checklist
+            name: '@panedesk/dsh-tool-verification-checklist'
           - id: tool-web
             name: '@panedesk/dsh-tool-web'
             config:

@@ -1,0 +1,35 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.group {
+  margin: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.muted {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.pill {
+  min-height: 28px;
+}

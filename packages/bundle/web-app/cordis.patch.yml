@@ -364,6 +364,9 @@
     - id: ui-settings-verification
       name: '@panedesk/dsh-client-ui-settings-verification'
 
+    - id: ui-verification-checklist
+      name: '@panedesk/dsh-client-ui-verification-checklist'
+
     - id: ui-storage
       name: '@panedesk/dsh-client-ui-storage'
 
@@ -668,6 +671,9 @@
   disabled: true
 
 - id: tool-todo
+  disabled: true
+
+- id: tool-verification-checklist
   disabled: true
 
 - id: tool-web

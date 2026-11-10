@@ -13,7 +13,7 @@ Every base-backed `dsh --profile` surface runs on `dsh-base`, so those surfaces 
 
 The default tool set includes `panedesk_settings` for reading editable Panedesk preferences and writing one named item through the same writer as Settings, with before/after output. Unlisted operations remain manual-only. Its `disabledTools` preference omits six optional tools from ordinary sessions by default; see the [settings tool](../../settings/tool-panedesk-settings/README.md). `exit_plan_mode` is advertised only in plan mode. Windows continues to mount only the selected Bash or PowerShell tools.
 
-The base composition includes [display-only activity accounting](../../guard/activity-category/README.md). It records tool/model durations and task categories without enabling verification refusals; workspace classification rules default to empty.
+The base composition includes [display-only activity accounting](../../guard/activity-category/README.md). It records tool/model durations and task categories without enabling verification refusals; workspace classification rules default to empty. It also mounts the [verification checklist tool](../../todo/tool-verification-checklist/README.md), which records planned checks without pausing for approval.
 
 ## Table of Contents
 

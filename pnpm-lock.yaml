@@ -2886,6 +2886,9 @@ importers:
       '@panedesk/dsh-tool-todo':
         specifier: workspace:*
         version: link:../../todo/tool-todo
+      '@panedesk/dsh-tool-verification-checklist':
+        specifier: workspace:*
+        version: link:../../todo/tool-verification-checklist
       '@panedesk/dsh-tool-web':
         specifier: workspace:*
         version: link:../../web/tool-web
@@ -3199,6 +3202,9 @@ importers:
       '@panedesk/dsh-tool-todo':
         specifier: workspace:*
         version: link:../../todo/tool-todo
+      '@panedesk/dsh-tool-verification-checklist':
+        specifier: workspace:*
+        version: link:../../todo/tool-verification-checklist
       '@panedesk/dsh-tool-web':
         specifier: workspace:*
         version: link:../../web/tool-web
@@ -3910,6 +3916,9 @@ importers:
       '@panedesk/dsh-client-ui-user-questions':
         specifier: workspace:*
         version: link:../../client/ui-user-questions
+      '@panedesk/dsh-client-ui-verification-checklist':
+        specifier: workspace:*
+        version: link:../../client/ui-verification-checklist
       '@panedesk/dsh-client-ui-workflow-run':
         specifier: workspace:*
         version: link:../../client/ui-workflow-run
@@ -4087,6 +4096,9 @@ importers:
       '@panedesk/dsh-tool-todo':
         specifier: workspace:*
         version: link:../../todo/tool-todo
+      '@panedesk/dsh-tool-verification-checklist':
+        specifier: workspace:*
+        version: link:../../todo/tool-verification-checklist
       '@panedesk/dsh-tool-web':
         specifier: workspace:*
         version: link:../../web/tool-web
@@ -8188,6 +8200,9 @@ importers:
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../settings/settings
+      '@panedesk/dsh-tool-verification-checklist':
+        specifier: workspace:*
+        version: link:../../todo/tool-verification-checklist
       '@panedesk/dsh-verification-policy':
         specifier: workspace:*
         version: link:../../guard/verification-policy
@@ -8489,6 +8504,72 @@ importers:
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-verification-checklist:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-activity-category':
+        specifier: workspace:*
+        version: link:../../guard/activity-category
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-api-workspace-controller':
+        specifier: workspace:*
+        version: link:../../api/workspace-controller
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-client-ui-conversation':
+        specifier: workspace:*
+        version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-session':
+        specifier: workspace:*
+        version: link:../ui-session
+      '@panedesk/dsh-client-ui-settings-verification':
+        specifier: workspace:*
+        version: link:../ui-settings-verification
+      '@panedesk/dsh-client-ui-sidebar-right':
+        specifier: workspace:*
+        version: link:../ui-sidebar-right
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-client-ui-subagent-tree':
+        specifier: workspace:*
+        version: link:../ui-subagent-tree
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@panedesk/dsh-tool-verification-checklist':
+        specifier: workspace:*
+        version: link:../../todo/tool-verification-checklist
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@panedesk/dsh-verification-policy':
+        specifier: workspace:*
+        version: link:../../guard/verification-policy
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -18550,6 +18631,25 @@ importers:
       '@panedesk/dsh-user-questions':
         specifier: workspace:*
         version: link:../../interaction/user-questions
+
+  packages/todo/tool-verification-checklist:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/typert/generator:
     dependencies:
