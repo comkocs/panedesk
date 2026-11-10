@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-node-link",
   "description": "Optional authenticated node routing definitions",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",

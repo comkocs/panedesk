@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-browser-use",
   "description": "Exclusive named browser-use provider registration",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

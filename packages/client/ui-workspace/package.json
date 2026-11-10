@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-workspace",
   "description": "Workspace picker plugin: one WorkspacePicker registered into the sidebar and empty-state workspace slots",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

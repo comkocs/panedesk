@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-fs-search",
   "description": "Model-facing filesystem discovery tools (glob, grep) backed by the packaged ripgrep binary (@vscode/ripgrep)",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

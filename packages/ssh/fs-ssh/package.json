@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-fs-ssh",
   "description": "Filesystem provider over the shared POSIX SSH helper",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/slim-headless",
   "description": "Panedesk slim one-shot bundle: the dsh-headless runner over @panedesk/slim-base, with Panedesk defaults (no harness identity line, pi-ai default route)",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

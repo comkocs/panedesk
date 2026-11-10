@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-shell-env",
   "description": "Tool-independent managed DSH_* shell environment registry",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

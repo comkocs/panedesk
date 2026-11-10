@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-settings-bash",
   "description": "Settings General row that probes the Windows Git Bash installation and commits the confirmed product selection the base profiles gate on",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

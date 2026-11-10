@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-working-directory",
   "description": "Session working directories with durable changes and model context",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-seat-app",
   "description": "Seat application consumer scaffold",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "publishConfig": {
     "access": "public"
   },
