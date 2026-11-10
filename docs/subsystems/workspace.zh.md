@@ -409,9 +409,9 @@ Project operations are available to every window after the workspace's one-time 
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) rejectDecision(request: DecisionRevisionRequest): Promise<DecisionRevision>
 
-/** Restore the previous effective version as a new revision; strict mode makes this a planner proposal.
+/** Restore the previous effective version as a new revision; in strict mode the user reverts directly and the planner proposes.
  * @param request Workspace and decision identity.
- * @returns Reversion revision, or a proposed reversion in strict mode.
+ * @returns Reversion revision, or a proposed reversion when the planner reverts in strict mode.
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) revertDecision(request: WorkspaceRequest & { decisionId: DecisionId }): Promise<DecisionRevision>
 
