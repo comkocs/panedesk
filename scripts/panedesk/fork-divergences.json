@@ -16324,6 +16324,20 @@
           "packages/client/ui-agent-preset/README.zh.md"
         ]
       }
+    },
+    {
+      "id": "main-window-opens-at-twice-the-old-default",
+      "description": "Open the main window at twice the old default size within the display work area",
+      "origin": "Panedesk 1.8.6",
+      "reason": "The first open uses 2560 by 1640 device-independent pixels, limited on each side to 90% of the work area of the display under the cursor and centered there. The minimum size stays 520 by 600, the size is not remembered, and other windows keep their own sizes.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/src/main.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md"
+        ]
+      }
     }
   ]
 }

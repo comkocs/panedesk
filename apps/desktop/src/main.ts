@@ -18,6 +18,7 @@ import {
   net,
   protocol,
   session,
+  screen,
   shell,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
@@ -204,6 +205,30 @@ function platformLoginUrl(authorizeUrl: string): string {
   const url = new URL(authorizeUrl)
   url.searchParams.set('theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
   return url.href
+}
+
+/** Previous default main-window size, doubled for the first open. */
+const MAIN_WINDOW_DEFAULT_WIDTH = 1280 * 2
+const MAIN_WINDOW_DEFAULT_HEIGHT = 820 * 2
+/** Largest fraction of the opening display's work area the first open may use. */
+const MAIN_WINDOW_WORK_AREA_FRACTION = 0.9
+
+/**
+ * Size and center the main window on the display under the cursor.
+ * Width and height start at twice the previous default and each stop at 90% of
+ * that display's work area, in device-independent pixels. The minimum size is unchanged.
+ * @returns the first-open bounds.
+ */
+function mainWindowBounds(): { x: number; y: number; width: number; height: number } {
+  const { x, y, width, height } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
+  const windowWidth = Math.min(MAIN_WINDOW_DEFAULT_WIDTH, Math.floor(width * MAIN_WINDOW_WORK_AREA_FRACTION))
+  const windowHeight = Math.min(MAIN_WINDOW_DEFAULT_HEIGHT, Math.floor(height * MAIN_WINDOW_WORK_AREA_FRACTION))
+  return {
+    x: x + Math.floor((width - windowWidth) / 2),
+    y: y + Math.floor((height - windowHeight) / 2),
+    width: windowWidth,
+    height: windowHeight,
+  }
 }
 
 function createWindow(preload: string, show = false, primary = false): BrowserWindow {
@@ -1085,6 +1110,7 @@ async function main(): Promise<void> {
   }
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload, false, true)
+    window.setBounds(mainWindowBounds())
     mainWindow = window
     rightbarWindow = new RightbarWindow(window)
     browserGuests.bind(window, (guest, name) => shortcuts.attachGuest(window, guest, name))

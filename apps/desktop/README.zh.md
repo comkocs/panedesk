@@ -40,6 +40,8 @@ Desktop 绑定 `127.0.0.1`，即 Electron 为就绪 URL 与 WebSocket 凭据过�
 
 Desktop 的本地原生目录流程打开绑定应用窗口的 Electron 文件夹对话框，并先恢复、显示和聚焦该窗口。Panedesk 外部登记文件设置通过 `__DSH_FILE_PICKER__.pick()` 使用同一窗口归属 IPC 的 `openFile` 对话框，返回绝对路径。并发请求共用一个对话框；取消不返回路径，失败后可以重试。普通 Web 使用 Host 选择器。浏览模式列出 Host 目录。Linux 缺少 zenity 或 kdialog 时，自动选择使用浏览模式，不使用 Electron 对话框。
 
+主窗口初次打开为原先默认尺寸的两倍，即 2560×1640 设备独立像素；宽和高各自不超过光标所在显示器工作区的 90%，并在该工作区内居中。最小尺寸仍为 520×600，不记住窗口尺寸。欢迎窗口和其他窗口保持各自的尺寸。
+
 在右侧 Sidebar 打开的子代理聊天保留主 Conversation 宽度。普通窗口按右栏宽度扩宽；右侧空间不足时向左移动，让右缘位于所在显示器工作区内。关闭 Sidebar 恢复原宽度与水平位置。最大化与原生全屏窗口使用右缘覆盖；恢复普通窗口时，仅在 Sidebar 仍打开时重新扩宽。只有归属的应用主 frame 可以请求该几何操作。
 
 Desktop 在 `resources/runtime/primary-runtime/dependencies/pnpm` 中携带一份 pnpm 分发包。构建时的生产依赖安装、安装版 `dsh` CLI、Creator 和 Web 插件管理器通过 Electron Node 模式执行其中的 `bin/pnpm.mjs`；包操作不要求 PATH 上存在 pnpm。私有 Node 启动器环境仅用于包操作。agent（智能体）的工作区依赖将同一份完整 primary-runtime 复制到 Harness 主目录，并使用其中的独立 Node 执行 pnpm。
