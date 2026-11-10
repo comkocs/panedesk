@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.5
+
+### Fixed
+
+- New Session and Ctrl+N no longer restore an idle stored blank session first, and picking a dated session title reads cached titles instead of every stored session log, so starting a session waits less as sessions accumulate.
+
 ## 1.8.4
 
 ### Fixed
