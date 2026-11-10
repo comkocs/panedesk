@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-agent-tool-presentation",
   "description": "Agent-plane presentation selector: composes one agent's tools as PTC mode or native tool calls",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-sandbox-local",
   "description": "Local process-sandbox backends for the DeepSeek Harness sandbox seam: bwrap, the npm-distributed landlock-run launcher, macOS Seatbelt, or the Windows ACL restricted-token runner \u2014 functionally probed, fail-closed",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publishConfig": {
     "access": "public"
   },
