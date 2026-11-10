@@ -346,21 +346,22 @@ export default class TraceStore extends TypertRemoteService {
     })
   }
 
-  /** Restore the previous effective version as a new revision; strict mode makes this a planner proposal.
+  /** Restore the previous effective version as a new revision; in strict mode the user reverts directly and the planner proposes.
    * @param request Workspace and decision identity.
-   * @returns Reversion revision, or a proposed reversion in strict mode.
+   * @returns Reversion revision, or a proposed reversion when the planner reverts in strict mode.
    */
   @Remote({ resources: { workspace: request => request.workspaceId } })
   revertDecision(request: WorkspaceRequest & { decisionId: DecisionId }): Promise<DecisionRevision> {
     const source = this.source(request)
     return this.enqueue(() => {
       const { db, status } = this.selected(request)
-      if (status.strict && (source.sessionId !== status.plannerSessionId || source.actor !== 'planner')) throw new Error('Only the planning window may propose decisions / 只有规划窗可以提议拍板')
+      const user = source.actor === 'user'
+      if (status.strict && !user && (source.sessionId !== status.plannerSessionId || source.actor !== 'planner')) throw new Error('Only the planning window may propose decisions / 只有规划窗可以提议拍板')
       return this.transaction(db, () => {
         const active = db.prepare('SELECT active_revision AS revision FROM decisions WHERE id=?').get(request.decisionId) as { revision: number }
         const previous = this.revisions(db, request.decisionId).findLast(rev => rev.revision < active.revision && (rev.status === 'active' || rev.status === 'reverted'))
         if (previous === undefined) throw new Error('No previous effective revision / 没有上一版生效记录')
-        return this.appendDecision(db, { ...previous, source, status: status.strict ? 'proposed' : 'reverted' })
+        return this.appendDecision(db, { ...previous, source, status: status.strict && !user ? 'proposed' : 'reverted' })
       })
     })
   }

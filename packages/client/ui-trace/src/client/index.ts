@@ -148,7 +148,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     }), 'trace: timeline resource')
     scope.effect(() => scope.resources.register<'tracedecisions'>({
       protocol: 'tracedecisions', async *open(address): AsyncIterable<RemoteResult<TraceDecisionsResource>> {
-        const result = await scope.remote.traceStore.listDecisions(request(workspaceOf(address)))
+        const result = await scope.remote.traceStore.decisionHistory(request(workspaceOf(address)))
         yield result.ok ? { ok: true, value: { rows: result.value } } : result
       },
     }), 'trace: decisions resource')

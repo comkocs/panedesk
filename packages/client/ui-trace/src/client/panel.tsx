@@ -170,8 +170,10 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
   const [failed, setFailed] = useState(false)
   const rows = useResource<'tracedecisions'>(`dsh-resource://tracedecisions/${encodeURIComponent(workspaceId)}?revision=${tick}`).value?.rows
   const refresh = (ok: boolean): void => { if (ok) setTick(value => value + 1); else setFailed(true) }
-  const active = rows?.filter(row => row.status === 'active') ?? []
-  const proposed = rows?.filter(row => row.status === 'proposed') ?? []
+  const ids = [...new Set((rows ?? []).map(row => row.id))]
+  const revisionsOf = (id: string) => (rows ?? []).filter(row => row.id === id)
+  const active = ids.flatMap(id => revisionsOf(id).filter(row => row.status === 'active' || row.status === 'reverted').slice(-1))
+  const proposed = ids.flatMap(id => revisionsOf(id).slice(-1).filter(row => row.status === 'proposed'))
   return <section>
     {failed && <p role="alert">{t('failed')}</p>}
     <h2>{t('activeDecisions')}</h2>
@@ -196,6 +198,6 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
       </li>)}</ul>
     </section>}
     <h2>{t('history')}</h2>
-    {(rows ?? []).map(row => <DecisionHistory key={row.id} {...{ useResource, t, workspaceId, tick, decisionId: row.id }} />)}
+    {ids.map(id => <DecisionHistory key={id} {...{ useResource, t, workspaceId, tick, decisionId: id }} />)}
   </section>
 }
