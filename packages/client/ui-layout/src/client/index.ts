@@ -163,6 +163,20 @@ export function apply(ctx: ClientContext): void {
     const handle = createLayoutStore()
     const instance = handle.create()
     const store: typeof handle = { ...handle, create: () => instance }
+    const desktop = (window as Window & { dshDesktop?: { rightbar?: {
+      setWidth(width: number): Promise<void>
+      subscribe(listener: (mainWidth: number | null) => void): () => void
+    } } }).dshDesktop?.rightbar
+    let requestedWidth = 0
+    const syncDesktop = (): void => {
+      const info = instance.getSnapshot().layoutInfo
+      const width = info.rightbarShown && info.preserveMainWidth ? info.rightbar ?? 0 : 0
+      if (width === requestedWidth) return
+      requestedWidth = width
+      void desktop?.setWidth(width).catch((error: unknown) => { console.error('Right sidebar window resize failed', error) })
+    }
+    const unsubscribeDesktop = desktop?.subscribe(width => { instance.actions.setDesktopMainWidth(width) })
+    const unsubscribeGeometry = instance.subscribe(syncDesktop)
     const retainMainPanels = (): void => {
       instance.actions.retainMainPanels(ctx.slots.entries('main').flatMap(entry =>
         entry.options.key === undefined ? [] : [entry.options.key]))
@@ -203,6 +217,9 @@ export function apply(ctx: ClientContext): void {
     const disposePanels = ctx.slots.subscribe('main', retainMainPanels)
     retainMainPanels()
     return () => {
+      unsubscribeGeometry()
+      unsubscribeDesktop?.()
+      void desktop?.setWidth(0).catch((error: unknown) => { console.error('Right sidebar window restore failed', error) })
       disposeShortcut()
       layout.dispose()
       disposePanels()

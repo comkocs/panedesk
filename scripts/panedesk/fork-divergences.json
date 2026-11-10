@@ -1,6 +1,38 @@
 {
   "divergences": [
     {
+      "id": "subagent-sidebar-preserves-main-width",
+      "description": "Open catalog and agent-map conversations in the right Sidebar without narrowing the main Session",
+      "origin": "Panedesk subagent navigation",
+      "reason": "Reuse addressed subagent chat tabs, expand ordinary desktop windows and restore them on close, and overlay maximized or native-fullscreen windows while leaving ordinary Session navigation unchanged.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent/src/client/index.ts",
+          "packages/client/ui-subagent/src/client/sidebar-chat/index.tsx",
+          "packages/client/ui-subagent/README.md",
+          "packages/client/ui-subagent/README.zh.md",
+          "packages/client/ui-sidebar-right/src/client/index.ts",
+          "packages/client/ui-sidebar-right/src/client/tab-registry.ts",
+          "packages/client/ui-sidebar-right/src/client/shell/SidebarRight.tsx",
+          "packages/client/ui-sidebar-right/README.md",
+          "packages/client/ui-sidebar-right/README.zh.md",
+          "packages/client/ui-layout/src/client/AppFrame.tsx",
+          "packages/client/ui-layout/src/client/index.ts",
+          "packages/client/ui-layout/src/client/service.ts",
+          "packages/client/ui-layout/src/client/stores.ts",
+          "packages/client/ui-layout/README.md",
+          "packages/client/ui-layout/README.zh.md",
+          "apps/desktop/src/ipc.ts",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/src/preload-app.ts",
+          "apps/desktop/src/rightbar-window.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "optional-claude-agent-types-and-panedesk-headline",
       "description": "Make Claude Code agent types opt-in and name the welcome screen Panedesk",
       "origin": "Panedesk agent type preferences",

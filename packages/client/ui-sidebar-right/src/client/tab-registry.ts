@@ -106,6 +106,8 @@ export interface SidebarRightTabDefinition {
   readonly multiple?: boolean
   /** Lazily keep a visited body mounted through hiding, Session changes and docking; default false. */
   readonly keepMounted?: boolean
+  /** Keep the main column's width while this type has a docked tab; desktop windows expand or overlay. */
+  readonly preserveMainWidth?: boolean
   /**
    * Resource-address globs this type recognizes; omit for a page type, which is
    * opened by kind and recognizes no address.

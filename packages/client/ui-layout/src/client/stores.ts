@@ -49,6 +49,10 @@ type LayoutInfo = {
   rightbarFullscreen: boolean
   /** Suppress transitions for a fullscreen exit until another geometry action. */
   rightbarInstant: boolean
+  /** The occupant requests desktop expansion or an overlay rather than a push. */
+  preserveMainWidth: boolean
+  /** Desktop content width before the right panel's expansion; null means overlay. */
+  desktopMainWidth: number | null
 }
 
 /**
@@ -62,7 +66,8 @@ type LayoutActions = {
   toggleSidebar: (draft: LayoutState) => void
   setViewportWidth: (draft: LayoutState, width: number) => void
   setRightbar: (draft: LayoutState, px: number) => void
-  openRightbar: (draft: LayoutState, track: boolean, fullscreen: boolean) => void
+  openRightbar: (draft: LayoutState, track: boolean, fullscreen: boolean, preserveMainWidth: boolean) => void
+  setDesktopMainWidth: (draft: LayoutState, width: number | null) => void
   closeRightbar: (draft: LayoutState) => void
 }
 
@@ -88,6 +93,8 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         rightbarTrack: false,
         rightbarFullscreen: false,
         rightbarInstant: false,
+        preserveMainWidth: false,
+        desktopMainWidth: null,
       },
     }),
     actions: {
@@ -115,7 +122,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       setViewportWidth: (d, width: number) => {
         if (d.layoutInfo.viewportWidth === width) return
         d.layoutInfo.rightbarInstant = false
-        if ((d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) !== (width < SIDEBAR_AUTO_COLLAPSE)) {
+        if (!d.layoutInfo.preserveMainWidth && (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) !== (width < SIDEBAR_AUTO_COLLAPSE)) {
           d.layoutInfo.narrowExpanded = false
         }
         d.layoutInfo.viewportWidth = width
@@ -124,21 +131,24 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.layoutInfo.rightbarInstant = false
         d.layoutInfo.rightbar = clampWidth(px, RIGHTBAR_MIN, Math.max(RIGHTBAR_MIN, d.layoutInfo.viewportWidth * RIGHTBAR_MAX_RATIO))
       },
-      openRightbar: (d, track: boolean, fullscreen: boolean) => {
+      setDesktopMainWidth: (d, width: number | null) => { d.layoutInfo.desktopMainWidth = width },
+      openRightbar: (d, track: boolean, fullscreen: boolean, preserveMainWidth: boolean) => {
         if (!d.layoutInfo.rightbarShown || d.layoutInfo.rightbarTrack !== track || d.layoutInfo.rightbarFullscreen !== fullscreen) {
           d.layoutInfo.rightbarInstant = d.layoutInfo.rightbarFullscreen && !fullscreen
         }
-        if (!d.layoutInfo.rightbarShown && d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = false
+        if (!preserveMainWidth && !d.layoutInfo.rightbarShown && d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = false
         d.layoutInfo.rightbar ??= Math.max(RIGHTBAR_MIN, Math.round(d.layoutInfo.viewportWidth * RIGHTBAR_DEFAULT_RATIO))
         d.layoutInfo.rightbarShown = true
         d.layoutInfo.rightbarTrack = track
         d.layoutInfo.rightbarFullscreen = fullscreen
+        d.layoutInfo.preserveMainWidth = preserveMainWidth
       },
       closeRightbar: (d) => {
         if (d.layoutInfo.rightbarShown) d.layoutInfo.rightbarInstant = d.layoutInfo.rightbarFullscreen
         d.layoutInfo.rightbarShown = false
         d.layoutInfo.rightbarTrack = false
         d.layoutInfo.rightbarFullscreen = false
+        d.layoutInfo.preserveMainWidth = false
       },
     },
   })

@@ -33,6 +33,8 @@ export const DESKTOP_IPC = {
   updatesPresentation: 'dsh-desktop:updates-presentation',
   nativeThemeSet: 'dsh-desktop:native-theme-set',
   windowFullscreen: 'dsh-desktop:window-fullscreen',
+  rightbarWidth: 'dsh-desktop:rightbar-width',
+  rightbarGeometry: 'dsh-desktop:rightbar-geometry',
   windowsAppearance: 'dsh-desktop:windows-appearance',
   windowsMenu: 'dsh-desktop:windows-menu',
 } as const
@@ -78,6 +80,10 @@ export interface DshDesktopProductApi {
   readonly browser: DesktopBrowserBridge
   readonly keyboard: DesktopKeyboardApi
   readonly shortcuts: DesktopShortcutsApi
+  readonly rightbar: {
+    setWidth(width: number): Promise<void>
+    subscribe(listener: (mainWidth: number | null) => void): () => void
+  }
   /**
    * Local machine description for the feedback questionnaire.
    * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.
