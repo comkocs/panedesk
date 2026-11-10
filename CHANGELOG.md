@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+
+- The Decisions view keeps a reverted decision in the current list with its restored content, shows pending proposals in strict mode so they can be confirmed or rejected, and lets the user revert directly in strict mode.
+
 ## 2.0.0
 
 ### Added
