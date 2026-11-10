@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm-retry",
   "description": "Provider-routed LLM request retry policy for the DeepSeek Harness",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "publishConfig": {
     "access": "public"
   },

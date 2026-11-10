@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-session-reference",
   "description": "Cross-session snapshot references and durable untrusted model context (ctx.sessionReferenceResolver)",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "publishConfig": {
     "access": "public"
   },

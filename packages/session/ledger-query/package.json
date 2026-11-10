@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-ledger-query",
   "description": "Read-only ledger query and export service definitions",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "publishConfig": {
     "access": "public"
   },
