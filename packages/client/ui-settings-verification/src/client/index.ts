@@ -33,17 +33,35 @@ export const inject = ['remote', 'slots', 'locale', 'resources']
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
   const ui = ctx.inject(['remote.verificationPolicy'], scope => {
+    const saved = new EventTarget()
     scope.effect(() => scope.locale.register('verification', { en, zh }))
     scope.effect(() => scope.resources.register<'verification'>({
-      protocol: 'verification', async *open(address) {
+      protocol: 'verification', async *open(address, { signal }) {
         const workspaceId = decodeURIComponent(new URL(address).pathname.slice(1)) as WorkspaceId
-        yield await scope.remote.verificationPolicy.readWorkspace({ workspaceId })
+        while (!signal.aborted) {
+          let notify!: () => void
+          const changed = new Promise<void>(resolve => { notify = resolve })
+          saved.addEventListener(workspaceId, notify, { once: true })
+          signal.addEventListener('abort', notify, { once: true })
+          try {
+            yield await scope.remote.verificationPolicy.readWorkspace({ workspaceId })
+            if (signal.aborted) return
+            await changed
+          } finally {
+            saved.removeEventListener(workspaceId, notify)
+            signal.removeEventListener('abort', notify)
+          }
+        }
       },
     }))
     scope.slots.inject('settings.section', () => scope.slots.register({
       name: 'settings.section', id: 'verification', group: 'panedesk', order: 40,
       label: () => scope.locale.bind('verification')('title'), locale: 'verification',
-      inject: (): VerificationActions => ({ save: request => scope.remote.verificationPolicy.saveWorkspace(request) }),
+      inject: (): VerificationActions => ({ save: async request => {
+        const result = await scope.remote.verificationPolicy.saveWorkspace(request)
+        if (result.ok) saved.dispatchEvent(new Event(request.workspaceId))
+        return result
+      } }),
     }, VerificationPage))
   })
   try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }
