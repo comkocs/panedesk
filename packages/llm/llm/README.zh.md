@@ -58,7 +58,7 @@ for await (const chunk of ctx.llm.stream({
 
 挂载成功后，`ctx.llm.listProviders()` 会按注册顺序报告已注册路由。
 
-适配器失败归一化在现有 `LlmFailure` 字段中保留 HTTP 状态码和提供方诊断。HTTP 适配器先把配置的凭据替换为 `***`、把较长的 `sk-` 密钥替换为 `sk-***`，再保留响应正文前 500 字符；不按字段名或地址打码。`formatLlmFailure` 为 subagent 结果与通知呈现这些事实。
+适配器失败归一化在 `LlmFailure` 中保留 HTTP 状态码与提供方诊断。DeepSeek Messages 为试连一次在存活错误的 `LlmError.body` 上独立保留完整脱敏响应文本，不加入持久化失败事实；诊断摘要仍使用前 500 字符的摘录。它把配置的凭据替换为 `***`、把较长的 `sk-` 密钥替换为 `sk-***`；不按字段名或地址打码。`formatLlmFailure` 为 subagent 结果与通知呈现诊断。
 
 `GenerateOptions.messages` 接受持久 `Message` 值和仅供请求使用的 `RequestUserInput` 值。仅供请求使用的输入包含 user-role 内容，不含 `id` 或 `source`；Session 写入和 Agent 投递仍然要求持久消息。调用方必须在流结束前保持辅助输入不变。会记录完整请求的调用方（例如会话标题生成）必须使用持久消息。
 

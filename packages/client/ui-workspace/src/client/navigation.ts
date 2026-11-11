@@ -1,5 +1,6 @@
 /** Workspace archive and directory UI capability. */
 
+import type { NewSessionTimingId } from '@panedesk/dsh-api-session-controller/types'
 import { Service, type Context } from '@panedesk/cordis'
 import type { ClientRemote, DirectoryListing, RemoteFailure } from '@panedesk/dsh-api-remotes/client'
 import type {
@@ -23,6 +24,8 @@ import type { DraftInitializationOptions } from '@panedesk/dsh-client-ui-convers
 import type { RowToast } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
+
+type SessionConnectionOptions = Pick<StartSessionOptions, 'agentPreset'> & { readonly timingId?: NewSessionTimingId }
 
 interface MainSelection {
   readonly sessionId?: SessionId
@@ -79,7 +82,7 @@ export interface UiWorkspace {
    */
   connectWorkspace(workspaceId: WorkspaceId, options?: Pick<StartSessionOptions, 'agentPreset'>): Promise<SessionId>
   /**
-   * Reuse a blank Session or create one; repeated requests while opening are ignored. A creation the Host
+   * Reuse a blank Session or create one; repeated clicks join navigation but each records its timing. A creation the Host
    * refuses is shown through the Workspace notice and leaves the selection as it was.
    * @param workspaceId - explicit target; absent inherits the open Session's Workspace or, with none open, the most recent Workspace.
    * @param options - initial content and the reused blank's preset; existing text or attachments
@@ -160,9 +163,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
-  private opening: Promise<void> | undefined
-  /** Wall time of the latest New Session request, so creation can report the click stretch. */
-  private requestedAt = 0
+  private opening: Promise<boolean> | undefined
 
   /**
    * @param ctx - Client root Context.
@@ -202,7 +203,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    */
   private async connectBlank(
     workspaceId: WorkspaceId,
-    reuse: Pick<StartSessionOptions, 'agentPreset'>,
+    reuse: SessionConnectionOptions,
   ): Promise<SessionId> {
     const workspace = this.workspaces.list.getSnapshot().items
       .find(item => item.workspaceId === workspaceId)
@@ -219,7 +220,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return attempt
   }
 
-  private createInWorkspace(workspace: WorkspaceView, options: Pick<StartSessionOptions, 'agentPreset'>): Promise<SessionId> {
+  private createInWorkspace(workspace: WorkspaceView, options: SessionConnectionOptions): Promise<SessionId> {
     const archived = this.workspaces.list.getSnapshot().archivedSessionIds
     const sessions = this.sessions.list.getSnapshot()
     const blank = sessions.ids.find((id) => {
@@ -229,6 +230,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     })
     return this.createNamed({
       workspaceId: workspace.workspaceId,
+      ...(options.timingId === undefined ? {} : { timingId: options.timingId }),
       ...(blank === undefined ? {} : { sessionId: blank }),
       ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }),
     })
@@ -243,11 +245,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     readonly workspaceId: WorkspaceId
     readonly sessionId?: SessionId
     readonly agentPreset?: string
+    readonly timingId?: NewSessionTimingId
   }): Promise<SessionId> {
-    const sessionId = await this.sessions.create({
-      ...request,
-      ...(request.sessionId === undefined ? { clientElapsedMs: Date.now() - this.requestedAt } : {}),
-    })
+    const sessionId = await this.sessions.create(request)
     const named = request.sessionId
     if (named !== undefined && named !== sessionId) {
       void this.sessions.refreshProjections(named).catch((reason: unknown) => {
@@ -282,19 +282,19 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.replaceMain(target, this.lifetime.signal, 'reveal')
   }
 
-  openWorkspace(
+  async openWorkspace(
     workspaceId: WorkspaceId,
     beforeOpen?: (sessionId: SessionId) => void,
-    options: Pick<StartSessionOptions, 'agentPreset'> = {},
+    options: SessionConnectionOptions = {},
   ): Promise<void> {
-    return this.openWorkspaceSession(workspaceId, beforeOpen, options)
+    await this.openWorkspaceSession(workspaceId, beforeOpen, options)
   }
 
   private async openWorkspaceSession(
     workspaceId: WorkspaceId,
     beforeOpen: ((sessionId: SessionId) => void) | undefined,
-    reuse: Pick<StartSessionOptions, 'agentPreset'>,
-  ): Promise<void> {
+    reuse: SessionConnectionOptions,
+  ): Promise<boolean> {
     const navigation = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
     let sessionId: SessionId
     try {
@@ -305,8 +305,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       if (!navigation.aborted) this.notify({ kind: 'createFailed', message: creationFailureMessage(error) })
       throw error
     }
-    if (navigation.aborted) return
+    if (navigation.aborted) return false
     this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
+    return !navigation.aborted
   }
 
   async forkSession(
@@ -323,8 +324,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {
-    if (this.opening !== undefined) return
-    this.requestedAt = Date.now()
+    const startedAt = performance.now()
+    const timingId = crypto.randomUUID() as NewSessionTimingId
+    if (this.opening !== undefined) {
+      this.recordClick(timingId, startedAt, workspaceId, this.opening)
+      return
+    }
     const { agentPreset, ...draft } = options ?? {}
     const draftOptions = options === undefined ? undefined : draft
     const initializeDraft = draftOptions !== undefined
@@ -344,20 +349,46 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     if (target === undefined) {
       if (initializeDraft) {
         this.notify({ kind: 'createFailed', message: this.ctx.locale.bind('workspace')('draft.workspaceRequired') })
+        this.recordClick(timingId, startedAt, target, Promise.resolve(false))
         return
       }
       this.clearMain()
+      this.recordClick(timingId, startedAt, target, Promise.resolve(true))
       return
     }
-    const opening = this.openWorkspace(target, initializeDraft ? (id) => {
+    const opening = this.openWorkspaceSession(target, initializeDraft ? (id) => {
       const binding = this.sessions.binding(id)
       if (binding === undefined) this.draftPreparationFailed()
       this.prepareDraft(binding, draftOptions)
-    } : undefined, agentPreset === undefined ? {} : { agentPreset })
+    } : undefined, { timingId, ...(agentPreset === undefined ? {} : { agentPreset }) })
     this.opening = opening
+    this.recordClick(timingId, startedAt, target, opening)
     void opening.catch(
       (reason: unknown) => { console.warn('new session failed:', reason) },
     ).finally(() => { this.opening = undefined })
+  }
+
+  /** Report after the selection has rendered and one frame has had a chance to paint. */
+  private recordClick(timingId: NewSessionTimingId, startedAt: number, workspaceId: WorkspaceId | undefined, opening: Promise<boolean>): void {
+    const settled = (shown: boolean): void => {
+      const reference = this.mainReference
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const pageShown = shown && reference === this.mainReference && !this.lifetime.signal.aborted
+          const sessionId = pageShown ? reference?.sessionId : undefined
+          void this.ctx.remote.session.recordNewSessionTiming({
+            timingId,
+            clientElapsedMs: Math.round(performance.now() - startedAt),
+            pageShown,
+            ...(workspaceId === undefined ? {} : { workspaceId }),
+            ...(sessionId === undefined ? {} : { sessionId }),
+          }).then(result => {
+            if (!result.ok) console.warn('new session timing failed:', result.error)
+          }).catch((error: unknown) => { console.warn('new session timing failed:', error) })
+        })
+      })
+    }
+    void opening.then(settled, () => { settled(false) })
   }
 
   private prepareDraft(binding: SessionBinding, options: DraftInitializationOptions): void {

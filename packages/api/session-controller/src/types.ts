@@ -355,8 +355,25 @@ export interface SessionCreateRequest {
   readonly sessionId?: SessionId
   /** Preset the Session runs, replacing a reused Session's recorded preset; the configured default when omitted. */
   readonly agentPreset?: string
-  /** Milliseconds the Client measured between the click and this request. Omitted by callers that keep no timing line. */
-  readonly clientElapsedMs?: number
+  /** Click recorder completed by `session.recordNewSessionTiming` after the page is shown. */
+  readonly timingId?: NewSessionTimingId
+}
+
+/** Opaque identity of one New Session click. */
+export type NewSessionTimingId = Branded<'new-session-timing-id'>
+
+/** Client observation made after New Session navigation has reached a painted frame. */
+export interface SessionNewSessionTimingRequest {
+  /** Click recorder, also sent with create when this click starts a Host request. */
+  readonly timingId: NewSessionTimingId
+  /** Click-to-page milliseconds measured on the Client. */
+  readonly clientElapsedMs: number
+  /** False when creation failed or navigation was superseded instead of showing its page. */
+  readonly pageShown: boolean
+  /** Workspace selected by the click, when present. */
+  readonly workspaceId?: WorkspaceId
+  /** Session displayed after navigation, when present. */
+  readonly sessionId?: SessionId
 }
 
 /** Session creation response value. */

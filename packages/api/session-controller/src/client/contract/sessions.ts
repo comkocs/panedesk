@@ -4,6 +4,7 @@
  * the concrete class. Widening this interface is the
  * explicit act of widening what features may do to the sessions domain.
  */
+import type { NewSessionTimingId } from '../../types.ts'
 import type { Context } from '@panedesk/cordis'
 import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -90,8 +91,8 @@ export interface ISessions {
     cwd?: string
     sessionId?: SessionId
     agentPreset?: string
-    /** Milliseconds since the click, forwarded so the Host timing line can name the Client stretch. */
-    clientElapsedMs?: number
+    /** Recorder completed after the Client shows the page. */
+    timingId?: NewSessionTimingId
   }): Promise<SessionId>
   /**
    * Resolve an already discovered direct-parent address without opening it.

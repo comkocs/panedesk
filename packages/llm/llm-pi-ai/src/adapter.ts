@@ -518,19 +518,20 @@ export class PiAiAdapter extends LlmAdapter {
   override probe(options: GenerateOptions): AsyncIterable<StreamChunk> {
     const snapshot = this.current()
     const listed = snapshot.models.getModel(options.provider, options.model)
-    if (listed !== undefined) return this.streamWithSnapshot(options, snapshot)
+    if (listed !== undefined) return this.streamWithSnapshot(options, snapshot, undefined, true)
     // The route supplies protocol and endpoint, not a claimed catalog entry.
     // This descriptor exists only for this text-only, one-token probe.
     const template = snapshot.models.getModels(options.provider)[0]
     if (template === undefined) throw new LlmError('probe route has no protocol descriptor', 'INVALID_CONFIG')
     const model: Model<Api> = { ...template, id: options.model, name: options.model, reasoning: false, input: ['text'] }
-    return this.streamWithSnapshot({ ...options, reasoningEffort: ReasoningEffortId('off') }, snapshot, model)
+    return this.streamWithSnapshot({ ...options, reasoningEffort: ReasoningEffortId('off') }, snapshot, model, true)
   }
 
   private async * streamWithSnapshot(
     options: GenerateOptions,
     snapshot: PiAiSnapshot,
     probeModel?: Model<Api>,
+    probing = false,
   ): AsyncIterable<StreamChunk> {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
@@ -544,6 +545,7 @@ export class PiAiAdapter extends LlmAdapter {
     const model = probeModel ?? this.modelOf(snapshot, options.provider, options.model)
     const cache = requestCache(model, options)
     const evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
+    let responseBody: string | undefined
     const updates = conversationUpdates(model)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
     const tools = options.tools ?? []
@@ -600,8 +602,9 @@ export class PiAiAdapter extends LlmAdapter {
           fetch: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
             const response = await fetch(input, init)
             evidence.status = response.status
-            evidence.responseBody = response.ok ? undefined
-              : redactLlmDiagnostic(await response.clone().text(), apiKey).slice(0, 500)
+            const body = response.ok ? undefined : redactLlmDiagnostic(await response.clone().text(), apiKey)
+            evidence.responseBody = body?.slice(0, 500)
+            if (probing) responseBody = body
             return response
           },
         } : {},
@@ -625,9 +628,16 @@ export class PiAiAdapter extends LlmAdapter {
             exhausted = true
             return
           }
-          yield evidence.enrich(result.value, {
+          const chunk = evidence.enrich(result.value, {
             ...cache.metadata, accountLabel: profile.displayName || profile.provider || 'unknown',
           }, apiKey)
+          if (probing && chunk.type === 'finish' && chunk.reason.kind === 'error') {
+            const failure = chunk.reason.failure
+            throw new LlmError(failure.message, failure.code, {
+              ...failure, ...responseBody === undefined ? {} : { body: responseBody },
+            })
+          }
+          yield chunk
         }
       } finally {
         if (!exhausted) {
@@ -649,6 +659,7 @@ export class PiAiAdapter extends LlmAdapter {
       throw new LlmError(message, error instanceof LlmError ? error.code : 'UNKNOWN', {
         ...error instanceof LlmError ? error.failure : {},
         ...evidence.status === undefined ? {} : { status: evidence.status },
+        ...responseBody === undefined ? {} : { body: responseBody },
       })
     } finally {
       consumer.abort('pi-ai stream consumer stopped')

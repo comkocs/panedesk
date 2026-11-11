@@ -166,9 +166,11 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
           if (await files.retry(detail)) continue
           const failure = providerError(raw, response.status, response.headers)
           const apiKey = auth.headers['x-api-key'] ?? auth.headers['x-dsh-auth-token']
-          const body = redactLlmDiagnostic(text, apiKey).slice(0, 500)
+          const body = redactLlmDiagnostic(text, apiKey)
           const message = redactLlmDiagnostic(files.errorMessage(response.status, failure.message, detail), apiKey)
-          throw new LlmError(`HTTP ${response.status}: ${body || message}`, failure.code, failure.failure)
+          throw new LlmError(`HTTP ${response.status}: ${body.slice(0, 500) || message}`, failure.code, {
+            ...failure.failure, body,
+          })
         }
         await extensions.accept()
         try {

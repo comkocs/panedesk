@@ -43,6 +43,8 @@ import type {
   SessionCancelValue,
   SessionCreateRequest,
   SessionCreateValue,
+  NewSessionTimingId,
+  SessionNewSessionTimingRequest,
   SessionForkRequest,
   SessionForkValue,
   SessionPromptRequest,
@@ -93,6 +95,20 @@ function latestCompletedPrefixBoundary(events: readonly SessionEvent[]): Session
 
 /** Implements Session business commands delegated by the Session Controller Remote service. */
 export class SessionCommandController {
+  private readonly newSessionTimings = new Map<NewSessionTimingId, NewSessionTiming>()
+
+  /**
+   * Finish one click's line after the Client has shown the page.
+   * @param request - click identity and click-to-page observation.
+   */
+  recordNewSessionTiming(request: SessionNewSessionTimingRequest): void {
+    const pending = this.newSessionTimings.get(request.timingId)
+    this.newSessionTimings.delete(request.timingId)
+    const timing = pending ?? startNewSessionTiming(request.workspaceId, undefined, 'reused')
+    if (pending === undefined && request.sessionId !== undefined) timing.identify(request.sessionId)
+    timing.finish(request.clientElapsedMs, request.pageShown)
+  }
+
   /**
    * @param ctx - Host context carrying Agent, model, attachment, title, and Workspace services.
    * @param agents - sole owner of create, resume, and Session-local model selection.
@@ -109,8 +125,8 @@ export class SessionCommandController {
    * blank Session while it is an unarchived member of the requested Workspace.
    * A brand-new Session answers with its identity before preset mounting,
    * publication, and Workspace attachment finish; those continue afterwards and
-   * a failure there is logged. Reuse keeps its previous order and still answers
-   * with the preset it left running.
+   * a failure there is logged. Reuse keeps validation and preset selection ordered;
+   * click-associated requests do not wait for Workspace attachment.
    * @param request - optional blank Session to reuse, location, and Agent preset.
    * @returns the created or reused Session identity, and its preset when reuse finished one.
    */
@@ -129,10 +145,8 @@ export class SessionCommandController {
 
   private async createInWorkspace(request: SessionCreateRequest, workspace?: Workspace): Promise<SessionCreateValue> {
     const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
-    // Only a brand-new Session leaves work running after the answer; reuse stays synchronous.
-    const timing = request.sessionId === undefined
-      ? startNewSessionTiming(request.workspaceId, request.clientElapsedMs)
-      : undefined
+    const timing = startNewSessionTiming(request.workspaceId, undefined)
+    if (request.timingId !== undefined) this.newSessionTimings.set(request.timingId, timing)
     let created: ApiSessionCreated
     try {
       created = await this.agents.createSession({
@@ -143,13 +157,20 @@ export class SessionCommandController {
           && (workspace === undefined || workspace.sessionIds.includes(sessionId)),
       }, timing)
     } catch (error) {
-      timing?.finish()
+      if (request.timingId === undefined) timing.finish()
       this.rejectCreation(error)
     }
     const sessionId = created.sessionId ?? created.agent?.id
     if (sessionId === undefined) {
-      timing?.finish()
+      if (request.timingId === undefined) timing.finish()
       throw new RemoteError('gateway/internal', 'session creation finished without an identity', {})
+    }
+    timing.identify(sessionId)
+    if (request.timingId !== undefined) {
+      void this.finishCreated(created.ready ?? Promise.resolve(created), workspace, sessionId, undefined).catch((error: unknown) => {
+        this.ctx.logger.warn(`session "${sessionId}" follow-up setup failed: ${String(error)}`)
+      })
+      return { sessionId, ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }) }
     }
     if (created.ready !== undefined) {
       const settled = this.finishCreated(created.ready, workspace, sessionId, timing)
@@ -172,7 +193,7 @@ export class SessionCommandController {
   ): Promise<void> {
     try {
       await ready
-      if (workspace !== undefined) await this.attachCreated(workspace, sessionId, timing)
+      if (workspace !== undefined && !workspace.sessionIds.includes(sessionId)) await this.attachCreated(workspace, sessionId, timing)
     } finally {
       timing?.finish()
     }

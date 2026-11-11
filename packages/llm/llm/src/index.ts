@@ -97,6 +97,8 @@ declare module '@panedesk/cordis' {
 export interface LlmErrorOptions extends ErrorOptions {
   /** Valid HTTP status observed at the provider boundary. */
   status?: number
+  /** Credential-redacted HTTP response text. */
+  body?: string
   /** Positive finite provider-requested delay in milliseconds. */
   providerRetryAfterMs?: number
   /** Non-empty opaque provider request id. */
@@ -112,6 +114,8 @@ export interface LlmErrorOptions extends ErrorOptions {
 export class LlmError extends HarnessError {
   /** Serializable facts retained beside this live Error. */
   readonly failure: LlmFailure
+  /** Credential-redacted HTTP response text for a session-free connection check; never persisted in failure facts. */
+  readonly body: string | undefined
 
   /**
    * @param message - non-empty human-readable failure summary.
@@ -135,6 +139,7 @@ export class LlmError extends HarnessError {
     }
     super(message, code, options)
     this.name = 'LlmError'
+    this.body = options?.body
     this.failure = Object.freeze({
       message,
       code,
@@ -1222,7 +1227,8 @@ export class LlmRuntime extends TypertRemoteService {
         if (chunk.type === 'finish') finish = chunk
       }
     } catch (error: unknown) {
-      return probeFailure(normalizeLlmFailure(error))
+      const body = error instanceof Error && 'body' in error && typeof error.body === 'string' ? error.body : undefined
+      return probeFailure(normalizeLlmFailure(error), body)
     }
     if (finish?.type !== 'finish') return { ok: false, code: 'UNKNOWN', reason: 'other', message: 'probe produced no finish' }
     if (finish.reason.kind === 'error') return probeFailure(finish.reason.failure)
@@ -1524,14 +1530,15 @@ function failureBody(text: string, apiKey?: string): string | undefined {
 /**
  * Turn one adapter failure into the one-shot probe result.
  * @param failure - normalized adapter failure.
- * @returns category, HTTP status, and the leading failure text.
+ * @param responseBody - credential-redacted HTTP text carried by a live adapter error, when available.
+ * @returns category, HTTP status, and response text.
  */
-function probeFailure(failure: LlmFailure): LlmModelProbeResult {
+function probeFailure(failure: LlmFailure, responseBody?: string): LlmModelProbeResult {
   const reason: NonNullable<LlmProtocolCheck['reason']> = failure.code === 'AUTH' || failure.code === 'MISSING_CREDENTIAL' || failure.code === 'INVALID_CREDENTIAL'
     ? 'auth'
     : failure.code.includes('TIMEOUT') ? 'timeout'
       : failure.status === 404 || failure.status === 405 || failure.status === 501 ? 'protocol' : 'other'
-  const body = failureBody(failure.message)
+  const body = responseBody === undefined ? failureBody(failure.message) : redactLlmDiagnostic(responseBody)
   return {
     ok: false,
     code: failure.code,

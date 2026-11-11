@@ -27,9 +27,6 @@ interface ProbeFailure {
   body?: string | undefined
 }
 
-/** How many leading lines of a failure body stay visible while the rest stays folded. */
-const FAILURE_BODY_LINES = 8
-
 /**
  * Render one failure as category, HTTP status, and a folded response body.
  * @param failure - facts the host returned for this check.
@@ -39,8 +36,7 @@ const FAILURE_BODY_LINES = 8
 function ProbeFailureFacts(props: { failure: ProbeFailure; t: (key: ModelsKey) => string }): ReactNode {
   const { failure, t } = props
   const reason = failure.reason ?? 'other'
-  const lines = (failure.body ?? '').split(/\r?\n/).slice(0, FAILURE_BODY_LINES)
-  const body = lines.join('\n')
+  const body = failure.body ?? ''
   return <div>
     <p>{t('protocolCategory')}: {t(PROBE_REASONS[reason])}</p>
     <p>{t('protocolHttpStatus')}: {failure.status === undefined ? t('protocolStatusMissing') : `HTTP ${String(failure.status)}`}</p>
@@ -63,6 +59,8 @@ const PROBE_REASONS = { protocol: 'protocolUnsupported', auth: 'protocolAuth', m
 export function ProbeAttemptFacts(props: { probe: ModelProbeOutcome | undefined; t: (key: ModelsKey) => string }): ReactNode {
   const { probe, t } = props
   if (probe === undefined || probe.ok) return null
+  // A missing id is a prompt, not a failed attempt, so it carries no category.
+  if (probe.reason === undefined && probe.status === undefined) return <p role="status">{probe.message}</p>
   return <ProbeFailureFacts failure={probe} t={t} />
 }
 

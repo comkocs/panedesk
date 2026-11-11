@@ -45,6 +45,7 @@ import type {
   SessionControlFrame,
   SessionCreateRequest,
   SessionCreateValue,
+  SessionNewSessionTimingRequest,
   SessionFollowFrame,
   SessionFollowRequest,
   SessionForkRequest,
@@ -304,6 +305,15 @@ export class SessionController extends TypertRemoteService {
   @Remote('create')
   create(request: SessionCreateRequest): Promise<SessionCreateValue> {
     return this.commands.create(request)
+  }
+
+  /**
+   * Append the timing for one New Session click after its page has been shown.
+   * @param request - click identity and Client-measured click-to-page milliseconds.
+   */
+  @Remote('recordNewSessionTiming')
+  recordNewSessionTiming(request: SessionNewSessionTimingRequest): void {
+    this.commands.recordNewSessionTiming(request)
   }
 
   /**

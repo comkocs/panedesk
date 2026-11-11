@@ -184,7 +184,7 @@ export const en = {
   tryModelId: 'Unlisted identifier',
   trySucceeded: 'The model answered.',
   tryFailed: 'The try failed',
-  tryNeedsId: 'Enter a model ID first.',
+  tryNeedsId: 'Enter a model ID to test first.',
 }
 
 /** The settings.models namespace key union. */
@@ -374,5 +374,5 @@ export const zh: { [Key in keyof typeof en]: string } = {
   tryModelId: '列表外的模型 ID',
   trySucceeded: '模型已应答。',
   tryFailed: '试连失败',
-  tryNeedsId: '请先填写模型 ID。',
+  tryNeedsId: '先填要测的模型 ID。',
 }
