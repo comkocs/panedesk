@@ -42,23 +42,23 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
   const resource = useResource<'trace'>(`dsh-resource://trace/${encodeURIComponent(workspaceId)}?revision=${revision}`)
   const [override, setOverride] = useState<TraceStatus | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState<string | null>(null)
   const [projectId, setProjectId] = useState('')
   const [plannerMenu, setPlannerMenu] = useState(false)
   const status = override ?? resource.value?.status ?? null
   const windows = sessionIds.filter(id => sessions[id]?.origin !== 'subagent')
-  const apply = (next: Promise<RemoteResult<TraceStatus>>): void => {
-    setFailure(null); setSaved(false)
+  const apply = (next: Promise<RemoteResult<TraceStatus>>, receipt?: string): void => {
+    setFailure(null); setSaved(null)
     void next.then(result => {
       if (!result.ok) { setFailure(result.error.message); return }
-      setOverride(result.value); setRevision(current => current + 1); setSaved(true)
+      setOverride(result.value); setRevision(current => current + 1); setSaved(receipt ?? t('saved'))
     }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
   }
   const enabled = status?.enabled === true
   const planner = windows.find(id => id === status?.plannerSessionId)
   return <section>
     <label><input type="checkbox" checked={enabled} disabled={status === null}
-      onChange={event => { apply(event.target.checked ? enable(workspaceId) : disable(workspaceId)) }} />{t('enabled')}</label>
+      onChange={event => { apply(event.target.checked ? enable(workspaceId) : disable(workspaceId), event.target.checked ? t('recordingOn') : t('recordingOff')) }} />{t('enabled')}</label>
     <h4>{t('associate')}</h4>
     <p>{t('associateHint')}</p>
     <label>{t('projectId')}<Input value={projectId} onChange={event => { setProjectId(event.target.value) }} /></label>
@@ -76,6 +76,6 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
     {windows.length === 0 && <p>{t('noSessions')}</p>}
     {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
     {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
-    {saved && <p role="status">{t('saved')}</p>}
+    {saved !== null && <p role="status">{saved}</p>}
   </section>
 }

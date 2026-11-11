@@ -3,15 +3,22 @@ import { createHash } from 'node:crypto'
 import { mkdir, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { Session, SessionEvent, SessionId } from '@panedesk/dsh-session'
 import type { SubagentRunInfo, SubagentRunEndInfo } from '@panedesk/dsh-subagent'
 import type { Agent } from '@panedesk/dsh-agent'
 import { carrierKeyOf } from '@panedesk/dsh-scope'
 import type {} from '@panedesk/dsh-message-delivery'
+import type {} from '@panedesk/dsh-session-persistence'
 import type {} from '@panedesk/dsh-tool-present/types'
 import type {} from '@panedesk/dsh-workspace-changes'
 import type TraceStore from './index.ts'
 import type { TraceReference } from './types.ts'
+
+/** One file a write or edit tool changed, as stored on the tool result. */
+interface ToolFileDiff { path: string; oldText: string | null; newText: string }
+
+/** File-changing tools whose result carries a diff. A shell write has no per-call diff here. */
+const FILE_CHANGE_TOOLS = new Set(['write', 'edit'])
 
 /** Install reversible observers and drain asynchronous capture before database disposal.
  * @param ctx Host event owner.
@@ -52,6 +59,10 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     observe(store.capture(session.id, { type: event.type, key: `session:${session.id}:${event.seq}`,
       payload: '{}', seqStart: event.seq, seqEnd: event.seq, time: event.time,
       model: models.get(session.id), actor: event.type === 'user/message' ? 'user' : undefined }, references))
+  })
+  ctx.on('session/event', (session, event) => {
+    if (event.type !== 'tool/result' || !store.recordsSession(session)) return
+    observe(captureToolChange(ctx, store, session, event, models))
   })
   for (const edge of ['subagent/start', 'subagent/end'] as const) ctx.on(edge, function (this: object, info: SubagentRunInfo | SubagentRunEndInfo) {
     const parent = carrierKeyOf(this) as Agent
@@ -96,4 +107,80 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     })
   })
   return async () => { await Promise.all(pending) }
+}
+
+/** Read the file diffs a write or edit tool stored on its result.
+ * @param meta Tool-private presentation payload.
+ * @returns Valid file diffs, or an empty list when this result carries none.
+ */
+function fileDiffs(meta: unknown): ToolFileDiff[] {
+  if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return []
+  const diffs = (meta as { diffs?: unknown }).diffs
+  if (!Array.isArray(diffs)) return []
+  return diffs.flatMap((entry): ToolFileDiff[] => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return []
+    const { path, oldText, newText } = entry as { path?: unknown; oldText?: unknown; newText?: unknown }
+    if (typeof path !== 'string' || path.length === 0) return []
+    if ((oldText !== null && typeof oldText !== 'string') || typeof newText !== 'string') return []
+    return [{ path, oldText, newText }]
+  })
+}
+
+/** One line of what a file edit did, without copying the file contents into the timeline.
+ * @param diff Stored before and after text of one hunk.
+ * @returns Added and removed line counts.
+ */
+function diffSummary(diff: ToolFileDiff): string {
+  const before = diff.oldText?.split('\n') ?? []
+  const after = diff.newText.split('\n')
+  const removed = before.filter(line => !after.includes(line)).length
+  const added = after.filter(line => !before.includes(line)).length
+  return diff.oldText === null ? `created ${diff.path}` : `edited ${diff.path} (+${added} -${removed})`
+}
+
+/** Record one file-changing tool result as its own timeline event and a change reference.
+ * @param ctx Host event owner, used to read the paired tool call.
+ * @param store Single project writer.
+ * @param session Session that appended the tool result.
+ * @param event Completed tool result.
+ * @param models Model last seen for each session.
+ * @returns After the event commits, or immediately when the result is not a file change.
+ */
+async function captureToolChange(
+  ctx: Context, store: TraceStore, session: Session, event: SessionEvent<'tool/result'>, models: Map<SessionId, string>,
+): Promise<void> {
+  if (event.data.message.isError === true) return
+  const callSeq = event.sourceEventSeqs?.[0]
+  if (callSeq === undefined) return
+  const handle = await ctx.sessionPersistence.open(session.id, 'read')
+  let toolName: string
+  try {
+    const call = (await handle.read(callSeq, 1)).events[0]
+    if (call?.type !== 'tool/call' || call.seq !== callSeq || !FILE_CHANGE_TOOLS.has(call.data.name)) return
+    toolName = call.data.name
+  } finally { await handle.close() }
+  const diffs = fileDiffs(event.data.meta)
+  if (diffs.length === 0) return
+  const directory = await store.diffDirectory(session)
+  if (directory === undefined) return
+  await mkdir(directory, { recursive: true, mode: 0o700 })
+  const references: Omit<TraceReference, 'id' | 'eventId'>[] = []
+  for (const [index, diff] of diffs.entries()) {
+    const removed = diff.oldText === null ? [] : diff.oldText.split('\n')
+    const added = diff.newText.split('\n')
+    const text = JSON.stringify({ kind: 'text', path: diff.path, tool: toolName,
+      before: diff.oldText !== null, after: true, hunks: [{
+        oldStart: 1, oldLines: removed.length, newStart: 1, newLines: added.length,
+        lines: [...removed.map(line => `-${line}`), ...added.map(line => `+${line}`)],
+      }] })
+    const filename = `${createHash('sha256').update(`${session.id}:${event.seq}:${index}`).digest('hex')}.json`
+    const handle = await open(join(directory, filename), 'w', 0o600)
+    try { await handle.writeFile(text, 'utf8'); await handle.sync() } finally { await handle.close() }
+    references.push({ kind: 'change', sessionId: session.id, seqStart: event.seq, seqEnd: event.seq, path: diff.path,
+      beforeHash: null, afterHash: null, summary: diffSummary(diff), diffFile: filename })
+  }
+  const summary = references.map(reference => reference.summary).join('; ')
+  await store.capture(session.id, { type: 'file/changed', key: `file:${session.id}:${event.seq}`,
+    payload: JSON.stringify({ tool: toolName, summary, paths: diffs.map(diff => diff.path) }),
+    seqStart: event.seq, seqEnd: event.seq, time: event.time, model: models.get(session.id) }, references)
 }

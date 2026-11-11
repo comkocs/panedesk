@@ -13,7 +13,7 @@ The Panedesk features page carries the workspace switches for project recording.
 
 ## Use this package
 
-The settings row offers item recording, a link to an existing project, and strict mode. Successful changes show a saved notice; failed reads and actions in settings or the panel show the original service error. Strict mode can be changed only while recording is on, and it names one planning window from the workspace's own sessions. A session-header button opens `dsh-resource://trace/session/<sessionId>` as the `trace` tab kind. While recording is off the tab shows only a short note and a button that opens the Panedesk features page. The items page lists open and closed items, creates an item, shows the selected item's timeline, assigns checked unassigned activity, closes an item, and downloads the selected item as JSON or Markdown. A reference button reads the stored text or diff. The decisions page lists current entries with the window, model, and time that recorded each one, and can revert one entry. Pending proposals and their confirm and reject buttons appear only while strict mode is on.
+The settings row offers item recording, a link to an existing project, and strict mode. Successful changes show a saved notice; failed reads and actions in settings or the panel show the original service error. Strict mode can be changed only while recording is on, and it names one planning window from the workspace's own sessions. A session-header button opens `dsh-resource://trace/session/<sessionId>` as the `trace` tab kind. While recording is off the tab shows only a short note and a button that opens the Panedesk features page. The items page lists open and closed items, creates an item, shows the selected item's timeline, assigns checked unassigned activity, closes an item, and downloads the selected item as JSON or Markdown. Each activity row is one sentence; its stored type is the row tooltip. Unassigned activity scrolls, and the assign button names its target and stays disabled when nothing can be assigned. Turning item recording on or off shows its own notice. A reference button reads the stored text or diff; a change reference shows the diff and a session reference shows the session slice. The decisions page lists current entries with the window, model, and time that recorded each one, and can revert one entry. Pending proposals and their confirm and reject buttons appear only while strict mode is on.
 
 ## Model Experience
 
@@ -34,7 +34,7 @@ The panel does not change model input or cache reuse.
 ## Known Limitations and Deferred Work
 
 - The tab shows the workspace that owns the on-screen session. A session with no workspace shows the off-state note.
-- Export downloads a file in the browser. It does not write into the workspace.
+- Export starts a browser download and names the file. It does not write into the workspace. The desktop app has no save dialog for this download.
 - Timeline pages use the service default page size, and decision history is read per current decision.
 - The panel does not offer voiding an item.
 
