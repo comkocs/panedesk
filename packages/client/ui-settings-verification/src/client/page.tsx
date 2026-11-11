@@ -14,9 +14,11 @@ type Props = PropsRuntime<'settings.section'> & PropsLocale<'verification'> & In
  */
 export function VerificationPage(props: Props) {
   const workspaces = props.useWorkspaces(value => value.items)
+  const sessionId = props.useSessions(value => Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id)
+  const current = workspaces.find(item => sessionId !== undefined && item.sessionIds.includes(sessionId))
   const [selected, setSelected] = useState<WorkspaceId | null>(null)
   const [menu, setMenu] = useState(false)
-  const workspace = workspaces.find(item => item.workspaceId === selected) ?? workspaces[0]
+  const workspace = workspaces.find(item => item.workspaceId === selected) ?? current ?? workspaces[0]
   return <section>
     <Menu open={menu} portal onClose={() => { setMenu(false) }} selectedId={workspace?.workspaceId}
       anchor={<Button variant="outline" aria-label={props.t('workspace')} onClick={() => { setMenu(true) }}>{workspace?.title ?? props.t('chooseWorkspace')}</Button>}

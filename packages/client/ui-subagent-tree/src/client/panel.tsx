@@ -137,7 +137,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
       <thead><tr>
         <th scope="col">{t('session')}</th>
         <th scope="col">{t('status')}</th>
-        <th scope="col">{t('activity')}</th>
+        <th scope="col" className={css.activityColumn}>{t('activity')}</th>
         <th scope="col">{t('model')}</th>
         <th scope="col">{t('tokens')}</th>
         <th scope="col">{t('cacheHitRate')}</th>
@@ -151,13 +151,13 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
         </td>
         <td className={css.status} data-end-reason={node.endReason}>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
-        <td><ActivityCell activity={node.external ? null : node.activity} t={t} />
+        <td className={css.activityColumn}><ActivityCell activity={node.external ? null : node.activity} t={t} />
           {!node.external && node.parentSessionId !== null && isActive(node.status) && node.verificationTaskId !== undefined && <label onClick={event => { event.stopPropagation() }}>
             <input key={node.verificationTaskId} type="checkbox" checked={node.testsStopped ?? false}
               onChange={event => {
                 setVerificationError(false)
                 void setTestsStopped(node, event.target.checked).catch((_error: unknown) => { setVerificationError(true) })
-              }} />{t('stopTests')}
+              }} />{t(node.testsStopped ? 'testsStopped' : 'stopTests')}
           </label>}
         </td>
         <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>

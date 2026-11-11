@@ -38,7 +38,7 @@ export function ActivityCell({ activity, t }: { activity: ActivitySummary | null
   const current = activity?.current
   if (!current) return <>{t('unknown')}</>
   const category = t(`category.${current.category}`) + (current.selfWrittenScript && current.category !== 'script' ? ` + ${t('category.script')}` : '')
-  return <>{t(current.active ? 'activityNow' : 'activityLast', { category, time: activityTime(current.durationMs) })}</>
+  return <span className={css.activityLine}>{t(current.active ? 'activityNow' : 'activityLast', { category, time: activityTime(current.durationMs) })}</span>
 }
 
 /** Add native node totals without including external registry entries.

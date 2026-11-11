@@ -52,6 +52,17 @@
   overflow-wrap: anywhere;
 }
 
+.activityColumn {
+  width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activityLine {
+  font-variant-numeric: tabular-nums;
+}
+
 .label {
   margin-left: 6px;
 }
