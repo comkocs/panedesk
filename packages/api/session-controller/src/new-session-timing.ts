@@ -1,4 +1,4 @@
-/** Append-only timing line for one brand-new Session, written under the harness home. */
+/** Append-only timing line for one New Session click, written under the harness home. */
 
 import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -29,8 +29,14 @@ export interface NewSessionTiming {
   /**
    * Append the line once. Later calls do nothing, so a follow-up failure still
    * leaves the steps measured before it.
+   * @param clientElapsedMs - click-to-page milliseconds; when present, also supplies total.
+   * @param pageShown - whether navigation displayed its page rather than failing or being superseded.
    */
-  finish(): void
+  finish(clientElapsedMs?: number, pageShown?: boolean): void
+  /** Record whether the Host actually created or reused the Session.
+   * @param kind - actual result of the Host's reuse decision.
+   */
+  classify(kind: NewSessionTimingKind): void
 }
 
 const LOG_LIMIT_BYTES = 1024 * 1024
@@ -72,32 +78,41 @@ function appendTimingLine(line: string): void {
   }
 }
 
+/** Which New Session click this line records. */
+export type NewSessionTimingKind = 'created' | 'reused'
+
 /**
- * Start one timing line for a brand-new Session.
- * The line is appended when {@link NewSessionTiming.finish} runs, and names
- * each step that took longer than 300 milliseconds.
+ * Start one timing line for a New Session click.
+ * The line is appended when {@link NewSessionTiming.finish} runs, names the
+ * click as a fresh creation or a switch to an existing blank, and names each
+ * step that took longer than 300 milliseconds.
  * @param workspaceId - Workspace the Session joins, when the request named one.
  * @param clientMs - click-to-request milliseconds measured by the Client, when it sent one.
- * @returns the recorder creation passes through its steps.
+ * @param kind - whether the click created a Session or switched to a blank one.
+ * @returns the recorder the click passes through its steps.
  */
 export function startNewSessionTiming(
   workspaceId: string | undefined,
   clientMs: number | undefined,
+  kind: NewSessionTimingKind = 'created',
 ): NewSessionTiming {
   const startedAt = Date.now()
   const segments: NewSessionTimingSegment[] = []
   let sessionId: string | undefined
   let wrote = false
-  const finish = (): void => {
+  const finish = (clientElapsedMs?: number, pageShown?: boolean): void => {
     if (wrote) return
     wrote = true
-    const totalMs = Date.now() - startedAt
+    const totalMs = clientElapsedMs ?? Date.now() - startedAt
+    const elapsedClient = clientElapsedMs ?? clientMs
     const slow = segments.filter(segment => segment.ms > 300).map(segment => segment.name)
     const parts = [
       new Date(startedAt).toISOString(),
       `workspace=${workspaceId ?? '-'}`,
       `session=${sessionId ?? '-'}`,
-      ...clientMs === undefined ? [] : [`client=${String(clientMs)}`],
+      `kind=${kind}`,
+      ...pageShown === undefined ? [] : [`page=${pageShown ? 'shown' : 'not-shown'}`],
+      ...elapsedClient === undefined ? [] : [`client=${String(elapsedClient)}`],
       ...segments.map(segment => `${segment.name}=${String(segment.ms)}`),
       `total=${String(totalMs)}`,
       ...slow.length === 0 ? [] : [`slow=${slow.join(',')}`],
@@ -114,6 +129,7 @@ export function startNewSessionTiming(
       }
     },
     identify(id) { sessionId = id },
+    classify(value) { kind = value },
     finish,
   }
 }

@@ -58,7 +58,7 @@ for await (const chunk of ctx.llm.stream({
 
 After a successful mount, `ctx.llm.listProviders()` reports the registered routes in registration order.
 
-Adapter failure normalization preserves HTTP status and the provider diagnostic in existing `LlmFailure` fields. HTTP adapters retain the first 500 response-body characters after replacing the configured credential with `***` and long `sk-` keys with `sk-***`; no field-name or address redaction is applied. `formatLlmFailure` renders these facts for subagent results and notices.
+Adapter failure normalization preserves HTTP status and the provider diagnostic in `LlmFailure`. DeepSeek Messages retains the complete credential-redacted response text separately on the live `LlmError.body` for one-shot connection checks, without adding it to persisted failure facts; the diagnostic summary still uses a 500-character excerpt. It replaces the configured credential with `***` and long `sk-` keys with `sk-***`; no field-name or address redaction is applied. `formatLlmFailure` renders the diagnostic for subagent results and notices.
 
 `GenerateOptions.messages` accepts durable `Message` values and request-only `RequestUserInput` values. Request-only inputs carry user-role content with no `id` or `source`; Session writes and Agent delivery still require durable messages. Callers keep auxiliary inputs unchanged until the stream settles. A caller that records its exact request, such as session-title generation, must use durable messages.
 

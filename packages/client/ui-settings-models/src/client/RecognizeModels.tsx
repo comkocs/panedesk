@@ -119,9 +119,13 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
   }
 
   const tryOnce = async (): Promise<void> => {
-    const model = manualId.trim()
-    if (model.length === 0) {
-      setProbe({ ok: false, reason: 'other', message: t('tryNeedsId'), body: t('tryNeedsId') })
+    // An empty unlisted id probes the provider's first added model. Only a
+    // provider with no added model asks for an id, and that prompt is not a
+    // failed attempt.
+    const typed = manualId.trim()
+    const model = typed.length > 0 ? typed : props.configuredModels?.[0]?.id
+    if (model === undefined || model.length === 0) {
+      setProbe({ ok: false, message: t('tryNeedsId') })
       return
     }
     setBusy(true)

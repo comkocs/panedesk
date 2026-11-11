@@ -91,7 +91,7 @@ Messages 以内容块发送文本、思考、工具调用和工具结果，以 `
 
 Messages 和 Files 请求通过 `x-dsh-auth-token` 发送账号 token，不加 Bearer 前缀；API Key 使用 `x-api-key`。两种凭据模式均拒绝重定向。账号 provider 负责 HTTP 401 分类和凭据失效处理；传输层将错误交给其回调。
 
-非 2xx Messages 失败在可序列化诊断中保留 HTTP 状态码与响应正文前 500 字符。读取或解码成功的 Messages 响应时发生的失败保留已观察到的 HTTP 状态与错误原文，包括提供方的 SSE 错误；失败的流不算试连成功。截断前把捕获的 API 密钥或账号 token 替换为 `***`，把较长的 `sk-` 密钥替换为 `sk-***`；不再把原始响应文本保留为错误 cause。
+非 2xx Messages 失败保留 HTTP 状态码，在存活错误的 `LlmError.body` 上保留供试连一次使用的完整脱敏响应文本，并在诊断摘要中保留响应正文前 500 字符。读取或解码成功的 Messages 响应时发生的失败保留已观察到的 HTTP 状态与错误原文，包括提供方的 SSE 错误；失败的流不算试连成功。截断前把捕获的 API 密钥或账号 token 替换为 `***`，把较长的 `sk-` 密钥替换为 `sk-***`；不再把原始响应文本保留为错误 cause。
 
 ### 带 thinking 与图片的流式调用
 

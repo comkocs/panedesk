@@ -207,22 +207,24 @@ function platformLoginUrl(authorizeUrl: string): string {
   return url.href
 }
 
-/** Previous default main-window size, doubled for the first open. */
-const MAIN_WINDOW_DEFAULT_WIDTH = 1280 * 2
-const MAIN_WINDOW_DEFAULT_HEIGHT = 820 * 2
-/** Largest fraction of the opening display's work area the first open may use. */
-const MAIN_WINDOW_WORK_AREA_FRACTION = 0.9
+/** Largest first-open size in device-independent pixels. */
+const MAIN_WINDOW_MAX_WIDTH = 2304
+const MAIN_WINDOW_MAX_HEIGHT = 1312
+/** Fraction of the opening display's work-area width the first open may use. */
+const MAIN_WINDOW_WORK_AREA_WIDTH_FRACTION = 0.81
+/** Fraction of the opening display's work-area height the first open may use. */
+const MAIN_WINDOW_WORK_AREA_HEIGHT_FRACTION = 0.72
 
 /**
  * Size and center the main window on the display under the cursor.
- * Width and height start at twice the previous default and each stop at 90% of
- * that display's work area, in device-independent pixels. The minimum size is unchanged.
+ * Width stops at 81% of that display's work area and at 2304; height stops at
+ * 72% and at 1312, in device-independent pixels. The minimum size is unchanged.
  * @returns the first-open bounds.
  */
 function mainWindowBounds(): { x: number; y: number; width: number; height: number } {
   const { x, y, width, height } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
-  const windowWidth = Math.min(MAIN_WINDOW_DEFAULT_WIDTH, Math.floor(width * MAIN_WINDOW_WORK_AREA_FRACTION))
-  const windowHeight = Math.min(MAIN_WINDOW_DEFAULT_HEIGHT, Math.floor(height * MAIN_WINDOW_WORK_AREA_FRACTION))
+  const windowWidth = Math.min(MAIN_WINDOW_MAX_WIDTH, Math.floor(width * MAIN_WINDOW_WORK_AREA_WIDTH_FRACTION))
+  const windowHeight = Math.min(MAIN_WINDOW_MAX_HEIGHT, Math.floor(height * MAIN_WINDOW_WORK_AREA_HEIGHT_FRACTION))
   return {
     x: x + Math.floor((width - windowWidth) / 2),
     y: y + Math.floor((height - windowHeight) / 2),

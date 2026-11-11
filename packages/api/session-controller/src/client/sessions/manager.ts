@@ -5,6 +5,7 @@ import { SessionSeq, type SessionId, type SessionSeqCursor } from '@panedesk/dsh
 import type { SessionProjectionMap } from '@panedesk/dsh-session-projection/types'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type {
+  NewSessionTimingId,
   SessionControlBaseline,
   SessionControlFrame,
   SessionProjectionHints,
@@ -511,13 +512,13 @@ export class SessionManager {
       cwd?: string
       sessionId?: SessionId
       agentPreset?: string
-      clientElapsedMs?: number
+      timingId?: NewSessionTimingId
     } = {},
   ): Promise<RemoteResult<{ sessionId: SessionId }>> {
     const shared = {
       ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
       ...(opts.agentPreset === undefined ? {} : { agentPreset: opts.agentPreset }),
-      ...(opts.clientElapsedMs === undefined ? {} : { clientElapsedMs: opts.clientElapsedMs }),
+      ...(opts.timingId === undefined ? {} : { timingId: opts.timingId }),
     }
     const payload = opts.workspaceId !== undefined
       ? { workspaceId: opts.workspaceId, ...shared }

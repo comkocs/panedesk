@@ -4,6 +4,7 @@ import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
 import { SessionSeq, type SessionId } from '@panedesk/dsh-session/types'
 import { workspaceTitleOf } from '@panedesk/dsh-util-workspace-path'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
+import type { NewSessionTimingId } from '../../types.ts'
 import { SESSION_SEARCH_RESULT_LIMIT } from '../../types.ts'
 import type { SessionProjectionMap } from '@panedesk/dsh-session-projection/types'
 import {
@@ -440,7 +441,7 @@ export class ClientSessions implements ISessions {
     cwd?: string
     sessionId?: SessionId
     agentPreset?: string
-    clientElapsedMs?: number
+    timingId?: NewSessionTimingId
   } = {}): Promise<SessionId> {
     const result = await this.manager.create(opts)
     if (!result.ok) throw new SessionCreateError(result.error, opts.sessionId)

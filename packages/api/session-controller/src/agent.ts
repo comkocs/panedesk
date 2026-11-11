@@ -387,7 +387,7 @@ export class ApiSessionAgentController {
    * and records each step when the caller passes a timing line. Reuse and
    * controlled creation keep the previous order.
    * @param request - optional Session to reuse, directory, preset, and placement rule.
-   * @param timing - optional recorder for the brand-new path; absent for reuse and controlled creation.
+   * @param timing - optional recorder for creation and reuse steps.
    * @returns the reused or created Session and the preset it ran when the request finished.
    * @throws ApiSessionCwdConflict when the named Session belongs to another directory.
    * @throws ApiSessionSubagentOwnership when subagent routing owns the named Session.
@@ -398,7 +398,7 @@ export class ApiSessionAgentController {
     return this.createRecorded(request, request.sessionId, timing)
   }
 
-  /** Run one creation, passing its timing line only through the brand-new path. */
+  /** Run one creation and classify the actual reuse decision for its timing line. */
   private async createRecorded(
     request: ApiSessionCreateRequest,
     named: SessionId | undefined,
@@ -434,7 +434,8 @@ export class ApiSessionAgentController {
       })
     }
     if (named === undefined) return this.createFresh(request, timing)
-    return this.inOrder(named, async () => this.created(await this.claim(named, request)))
+    timing?.classify('reused')
+    return this.step(timing, 'reuse', () => this.inOrder(named, async () => this.created(await this.claim(named, request, timing))))
   }
 
   /**
@@ -633,7 +634,7 @@ export class ApiSessionAgentController {
   }
 
   /** @returns the reused Session, a new Session under `sessionId` when none is stored, or a new Session under a minted identity. */
-  private async claim(sessionId: SessionId, request: ApiSessionCreateRequest): Promise<Agent> {
+  private async claim(sessionId: SessionId, request: ApiSessionCreateRequest, timing?: NewSessionTiming): Promise<Agent> {
     const attached = this.ctx.sessions.get(sessionId)
     const live = this.ctx.agents.get(sessionId)
     if (attached !== undefined && hasApiSessionSubagentOwner(this.ctx, attached, live)) {
@@ -643,15 +644,15 @@ export class ApiSessionAgentController {
       if (live.session.header.cwd !== request.cwd) {
         throw new ApiSessionCwdConflict(live.id, request.cwd, live.session.header.cwd)
       }
-      const composition = await this.composeAgent(request.agentPreset)
-      return await this.reuseLive(live, request, composition) ?? this.createMinted(request.cwd, composition)
+      const composition = await this.step(timing, 'preset', () => this.composeAgent(request.agentPreset, timing))
+      return await this.step(timing, 'select', () => this.reuseLive(live, request, composition)) ?? this.createMinted(request.cwd, composition, timing)
     }
     let observation: SessionObservation
     try {
       observation = await this.ctx.sessionQuery.observeSession(sessionId)
     } catch (error: unknown) {
       if (!(error instanceof SessionQueryError) || error.code !== 'SESSION_QUERY_SESSION_NOT_FOUND') throw error
-      return this.createAgent(sessionId, request.cwd, await this.composeAgent(request.agentPreset))
+      return this.createAgent(sessionId, request.cwd, await this.composeAgent(request.agentPreset), timing)
     }
     let reusable: boolean
     {
@@ -665,7 +666,7 @@ export class ApiSessionAgentController {
       reusable = request.reusable(sessionId) && !observed.events.some(event => event.type === 'turn/start')
     }
     const composition = await this.composeAgent(request.agentPreset)
-    if (!reusable) return this.createMinted(request.cwd, composition)
+    if (!reusable) return this.createMinted(request.cwd, composition, timing)
     this.assertPresetApplicable(sessionId, request.agentPreset)
     try {
       return (await this.ctx.agents.resume({
@@ -674,12 +675,12 @@ export class ApiSessionAgentController {
         setup: this.reuseSetup(composition),
       })).agent
     } catch (error: unknown) {
-      if (error instanceof ApiSessionStartedSinceObserved) return this.createMinted(request.cwd, composition)
+      if (error instanceof ApiSessionStartedSinceObserved) return this.createMinted(request.cwd, composition, timing)
       if (!(error instanceof Error) || error.name !== 'SessionAlreadyOwnedError') throw error
       // Another resume in this process may hold the writer for the Agent it published.
       return this.ctx.agents.get(sessionId) === undefined
-        ? this.createMinted(request.cwd, composition)
-        : this.claim(sessionId, request)
+        ? this.createMinted(request.cwd, composition, timing)
+        : this.claim(sessionId, request, timing)
     }
   }
 
@@ -733,11 +734,12 @@ export class ApiSessionAgentController {
     return { agent, agentPreset: this.presetForSession(agent.session) }
   }
 
-  private createMinted(cwd: string, composition: ApiSessionComposition): Promise<Agent> {
-    return this.createAgent(brandString<SessionId>(`session-${randomUUID()}`), cwd, composition)
+  private createMinted(cwd: string, composition: ApiSessionComposition, timing?: NewSessionTiming): Promise<Agent> {
+    return this.createAgent(brandString<SessionId>(`session-${randomUUID()}`), cwd, composition, timing)
   }
 
-  private async createAgent(sessionId: SessionId, cwd: string, composition: ApiSessionComposition): Promise<Agent> {
+  private async createAgent(sessionId: SessionId, cwd: string, composition: ApiSessionComposition, timing?: NewSessionTiming): Promise<Agent> {
+    timing?.classify('created')
     try {
       await mkdir(cwd, { recursive: true })
     } catch (error: unknown) {

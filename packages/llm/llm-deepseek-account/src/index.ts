@@ -60,10 +60,10 @@ export function apply(ctx: Context, config: Config): void {
       onRequestError: async (error) => {
         if (!(error instanceof LlmError)) return error
         if (error.code === QUOTA_EXCEEDED_CODE) {
-          return new LlmError(error.message, ACCOUNT_QUOTA_EXCEEDED_CODE, { ...error.failure, cause: error })
+          return new LlmError(error.message, ACCOUNT_QUOTA_EXCEEDED_CODE, { ...error.failure, ...error.body === undefined ? {} : { body: error.body }, cause: error })
         }
         if (error.failure.status !== 401) return error
-        const rejected = new LlmError(error.message, 'ACCOUNT_TOKEN_INVALID', { ...error.failure, cause: error })
+        const rejected = new LlmError(error.message, 'ACCOUNT_TOKEN_INVALID', { ...error.failure, ...error.body === undefined ? {} : { body: error.body }, cause: error })
         try { await account()?.rejectToken(token) }
         catch (_credentialRemovalFailed) { /* Storage failure cannot replace the inference failure. */ }
         return rejected
