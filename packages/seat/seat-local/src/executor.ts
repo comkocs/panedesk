@@ -125,9 +125,11 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
           agentPreset: def.agentPreset, selection: { provider: def.provider, model: def.model,
             reasoningEffort: ReasoningEffortId(def.reasoningEffort) }, releasePreparation,
           setup: async (_agentCtx, agent) => { await subscribe(agent, open); await bindCredentials(agent, open) } })
-        if (result.agent.id !== open.sessionId) throw new Error('Controlled creation changed the session identity')
-        await ctx.get('sessions')?.flush(result.agent.session)
-        return result.agent.id
+        // Controlled creation waits for publication before returning its Agent.
+        const agent = result.agent!
+        if (agent.id !== open.sessionId) throw new Error('Controlled creation changed the session identity')
+        await ctx.get('sessions')?.flush(agent.session)
+        return agent.id
       } finally { releasePreparation() }
     },
     configure: async (open, stage) => {
