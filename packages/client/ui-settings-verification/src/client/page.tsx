@@ -29,8 +29,7 @@ export function VerificationPage(props: Props) {
 }
 
 function WorkspaceEditor({ useResource, save, t, workspaceId }: Props & { workspaceId: WorkspaceId }) {
-  const [revision, setRevision] = useState(0)
-  const resource = useResource<'verification'>(`dsh-resource://verification/${encodeURIComponent(workspaceId)}?revision=${revision}`)
+  const resource = useResource<'verification'>(`dsh-resource://verification/${encodeURIComponent(workspaceId)}`)
   const [draft, setDraft] = useState<VerificationSettings | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -73,10 +72,15 @@ function WorkspaceEditor({ useResource, save, t, workspaceId }: Props & { worksp
     </fieldset>
     <Button variant="primary" disabled={busy} onClick={() => {
       setBusy(true); setMessage(null)
-      void save({ workspaceId, settings }).then(result => {
-        if (!result.ok) { setFailure(result.error.message); setMessage('error'); return }
-        setDraft(result.value.settings); setRevision(value => value + 1); setMessage('saved')
-      }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)); setMessage('error') }).finally(() => { setBusy(false) })
+      void (async () => {
+        try {
+          const result = await save({ workspaceId, settings })
+          if (!result.ok) { setFailure(result.error.message); setMessage('error'); return }
+          setDraft(result.value.settings); setMessage('saved')
+        } catch (error: unknown) {
+          setFailure(error instanceof Error ? error.message : String(error)); setMessage('error')
+        } finally { setBusy(false) }
+      })()
     }}>{t('save')}</Button>
     {message && <p role={message === 'error' ? 'alert' : 'status'}>{message === 'error' ? t('error', { reason: failure }) : t('saved')}</p>}
     <p>{t('limits')}</p>
