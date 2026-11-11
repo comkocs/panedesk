@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.3
+
+### Fixed
+
+- The verification settings, verification checklist blocking, the one-full-test-run rule, trace recording switches and the trace panel work in the desktop build (their storage domain names were invalid, so both services failed to load).
+- Trace tools are available to models in every preset.
+- These views show the service's own error text when a read or write fails.
+- The subagent tree keeps refreshing after a failed read.
+- Subagent row controls no longer move while timers tick.
+- Workspace pickers in settings default to the current session's workspace.
+- Pasted opening presets keep the folder written on each line.
+- The provider connection check reports the HTTP status and error text.
+
 ## 2.0.2
 
 ### Changed
