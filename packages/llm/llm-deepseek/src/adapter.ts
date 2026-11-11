@@ -171,18 +171,26 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
           throw new LlmError(`HTTP ${response.status}: ${body || message}`, failure.code, failure.failure)
         }
         await extensions.accept()
-        if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
-        let usage: TokenUsage | undefined
-        for await (const chunk of translate(parseSse(response.body, activity), options.model)) {
-          if (chunk.type === 'usage') usage = chunk.usage
-          if (chunk.type !== 'finish') { yield chunk; continue }
-          const finish: StreamChunk = { ...chunk, httpStatus: response.status, accountLabel: this.dependencies.providerName || 'unknown',
-            cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto' }
-          LlmAdapter.ledgerEvidence?.set(finish, {
-            cacheWriteAccounting: 'not-applicable',
-            ...usage === undefined ? {} : { usage: { ...usage, cacheWriteTokens: 0 } },
+        try {
+          if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
+          let usage: TokenUsage | undefined
+          for await (const chunk of translate(parseSse(response.body, activity), options.model)) {
+            if (chunk.type === 'usage') usage = chunk.usage
+            if (chunk.type !== 'finish') { yield chunk; continue }
+            const finish: StreamChunk = { ...chunk, httpStatus: response.status, accountLabel: this.dependencies.providerName || 'unknown',
+              cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto' }
+            LlmAdapter.ledgerEvidence?.set(finish, {
+              cacheWriteAccounting: 'not-applicable',
+              ...usage === undefined ? {} : { usage: { ...usage, cacheWriteTokens: 0 } },
+            })
+            yield finish
+          }
+        } catch (error) {
+          const apiKey = auth.headers['x-api-key'] ?? auth.headers['x-dsh-auth-token']
+          const message = redactLlmDiagnostic(error instanceof Error ? error.message : String(error), apiKey)
+          throw new LlmError(message, error instanceof LlmError ? error.code : 'TRANSPORT', {
+            ...error instanceof LlmError ? error.failure : {}, status: response.status,
           })
-          yield finish
         }
         return
       }
