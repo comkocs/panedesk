@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2
+
+### Changed
+
+- Opening a subagent conversation shows it in its own floating panel instead of covering pages in the right sidebar, and floating panels can be resized from every edge and corner.
+- A new session appears before its follow-up setup finishes, and each new session's step timings are logged locally in `<home>/logs/new-session-timing.log`.
+
 ## 2.0.1
 
 ### Fixed
