@@ -18,14 +18,16 @@ export interface ActivitySettingsFace {
  * @param props Framework workspace/configuration hooks and localized copy.
  * @returns Workspace selection followed by command/category rows.
  */
-export function ActivitySettingsRow({ useWorkspaces, useActivityRules, saveRules, t }:
+export function ActivitySettingsRow({ useWorkspaces, useSessions, useActivityRules, saveRules, t }:
   PropsRuntime<'settings.panedesk.item'> & PropsLocale<'subagentTree'> & InjectFace<ActivitySettingsFace>) {
   const workspaces = useWorkspaces(value => value.items)
   const form = useActivityRules(value => value)
+  const sessionId = useSessions(value => Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id)
+  const current = workspaces.find(item => sessionId !== undefined && item.sessionIds.includes(sessionId))
   const [selected, setSelected] = useState<string | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
-  const path = selected ?? workspaces[0]?.path
+  const path = selected ?? current?.path ?? workspaces[0]?.path
   const rows = path === undefined ? [] : form.value?.projects[path] ?? []
   const disabled = path === undefined || form.status !== 'ready' || !form.writable
   const save = (next: ActivityRule[]): void => {

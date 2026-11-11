@@ -1,6 +1,5 @@
 /** Owner-authorized persistence and engine application of workspace opening modes. */
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import type { Agent } from '@panedesk/dsh-agent'
 import type {} from '@panedesk/dsh-session-title'
 import type {} from '@panedesk/dsh-workspace'
@@ -55,19 +54,20 @@ export default class ProjectOpening extends TypertRemoteService {
     await this.ctx.sessionTitle.selectOpeningPreset(agent.session, preset.name)
   }
 
-  /** Infer registered workspace directories from the parent of each markdown file's folder.
+  /** Read the folder written in each sentence; a sentence without one stays empty.
    * @param prompts - opening sentences, unchanged.
-   * @returns A directory or an empty string for each sentence needing manual selection.
+   * @returns Each sentence's own folder, or an empty string when it names no path.
    */
   @Remote
   inferDirectories(prompts: string[]): string[] {
-    const workspaces = this.ctx.workspaceRegistry.list()
     return prompts.map(prompt => {
-      const token = (prompt.match(/"[^"\n]+\.md"|'[^'\n]+\.md'|`[^`\n]+\.md`|[^\s"'`，。；！？<>]+\.md/giu) ?? [])[0]
+      const token = (prompt.match(/"[^"\n]+"|'[^'\n]+'|`[^`\n]+`|[A-Za-z]:\\[^\s"'`，。；！？<>]+|\/[^\s"'`，。；！？<>]+/u) ?? [])[0]
       if (!token) return ''
-      const parent = dirname(dirname(resolve(token.replace(/^["'`]|["'`]$/gu, ''))))
-      return workspaces.find(workspace => (workspace.path === parent || dirname(workspace.path) === parent)
-        && existsSync(workspace.path))?.path ?? ''
+      const path = token.replace(/^["'`]|["'`]$/gu, '').replace(/[,.!?;:）)\]】]+$/u, '')
+      const separator = path.includes('\\') ? '\\' : '/'
+      const end = path.replace(/[\\/]+$/u, '').lastIndexOf(separator)
+      const folder = end > 0 ? path.slice(0, end) : path
+      return folder === '' || /^[A-Za-z]:$/u.test(folder) ? '' : folder
     })
   }
 

@@ -16466,6 +16466,21 @@
           "tsconfig.client.json"
         ]
       }
+    },
+    {
+      "id": "steady-row-workspace-defaults",
+      "description": "Keep the subagent activity column fixed, default workspace menus to the shown session, and paste each line into its own folder",
+      "origin": "Panedesk session controls",
+      "reason": "A widening activity cell moved the no-more-tests checkbox, workspace menus opened on the first workspace, and a pasted line took another line folder.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent-tree/**",
+          "packages/client/ui-settings-verification/**",
+          "packages/client/ui-trace/**",
+          "packages/client/ui-project-onboarding/**"
+        ]
+      }
     }
 ]
 }

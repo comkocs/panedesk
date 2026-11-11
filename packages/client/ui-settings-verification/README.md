@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Adds Settings → Panedesk → Verification in the shared Web/Desktop composition. The settings shell supplies the three-line guidance header. The page selects a workspace, reads its verification policy, and saves a complete versioned record through the owner-only remote service.
+Adds Settings → Panedesk → Verification in the shared Web/Desktop composition. The settings shell supplies the three-line guidance header. The page selects a workspace, reads its verification policy, and saves a complete versioned record through the owner-only remote service. The workspace menu opens on the workspace of the session shown in the main view, and on the first workspace when none is shown.
 
 ## Use this package
 

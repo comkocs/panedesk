@@ -57,10 +57,11 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       },
       importPresets: async (text, table) => {
         const rows = importPresets(text, table)
-        if (!table) {
-          const inferred = await ctx.remote.projectOpening.inferDirectories(rows.map(row => row.prompt))
+        const pending = rows.flatMap((row, index) => row.directories.length ? [] : [[index, row.prompt] as const])
+        if (!table && pending.length) {
+          const inferred = await ctx.remote.projectOpening.inferDirectories(pending.map(([, prompt]) => prompt))
           if (!inferred.ok) throw new Error(inferred.error.message)
-          rows.forEach((row, index) => { const path = inferred.value[index]; row.directories = path ? [path] : [] })
+          pending.forEach(([index], at) => { const path = inferred.value[at]; if (path) rows[index]!.directories = [path] })
         }
         return rows.map(row => ({ ...row, name: openingPresetName(row.prompt, naming.getSnapshot().value?.openingName) }))
       },

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Panedesk features page carries the workspace switches for project recording. A right-sidebar tab lists that workspace's items, their activity, unassigned activity, and decisions. Recording stays off until the user turns it on. The tab reads and writes only through the `traceStore` remote; it keeps no record of its own.
+The Panedesk features page carries the workspace switches for project recording. Its workspace menu opens on the workspace of the session shown in the main view, and on the first workspace when none is shown. A right-sidebar tab lists that workspace's items, their activity, unassigned activity, and decisions. Recording stays off until the user turns it on. The tab reads and writes only through the `traceStore` remote; it keeps no record of its own.
 
 ## Use this package
 
