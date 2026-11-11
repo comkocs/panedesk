@@ -9,6 +9,7 @@ import type { SessionId } from '@panedesk/dsh-session/types'
 import type { ProjectId, TraceStatus } from '@panedesk/dsh-trace-store/types'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { TraceSettingsActions } from './index.ts'
+import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 
 type Props = PropsRuntime<'settings.panedesk.item'> & PropsLocale<'trace'> & InjectFace<TraceSettingsActions>
 
@@ -38,14 +39,18 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
   const [revision, setRevision] = useState(0)
   const resource = useResource<'trace'>(`dsh-resource://trace/${encodeURIComponent(workspaceId)}?revision=${revision}`)
   const [override, setOverride] = useState<TraceStatus | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   const [projectId, setProjectId] = useState('')
   const [plannerMenu, setPlannerMenu] = useState(false)
   const status = override ?? resource.value?.status ?? null
   const windows = sessionIds.filter(id => sessions[id]?.origin !== 'subagent')
-  const apply = (next: Promise<TraceStatus | null>): void => {
-    setFailed(false)
-    void next.then(value => { setOverride(value); setFailed(value === null); if (value !== null) setRevision(current => current + 1) })
+  const apply = (next: Promise<RemoteResult<TraceStatus>>): void => {
+    setFailure(null); setSaved(false)
+    void next.then(result => {
+      if (!result.ok) { setFailure(result.error.message); return }
+      setOverride(result.value); setRevision(current => current + 1); setSaved(true)
+    }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
   }
   const enabled = status?.enabled === true
   const planner = windows.find(id => id === status?.plannerSessionId)
@@ -67,6 +72,8 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
       items={windows.map(id => ({ id, label: sessions[id]?.displayTitle ?? id }))}
       onSelect={id => { apply(setStrict(workspaceId, true, id as SessionId)); setPlannerMenu(false) }} />
     {windows.length === 0 && <p>{t('noSessions')}</p>}
-    {failed && <p role="alert">{t('actionFailed')}</p>}
+    {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
+    {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
+    {saved && <p role="status">{t('saved')}</p>}
   </section>
 }

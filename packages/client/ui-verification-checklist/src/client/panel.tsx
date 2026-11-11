@@ -103,13 +103,13 @@ export function VerificationChecklistTab({ sessionId, useTabInfo, useSessions, u
   const forbidden = forbiddenCategories(resource.value?.settings)
   const groups = groupByTitle(sources)
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set())
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   return <section className={css.tab} data-verification-checklist={tab.contentId}>
     <h1 className={css.heading}>{t('title')}</h1>
     <p>{t('description')}</p>
     {resource.status === 'loading' && <p role="status">{t('loading')}</p>}
-    {resource.status === 'failed' && <p role="alert">{t('failed')}</p>}
-    {failed && <p role="alert">{t('prohibitFailed')}</p>}
+    {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
+    {failure !== null && <p role="alert">{t('prohibitFailed', { reason: failure })}</p>}
     {groups.length === 0 && <p>{t('empty')}</p>}
     {groups.map(group => <section key={group.title} className={css.group}>
       <h2>{group.title}</h2>
@@ -123,10 +123,10 @@ export function VerificationChecklistTab({ sessionId, useTabInfo, useSessions, u
               onChange={() => {
                 const current = check.source.taskId
                 if (current === undefined || unchecked.has(key)) return
-                setFailed(false)
+                setFailure(null)
                 void prohibit(check.source.sessionId, current, check.item.category)
                   .then(() => { setUnchecked(ids => new Set(ids).add(key)) })
-                  .catch((_error: unknown) => { setFailed(true) })
+                  .catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
               }} />
             {check.item.note}
           </label>

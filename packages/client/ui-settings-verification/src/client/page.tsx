@@ -33,8 +33,9 @@ function WorkspaceEditor({ useResource, save, t, workspaceId }: Props & { worksp
   const [menu, setMenu] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<'saved' | 'error' | null>(null)
+  const [failure, setFailure] = useState('')
   const settings = draft ?? resource.value?.settings
-  if (!settings) return <p role={resource.status === 'failed' ? 'alert' : 'status'}>{t(resource.status === 'failed' ? 'error' : 'loading')}</p>
+  if (!settings) return <p role={resource.status === 'failed' ? 'alert' : 'status'}>{resource.status === 'failed' ? t('error', { reason: resource.failure!.message }) : t('loading')}</p>
   const presets = resource.value!.presets
   const preset = (Object.keys(presets) as VerificationPreset[]).find(id => JSON.stringify(presets[id]) === JSON.stringify(settings)) ?? 'custom'
   const update = (change: Partial<VerificationSettings>) => { setDraft({ ...settings, ...change }); setMessage(null) }
@@ -71,11 +72,11 @@ function WorkspaceEditor({ useResource, save, t, workspaceId }: Props & { worksp
     <Button variant="primary" disabled={busy} onClick={() => {
       setBusy(true); setMessage(null)
       void save({ workspaceId, settings }).then(result => {
-        if (!result.ok) { setMessage('error'); return }
+        if (!result.ok) { setFailure(result.error.message); setMessage('error'); return }
         setDraft(result.value.settings); setRevision(value => value + 1); setMessage('saved')
-      }).catch((_error: unknown) => { setMessage('error') }).finally(() => { setBusy(false) })
+      }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)); setMessage('error') }).finally(() => { setBusy(false) })
     }}>{t('save')}</Button>
-    {message && <p role={message === 'error' ? 'alert' : 'status'}>{t(message)}</p>}
+    {message && <p role={message === 'error' ? 'alert' : 'status'}>{message === 'error' ? t('error', { reason: failure }) : t('saved')}</p>}
     <p>{t('limits')}</p>
   </section>
 }

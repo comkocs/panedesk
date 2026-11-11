@@ -54,13 +54,13 @@ declare module '@panedesk/dsh-client-ui-slots' {
 /** Actions the settings row uses. Every call goes through the trace service. */
 export interface TraceSettingsActions {
   /** Turn recording on. */
-  enable(this: void, workspaceId: WorkspaceId): Promise<TraceStatus | null>
+  enable(this: void, workspaceId: WorkspaceId): Promise<RemoteResult<TraceStatus>>
   /** Turn recording off. */
-  disable(this: void, workspaceId: WorkspaceId): Promise<TraceStatus | null>
+  disable(this: void, workspaceId: WorkspaceId): Promise<RemoteResult<TraceStatus>>
   /** Reuse an existing project record. */
-  associate(this: void, workspaceId: WorkspaceId, projectId: ProjectId): Promise<TraceStatus | null>
+  associate(this: void, workspaceId: WorkspaceId, projectId: ProjectId): Promise<RemoteResult<TraceStatus>>
   /** Set strict mode and its planning window. */
-  setStrict(this: void, workspaceId: WorkspaceId, strict: boolean, plannerSessionId: SessionId | null): Promise<TraceStatus | null>
+  setStrict(this: void, workspaceId: WorkspaceId, strict: boolean, plannerSessionId: SessionId | null): Promise<RemoteResult<TraceStatus>>
 }
 
 /** Actions the session-header pill uses. */
@@ -72,19 +72,19 @@ export interface TraceOpenActions {
 /** Actions the items panel uses. */
 export interface TracePanelActions {
   /** Create an item from this window. */
-  createItem(this: void, workspaceId: WorkspaceId, title: string, sessionId: SessionId): Promise<TraceItem | null>
+  createItem(this: void, workspaceId: WorkspaceId, title: string, sessionId: SessionId): Promise<RemoteResult<TraceItem>>
   /** Close an open item. */
-  closeItem(this: void, workspaceId: WorkspaceId, itemId: ItemId): Promise<boolean>
+  closeItem(this: void, workspaceId: WorkspaceId, itemId: ItemId): Promise<RemoteResult<void>>
   /** Move unassigned events onto an item. */
-  assign(this: void, workspaceId: WorkspaceId, itemId: ItemId, eventIds: number[]): Promise<boolean>
+  assign(this: void, workspaceId: WorkspaceId, itemId: ItemId, eventIds: number[]): Promise<RemoteResult<void>>
   /** Read one stored reference. */
-  reference(this: void, workspaceId: WorkspaceId, referenceId: ReferenceId): Promise<ReferenceContent | null>
+  reference(this: void, workspaceId: WorkspaceId, referenceId: ReferenceId): Promise<RemoteResult<ReferenceContent>>
   /** Revert one current decision. */
-  revert(this: void, workspaceId: WorkspaceId, decisionId: DecisionId): Promise<boolean>
+  revert(this: void, workspaceId: WorkspaceId, decisionId: DecisionId): Promise<RemoteResult<DecisionRevision>>
   /** Confirm one pending proposal. */
-  confirm(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<boolean>
+  confirm(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<RemoteResult<DecisionRevision>>
   /** Reject one pending proposal. */
-  reject(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<boolean>
+  reject(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<RemoteResult<DecisionRevision>>
   /** Open the workspace switches. */
   openSettings(this: void): void
 }
@@ -162,10 +162,10 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     scope.slots.inject('settings.panedesk.item', () => scope.slots.register({
       name: 'settings.panedesk.item', id: 'trace-recording', order: 22, locale: 'trace',
       inject: (): TraceSettingsActions => ({
-        enable: async workspaceId => { const result = await scope.remote.traceStore.enable(request(workspaceId)); return result.ok ? result.value : null },
-        disable: async workspaceId => { const result = await scope.remote.traceStore.disable(request(workspaceId)); return result.ok ? result.value : null },
-        associate: async (workspaceId, projectId) => { const result = await scope.remote.traceStore.associateProject({ ...request(workspaceId), projectId }); return result.ok ? result.value : null },
-        setStrict: async (workspaceId, strict, plannerSessionId) => { const result = await scope.remote.traceStore.setStrict({ ...request(workspaceId), strict, plannerSessionId }); return result.ok ? result.value : null },
+        enable: workspaceId => scope.remote.traceStore.enable(request(workspaceId)),
+        disable: workspaceId => scope.remote.traceStore.disable(request(workspaceId)),
+        associate: (workspaceId, projectId) => scope.remote.traceStore.associateProject({ ...request(workspaceId), projectId }),
+        setStrict: (workspaceId, strict, plannerSessionId) => scope.remote.traceStore.setStrict({ ...request(workspaceId), strict, plannerSessionId }),
       }),
     }, TraceSettingsRow))
     scope.effect(() => scope.sidebarRightTabs.register({
@@ -176,13 +176,13 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     scope.slots.inject('sidebar.right.pane.tab', () => scope.slots.register({
       name: 'sidebar.right.pane.tab', key: TRACE_PANEL_ID, locale: 'trace',
       inject: (): TracePanelActions => ({
-        createItem: async (workspaceId, title, sessionId) => { const result = await scope.remote.traceStore.createItem({ ...request(workspaceId), sessionId, title }); return result.ok ? result.value : null },
-        closeItem: async (workspaceId, itemId) => (await scope.remote.traceStore.closeItem({ ...request(workspaceId), itemId })).ok,
-        assign: async (workspaceId, itemId, eventIds) => (await scope.remote.traceStore.assignEvents({ ...request(workspaceId), itemId, eventIds })).ok,
-        reference: async (workspaceId, referenceId) => { const result = await scope.remote.traceStore.readReference({ ...request(workspaceId), referenceId }); return result.ok ? result.value : null },
-        revert: async (workspaceId, decisionId) => (await scope.remote.traceStore.revertDecision({ ...request(workspaceId), decisionId })).ok,
-        confirm: async (workspaceId, decisionId, revision) => (await scope.remote.traceStore.confirmDecision({ ...request(workspaceId), decisionId, revision })).ok,
-        reject: async (workspaceId, decisionId, revision) => (await scope.remote.traceStore.rejectDecision({ ...request(workspaceId), decisionId, revision })).ok,
+        createItem: (workspaceId, title, sessionId) => scope.remote.traceStore.createItem({ ...request(workspaceId), sessionId, title }),
+        closeItem: (workspaceId, itemId) => scope.remote.traceStore.closeItem({ ...request(workspaceId), itemId }),
+        assign: (workspaceId, itemId, eventIds) => scope.remote.traceStore.assignEvents({ ...request(workspaceId), itemId, eventIds }),
+        reference: (workspaceId, referenceId) => scope.remote.traceStore.readReference({ ...request(workspaceId), referenceId }),
+        revert: (workspaceId, decisionId) => scope.remote.traceStore.revertDecision({ ...request(workspaceId), decisionId }),
+        confirm: (workspaceId, decisionId, revision) => scope.remote.traceStore.confirmDecision({ ...request(workspaceId), decisionId, revision }),
+        reject: (workspaceId, decisionId, revision) => scope.remote.traceStore.rejectDecision({ ...request(workspaceId), decisionId, revision }),
         openSettings: () => { scope.settingsNavigation.openSection('panedesk-features') },
       }),
     }, TracePanel))

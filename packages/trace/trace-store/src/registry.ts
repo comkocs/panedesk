@@ -6,7 +6,7 @@ import type { SessionId } from '@panedesk/dsh-session'
 
 /** A canonical workspace path keeps its project identity even after workspace registration is recreated. */
 export const registrySpec = defineDomain({
-  name: 'project-traces', version: 1,
+  name: 'project_traces', version: 1,
   tables: { workspaces: domainTable<string, TraceStatus>(z.object({
     projectId: z.string().transform(value => value as ProjectId).nullable(),
     enabled: z.boolean().default(false), strict: z.boolean().default(false),

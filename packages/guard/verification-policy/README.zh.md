@@ -13,7 +13,7 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 ## 使用本包
 
-设置按工作区号保存，结构带 `version: 1`。未开启事项记录时仍用 `workspace-verification` storage-domain 的 `settings` 表；开启时将原值照搬至项目 SQLite 的 `settings` 表，迁移失败则继续使用原适配器。`src/storage.ts` 选择存储，不改准入裁决。停用事项记录后重新使用原工作区设置；项目副本保留供再次开启使用。不写项目文件，不进入 `panedesk_settings`。
+设置按工作区号保存，结构带 `version: 1`。未开启事项记录时仍用 `workspace_verification` storage-domain 的 `settings` 表；开启时将原值照搬至项目 SQLite 的 `settings` 表，迁移失败则继续使用原适配器。`src/storage.ts` 选择存储，不改准入裁决。停用事项记录后重新使用原工作区设置；项目副本保留供再次开启使用。不写项目文件，不进入 `panedesk_settings`。
 
 缺省允许根会话一轮用户请求及全部子代理合计一次全量测试，禁止变异测试，允许其余类别。「不限」允许全部类别且无上限。「只编译」禁止全量、改动面、变异测试、自写脚本及 CI 触发，客户端等待上限五分钟。其他数值上限缺省不限。自定支持每任务验证分钟预算或占全部观测任务用时的百分比；编译计入验证，脚本重叠只计一次。
 

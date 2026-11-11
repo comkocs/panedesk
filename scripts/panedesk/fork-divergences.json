@@ -16466,6 +16466,23 @@
           "tsconfig.client.json"
         ]
       }
+    },
+    {
+      "id": "desktop-verification-and-trace-activation",
+      "description": "Activate verification and trace storage and expose trace tools in every shipped preset",
+      "origin": "Panedesk desktop services",
+      "reason": "Use valid storage domain names, register the six trace tools in agent scopes, and display original service errors for verification and trace reads and writes. Successful trace settings changes show a saved notice.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/guard/verification-policy/**",
+          "packages/trace/trace-store/**",
+          "packages/bundle/web-app/**",
+          "packages/client/ui-settings-verification/**",
+          "packages/client/ui-verification-checklist/**",
+          "packages/client/ui-trace/**"
+        ]
+      }
     }
 ]
 }

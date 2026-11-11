@@ -15,7 +15,7 @@ Adds Settings → Panedesk → Verification in the shared Web/Desktop compositio
 
 Choose Default, Unlimited (statistics only), Build only, or Custom. Controls cover enablement, full-test allow/once/deny, mutation tests, self-written scripts, CI triggers, focused tests, client waiting minutes, and task verification budgets in minutes or percentage. Empty numeric fields mean unlimited. Save applies subsequent-call policy without changing project files or model-editable settings. The subagent tree opens this page through `settingsNavigation.openSection('verification')`.
 
-The service owns preset values and enforcement. The UI shows read/save failures and keeps edits local until saving succeeds. Disabling verification leaves statistics active. Budget approval limitations and classification blind spots are visible on the page.
+The service owns preset values and enforcement. The UI shows read/save failures with the original service error and keeps edits local until saving succeeds. Disabling verification leaves statistics active. Budget approval limitations and classification blind spots are visible on the page.
 
 ## Model Experience
 
