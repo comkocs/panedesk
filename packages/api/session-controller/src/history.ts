@@ -51,6 +51,7 @@ export class SessionHistoryController {
   constructor(
     private readonly ctx: Context,
     private readonly promote: (observation: SessionObservation) => void,
+    private readonly pendingCreation: (sessionId: SessionId) => Promise<unknown> | undefined,
   ) {
     ctx.on('agent/assistant-stream', ({ agent, frame }) => {
       let stream = this.assistantStreams.get(agent.session.id)
@@ -245,6 +246,7 @@ export class SessionHistoryController {
     address: SessionAddress,
     signal: AbortSignal,
     withProjections: boolean,
+    waitForCreation = true,
   ): Promise<SessionObservation> {
     const sessionId = addressId(address)
     try {
@@ -269,8 +271,16 @@ export class SessionHistoryController {
       }
       return observation
     } catch (error: unknown) {
-      if (error instanceof SessionQueryError
-        && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') rejectNotFound(address)
+      if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        // The identity was handed out before its log existed. Wait for that one
+        // creation instead of reporting the Session missing.
+        const pending = waitForCreation ? this.pendingCreation(addressId(address)) : undefined
+        if (pending !== undefined) {
+          await pending
+          return this.sourceFor(address, signal, withProjections, false)
+        }
+        rejectNotFound(address)
+      }
       throw error
     }
   }

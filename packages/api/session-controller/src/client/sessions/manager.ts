@@ -511,11 +511,13 @@ export class SessionManager {
       cwd?: string
       sessionId?: SessionId
       agentPreset?: string
+      clientElapsedMs?: number
     } = {},
   ): Promise<RemoteResult<{ sessionId: SessionId }>> {
     const shared = {
       ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
       ...(opts.agentPreset === undefined ? {} : { agentPreset: opts.agentPreset }),
+      ...(opts.clientElapsedMs === undefined ? {} : { clientElapsedMs: opts.clientElapsedMs }),
     }
     const payload = opts.workspaceId !== undefined
       ? { workspaceId: opts.workspaceId, ...shared }

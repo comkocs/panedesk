@@ -176,7 +176,7 @@ export class SessionController extends TypertRemoteService {
     ctx.effect(() => async () => {
       await Promise.allSettled([...this.promotions])
     }, 'session-controller.promotions')
-    this.history = new SessionHistoryController(ctx, (observation) => { this.promote(observation) })
+    this.history = new SessionHistoryController(ctx, (observation) => { this.promote(observation) }, sessionId => this.agents.pendingCreation(sessionId))
     this.listState = new ApiSessionList(ctx, resolved.listWorkSliceMs)
     this.fileApplications = internals.fileApplications ?? nativeFileApplications
     this.openFileApplication = internals.openFileApplication ?? openNativeFileApplication

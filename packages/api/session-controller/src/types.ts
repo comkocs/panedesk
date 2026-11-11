@@ -355,6 +355,8 @@ export interface SessionCreateRequest {
   readonly sessionId?: SessionId
   /** Preset the Session runs, replacing a reused Session's recorded preset; the configured default when omitted. */
   readonly agentPreset?: string
+  /** Milliseconds the Client measured between the click and this request. Omitted by callers that keep no timing line. */
+  readonly clientElapsedMs?: number
 }
 
 /** Session creation response value. */

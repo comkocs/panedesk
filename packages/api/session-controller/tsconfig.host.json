@@ -20,6 +20,7 @@
     "src/list.ts",
     "src/media-references.ts",
     "src/model-selection-projection.ts",
+    "src/new-session-timing.ts",
     "src/archived-session-gate.ts",
     "src/skill-catalog.ts"
   ],
