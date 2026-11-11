@@ -164,14 +164,12 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
             const result = await scope.remote.subagentTree.read({ sessionId })
             if (cancelled()) return
             yield result
-            if (!result.ok) return
-            interval = result.value.refreshIntervalMs
+            if (result.ok) interval = result.value.refreshIntervalMs
           } catch (error) {
             if (!cancelled()) {
               yield { ok: false, error: remoteErrorOf(error)
                 ?? new RemoteError('subagentTree/unavailable', 'The subagent tree is unavailable', {}) }
             }
-            return
           }
           await waitForPoll(signal, interval)
         }
