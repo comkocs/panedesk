@@ -751,9 +751,8 @@
   position: fixed;
   display: flex;
   flex-direction: column;
-  /* The body inside is unpadded and reaches the edges, so the frame clips it
-     to its own corners. */
-  overflow: hidden;
+  /* Resize handles straddle the frame; header and body clip their own corners. */
+  overflow: visible;
   background: var(--dsw-alias-bg-layer-2);
   border-radius: var(--dsw-radius-panel);
   /* The menu's shadow with the stroke rebound one step lighter than the
@@ -773,6 +772,19 @@
 .floatHeader {
   cursor: move;
   user-select: none;
+}
+
+.float > .floatHeader,
+.float > .tabHostHeader {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  overflow: hidden;
+}
+
+.float > .floatBody,
+.float > .tabHostBody {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
 }
 
 /* The one tab, drawn as its chip would be in a strip but never selected,
@@ -814,33 +826,39 @@
 .floatResize {
   position: absolute;
   z-index: 1;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   touch-action: none;
+  user-select: none;
+  pointer-events: auto;
 }
 
 .floatResize[data-dockkit-resize-edge='n'],
 .floatResize[data-dockkit-resize-edge='s'] {
-  right: 12px;
-  left: 12px;
+  right: 7px;
+  left: 7px;
   width: auto;
-  height: 6px;
+  height: 8px;
   cursor: ns-resize;
 }
 
 .floatResize[data-dockkit-resize-edge='e'],
 .floatResize[data-dockkit-resize-edge='w'] {
-  top: 12px;
-  bottom: 12px;
-  width: 6px;
+  top: 7px;
+  bottom: 7px;
+  width: 8px;
   height: auto;
   cursor: ew-resize;
 }
 
-.floatResize[data-dockkit-resize-edge*='n'] { top: 0; }
-.floatResize[data-dockkit-resize-edge*='s'] { bottom: 0; }
-.floatResize[data-dockkit-resize-edge*='e'] { right: 0; }
-.floatResize[data-dockkit-resize-edge*='w'] { left: 0; }
+.floatResize[data-dockkit-resize-edge*='n'] { top: -7px; }
+.floatResize[data-dockkit-resize-edge*='s'] { bottom: -7px; }
+.floatResize[data-dockkit-resize-edge*='e'] { right: -7px; }
+.floatResize[data-dockkit-resize-edge*='w'] { left: -7px; }
+.floatResize[data-dockkit-resize-edge='n'] { top: -4px; }
+.floatResize[data-dockkit-resize-edge='s'] { bottom: -4px; }
+.floatResize[data-dockkit-resize-edge='e'] { right: -4px; }
+.floatResize[data-dockkit-resize-edge='w'] { left: -4px; }
 
 .floatResize[data-dockkit-resize-edge='nw'],
 .floatResize[data-dockkit-resize-edge='se'] { cursor: nwse-resize; }

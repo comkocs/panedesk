@@ -63,7 +63,7 @@ export function SubagentTreeDetails({ parentSessionId, childSessionId, label, cl
   if (mode === 'external') return null
   const address: SubagentAddress = { parentSessionId, childSessionId, mode }
   return <>
-    <Button variant="ghost" onClick={() => { openChild(address); close() }}>{t('map.open')}</Button>
+    <Button variant="outline" onClick={() => { openChild(address); close() }}>{t('map.open')}</Button>
     {renderFactorySlot('subagent.task-preview', { address, label, status: '', metrics: '' })}
   </>
 }

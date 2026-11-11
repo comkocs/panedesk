@@ -166,10 +166,14 @@ function UndeclaredRows({ sources, declared, t }: {
     }
   }
   if (rows.size === 0) return null
-  return <ul>{[...rows].map(([category, durationMs]) => <li key={category} className={css.item}>
-    <span>{t('undeclared')} · {category}</span>
-    <small>{t('actual', { time: checklistTime(durationMs) })}</small>
-  </li>)}</ul>
+  return <section>
+    <h3>{t('undeclared')}</h3>
+    <p>{t('undeclaredHint')}</p>
+    <ul>{[...rows].map(([category, durationMs]) => <li key={category} className={css.item}>
+      <span>{t('undeclared')} · {category}</span>
+      <small>{t('actual', { time: checklistTime(durationMs) })}</small>
+    </li>)}</ul>
+  </section>
 }
 
 /** Group every source's submissions by requirement title, keeping first-seen order.

@@ -27,13 +27,15 @@ export function ActivitySettingsRow({ useWorkspaces, useSessions, useActivityRul
   const [selected, setSelected] = useState<string | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const [saved, setSaved] = useState<'activitySaved' | 'activityDeleted' | null>(null)
   const path = selected ?? current?.path ?? workspaces[0]?.path
   const rows = path === undefined ? [] : form.value?.projects[path] ?? []
   const disabled = path === undefined || form.status !== 'ready' || !form.writable
-  const save = (next: ActivityRule[]): void => {
+  const save = (next: ActivityRule[], message: 'activitySaved' | 'activityDeleted' = 'activitySaved'): void => {
     if (path === undefined) return
     setFailed(false)
-    void saveRules(path, next).then(ok => { setFailed(!ok) }).catch(() => { setFailed(true) })
+    setSaved(null)
+    void saveRules(path, next).then(ok => { setFailed(!ok); if (ok) setSaved(message) }).catch(() => { setFailed(true) })
   }
   const categories: ActivityCategory[] = ['write', 'read', 'build', 'test-focused', 'test-full', 'mutation', 'client', 'ci', 'script', 'wait', 'model', 'other']
   return <section>
@@ -49,9 +51,10 @@ export function ActivitySettingsRow({ useWorkspaces, useSessions, useActivityRul
         anchor={<Button variant="outline" disabled={disabled} aria-label={t('activityCategory')} onClick={() => { setMenu(String(index)) }}>{t(`category.${row.category}`)}</Button>}
         items={categories.map(id => ({ id, label: t(`category.${id}`) }))}
         onSelect={value => { save(rows.map((item, at) => at === index ? { ...item, category: value as ActivityCategory } : item)); setMenu(null) }} />
-      <Button variant="ghost" disabled={disabled} onClick={() => { save(rows.filter((_, at) => at !== index)) }}>{t('activityRemove')}</Button>
+      <Button variant="ghost" disabled={disabled} onClick={() => { save(rows.filter((_, at) => at !== index), 'activityDeleted') }}>{t('activityRemove')}</Button>
     </div>)}
     <Button variant="outline" disabled={disabled} onClick={() => { save([...rows, { contains: '', category: 'client' }]) }}>{t('activityAdd')}</Button>
+    {saved !== null && <p role="status">{t(saved)}</p>}
     {failed && <p role="alert">{t('registrySaveFailed')}</p>}
   </section>
 }

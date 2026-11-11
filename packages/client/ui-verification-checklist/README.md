@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open a session's verification checklist from its header into a right-sidebar tab. Requirements are grouped by the title the agent submitted. Each check shows its note, estimated minutes, and the actual category time observed for that session. Categories the workspace has turned off are greyed with a note, and turning a check off appends that category to the current task's prohibitions. Categories that ran without being declared are marked undeclared and their time still counts. Checklists submitted by a child session roll up into the parent's panel.
+Open a session's verification checklist from its header into a right-sidebar tab. Requirements are grouped by the title the agent submitted. Each check shows its note, estimated minutes, and the actual category time observed for that session. Categories the workspace has turned off are greyed with a note, and turning a check off appends that category to the current task's prohibitions. Categories that ran without being declared are marked undeclared and their time still counts; the group heading explains that these categories were observed in activity but not declared in the checklist. Checklists submitted by a child session roll up into the parent's panel.
 
 ## Table of Contents
 
