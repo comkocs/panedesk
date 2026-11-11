@@ -2,7 +2,7 @@
 
 # Panedesk
 
-![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-2.0.3-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-blue) ![Version](https://img.shields.io/badge/version-2.0.4-blue) ![Node.js](https://img.shields.io/badge/Node.js-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-green) ![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue) ![Electron](https://img.shields.io/badge/Electron-44-blue) ![MIT](https://img.shields.io/badge/license-MIT-green)
 
 An open-source, plugin-based coding-agent workspace for CLI, Web and desktop.
 

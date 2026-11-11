@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.4
+
+### Changed
+
+- The main window first opens about 10% narrower and 20% shorter than before.
+
+### Fixed
+
+- Saving verification settings no longer breaks the page, and open views refresh after a save.
+- Piped or redirected test commands count as the test run they start.
+- Trace timelines record file changes made by write and edit tools, with a diff behind "view reference".
+- Trace export saves a file and says where.
+- The unassigned activity list scrolls, reads as plain sentences and shows where items go.
+- The subagent tree stays readable at the default sidebar width and scrolls.
+- Floating windows show resize cursors and have wider edges.
+- The provider connection check tests the first added model when no model ID is typed and shows the server's response body on HTTP errors.
+- Every New Session click is timed, including a switch to an existing blank session.
+- Settings that save now confirm it.
+
 ## 2.0.3
 
 ### Fixed
