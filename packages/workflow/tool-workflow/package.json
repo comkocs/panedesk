@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-workflow",
   "description": "Model-facing workflow tool: run a JavaScript orchestration script over ctx.workflowEngine",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "publishConfig": {
     "access": "public"
   },

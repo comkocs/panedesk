@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-cua",
   "description": "Shared Computer Use application objects, authorization, and logged tool execution",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "publishConfig": {
     "access": "public"
   },

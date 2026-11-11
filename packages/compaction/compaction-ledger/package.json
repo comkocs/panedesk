@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-compaction-ledger",
   "description": "Ledger checkpoint projection plugin scaffold",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "publishConfig": {
     "access": "public"
   },

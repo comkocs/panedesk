@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-webworker-runtime",
   "description": "Browser-only harness runtime: in-memory VFS, module transform and loader, postMessage tunnel, and the dedicated Web Worker assembly, with the Node-compatibility layer that lets the host tree run unchanged",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "publishConfig": {
     "access": "public"
   },

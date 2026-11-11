@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-ralph-bundle",
   "description": "Run explicitly requested repeated work with fresh agents.",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"
