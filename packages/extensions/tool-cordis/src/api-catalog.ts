@@ -7584,7 +7584,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApiSessionCreated',
-    declaration: 'export interface ApiSessionCreated {\n    readonly agent: Agent;\n    readonly agentPreset: string | undefined;\n}',
+    declaration: 'export interface ApiSessionCreated {\n    readonly agent?: Agent;\n    readonly agentPreset: string | undefined;\n    readonly sessionId?: SessionId;\n    readonly ready?: Promise<ApiSessionCreated>;\n}',
   },
   {
     name: 'ApprovalOutcome',
@@ -11796,7 +11796,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionCreateRequest',
-    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly agentPreset?: string;\n}',
+    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly agentPreset?: string;\n    readonly clientElapsedMs?: number;\n}',
   },
   {
     name: 'SessionCreateValue',
