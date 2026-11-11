@@ -190,19 +190,35 @@ export function movedRect(rect: FloatRect, dx: number, dy: number): FloatRect {
   return { ...rect, x: rect.x + dx, y: rect.y + dy }
 }
 
+/** Edge or corner that owns a floating-panel resize. */
+export type ResizeEdge = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
 /**
- * A floating panel's rectangle after a bottom-right resize.
+ * A floating panel's rectangle after an edge or corner resize.
  * @param rect - the rectangle the gesture started from.
  * @param dx - pointer travel on x.
  * @param dy - pointer travel on y.
  * @param min - smallest size the panel may take.
- * @returns the resized rectangle; the origin is unchanged.
+ * @param edge - dragged edge or corner; defaults to bottom-right.
+ * @param bounds - available viewport rectangle; omitted means unbounded.
+ * @returns the resized rectangle, keeping the opposite edges fixed.
  */
-export function resizedRect(rect: FloatRect, dx: number, dy: number, min: Size): FloatRect {
+export function resizedRect(
+  rect: FloatRect, dx: number, dy: number, min: Size, edge: ResizeEdge = 'se', bounds?: Rect,
+): FloatRect {
+  const right = rect.x + rect.width
+  const bottom = rect.y + rect.height
+  const x = edge.includes('w') ? Math.max(bounds?.x ?? -Infinity, Math.min(right - min.width, rect.x + dx)) : rect.x
+  const y = edge.includes('n') ? Math.max(bounds?.y ?? -Infinity, Math.min(bottom - min.height, rect.y + dy)) : rect.y
   return {
-    ...rect,
-    width: Math.max(min.width, rect.width + dx),
-    height: Math.max(min.height, rect.height + dy),
+    x,
+    y,
+    width: edge.includes('e')
+      ? Math.min(bounds === undefined ? Infinity : bounds.x + bounds.width - x, Math.max(min.width, rect.width + dx))
+      : right - x,
+    height: edge.includes('s')
+      ? Math.min(bounds === undefined ? Infinity : bounds.y + bounds.height - y, Math.max(min.height, rect.height + dy))
+      : bottom - y,
   }
 }
 

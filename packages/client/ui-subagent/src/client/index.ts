@@ -74,7 +74,7 @@ export function apply(ctx: ClientContext): void {
   const openChildAside = (address: SubagentAddress): void => {
     ctx.sidebarRight.openResource(subagentChatAddress(address), {
       kind: 'subagentchat',
-      preferNewPane: true,
+      floating: true,
     })
   }
   const catalogActions = (_parentSessionId: SessionId): SubagentCatalogInjected => ({
@@ -89,7 +89,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: (sessionId: SessionId): Pick<SubagentCatalogInjected, 'openChild'> => ({
       openChild: address => ctx.sidebarRight.openResourceIn(sessionId, subagentChatAddress(address), {
-        kind: 'subagentchat', preferNewPane: true,
+        kind: 'subagentchat', floating: true,
       }),
     }),
   }, SubagentTreeDetails))

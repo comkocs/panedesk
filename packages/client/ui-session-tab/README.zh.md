@@ -25,11 +25,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-workspace`、`ui-sidebar-right`、`ui-conversation` 一起挂载。会话行的菜单多出「在右栏打开」。该页类型不在引导页上，因此不会出现在开始会话之前。钉住位于非 minimal 预设的已完成助手回复动作行。会话页列出该会话的钉住条目，必要时先载入更早历史，再定位选中的消息。
+与 `ui-workspace`、`ui-sidebar-right`、`ui-conversation` 一起挂载。会话行的菜单多出「开成浮窗」。再次打开同一会话会将已有浮窗提到最前，不重复创建。该页类型不在引导页上，因此不会出现在开始会话之前。钉住位于非 minimal 预设的已完成助手回复动作行。会话页列出该会话的钉住条目，必要时先载入更早历史，再定位选中的消息。
 
 ### 失败
 
-拟提交布局超出共用的可见会话预算时，菜单会说明原因。不能保存存储的浏览器会说明钉住无法保存。无效资源地址和同步保留异常会收敛为可见的打开失败。钉住跳转显示加载状态，历史耗尽或没有进展时停止，无法定位消息时允许重试。
+不能保存存储的浏览器会说明钉住无法保存。无效资源地址和同步保留异常会收敛为可见的打开失败。钉住跳转显示加载状态，历史耗尽或没有进展时停止，无法定位消息时允许重试。
 
 -----
 
@@ -39,7 +39,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部——点击展开</summary>
 
-本包以 `multiple: true`、且不进引导页的方式注册 `session` 页类型，向 `sidebar.workspaces.session.menu.item` 贡献 `open-in-right`（顺序 500），并向 `conversation.chat.assistant-actions` 贡献 `pin`（顺序 20）。钉住是 `dsh.session-pins.v1` 下一个文档：`{ schemaVersion: 1, pins: [{ sessionId, messageId, pinnedAt }] }`。`sessiontab` 资源通过 `sessions.retain` 保留目标，等待打开后提供 `SessionProvider`，并在资源关闭时释放。共享 `conversation.content` 工厂渲染消息与输入区。跳转只在本页查找 `data-message-id`，调用已保留会话的 `loadOlder()`，直到动作行出现或分页停止。Chat 首条锚点用于判断进展，不改变钉住格式；离开当前正文或选择另一枚钉住会取消后续分页与滚动，但不取消共享的在途历史请求。钉住写入成功后通过框架绑定的可观察源发布；不支持的文档版本不会被覆盖。打开时空间允许则优先新建停靠窗格，并使用右栏最终布局预算。嵌入输入区阶段区分等待首回合与已尝试发送，遵循共享会话生命周期。
+本包以 `multiple: true`、且不进引导页的方式注册 `session` 页类型，向 `sidebar.workspaces.session.menu.item` 贡献 `open-in-right`（顺序 500），并向 `conversation.chat.assistant-actions` 贡献 `pin`（顺序 20）。钉住是 `dsh.session-pins.v1` 下一个文档：`{ schemaVersion: 1, pins: [{ sessionId, messageId, pinnedAt }] }`。`sessiontab` 资源通过 `sessions.retain` 保留目标，等待打开后提供 `SessionProvider`，并在资源关闭时释放。共享 `conversation.content` 工厂渲染消息与输入区。跳转只在本页查找 `data-message-id`，调用已保留会话的 `loadOlder()`，直到动作行出现或分页停止。Chat 首条锚点用于判断进展，不改变钉住格式；离开当前正文或选择另一枚钉住会取消后续分页与滚动，但不取消共享的在途历史请求。钉住写入成功后通过框架绑定的可观察源发布；不支持的文档版本不会被覆盖。打开时请求浮窗落点，并使用右栏最终布局预算与会话替换策略。嵌入输入区阶段区分等待首回合与已尝试发送，遵循共享会话生命周期。
 
 </details>
 

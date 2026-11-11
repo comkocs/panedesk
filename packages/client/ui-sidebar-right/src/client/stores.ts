@@ -90,10 +90,51 @@ export interface OpenContentIntent {
   readonly paneId?: PaneId
   /** Split the target pane and put new content alone in the new pane. */
   readonly preferNewPane?: boolean
+  /** Float the opened content in the same commit, preserving docked selection and expansion. */
+  readonly floatRect?: FloatRect
   /** Take this tab's pane and slot, and close it in the same entry. */
   readonly replaceTab?: TabId
   /** Resource tabs reveal an existing identity by default; `false` permits duplicates. Pages always deduplicate within the target pane. */
   readonly revealIfOpened?: boolean
+}
+
+/** Open and float atomically so the dock never displays the arriving conversation. */
+function planFloatingContent(state: LayoutState, mint: Mint, intent: OpenContentIntent, rect: FloatRect): {
+  readonly ops: readonly LayoutOp[]
+  readonly tabId: TabId
+} {
+  const opened = planOpenContent(state, mint, {
+    kind: intent.kind, contentId: intent.contentId, title: intent.title,
+  })
+  const seated = replay(state, opened.ops)
+  if (findTabPane(seated, opened.tabId).host === 'float') return opened
+  const floated = planFloatTab(seated, mint, opened.tabId, rect)
+  const ops: LayoutOp[] = [...opened.ops, ...floated.ops]
+  // Opening borrows a dock slot only for planning; keep its previous page selected.
+  const dock = getPane(state, activeDockPaneId(state))
+  if (dock.activeTabId !== undefined && dock.activeTabId !== opened.tabId) {
+    ops.push({ type: 'focusTab', tabId: dock.activeTabId }, { type: 'focusTab', tabId: opened.tabId })
+  }
+  const candidate = replay(state, ops)
+  if ((intent.kind === 'session' || intent.kind === 'subagentchat') && !fitsSessionBudget(candidate)) {
+    const recent = [...state.floats].reverse().map(id => getPane(state, id))
+      .find(pane => {
+        const tab = pane.activeTabId === undefined ? undefined : state.tabs[pane.activeTabId]
+        return (pane.host === 'float' || state.expanded) && tab !== undefined && tab.id !== opened.tabId
+          && (tab.kind === 'session' || tab.kind === 'subagentchat')
+      })
+    if (recent?.activeTabId !== undefined) {
+      const replace = recent.activeTabId
+      const replaced = ops.filter(op => op.type !== 'focusTab' || op.tabId !== replace).map(op =>
+        op.type === 'float' && recent.host === 'float'
+          ? { ...op, newPaneId: recent.id, rect: recent.rect as FloatRect }
+          : op)
+      const floatIndex = replaced.findIndex(op => op.type === 'float')
+      replaced.splice(floatIndex, 0, { type: 'closeTab', tabId: replace })
+      return { ops: replaced, tabId: opened.tabId }
+    }
+  }
+  return { ops, tabId: opened.tabId }
 }
 
 /** A mint that counts, so the surface can carry its position forward. */
@@ -313,6 +354,11 @@ export function createSidebarRightStore(
         let opened: TabId | undefined
         d.bySession = seat(d, sessionId, (s) => {
           const next = advance(s, (state, mint) => {
+            if (intent.floatRect !== undefined) {
+              const planned = planFloatingContent(state, mint, intent, intent.floatRect)
+              opened = planned.tabId
+              return planned.ops
+            }
             const { kind, contentId, title, replaceTab: replace } = intent
             const ops: LayoutOp[] = [...planSetExpanded(state, true)]
             // A replaced tab lends its pane and slot; one that floats cannot (a
@@ -357,8 +403,9 @@ export function createSidebarRightStore(
             return ops
           }, seed)
           if (next === s) opened = undefined
-          const replaced = intent.replaceTab === undefined ? undefined : s.layout.tabs[intent.replaceTab]
-          if (replaced !== undefined && next.layout.tabs[replaced.id] === undefined) beforeRemove?.(replaced)
+          for (const tab of Object.values(s.layout.tabs)) {
+            if (next.layout.tabs[tab.id] === undefined) beforeRemove?.(tab)
+          }
           return next
         })
         if (opened !== undefined) settled(opened)

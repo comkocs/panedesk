@@ -20,7 +20,7 @@ import { IconCloseOutlineRegular, IconPanelLeftOutlineRegular, Tooltip } from '@
 import type { DockIntents, DockLabels, TabRenderer } from '../contract/adapter.ts'
 import type { FloatRect, LayoutState, PaneId, TabId, TabRecord } from '../contract/types.ts'
 import { FLOAT_MIN_SIZE } from '../engine/constraints.ts'
-import { movedRect, resizedRect } from '../engine/geometry.ts'
+import { movedRect, resizedRect, type Rect, type ResizeEdge } from '../engine/geometry.ts'
 import { floatRect, getPane, getTab, onlyTabId } from '../engine/tree.ts'
 import { useGesture } from './pointer.ts'
 import { TabTitle } from './TabTitle.tsx'
@@ -40,7 +40,8 @@ export interface FloatLayerProps {
 
 /** A floating-panel gesture: what it moves and where it started. */
 interface FloatDrag {
-  readonly mode: 'move' | 'resize'
+  readonly mode: 'move' | ResizeEdge
+  readonly bounds: Rect
   readonly originX: number
   readonly originY: number
   readonly rect: FloatRect
@@ -52,7 +53,7 @@ function draggedRect(drag: FloatDrag, x: number, y: number): FloatRect {
   const dy = y - drag.originY
   return drag.mode === 'move'
     ? movedRect(drag.rect, dx, dy)
-    : resizedRect(drag.rect, dx, dy, FLOAT_MIN_SIZE)
+    : resizedRect(drag.rect, dx, dy, FLOAT_MIN_SIZE, drag.mode, drag.bounds)
 }
 
 /** Whether two rectangles agree in every coordinate. */
@@ -81,8 +82,8 @@ export function useFloatGestures(state: LayoutState, intents: DockIntents) {
     intents.focusPane(paneId)
   }
 
-  /** Start a move or resize from a press on the panel's grip or corner; a release that moved nothing is a click. */
-  const drag = (mode: 'move' | 'resize', paneId: PaneId, event: ReactPointerEvent<HTMLElement>): void => {
+  /** A release without movement raises the panel; dragging records one move or edge resize. */
+  const drag = (mode: 'move' | ResizeEdge, paneId: PaneId, event: ReactPointerEvent<HTMLElement>): void => {
     // The press stops here: the panel's own press-to-focus would record a focus
     // entry before the drag's, and the release below decides which one it is.
     event.stopPropagation()
@@ -92,8 +93,10 @@ export function useFloatGestures(state: LayoutState, intents: DockIntents) {
     const caption = windows && !root.hasAttribute('data-fullscreen')
       ? Number.parseFloat(root.style.getPropertyValue('--dsh-windows-titlebar-height')) : 0
     const saved = floatRect(getPane(state, paneId))
-    const rect = { ...saved, y: Math.max(saved.y, windows ? caption + 20 : 0) }
-    const start: FloatDrag = { mode, originX: event.clientX, originY: event.clientY, rect }
+    const top = windows ? caption + 20 : 0
+    const rect = { ...saved, y: Math.max(saved.y, top) }
+    const bounds = { x: 0, y: top, width: window.innerWidth, height: window.innerHeight - top }
+    const start: FloatDrag = { mode, bounds, originX: event.clientX, originY: event.clientY, rect }
     begin(event.currentTarget, event.pointerId, {
       move: (moved) => { setPreview({ paneId, rect: draggedRect(start, moved.clientX, moved.clientY) }) },
       up: (released) => {
@@ -149,6 +152,21 @@ export function FloatHeader({ paneId, tab, labels, intents, renderTabTitle, canC
   )
 }
 
+/**
+ * Resize handles shared by the retained and separate floating renderers.
+ * @param props - owning pane and its gesture callback.
+ * @returns four edge handles and four corner handles above the body.
+ */
+export function FloatResizeHandles({ paneId, drag }: {
+  readonly paneId: PaneId
+  readonly drag: ReturnType<typeof useFloatGestures>['drag']
+}): ReactNode {
+  return (['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw'] as const).map(edge => (
+    <div key={edge} className={css.floatResize} data-dockkit-float-resize={paneId}
+      data-dockkit-resize-edge={edge} onPointerDown={event => { drag(edge, paneId, event) }} />
+  ))
+}
+
 /** Every floating panel, in z order. */
 export function FloatLayer({ state, intents, labels, renderTab, renderTabTitle, canCloseTab }: FloatLayerProps): ReactNode {
   const { preview, raise, drag } = useFloatGestures(state, intents)
@@ -180,11 +198,7 @@ export function FloatLayer({ state, intents, labels, renderTab, renderTabTitle, 
           >
             <FloatHeader {...{ paneId, tab, labels, intents, renderTabTitle, canCloseTab, drag }} />
             <div className={css.floatBody}>{renderTab(tab)}</div>
-            <div
-              className={css.floatResize}
-              data-dockkit-float-resize={paneId}
-              onPointerDown={(event) => { drag('resize', paneId, event) }}
-            />
+            <FloatResizeHandles paneId={paneId} drag={drag} />
           </div>
         )
       })}

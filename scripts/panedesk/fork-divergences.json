@@ -16452,6 +16452,21 @@
     }
 ,
     {
+      "id": "floating-subagent-conversations",
+      "description": "Open child conversations as independent, eight-direction resizable floating panels",
+      "origin": "Panedesk conversation layout",
+      "reason": "Keep docked pages visible, raise existing conversations, and reuse the most recently used conversation panel when the visible-session budget is full.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-dockkit/**",
+          "packages/client/ui-sidebar-right/**",
+          "packages/client/ui-subagent/**",
+          "packages/client/ui-session-tab/**"
+        ]
+      }
+    },
+    {
       "id": "project-trace-panel",
       "description": "Add the project item panel, decision view, and workspace recording switches",
       "origin": "Panedesk project activity",

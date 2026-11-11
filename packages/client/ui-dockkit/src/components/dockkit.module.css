@@ -802,37 +802,48 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
+/* Isolate content stacking so composer controls cannot cover resize handles. */
+.float > .floatBody,
+.float > .tabHostBody,
+.float > .tabHostHeader,
+.float > .floatHeader {
+  isolation: isolate;
+  z-index: 0;
+}
+
 .floatResize {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 20px;
-  height: 20px;
-  cursor: nwse-resize;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
   touch-action: none;
 }
 
-/* The grip follows the floating panel's corner with a 4px inset. Pointer
-   hover and an active drag reveal it. */
-.floatResize::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: calc(var(--dsw-radius-panel) - 4px);
-  height: calc(var(--dsw-radius-panel) - 4px);
-  border-right: 1.5px solid var(--dsw-alias-label-caption);
-  border-bottom: 1.5px solid var(--dsw-alias-label-caption);
-  border-bottom-right-radius: calc(var(--dsw-radius-panel) - 4px);
-  opacity: 0;
-  transition: opacity 120ms ease-out;
+.floatResize[data-dockkit-resize-edge='n'],
+.floatResize[data-dockkit-resize-edge='s'] {
+  right: 12px;
+  left: 12px;
+  width: auto;
+  height: 6px;
+  cursor: ns-resize;
 }
 
-.float:hover .floatResize::after,
-.floatResize:active::after {
-  opacity: 1;
+.floatResize[data-dockkit-resize-edge='e'],
+.floatResize[data-dockkit-resize-edge='w'] {
+  top: 12px;
+  bottom: 12px;
+  width: 6px;
+  height: auto;
+  cursor: ew-resize;
 }
 
-.floatResize:hover::after {
-  border-color: var(--dsw-alias-label-tertiary);
-}
+.floatResize[data-dockkit-resize-edge*='n'] { top: 0; }
+.floatResize[data-dockkit-resize-edge*='s'] { bottom: 0; }
+.floatResize[data-dockkit-resize-edge*='e'] { right: 0; }
+.floatResize[data-dockkit-resize-edge*='w'] { left: 0; }
+
+.floatResize[data-dockkit-resize-edge='nw'],
+.floatResize[data-dockkit-resize-edge='se'] { cursor: nwse-resize; }
+
+.floatResize[data-dockkit-resize-edge='ne'],
+.floatResize[data-dockkit-resize-edge='sw'] { cursor: nesw-resize; }

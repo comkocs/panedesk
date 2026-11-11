@@ -37,7 +37,7 @@ import { sidebarTargetFromElement, type SidebarRightTarget } from './focus.ts'
 import { randomUUID } from '@panedesk/dsh-util-crypto'
 import { createSnapshotStore, type ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { FloatRect, PaneId, TabId, TabRecord } from '@panedesk/dsh-client-ui-dockkit'
-import { activeDockPaneId, canSplit, dockPaneIds, findTabPane, getPane } from '@panedesk/dsh-client-ui-dockkit'
+import { activeDockPaneId, canSplit, dockPaneIds, findTabPane, FLOAT_MIN_SIZE, getPane, resizedRect } from '@panedesk/dsh-client-ui-dockkit'
 import type { BoundActions } from '@panedesk/dsh-client-ui-slots'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SidebarRightNavigationParams, SidebarRightResourceParams, SidebarRightTabParamsFor } from './contract/params.ts'
@@ -153,6 +153,8 @@ export interface SidebarRightPlacement {
   readonly paneId?: PaneId
   /** Prefer a new pane for new content; use the target pane when splitting is unavailable. */
   readonly preferNewPane?: boolean
+  /** Open directly in a floating panel without expanding or selecting the docked column. */
+  readonly floating?: boolean
   /** Take this tab's place — its pane and its strip slot — and close it in the same step. */
   readonly replaceTab?: TabId
   /**
@@ -398,7 +400,11 @@ export class SidebarRightController implements ISidebarRight {
   ): void {
     const definition = this.tabs.get(kind)
     if (definition === undefined) throw new Error(`sidebarRight: no tab type is registered as "${kind}"`)
-    const address = definition.multiple === true ? `${pageAddress(kind)}/${randomUUID()}` : pageAddress(kind)
+    const existing = options.floating === true && definition.multiple === true
+      ? this.tabsIn(sessionId).find(tab => tab.kind === kind
+        && JSON.stringify(this.tabDomain.occurrence(sessionId, tab).navigation.getSnapshot().params) === JSON.stringify(options.params))
+      : undefined
+    const address = existing?.contentId ?? (definition.multiple === true ? `${pageAddress(kind)}/${randomUUID()}` : pageAddress(kind))
     this.place(sessionId, actions, { kind, contentId: address, title: definition.title(address) }, address, options, options.params)
   }
 
@@ -415,6 +421,7 @@ export class SidebarRightController implements ISidebarRight {
     const targetPane = surface === undefined ? undefined : placement.paneId ?? activeDockPaneId(surface.layout)
     const target = targetPane === undefined ? undefined : surface?.layout.nodes[targetPane]
     const preferNewPane = placement.preferNewPane === true
+      && placement.floating !== true
       && placement.replaceTab === undefined
       && surface !== undefined
       && target?.kind === 'pane'
@@ -430,6 +437,7 @@ export class SidebarRightController implements ISidebarRight {
       title: claim.title,
       ...placement.paneId === undefined ? {} : { paneId: placement.paneId },
       ...preferNewPane ? { preferNewPane: true } : {},
+      ...placement.floating === true ? { floatRect: this.defaultFloatRect(sessionId, surface?.layout.floats.length ?? 0) } : {},
       ...placement.replaceTab === undefined ? {} : { replaceTab: placement.replaceTab },
       ...placement.revealIfOpened === undefined ? {} : { revealIfOpened: placement.revealIfOpened },
     }, (tabId) => { this.tabDomain.navigate(sessionId, tabId, { address, params }) },
@@ -437,6 +445,27 @@ export class SidebarRightController implements ISidebarRight {
       const original = surface?.layout.tabs[removed.id]
       if (original !== undefined) this.closeHandlers.get(original.kind)?.(sessionId, original)
     })
+  }
+
+  /** Place new panels beside the visible dock, cascading left and down inside the viewport. */
+  private defaultFloatRect(sessionId: SessionId, count: number): FloatRect {
+    const panel = [...document.querySelectorAll<HTMLElement>('[data-sidebar-right-panel][data-sidebar-right-open]')]
+      .find(element => element.dataset.sidebarRightSession === sessionId)
+    const root = document.documentElement
+    const windows = root.hasAttribute('data-windows-titlebar')
+    const caption = windows && !root.hasAttribute('data-fullscreen')
+      ? Number.parseFloat(root.style.getPropertyValue('--dsh-windows-titlebar-height')) : 0
+    const top = windows ? caption + 20 : 0
+    const right = panel?.getBoundingClientRect().left ?? window.innerWidth
+    const bounds = { x: 0, y: top, width: window.innerWidth, height: window.innerHeight - top }
+    const size = resizedRect({ x: 0, y: top, ...FLOAT_MIN_SIZE },
+      Math.min(480, right) - FLOAT_MIN_SIZE.width, window.innerHeight * 0.7 - FLOAT_MIN_SIZE.height,
+      FLOAT_MIN_SIZE, 'se', bounds)
+    return {
+      ...size,
+      x: Math.max(0, Math.min(window.innerWidth - size.width, right - size.width - 24 - count * 24)),
+      y: Math.max(top, Math.min(window.innerHeight - size.height, (window.innerHeight - size.height) / 2 + count * 24)),
+    }
   }
 
   /**

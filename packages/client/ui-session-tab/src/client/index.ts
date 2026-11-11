@@ -88,10 +88,8 @@ export function apply(ctx: ClientContext): void {
     order: 500,
     locale: NS,
     inject: () => ({
-      open: (sessionId: SessionId): boolean => {
-        const before = ctx.sidebarRight.openTabs.getSnapshot()
-        ctx.sidebarRight.openTab(SESSION_KIND, { params: { sessionId }, preferNewPane: true })
-        return ctx.sidebarRight.openTabs.getSnapshot() !== before
+      open: (sessionId: SessionId): void => {
+        ctx.sidebarRight.openTab(SESSION_KIND, { params: { sessionId }, floating: true })
       },
     }),
   }, OpenInRightMenuItem)), 'ui-session-tab: open in the right sidebar')

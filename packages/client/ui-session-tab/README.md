@@ -25,11 +25,11 @@ This package adds a session page type to the right sidebar and a pin on each fin
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-workspace`, `ui-sidebar-right`, and `ui-conversation`. A session row's menu gains "Open in the right sidebar". The page type is not on the guide, so it does not appear before a session starts. The pin sits in the action row of a finalized assistant message except with the minimal preset. The session page lists that session's pins and loads older history when necessary before locating the chosen message.
+Mount this plugin alongside `ui-workspace`, `ui-sidebar-right`, and `ui-conversation`. A session row's menu gains "Open as floating panel". Reopening the same session raises its existing panel without creating another. The page type is not on the guide, so it does not appear before a session starts. The pin sits in the action row of a finalized assistant message except with the minimal preset. The session page lists that session's pins and loads older history when necessary before locating the chosen message.
 
 ### Failures
 
-The menu reports when its proposed layout exceeds the shared visible-session budget. A browser that cannot keep storage shows that the pins cannot be saved. Invalid resource addresses and synchronous retention failures settle as visible opening failures. Pin jumps show loading, stop if history is exhausted or makes no progress, and offer a retry when the message cannot be located.
+A browser that cannot keep storage shows that the pins cannot be saved. Invalid resource addresses and synchronous retention failures settle as visible opening failures. Pin jumps show loading, stop if history is exhausted or makes no progress, and offer a retry when the message cannot be located.
 
 -----
 
@@ -39,7 +39,7 @@ The menu reports when its proposed layout exceeds the shared visible-session bud
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package registers the `session` tab type with `multiple: true` and no guide entry, contributes `open-in-right` (order 500) to `sidebar.workspaces.session.menu.item`, and contributes `pin` (order 20) to `conversation.chat.assistant-actions`. Pins are one document under `dsh.session-pins.v1`: `{ schemaVersion: 1, pins: [{ sessionId, messageId, pinnedAt }] }`. A `sessiontab` resource retains the target through `sessions.retain`, awaits opening, supplies its `SessionProvider`, and releases it when the resource closes. The shared `conversation.content` factory renders the transcript and composer. The jump searches only this page for `data-message-id`, calling the retained Session's `loadOlder()` until the row appears or paging stops. The Chat head detects progress without changing the pin format; leaving the occurrence or selecting another pin cancels further paging and scrolling, not shared in-flight history I/O. Pin writes publish through a framework-bound observable after storage succeeds; unsupported document versions are not overwritten. Opens prefer a new docked pane when space permits and use the sidebar's final-layout budget. Embedded composer phases distinguish awaiting-first-turn from prompt-attempted, following the shared conversation lifecycle.
+The package registers the `session` tab type with `multiple: true` and no guide entry, contributes `open-in-right` (order 500) to `sidebar.workspaces.session.menu.item`, and contributes `pin` (order 20) to `conversation.chat.assistant-actions`. Pins are one document under `dsh.session-pins.v1`: `{ schemaVersion: 1, pins: [{ sessionId, messageId, pinnedAt }] }`. A `sessiontab` resource retains the target through `sessions.retain`, awaits opening, supplies its `SessionProvider`, and releases it when the resource closes. The shared `conversation.content` factory renders the transcript and composer. The jump searches only this page for `data-message-id`, calling the retained Session's `loadOlder()` until the row appears or paging stops. The Chat head detects progress without changing the pin format; leaving the occurrence or selecting another pin cancels further paging and scrolling, not shared in-flight history I/O. Pin writes publish through a framework-bound observable after storage succeeds; unsupported document versions are not overwritten. Opens request floating placement and use the sidebar's final-layout budget and conversation replacement policy. Embedded composer phases distinguish awaiting-first-turn from prompt-attempted, following the shared conversation lifecycle.
 
 </details>
 

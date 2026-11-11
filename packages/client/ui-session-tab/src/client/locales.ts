@@ -3,8 +3,7 @@
 /** Simplified Chinese dictionary, the key-set source. */
 export const zh = {
   'type.label': '会话',
-  'menu.openRight': '在右栏打开',
-  'menu.limit': '主区加右栏最多三个会话,请先关闭一个',
+  'menu.openRight': '开成浮窗',
   'body.loading': '正在打开会话',
   'body.empty': '这个会话还没有钉住的条目',
   'body.error': '钉住的条目读取失败',
@@ -33,8 +32,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
 /** English dictionary, complete against the zh key set. */
 export const en = {
   'type.label': 'Session',
-  'menu.openRight': 'Open in the right sidebar',
-  'menu.limit': 'The main area and the right sidebar hold three sessions; close one first',
+  'menu.openRight': 'Open as floating panel',
   'body.loading': 'Opening the session',
   'body.empty': 'This session has no pinned entries',
   'body.error': 'The pinned entries could not be read',

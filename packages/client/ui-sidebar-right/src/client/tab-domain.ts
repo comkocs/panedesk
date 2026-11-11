@@ -171,6 +171,7 @@ export class TabDomain {
         : held.paneId === undefined ? {} : { paneId: held.paneId },
       ...placement.paneId === undefined ? {} : { paneId: placement.paneId },
       ...placement.preferNewPane === undefined ? {} : { preferNewPane: placement.preferNewPane },
+      ...placement.floating === undefined ? {} : { floating: placement.floating },
       ...placement.revealIfOpened === undefined ? {} : { revealIfOpened: placement.revealIfOpened },
     })
     const held: Held = {
