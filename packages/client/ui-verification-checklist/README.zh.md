@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-头部按钮打开 `dsh-resource://verificationchecklist/session/<sessionId>`，页签种类为 `verificationchecklist`。`minimal` 预设不显示该按钮。实际用时取自同一会话的子代理树资源。标灰读取工作区验证记录；没有记录时按产品默认，只把变异测试标灰。会话没有当前活动任务时，检查项不能关闭。
+头部按钮打开 `dsh-resource://verificationchecklist/session/<sessionId>`，页签种类为 `verificationchecklist`。`minimal` 预设不显示该按钮。实际用时取自同一会话的子代理树资源。标灰读取工作区验证记录；没有记录时按产品默认，只把变异测试标灰。会话没有当前活动任务时，检查项不能关闭。策略读取与禁止项写入失败时显示服务原始错误。
 
 -----
 

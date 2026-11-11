@@ -90,7 +90,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       inject: (): VerificationChecklistLabels => ({
         prohibit: async (sessionId, taskId, category: ActivityCategory) => {
           const result = await scope.remote.verificationPolicy.prohibitTaskCategories({ sessionId, taskId, categories: [category] })
-          if (!result.ok) throw result.error
+          if (!result.ok) throw new Error(result.error.message)
         },
       }),
     }, VerificationChecklistTab))

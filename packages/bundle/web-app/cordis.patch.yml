@@ -685,6 +685,9 @@
 - id: tool-verification-checklist
   disabled: true
 
+- id: tool-trace
+  disabled: true
+
 - id: tool-web
   disabled: true
 

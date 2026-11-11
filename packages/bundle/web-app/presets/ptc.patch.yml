@@ -119,6 +119,8 @@
               allowParallelInProgress: true
           - id: tool-verification-checklist
             name: '@panedesk/dsh-tool-verification-checklist'
+          - id: tool-trace
+            name: '@panedesk/dsh-tool-trace'
           - id: tool-web
             name: '@panedesk/dsh-tool-web'
             config:

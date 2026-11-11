@@ -24,7 +24,7 @@ export const presets: Record<VerificationPreset, VerificationSettings> = {
   'build-only': settingsSchema.parse({ fullTests: 'deny', mutation: false, scripts: false, ci: false, focusedTests: false, clientMinutes: 5 }),
 }
 
-const spec = defineDomain({ name: 'workspace-verification', version: 1,
+const spec = defineDomain({ name: 'workspace_verification', version: 1,
   tables: { settings: domainTable<WorkspaceId, VerificationSettings>(settingsSchema) } })
 
 /** Open workspace storage independently of project files and model-editable settings.

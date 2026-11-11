@@ -23,7 +23,7 @@ Open a session's verification checklist from its header into a right-sidebar tab
 <a id="use-this-package"></a>
 ## Use this package
 
-The header pill opens `dsh-resource://verificationchecklist/session/<sessionId>` as the `verificationchecklist` tab kind. It is absent for the `minimal` preset. Actual time comes from the subagent tree resource for the same session. Grey-out reads the workspace verification record; when none is available the product default applies and only mutation tests are greyed. A check whose session has no current activity task cannot be turned off.
+The header pill opens `dsh-resource://verificationchecklist/session/<sessionId>` as the `verificationchecklist` tab kind. It is absent for the `minimal` preset. Actual time comes from the subagent tree resource for the same session. Grey-out reads the workspace verification record; when none is available the product default applies and only mutation tests are greyed. A check whose session has no current activity task cannot be turned off. Failed policy reads and prohibition writes show the original service error.
 
 -----
 

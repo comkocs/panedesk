@@ -6,6 +6,7 @@ import type {} from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
 import type { DecisionRevision, ItemId, ReferenceContent, TraceItem } from '@panedesk/dsh-trace-store/types'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
+import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { TraceOpenActions, TracePanelActions } from './index.ts'
 import { decisionStatus, eventLine, itemMarkdown, itemStatus, sourceLine } from './format.ts'
 import css from './panel.module.css'
@@ -41,7 +42,7 @@ export function TracePanel(props: Props) {
   return <section className={css.tab}>
     <h1 className={css.heading}>{props.t('title')}</h1>
     <p>{props.t('description')}</p>
-    {failed && <p role="alert">{props.t('failed')}</p>}
+    {failed && <p role="alert">{props.t('failed', { reason: resource.failure!.message })}</p>}
     {status === null && !failed && <p role="status">{props.t('loading')}</p>}
     {status !== null && !status.enabled && <section>
       <p>{props.t('off')}</p>
@@ -66,11 +67,12 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const [title, setTitle] = useState('')
   const [opened, setOpened] = useState<ReferenceContent | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   const stamp = `${encodeURIComponent(workspaceId)}?revision=${tick}`
   const itemsResource = useResource<'traceitems'>(`dsh-resource://traceitems/${stamp}`)
   const looseResource = useResource<'tracetimeline'>(`dsh-resource://tracetimeline/${stamp}`)
   const itemResource = useResource<'tracetimeline'>(selected === null ? '' : `dsh-resource://tracetimeline/${stamp}&item=${selected}`)
+  const readFailure = itemsResource.failure ?? looseResource.failure ?? itemResource.failure
   const items = itemsResource.value?.items
   const loose = looseResource.value?.page.events ?? []
   const events = itemResource.value?.page.events ?? []
@@ -87,14 +89,15 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const openItems = items?.filter(item => item.status === 'open') ?? []
   const closedItems = items?.filter(item => item.status !== 'open') ?? []
   return <section>
-    {failed && <p role="alert">{t('failed')}</p>}
+    {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
+    {readFailure && <p role="alert">{t('failed', { reason: readFailure.message })}</p>}
     <div className={css.row}>
       <label>{t('itemTitle')}<Input value={title} onChange={event => { setTitle(event.target.value) }} /></label>
       <Button variant="primary" disabled={title.trim() === ''} onClick={() => {
-        void createItem(workspaceId, title.trim(), sessionId).then(item => {
-          if (item === null) { setFailed(true); return }
-          setTitle(''); setTick(value => value + 1); changed(); show(item.id)
-        })
+        void createItem(workspaceId, title.trim(), sessionId).then(result => {
+          if (!result.ok) { setFailure(result.error.message); return }
+          setFailure(null); setTitle(''); setTick(value => value + 1); changed(); show(result.value.id)
+        }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
       }}>{t('create')}</Button>
     </div>
     <h2>{t('openItems')}</h2>
@@ -109,13 +112,19 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
       <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item}>
         <span>{eventLine(event, t)}</span>
         {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" onClick={() => {
-          void reference(workspaceId, row.id).then(value => { setOpened(value); setFailed(value === null) })
+          void reference(workspaceId, row.id).then(result => {
+            if (!result.ok) { setFailure(result.error.message); return }
+            setOpened(result.value); setFailure(null)
+          }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
         }}>{t('viewReference')}: {row.summary}</Button>)}
       </li>)}</ul>
       {opened !== null && <pre className={css.quote}>{opened.text === '' ? t('referenceEmpty') : opened.text}</pre>}
       <div className={css.row}>
         {open.status === 'open' && <Button variant="outline" onClick={() => {
-          void closeItem(workspaceId, open.id).then(ok => { if (ok) { setTick(value => value + 1); changed() } else setFailed(true) })
+          void closeItem(workspaceId, open.id).then(result => {
+            if (!result.ok) { setFailure(result.error.message); return }
+            setFailure(null); setTick(value => value + 1); changed()
+          }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
         }}>{t('closeItem')}</Button>}
         <Button variant="outline" onClick={() => { download(`${open.title}.json`, JSON.stringify({ item: open, events, refs }, null, 2), 'application/json') }}>{t('exportJson')}</Button>
         <Button variant="outline" onClick={() => { download(`${open.title}.md`, itemMarkdown(open, events, refs, [], t), 'text/markdown') }}>{t('exportMd')}</Button>
@@ -132,10 +141,10 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
     </li>)}</ul>
     <Button variant="outline" disabled={checked.size === 0 || selected === null} onClick={() => {
       if (selected === null) return
-      void assign(workspaceId, selected, [...checked]).then(ok => {
-        if (!ok) { setFailed(true); return }
-        setChecked(new Set()); setTick(value => value + 1); show(selected)
-      })
+      void assign(workspaceId, selected, [...checked]).then(result => {
+        if (!result.ok) { setFailure(result.error.message); return }
+        setFailure(null); setChecked(new Set()); setTick(value => value + 1); show(selected)
+      }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
     }}>{t('assign')}</Button>
   </section>
 }
@@ -155,7 +164,9 @@ function ItemList({ items, selected, onSelect, t }: {
 
 function DecisionHistory({ useResource, t, workspaceId, tick, decisionId }:
   Pick<Props, 'useResource' | 't'> & { workspaceId: WorkspaceId; tick: number; decisionId: DecisionRevision['id'] }) {
-  const rows = useResource<'tracehistory'>(`dsh-resource://tracehistory/${encodeURIComponent(workspaceId)}?decision=${encodeURIComponent(decisionId)}&revision=${tick}`).value?.rows ?? []
+  const resource = useResource<'tracehistory'>(`dsh-resource://tracehistory/${encodeURIComponent(workspaceId)}?decision=${encodeURIComponent(decisionId)}&revision=${tick}`)
+  const rows = resource.value?.rows ?? []
+  if (resource.status === 'failed') return <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>
   const past = rows.filter(row => row.revision !== rows.at(-1)?.revision)
   if (past.length === 0) return <p>{t('historyEmpty')}</p>
   return <ul className={css.list}>{past.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
@@ -167,22 +178,27 @@ function DecisionHistory({ useResource, t, workspaceId, tick, decisionId }:
 function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, strict }:
   Props & { workspaceId: WorkspaceId; strict: boolean }) {
   const [tick, setTick] = useState(0)
-  const [failed, setFailed] = useState(false)
-  const rows = useResource<'tracedecisions'>(`dsh-resource://tracedecisions/${encodeURIComponent(workspaceId)}?revision=${tick}`).value?.rows
-  const refresh = (ok: boolean): void => { if (ok) setTick(value => value + 1); else setFailed(true) }
+  const [failure, setFailure] = useState<string | null>(null)
+  const resource = useResource<'tracedecisions'>(`dsh-resource://tracedecisions/${encodeURIComponent(workspaceId)}?revision=${tick}`)
+  const rows = resource.value?.rows
+  const refresh = (result: RemoteResult<DecisionRevision>): void => {
+    if (!result.ok) { setFailure(result.error.message); return }
+    setFailure(null); setTick(value => value + 1)
+  }
   const ids = [...new Set((rows ?? []).map(row => row.id))]
   const revisionsOf = (id: string) => (rows ?? []).filter(row => row.id === id)
   const active = ids.flatMap(id => revisionsOf(id).filter(row => row.status === 'active' || row.status === 'reverted').slice(-1))
   const proposed = ids.flatMap(id => revisionsOf(id).slice(-1).filter(row => row.status === 'proposed'))
   return <section>
-    {failed && <p role="alert">{t('failed')}</p>}
+    {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
+    {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
     <h2>{t('activeDecisions')}</h2>
     {active.length === 0 && <p>{t('decisionsEmpty')}</p>}
     <ul className={css.list}>{active.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
       <strong>{row.title}</strong>
       <span>{sourceLine(row.source, t)} · {decisionStatus(row.status, t)} · v{row.revision}</span>
       <p>{row.body}</p>
-      <Button variant="outline" onClick={() => { void revert(workspaceId, row.id).then(refresh) }}>{t('revert')}</Button>
+      <Button variant="outline" onClick={() => { void revert(workspaceId, row.id).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('revert')}</Button>
     </li>)}</ul>
     {strict && <section>
       <h2>{t('proposed')}</h2>
@@ -192,8 +208,8 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
         <span>{sourceLine(row.source, t)}</span>
         <p>{row.body}</p>
         <div className={css.row}>
-          <Button variant="primary" onClick={() => { void confirm(workspaceId, row.id, row.revision).then(refresh) }}>{t('confirm')}</Button>
-          <Button variant="outline" onClick={() => { void reject(workspaceId, row.id, row.revision).then(refresh) }}>{t('reject')}</Button>
+          <Button variant="primary" onClick={() => { void confirm(workspaceId, row.id, row.revision).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('confirm')}</Button>
+          <Button variant="outline" onClick={() => { void reject(workspaceId, row.id, row.revision).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('reject')}</Button>
         </div>
       </li>)}</ul>
     </section>}
