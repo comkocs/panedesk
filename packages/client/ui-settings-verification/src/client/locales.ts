@@ -9,7 +9,7 @@ export const en = {
   limitHint: 'Leave a numeric limit empty for unlimited. Verification includes builds; overlapping script time is counted once.',
   action: 'When the budget is exceeded', ask: 'Ask first', block: 'Block directly',
   approvalHint: 'Approval currently supports allow once or reject. The prompt lists task-wide alternatives, but the approval dialog cannot apply them.',
-  save: 'Save', saved: 'Saved for this workspace.', loading: 'Loading verification switches…', error: 'Could not read or save verification switches: {reason}',
+  save: 'Save', saved: 'Saved.', loading: 'Loading verification switches…', error: 'Could not read or save verification switches: {reason}',
   scope: 'Workspace storage only; models cannot edit these switches. Changes apply to subsequent calls.',
   limits: 'External agents and remote CI contents cannot be inspected. Scripts can hide tests; use the self-written script switch and time budget.',
 } satisfies Record<string, string>
@@ -26,7 +26,7 @@ export const zh: Record<VerificationKey, string> = {
   limitHint: '数值留空为不限。验证包括编译；自写脚本重叠用时只计一次。',
   action: '预算超线后', ask: '先问我', block: '直接拦',
   approvalHint: '现有审批仅支持单次放行或拒绝。提示会列出任务级选项，但审批框暂不能执行任务级选项。',
-  save: '保存', saved: '已为此工作区保存。', loading: '正在读取验证开关…', error: '无法读取或保存验证开关：{reason}',
+  save: '保存', saved: '已保存。', loading: '正在读取验证开关…', error: '无法读取或保存验证开关：{reason}',
   scope: '仅存工作区域存储；模型不能修改。更改对后续调用生效。',
   limits: '无法检查外部代理与远端 CI 内容。脚本可能隐藏测试，可使用自写脚本开关及用时预算。',
 }

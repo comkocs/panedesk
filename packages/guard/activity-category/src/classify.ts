@@ -27,6 +27,7 @@ interface MatchInput {
   name: string
   args: Readonly<Record<string, unknown>>
   command: string
+  testCommand: string
   words: readonly string[]
   selfWrittenScript: boolean
 }
@@ -90,8 +91,8 @@ export const ACTIVITY_RULES: readonly { category: ActivityCategory; matches: (in
   { category: 'mutation', matches: ({ command }) => /\b(?:mutmut|stryker|cargo-mutants|pitest)\b|\bcargo\s+mutants\b/.test(command) },
   { category: 'client', matches: ({ command }) => /\b(?:playwright|cypress|godot|electron|MetaTrader|terminal64\.exe)\b|\b(?:dev|start):(web|desktop)\b|\bdsh\s+(?:web|desktop)\b/i.test(command) },
   { category: 'ci', matches: ({ command }) => /\bgit\s+push\b|\bgh\s+(?:workflow\s+run|run\s+watch)\b/.test(command) },
-  { category: 'test-focused', matches: ({ command }) => TEST_RUNNER.test(command) && focused(command) },
-  { category: 'test-full', matches: ({ command }) => TEST_RUNNER.test(command) },
+  { category: 'test-focused', matches: ({ testCommand }) => TEST_RUNNER.test(testCommand) && focused(testCommand) },
+  { category: 'test-full', matches: ({ testCommand }) => TEST_RUNNER.test(testCommand) },
   { category: 'build', matches: ({ command }) => /\b(?:tsc|build|make|msbuild)\b|\bgradle\s+assemble\b|\bmetaeditor(?:64)?(?:\.exe)?\b.*\/compile/i.test(command) },
   { category: 'script', matches: ({ selfWrittenScript }) => selfWrittenScript },
   { category: 'other', matches: () => true },
@@ -109,6 +110,8 @@ export function classifyActivity(toolName: string, args: Readonly<Record<string,
   const directory = typeof args['workdir'] === 'string' ? resolve(session.cwd, args['workdir']) : session.cwd
   const selfWrittenScript = command !== '' && runsCreatedFile(tokens, { ...session, cwd: directory })
   const override = command === '' ? undefined : session.rules.find(rule => rule.contains !== '' && command.includes(rule.contains))
-  const input = { name: toolName.toLowerCase(), args, command, words: tokens, selfWrittenScript }
+  const testCommand = command.replace(/('[^']*'|"[^"]*"|\|\|)|\|[\s\S]*$|\d*>>?\s*(?:&\d+|(?:[^\s;&|<>"']+|'[^']*'|"[^"]*")+)/g,
+    (_match, quoted: string | undefined) => quoted ?? '')
+  const input = { name: toolName.toLowerCase(), args, command, testCommand, words: tokens, selfWrittenScript }
   return { category: override?.category ?? ACTIVITY_RULES.find(rule => rule.matches(input))!.category, selfWrittenScript }
 }

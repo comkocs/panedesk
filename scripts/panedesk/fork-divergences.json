@@ -16583,6 +16583,19 @@
           "packages/client/ui-project-onboarding/**"
         ]
       }
+    },
+    {
+      "id": "verification-save-feedback-and-shell-output-classification",
+      "description": "Keep verification save feedback visible and classify tests independently of shell output handling",
+      "origin": "Panedesk verification settings",
+      "reason": "Use saved settings without reopening an empty resource snapshot, report original save errors, and exclude pipelines and output redirections from focused/full test classification.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-settings-verification/**",
+          "packages/guard/activity-category/**"
+        ]
+      }
     }
   ]
 }
