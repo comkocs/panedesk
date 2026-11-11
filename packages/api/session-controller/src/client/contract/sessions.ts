@@ -90,6 +90,8 @@ export interface ISessions {
     cwd?: string
     sessionId?: SessionId
     agentPreset?: string
+    /** Milliseconds since the click, forwarded so the Host timing line can name the Client stretch. */
+    clientElapsedMs?: number
   }): Promise<SessionId>
   /**
    * Resolve an already discovered direct-parent address without opening it.

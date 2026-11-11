@@ -161,6 +161,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   )
   private mainReference: SessionReference | undefined
   private opening: Promise<void> | undefined
+  /** Wall time of the latest New Session request, so creation can report the click stretch. */
+  private requestedAt = 0
 
   /**
    * @param ctx - Client root Context.
@@ -242,7 +244,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     readonly sessionId?: SessionId
     readonly agentPreset?: string
   }): Promise<SessionId> {
-    const sessionId = await this.sessions.create(request)
+    const sessionId = await this.sessions.create({
+      ...request,
+      ...(request.sessionId === undefined ? { clientElapsedMs: Date.now() - this.requestedAt } : {}),
+    })
     const named = request.sessionId
     if (named !== undefined && named !== sessionId) {
       void this.sessions.refreshProjections(named).catch((reason: unknown) => {
@@ -319,6 +324,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {
     if (this.opening !== undefined) return
+    this.requestedAt = Date.now()
     const { agentPreset, ...draft } = options ?? {}
     const draftOptions = options === undefined ? undefined : draft
     const initializeDraft = draftOptions !== undefined

@@ -1,6 +1,7 @@
 /** Session commands whose activation policy is explicit at each Remote method. */
 
 import { modelAvailable } from './catalog.ts'
+import { startNewSessionTiming, type NewSessionTiming } from './new-session-timing.ts'
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import { brandString } from '@panedesk/dsh-brand'
@@ -106,8 +107,12 @@ export class SessionCommandController {
   /**
    * Create one ordinary Session for a new conversation, reusing the named
    * blank Session while it is an unarchived member of the requested Workspace.
+   * A brand-new Session answers with its identity before preset mounting,
+   * publication, and Workspace attachment finish; those continue afterwards and
+   * a failure there is logged. Reuse keeps its previous order and still answers
+   * with the preset it left running.
    * @param request - optional blank Session to reuse, location, and Agent preset.
-   * @returns the created or reused Session identity and its preset when configured.
+   * @returns the created or reused Session identity, and its preset when reuse finished one.
    */
   async create(request: SessionCreateRequest): Promise<SessionCreateValue> {
     if (request.workspaceId !== undefined && request.cwd !== undefined) {
@@ -115,18 +120,19 @@ export class SessionCommandController {
     }
     const workspaceId = request.workspaceId
     if (workspaceId === undefined) return this.createInWorkspace(request)
-    return this.ctx.workspaceRegistry.withWorkspace(workspaceId, async (workspace) => {
-      if (workspace === undefined) {
-        throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, {
-          workspaceId,
-        })
-      }
-      return this.createInWorkspace(request, workspace)
-    })
+    const workspace = this.ctx.workspaceRegistry.get(workspaceId)
+    if (workspace === undefined) {
+      throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, { workspaceId })
+    }
+    return this.createInWorkspace(request, workspace)
   }
 
   private async createInWorkspace(request: SessionCreateRequest, workspace?: Workspace): Promise<SessionCreateValue> {
     const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
+    // Only a brand-new Session leaves work running after the answer; reuse stays synchronous.
+    const timing = request.sessionId === undefined
+      ? startNewSessionTiming(request.workspaceId, request.clientElapsedMs)
+      : undefined
     let created: ApiSessionCreated
     try {
       created = await this.agents.createSession({
@@ -135,12 +141,46 @@ export class SessionCommandController {
         ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
         reusable: sessionId => !this.ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)
           && (workspace === undefined || workspace.sessionIds.includes(sessionId)),
-      })
+      }, timing)
     } catch (error) {
+      timing?.finish()
       this.rejectCreation(error)
     }
-    const sessionId = created.agent.id
-    if (workspace !== undefined) {
+    const sessionId = created.sessionId ?? created.agent?.id
+    if (sessionId === undefined) {
+      timing?.finish()
+      throw new RemoteError('gateway/internal', 'session creation finished without an identity', {})
+    }
+    if (created.ready !== undefined) {
+      const settled = this.finishCreated(created.ready, workspace, sessionId, timing)
+      void settled.catch((error: unknown) => {
+        this.ctx.logger.warn(`session "${sessionId}" follow-up setup failed: ${String(error)}`)
+      })
+      return { sessionId }
+    }
+    if (workspace !== undefined) await this.attachCreated(workspace, sessionId, timing)
+    timing?.finish()
+    return { sessionId, ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }) }
+  }
+
+  /** Finish publication and Workspace attachment after the identity was already answered. */
+  private async finishCreated(
+    ready: Promise<ApiSessionCreated>,
+    workspace: Workspace | undefined,
+    sessionId: SessionId,
+    timing: NewSessionTiming | undefined,
+  ): Promise<void> {
+    try {
+      await ready
+      if (workspace !== undefined) await this.attachCreated(workspace, sessionId, timing)
+    } finally {
+      timing?.finish()
+    }
+  }
+
+  /** Attach one published Session, recording the step when a timing line is open. */
+  private attachCreated(workspace: Workspace, sessionId: SessionId, timing?: NewSessionTiming): Promise<void> {
+    const attach = async (): Promise<void> => {
       try {
         await workspace.attachSession(sessionId)
       } catch (error) {
@@ -151,7 +191,7 @@ export class SessionCommandController {
         )
       }
     }
-    return { sessionId, ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }) }
+    return timing === undefined ? attach() : timing.measure('attach', attach)
   }
 
   /**

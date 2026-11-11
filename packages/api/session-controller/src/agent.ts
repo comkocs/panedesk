@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import type { NewSessionTiming } from './new-session-timing.ts'
 import { Service, type Context } from '@panedesk/cordis'
 import { installModelSelection } from '@panedesk/dsh-agent'
 import type {
@@ -165,10 +166,20 @@ export interface ApiSessionCreateRequest {
 
 /** The Session one creation request created or reused. */
 export interface ApiSessionCreated {
-  /** Live Agent of the Session. */
-  readonly agent: Agent
+  /**
+   * Live Agent of the Session. Absent only while a brand-new Session has been
+   * minted but not yet published; callers that need the Agent await {@link ready}.
+   */
+  readonly agent?: Agent
   /** Preset the Session ran when the request finished, before a later request for the same identity; absent without a roster. */
   readonly agentPreset: string | undefined
+  /** Identity available before publication finishes. Present for every result. */
+  readonly sessionId?: SessionId
+  /**
+   * Settles with the published Session. Present only when {@link agent} is
+   * still absent because publication continues after the identity was handed out.
+   */
+  readonly ready?: Promise<ApiSessionCreated>
 }
 
 /** Resolved preset and pre-publication Agent setup for one create or resume. */
@@ -283,6 +294,17 @@ export class ApiSessionAgentController {
   }
 
   /**
+   * Creation or resume still running for one identity.
+   * A follow that arrives before a brand-new Session is stored waits on this
+   * instead of failing the read.
+   * @param sessionId - identity a reader arrived for.
+   * @returns the in-flight creation or resume, or undefined when none is running.
+   */
+  pendingCreation(sessionId: SessionId): Promise<Agent> | undefined {
+    return this.resumes.get(sessionId)
+  }
+
+  /**
    * Resolve or resume one ordinary Session, deduplicating concurrent resumes.
    * @param sessionId - ordinary Session identity.
    * @returns the live Agent or a stable Session-domain failure.
@@ -358,15 +380,30 @@ export class ApiSessionAgentController {
    * and a new Session is created instead. Requests naming one identity run in
    * arrival order, including their preset resolution, and check the named
    * Session's directory and ownership before resolving the preset.
+   *
+   * A brand-new Session answers once its identity is stored. Preset mounting,
+   * permission facts, durable publication, and plugin subscriptions continue
+   * afterwards on that identity; the result carries them as {@link ApiSessionCreated.ready}
+   * and records each step when the caller passes a timing line. Reuse and
+   * controlled creation keep the previous order.
    * @param request - optional Session to reuse, directory, preset, and placement rule.
-   * @returns the reused or created Session and the preset it ran when this request finished.
+   * @param timing - optional recorder for the brand-new path; absent for reuse and controlled creation.
+   * @returns the reused or created Session and the preset it ran when the request finished.
    * @throws ApiSessionCwdConflict when the named Session belongs to another directory.
    * @throws ApiSessionSubagentOwnership when subagent routing owns the named Session.
    * @throws RemoteError `agent-preset/not-found` or `agent-preset/invalid` for the requested or default preset.
    * @throws ApiSessionPresetConflict when no roster is composed and the request names a preset for a reused Session.
    */
-  async createSession(request: ApiSessionCreateRequest): Promise<ApiSessionCreated> {
-    const named = request.sessionId
+  async createSession(request: ApiSessionCreateRequest, timing?: NewSessionTiming): Promise<ApiSessionCreated> {
+    return this.createRecorded(request, request.sessionId, timing)
+  }
+
+  /** Run one creation, passing its timing line only through the brand-new path. */
+  private async createRecorded(
+    request: ApiSessionCreateRequest,
+    named: SessionId | undefined,
+    timing?: NewSessionTiming,
+  ): Promise<ApiSessionCreated> {
     const exact = this.ctx.get('sessionCreation')?.claim(named)
     if (exact !== undefined) {
       return this.inOrder(exact.sessionId, async () => {
@@ -396,8 +433,28 @@ export class ApiSessionAgentController {
         })).agent)
       })
     }
-    if (named === undefined) return this.created(await this.createMinted(request.cwd, await this.composeAgent(request.agentPreset)))
+    if (named === undefined) return this.createFresh(request, timing)
     return this.inOrder(named, async () => this.created(await this.claim(named, request)))
+  }
+
+  /**
+   * Mint one brand-new identity and return it before publication finishes.
+   * Publication is registered on {@link resumes} before the identity is
+   * returned, so a follow or prompt that arrives first waits for this creation
+   * instead of resuming the same identity beside it.
+   * @param request - directory, preset, and placement rule; it names no Session.
+   * @param timing - optional recorder for the steps of this creation.
+   * @returns the minted identity and the publication that continues afterwards.
+   */
+  private async createFresh(request: ApiSessionCreateRequest, timing?: NewSessionTiming): Promise<ApiSessionCreated> {
+    const sessionId = brandString<SessionId>(`session-${randomUUID()}`)
+    timing?.identify(sessionId)
+    await this.step(timing, 'directory', () => mkdir(request.cwd, { recursive: true }))
+    const composition = await this.step(timing, 'preset', () => this.composeAgent(request.agentPreset, timing))
+    // Started, not awaited: the caller returns the identity while this settles.
+    const publication = this.step(timing, 'publish', () => this.publishAgent(sessionId, request.cwd, composition))
+    this.resumes.set(sessionId, publication.finally(() => { this.resumes.delete(sessionId) }))
+    return { sessionId, agentPreset: undefined, ready: publication.then(agent => this.created(agent)) }
   }
 
   /**
@@ -501,9 +558,10 @@ export class ApiSessionAgentController {
   /**
    * Resolve the preset id and pre-publication Agent setup for a create or resume.
    * @param presetId - requested preset or the configured default when omitted.
+   * @param timing - optional recorder for the mount step of a brand-new creation.
    * @returns the resolved preset identity and Agent setup callback.
    */
-  async composeAgent(presetId: string | undefined): Promise<ApiSessionComposition> {
+  async composeAgent(presetId: string | undefined, timing?: NewSessionTiming): Promise<ApiSessionComposition> {
     const presets = this.ctx.get('agentPresets')
     if (presets === undefined) {
       return { setup: (_agentCtx, agent) => { this.installSelection(agent) } }
@@ -513,7 +571,7 @@ export class ApiSessionAgentController {
       agentPreset: resolvedId,
       setup: async (agentCtx, agent) => {
         this.installSelection(agent)
-        await presets.mount(agentCtx, resolvedId)
+        await this.step(timing, 'preset-mount', () => presets.mount(agentCtx, resolvedId))
       },
     }
   }
@@ -685,6 +743,11 @@ export class ApiSessionAgentController {
     } catch (error: unknown) {
       throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
     }
+    return this.publishAgent(sessionId, cwd, composition)
+  }
+
+  /** Publish one Agent whose directory already exists. */
+  private async publishAgent(sessionId: SessionId, cwd: string, composition: ApiSessionComposition): Promise<Agent> {
     return (await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
@@ -694,6 +757,11 @@ export class ApiSessionAgentController {
       },
       setup: composition.setup,
     })).agent
+  }
+
+  /** Record one step when a brand-new creation carries a timing line, otherwise just run it. */
+  private step<T>(timing: NewSessionTiming | undefined, name: string, run: () => Promise<T> | T): Promise<T> {
+    return timing === undefined ? Promise.resolve().then(run) : timing.measure(name, run)
   }
 
   private agentOptions(): AgentOptions {

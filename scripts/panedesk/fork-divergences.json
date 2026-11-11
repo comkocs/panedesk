@@ -5,21 +5,64 @@
       "description": "Record a per-requirement verification checklist and show it beside observed activity time",
       "origin": "Panedesk verification checklist",
       "reason": "Let an agent submit planned checks before work, keep them across turns, grey out categories the workspace has turned off, and append a prohibition when a check is turned off.",
-      "match": { "type": "behavior", "paths": ["packages/todo/tool-verification-checklist/**", "packages/client/ui-verification-checklist/**", "packages/client/ui-subagent-tree/**", "packages/guard/verification-policy/**", "packages/bundle/base/**", "packages/bundle/web-app/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/todo/tool-verification-checklist/**",
+          "packages/client/ui-verification-checklist/**",
+          "packages/client/ui-subagent-tree/**",
+          "packages/guard/verification-policy/**",
+          "packages/bundle/base/**",
+          "packages/bundle/web-app/**",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ]
+      }
     },
     {
       "id": "workspace-verification-switches",
       "description": "Enforce workspace verification switches before native and programmatic tool calls",
       "origin": "Panedesk verification controls",
       "reason": "Keep user-owned switches in versioned workspace storage, share activity classification and timing, limit full tests across a root turn, and expose task restrictions to verification checklists.",
-      "match": { "type": "behavior", "paths": ["packages/guard/verification-policy/**", "packages/guard/activity-category/**", "packages/client/ui-settings-verification/**", "packages/client/ui-verification-checklist/**", "packages/client/ui-subagent-tree/**", "packages/todo/tool-verification-checklist/**", "packages/client/ui-settings-general/**", "packages/bundle/web-app/**", "packages/bundle/base/**", "tsconfig.base.json", "tsconfig.host.json", "tsconfig.client.json", "pnpm-lock.yaml"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/guard/verification-policy/**",
+          "packages/guard/activity-category/**",
+          "packages/client/ui-settings-verification/**",
+          "packages/client/ui-verification-checklist/**",
+          "packages/client/ui-subagent-tree/**",
+          "packages/todo/tool-verification-checklist/**",
+          "packages/client/ui-settings-general/**",
+          "packages/bundle/web-app/**",
+          "packages/bundle/base/**",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ]
+      }
     },
     {
       "id": "task-activity-category-timing",
       "description": "Classify tool and model activity and show task-scoped time by category",
       "origin": "Panedesk activity visibility",
       "reason": "Reuse durable ledger facts for display-only task totals, workspace literal rules, native tree monitoring and the parent composer; expose shared classification for verification consumers.",
-      "match": { "type": "behavior", "paths": ["packages/guard/activity-category/**", "packages/session/session-ledger/**", "packages/session/ledger-query/**", "packages/client/ui-subagent-tree/**", "packages/bundle/base/**", "tsconfig.host.json", "tsconfig.base.json", "pnpm-lock.yaml"] }
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/guard/activity-category/**",
+          "packages/session/session-ledger/**",
+          "packages/session/ledger-query/**",
+          "packages/client/ui-subagent-tree/**",
+          "packages/bundle/base/**",
+          "tsconfig.host.json",
+          "tsconfig.base.json",
+          "pnpm-lock.yaml"
+        ]
+      }
     },
     {
       "id": "new-session-avoids-cold-log-reads",
@@ -16449,8 +16492,7 @@
           "packages/bundle/web-app/cordis.patch.yml"
         ]
       }
-    }
-,
+    },
     {
       "id": "floating-subagent-conversations",
       "description": "Open child conversations as independent, eight-direction resizable floating panels",
@@ -16481,6 +16523,19 @@
           "tsconfig.client.json"
         ]
       }
+    },
+    {
+      "id": "new-session-first-paint",
+      "description": "Show a new session page as soon as its identity is known and record each creation step",
+      "origin": "Panedesk new session",
+      "reason": "Return the new session once its identity is minted so the page can open, finish preset, persistence, subscriptions, and workspace attachment afterwards, and append one timing line under the harness home.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/api/session-controller/**",
+          "packages/client/ui-workspace/**"
+        ]
+      }
     }
-]
+  ]
 }
