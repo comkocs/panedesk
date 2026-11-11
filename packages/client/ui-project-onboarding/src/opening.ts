@@ -66,7 +66,7 @@ export default class ProjectOpening extends TypertRemoteService {
       const path = token.replace(/^["'`]|["'`]$/gu, '').replace(/[,.!?;:）)\]】]+$/u, '')
       const separator = path.includes('\\') ? '\\' : '/'
       const end = path.replace(/[\\/]+$/u, '').lastIndexOf(separator)
-      const folder = end > 0 ? path.slice(0, end) : path
+      const folder = end > 0 && path.slice(end + 1).includes('.') ? path.slice(0, end) : path
       return folder === '' || /^[A-Za-z]:$/u.test(folder) ? '' : folder
     })
   }

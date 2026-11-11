@@ -13,11 +13,6 @@ export function openingPresetName(prompt: string, pattern?: OpeningNamePattern):
   return presetName((pattern ? extractOpeningName(prompt, pattern) : undefined) ?? extractOpeningFolder(prompt) ?? prompt)
 }
 
-/** Parse multiline sentences or a markdown table into editable, not yet persisted rows.
- * @param text - pasted text.
- * @param table - whether to read a markdown header.
- * @returns Rows whose missing directories or names must be completed before saving.
- */
 /** Directory written in one pasted line, ahead of the registered-workspace guess.
  * @param line - one opening sentence.
  * @returns The line's own folder, or none when it names no path.
@@ -28,7 +23,7 @@ export function pastedDirectory(line: string): string | undefined {
   const path = token.replace(/^["'`]|["'`]$/gu, '').replace(/[,.!?;:）)\]】]+$/u, '')
   const separator = path.includes('\\') ? '\\' : '/'
   const end = path.replace(/[\\/]+$/u, '').lastIndexOf(separator)
-  const folder = end > 0 ? path.slice(0, end) : path
+  const folder = end > 0 && path.slice(end + 1).includes('.') ? path.slice(0, end) : path
   return folder === '' || /^[A-Za-z]:$/u.test(folder) ? undefined : folder
 }
 
