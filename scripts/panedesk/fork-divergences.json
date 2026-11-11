@@ -16315,6 +16315,21 @@
       }
     },
     {
+      "id": "deepseek-stream-failure-http-status",
+      "description": "Retain the observed Messages HTTP status on response decoding failures.",
+      "origin": "Panedesk provider connection diagnostics",
+      "reason": "A successful HTTP response can still contain an SSE error or an incomplete stream. Preserve the response status and redacted original error message without marking the failed stream successful or retrying it.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/llm/llm-deepseek/src/adapter.ts",
+          "packages/llm/llm-deepseek/README.md",
+          "packages/llm/llm-deepseek/README.zh.md",
+          "packages/llm/llm-deepseek/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "protocol-probe-failure-body-and-trim-utf8",
       "description": "Show protocol-probe and connection-attempt failures as category, HTTP status, and the leading response body, and print trim output as UTF-8.",
       "origin": "Panedesk models page and workflow pack",

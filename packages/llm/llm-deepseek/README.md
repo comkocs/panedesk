@@ -91,7 +91,7 @@ Messages sends text, thinking, tool calls, and tool results as content blocks, r
 
 Messages and Files requests send account tokens as `x-dsh-auth-token` without a Bearer prefix; API keys use `x-api-key`. Neither credential mode follows redirects. The account provider owns HTTP 401 classification and credential invalidation; the transport passes failures to its callback.
 
-Non-2xx Messages failures retain HTTP status and the first 500 response-body characters in the serializable diagnostic. The captured API key or account token is replaced with `***`, and long `sk-` keys with `sk-***`, before truncation; raw response text is not retained as an error cause.
+Non-2xx Messages failures retain HTTP status and the first 500 response-body characters in the serializable diagnostic. Failures while reading or decoding a successful Messages response retain its observed HTTP status and the original error message, including provider SSE errors; a failed stream is not a successful connection check. The captured API key or account token is replaced with `***`, and long `sk-` keys with `sk-***`, before truncation; raw response text is not retained as an error cause.
 
 ### Streaming with thinking and images
 
