@@ -8,7 +8,7 @@ import type { DecisionRevision, ItemId, ReferenceContent, TraceItem } from '@pan
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { TraceOpenActions, TracePanelActions } from './index.ts'
-import { decisionStatus, eventLine, itemMarkdown, itemStatus, sourceLine } from './format.ts'
+import { decisionStatus, eventLine, eventType, itemMarkdown, itemStatus, sourceLine } from './format.ts'
 import css from './panel.module.css'
 
 type Props = PropsRuntime<'sidebar.right.pane.tab'> & PropsLocale<'trace'> & InjectFace<TracePanelActions>
@@ -68,6 +68,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const [title, setTitle] = useState('')
   const [opened, setOpened] = useState<ReferenceContent | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const stamp = `${encodeURIComponent(workspaceId)}?revision=${tick}`
   const itemsResource = useResource<'traceitems'>(`dsh-resource://traceitems/${stamp}`)
   const looseResource = useResource<'tracetimeline'>(`dsh-resource://tracetimeline/${stamp}`)
@@ -80,16 +81,28 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const open = items?.find(item => item.id === selected)
   const show = (itemId: ItemId): void => { setSelected(itemId) }
   const download = (name: string, text: string, type: string): void => {
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([text], { type }))
-    link.download = name
-    link.click()
-    URL.revokeObjectURL(link.href)
+    const safe = name.replace(/[^\w.-]+/g, '_').replace(/^\.+/, '') || 'item'
+    try {
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(new Blob([text], { type }))
+      link.href = url
+      link.download = safe
+      document.body.append(link)
+      link.click()
+      link.remove()
+      setTimeout(() => { URL.revokeObjectURL(url) }, 0)
+      setNotice(t('exported', { name: safe }))
+      setFailure(null)
+    } catch (error: unknown) {
+      setNotice(null)
+      setFailure(error instanceof Error ? error.message : String(error))
+    }
   }
   const openItems = items?.filter(item => item.status === 'open') ?? []
   const closedItems = items?.filter(item => item.status !== 'open') ?? []
   return <section>
     {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
+    {notice !== null && <p role="status">{notice}</p>}
     {readFailure && <p role="alert">{t('failed', { reason: readFailure.message })}</p>}
     <div className={css.row}>
       <label>{t('itemTitle')}<Input value={title} onChange={event => { setTitle(event.target.value) }} /></label>
@@ -109,7 +122,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
       <h2>{t('timeline')}</h2>
       <p>{sourceLine(open.source, t)}</p>
       {events.length === 0 && <p>{t('timelineEmpty')}</p>}
-      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item}>
+      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
         <span>{eventLine(event, t)}</span>
         {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" onClick={() => {
           void reference(workspaceId, row.id).then(result => {
@@ -132,14 +145,15 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
     </section>}
     <h2>{t('unassigned')}</h2>
     {loose.length === 0 && <p>{t('unassignedEmpty')}</p>}
-    <ul className={css.list}>{loose.map(event => <li key={event.id}>
+    <ul className={css.loose}>{loose.map(event => <li key={event.id} title={eventType(event)}>
       <label><input type="checkbox" checked={checked.has(event.id)} onChange={input => {
         const next = new Set(checked)
         if (input.target.checked) next.add(event.id); else next.delete(event.id)
         setChecked(next)
       }} />{eventLine(event, t)}</label>
     </li>)}</ul>
-    <Button variant="outline" disabled={checked.size === 0 || selected === null} onClick={() => {
+    <p>{t('assignTarget')}: {open?.status === 'open' ? open.title : t('chooseItem')}</p>
+    <Button variant="outline" disabled={checked.size === 0 || open?.status !== 'open'} onClick={() => {
       if (selected === null) return
       void assign(workspaceId, selected, [...checked]).then(result => {
         if (!result.ok) { setFailure(result.error.message); return }

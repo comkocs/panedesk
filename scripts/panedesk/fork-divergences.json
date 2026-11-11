@@ -16596,6 +16596,19 @@
           "packages/guard/activity-category/**"
         ]
       }
+    },
+    {
+      "id": "trace-file-changes-and-export",
+      "description": "Record write and edit tool results on the item timeline and make item export and the activity list usable",
+      "origin": "Panedesk item timeline",
+      "reason": "File edits never appeared as their own timeline rows, export revoked its download immediately, and unassigned activity could not be scrolled or read as a sentence.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/trace-store/**",
+          "packages/client/ui-trace/**"
+        ]
+      }
     }
   ]
 }

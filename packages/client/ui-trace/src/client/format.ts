@@ -43,13 +43,82 @@ export function decisionStatus(status: DecisionRevision['status'], t: TraceText)
         : t('statusReverted')
 }
 
-/** One activity line: who, which model, when, and the recorded type.
+/** One activity sentence: what happened, without the raw event type.
  * @param event Timeline row.
  * @param t Localized copy.
- * @returns One readable line.
+ * @returns One readable line. The stored type stays available as {@link eventType}.
  */
 export function eventLine(event: TraceEvent, t: TraceText): string {
-  return `${sourceLine(event.source, t)} · ${event.type}`
+  const who = event.source.sessionId === null ? actorName(event.source.actor, t) : sessionName(event, t)
+  return `${who} ${eventAction(event, t)}`
+}
+
+/** Stored event type, shown on hover rather than in the line.
+ * @param event Timeline row.
+ * @returns The recorded type string.
+ */
+export function eventType(event: TraceEvent): string {
+  return event.type
+}
+
+/** Actor word without a session id.
+ * @param actor Stored actor.
+ * @param t Localized copy.
+ * @returns Actor label.
+ */
+function actorName(actor: TraceSource['actor'], t: TraceText): string {
+  return actor === 'user' ? t('actorUser')
+    : actor === 'planner' ? t('actorPlanner')
+      : actor === 'subagent' ? t('actorSubagent')
+        : t('actorExecutor')
+}
+
+/** Window label used in an activity sentence.
+ * @param event Timeline row.
+ * @param t Localized copy.
+ * @returns Localized window name.
+ */
+function sessionName(event: TraceEvent, t: TraceText): string {
+  const id = event.source.sessionId ?? event.sessionId ?? ''
+  return event.source.actor === 'subagent' ? t('subagentNamed', { name: id }) : t('windowNamed', { name: id })
+}
+
+/** Read a string field out of an event payload.
+ * @param payload Stored JSON text.
+ * @param key Field name.
+ * @returns The string, or undefined when the payload is not that object.
+ */
+function payloadText(payload: string, key: string): string | undefined {
+  try {
+    const value: unknown = JSON.parse(payload)
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+    const field = (value as Record<string, unknown>)[key]
+    return typeof field === 'string' && field.length > 0 ? field : undefined
+  } catch { return undefined }
+}
+
+/** What the row records, as one clause.
+ * @param event Timeline row.
+ * @param t Localized copy.
+ * @returns The action clause.
+ */
+function eventAction(event: TraceEvent, t: TraceText): string {
+  const summary = payloadText(event.payload, 'summary')
+  if (event.type === 'file/changed') return t('changedFile', { summary: summary ?? t('changedUnknown') })
+  if (event.type === 'workspace/changes') return t('changedFiles')
+  if (event.type === 'user/message') return t('saidSomething')
+  if (event.type === 'assistant/message') return t('replied')
+  if (event.type === 'session/started') return t('started')
+  if (event.type === 'session/ended') return t('ended')
+  if (event.type === 'session/linked') return t('linkedSession')
+  if (event.type === 'item/created') return t('createdItem', { title: payloadText(event.payload, 'title') ?? '' })
+  if (event.type === 'comment/created') return t('commented')
+  if (event.type === 'subagent/start') return t('subagentStarted')
+  if (event.type === 'subagent/end') return t('subagentEnded')
+  if (event.type === 'turn/start') return t('turnStarted')
+  if (event.type === 'turn/end') return t('turnEnded')
+  if (event.type === 'deliverables/presented') return t('presented')
+  return t('recorded', { type: event.type })
 }
 
 /** Markdown export of one item, its timeline, and the decisions that name it.
