@@ -4087,6 +4087,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the created or reused Session identity and its preset when configured.',
       },
       {
+        signature: '@Remote(\'recordNewSessionTiming\') recordNewSessionTiming(request: SessionNewSessionTimingRequest): void',
+        description: 'Append the timing for one New Session click after its page has been shown.',
+        parameters: [{ name: 'request', description: 'click identity and Client-measured click-to-page milliseconds.' }],
+      },
+      {
         signature: '@Remote(\'selectModel\') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>',
         description: 'Select one Session-local model after explicitly resuming the Session; save the default in the background.',
         parameters: [{ name: 'request', description: 'Session identity and requested model selection.' }],
@@ -10023,6 +10028,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
   },
   {
+    name: 'NewSessionTimingId',
+    declaration: 'export type NewSessionTimingId = Branded<\'new-session-timing-id\'>;',
+  },
+  {
     name: 'NodeAction',
     declaration: 'export type NodeAction = {\n    kind: \'rebuild\';\n    peerNodeId: SeatNodeId;\n} | {\n    kind: \'callback\';\n    request: CallbackResolveRequest;\n} | {\n    kind: \'source\';\n    action: \'resume\' | \'abandon\';\n    key: string;\n    operationId: string;\n    reason: string;\n};',
   },
@@ -11796,7 +11805,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionCreateRequest',
-    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly agentPreset?: string;\n    readonly clientElapsedMs?: number;\n}',
+    declaration: 'export interface SessionCreateRequest {\n    readonly workspaceId?: WorkspaceId;\n    readonly cwd?: string;\n    readonly sessionId?: SessionId;\n    readonly agentPreset?: string;\n    readonly timingId?: NewSessionTimingId;\n}',
   },
   {
     name: 'SessionCreateValue',
@@ -12001,6 +12010,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionMessageProjectionContext',
     declaration: 'export interface SessionMessageProjectionContext {\n    nodes: readonly SessionSeq[];\n    events: readonly SessionEvent[];\n    baseSeq: SessionLogOffset;\n    messages: ReadonlyMap<SessionSeq, Message>;\n}',
+  },
+  {
+    name: 'SessionNewSessionTimingRequest',
+    declaration: 'export interface SessionNewSessionTimingRequest {\n    readonly timingId: NewSessionTimingId;\n    readonly clientElapsedMs: number;\n    readonly pageShown: boolean;\n    readonly workspaceId?: WorkspaceId;\n    readonly sessionId?: SessionId;\n}',
   },
   {
     name: 'SessionObservation',

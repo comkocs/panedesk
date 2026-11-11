@@ -873,6 +873,12 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('create') create(request: SessionCreateRequest): Promise<SessionCreateValue>
 
 /**
+ * Append the timing for one New Session click after its page has been shown.
+ * @param request - click identity and Client-measured click-to-page milliseconds.
+ */
+@Remote('recordNewSessionTiming') recordNewSessionTiming(request: SessionNewSessionTimingRequest): void
+
+/**
  * Select one Session-local model after explicitly resuming the Session; save the default in the background.
  * @param request - Session identity and requested model selection.
  * @returns the normalized selection installed for the Session, without waiting for default persistence.

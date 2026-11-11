@@ -756,6 +756,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SessionWorkspacePathApplication: 'session.md',
   SessionModels: 'session.md',
   SessionModelsRequest: 'session.md',
+  SessionNewSessionTimingRequest: 'session.md',
   SessionPage: 'session.md',
   SessionPageRequest: 'session.md',
   SessionPromptRequest: 'session.md',
