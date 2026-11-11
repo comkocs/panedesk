@@ -87,6 +87,7 @@ export function useFloatGestures(state: LayoutState, intents: DockIntents) {
     // The press stops here: the panel's own press-to-focus would record a focus
     // entry before the drag's, and the release below decides which one it is.
     event.stopPropagation()
+    event.preventDefault()
     const root = document.documentElement
     const windows = root.hasAttribute('data-windows-titlebar')
     // Desktop publishes the caption height in pixels on the root's inline style.

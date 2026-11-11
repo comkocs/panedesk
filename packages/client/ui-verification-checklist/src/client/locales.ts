@@ -11,6 +11,7 @@ export const en = {
   actualUnknown: 'Actual unknown',
   forbidden: 'Turned off for this workspace',
   undeclared: 'Undeclared',
+  undeclaredHint: 'Categories not declared in the checklist but observed in activity.',
   prohibitFailed: 'Could not record the prohibition: {reason}',
   noTask: 'No current task; this check cannot be turned off.',
 } satisfies Record<string, string>
@@ -31,6 +32,7 @@ export const zh = {
   actualUnknown: '实际未知',
   forbidden: '本工作区已关闭',
   undeclared: '未申报',
+  undeclaredHint: '没在清单里申报、但实际发生过的类别',
   prohibitFailed: '无法记录禁止项：{reason}',
   noTask: '没有当前任务，此项无法关闭。',
 } satisfies Record<VerificationChecklistKey, string>

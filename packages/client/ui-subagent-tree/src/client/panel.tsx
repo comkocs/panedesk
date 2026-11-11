@@ -132,7 +132,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
     {view?.externalRegistryUnreadable && <p role="alert">{t('registryError')}</p>}
     <p>{t('activityNote')}</p>
     {view && <details><summary>{t('treeTotals')}</summary><ActivityTable totals={treeActivityTotals(rows.map(row => row.node))} t={t} /></details>}
-    {view && <table className={css.table}>
+    {view && <table className={`${css.table} ${css.treeTable}`}>
       <caption className={css.caption}>{t('title')}</caption>
       <thead><tr>
         <th scope="col">{t('session')}</th>
@@ -145,7 +145,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
       </tr></thead>
       <tbody>{rows.map(({ node, depth, label }) => <tr key={nodeKey(node)}
         onClick={() => { setMonitoredId(nodeKey(node)) }}>
-        <td style={{ paddingLeft: `${8 + depth * 18}px` }}>
+        <td title={label} style={{ paddingLeft: `${8 + depth * 18}px` }}>
           <StateDot className={css.statusDot} state={isActive(node.status) ? 'done' : 'idle'} />
           <span className={css.label}>{label}</span>
           {node.external && <><Tag>{t('external')}</Tag><small> · {node.external.type}</small></>}
@@ -160,7 +160,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
               }} />{t(node.testsStopped ? 'testsStopped' : 'stopTests')}
           </label>}
         </td>
-        <td style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
+        <td title={node.model ?? t(node.external ? 'unknown' : 'modelUnknown')} style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>
         <td className={css.numbers}>
           {node.contextTokens === undefined ? t('contextUnknown') : t('context', { value: new Intl.NumberFormat(undefined,
             { notation: 'compact', maximumFractionDigits: 1 }).format(node.contextTokens) })}

@@ -16570,6 +16570,22 @@
       }
     },
     {
+      "id": "readable-subagent-tree-and-float-handles",
+      "description": "Keep subagent columns readable and scrollable, expose float resize handles, and explain saved rules and undeclared activity",
+      "origin": "Panedesk session controls",
+      "reason": "Use a compact ellipsized activity column, unwrapped minimum-width columns, two-axis scrolling, outward edge and corner handles with resize cursors, an outlined child-conversation button, and bilingual rule acknowledgements and checklist guidance.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-subagent-tree/**",
+          "packages/client/ui-dockkit/**",
+          "packages/client/ui-subagent/src/client/SubagentTaskPreview.tsx",
+          "packages/client/ui-subagent/README*",
+          "packages/client/ui-verification-checklist/**"
+        ]
+      }
+    },
+    {
       "id": "steady-row-workspace-defaults",
       "description": "Keep the subagent activity column fixed, default workspace menus to the shown session, and paste each line into its own folder",
       "origin": "Panedesk session controls",
