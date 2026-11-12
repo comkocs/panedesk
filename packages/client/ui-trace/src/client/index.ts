@@ -6,7 +6,7 @@ import type { Context as ClientContext } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type {} from '@panedesk/dsh-trace-store/remote'
 import type { DecisionId, DecisionRevision, ItemId, ProjectId, ReferenceContent, ReferenceId, TimelinePage, TraceItem, TraceStatus } from '@panedesk/dsh-trace-store/types'
-import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
+import { remoteErrorOf, type RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
@@ -19,6 +19,7 @@ import type {} from '@panedesk/dsh-client-ui-settings/client'
 import { TraceAction, TracePanel } from './panel.tsx'
 import { TraceSettingsRow } from './settings.tsx'
 import { en, zh, type TraceKey } from './locales.ts'
+import { referenceText } from './format.ts'
 
 /** Stable implementation identity for the trace tab body. */
 export const TRACE_PANEL_ID = '@panedesk/dsh-client-ui-trace'
@@ -143,13 +144,30 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         const workspaceId = decodeURIComponent(url.pathname.slice(1)) as WorkspaceId
         const item = url.searchParams.get('item')
         const result = await scope.remote.traceStore.timeline({ ...request(workspaceId), itemId: item === null ? null : Number(item) })
+        if (result.ok) {
+          for (const event of result.value.events) {
+            if (event.type !== 'assistant/message' && event.type !== 'tool/call') continue
+            const ref = result.value.refs.find(row => row.eventId === event.id && row.kind === 'session-slice')!
+            const content = await scope.remote.traceStore.readReference({ workspaceId, referenceId: ref.id })
+            if (!content.ok) { yield content; return }
+            event.payload = JSON.stringify({ summary: referenceText(content.value).slice(0, 30) })
+          }
+        }
         yield result.ok ? { ok: true, value: { page: result.value } } : result
       },
     }), 'trace: timeline resource')
     scope.effect(() => scope.resources.register<'tracedecisions'>({
-      protocol: 'tracedecisions', async *open(address): AsyncIterable<RemoteResult<TraceDecisionsResource>> {
-        const result = await scope.remote.traceStore.decisionHistory(request(workspaceOf(address)))
-        yield result.ok ? { ok: true, value: { rows: result.value } } : result
+      protocol: 'tracedecisions', async *open(address, { signal }): AsyncIterable<RemoteResult<TraceDecisionsResource>> {
+        try {
+          for await (const rows of scope.remote.traceStore.followDecisions(request(workspaceOf(address)), signal)) {
+            yield { ok: true, value: { rows } }
+          }
+        } catch (error) {
+          if (signal.aborted) return
+          const failure = remoteErrorOf(error)
+          if (failure === undefined) throw error
+          yield { ok: false, error: failure }
+        }
       },
     }), 'trace: decisions resource')
     scope.effect(() => scope.resources.register<'tracehistory'>({

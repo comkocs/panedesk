@@ -1,5 +1,6 @@
 /** Opt-in project trace service: one Host-owned writer and same-transaction state/event updates. */
 import { randomUUID } from 'node:crypto'
+import { EventEmitter, on } from 'node:events'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -29,6 +30,7 @@ export default class TraceStore extends TypertRemoteService {
   private mappings!: KvTable<string, TraceStatus>
   private readonly databases = new Map<ProjectId, DatabaseSync>()
   private readonly settingSources = new Map<string, SettingSource>()
+  private readonly changes = new EventEmitter()
   private tail: Promise<void> = Promise.resolve()
   private readonly home = resolveDshHome()
 
@@ -52,16 +54,18 @@ export default class TraceStore extends TypertRemoteService {
     return result
   }
 
-  private transaction<T>(db: DatabaseSync, operation: () => T): T {
+  private transaction<T>(db: DatabaseSync, operation: () => T, decisionChanged = false): T {
     db.exec('BEGIN IMMEDIATE')
+    let result: T
     try {
-      const result = operation()
+      result = operation()
       db.exec('COMMIT')
-      return result
     } catch (error) {
       db.exec('ROLLBACK')
       throw error
     }
+    if (decisionChanged) this.changes.emit('committed', db)
+    return result
   }
 
   private database(projectId: ProjectId): DatabaseSync {
@@ -310,7 +314,7 @@ export default class TraceStore extends TypertRemoteService {
         db.prepare('INSERT INTO decisions(id) VALUES(?) ON CONFLICT(id) DO NOTHING').run(id)
         return this.appendDecision(db, { id, itemId: request.itemId, title: request.title, body: request.body, source,
           status: status.strict ? 'proposed' : 'active' })
-      })
+      }, true)
     })
   }
 
@@ -342,7 +346,7 @@ export default class TraceStore extends TypertRemoteService {
         const latest = this.revisions(db, request.decisionId).at(-1)!
         if (latest.revision !== request.revision || latest.status !== 'proposed') throw new Error('Proposal is no longer pending / 提议已不再待确认')
         return this.appendDecision(db, { ...latest, source, status })
-      })
+      }, true)
     })
   }
 
@@ -362,7 +366,7 @@ export default class TraceStore extends TypertRemoteService {
         const previous = this.revisions(db, request.decisionId).findLast(rev => rev.revision < active.revision && (rev.status === 'active' || rev.status === 'reverted'))
         if (previous === undefined) throw new Error('No previous effective revision / 没有上一版生效记录')
         return this.appendDecision(db, { ...previous, source, status: status.strict && !user ? 'proposed' : 'reverted' })
-      })
+      }, true)
     })
   }
 
@@ -400,6 +404,23 @@ export default class TraceStore extends TypertRemoteService {
     const { db } = this.selected(request)
     const ids = request.decisionId === undefined ? (db.prepare('SELECT id FROM decisions ORDER BY id').all() as { id: DecisionId }[]).map(row => row.id) : [request.decisionId]
     return ids.flatMap(id => this.revisions(db, id))
+  }
+
+  /** Stream decision history initially and after project decision transactions commit.
+   * @param request Workspace selection.
+   * @param signal Remote stream lifetime.
+   * @returns Complete immutable revision lists; no polling or persisted changes.
+   */
+  @Remote({ mode: 'stream', resources: { workspace: request => request.workspaceId } })
+  async *followDecisions(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<DecisionRevision[]> {
+    const { db } = this.selected(request)
+    const commits = on(this.changes, 'committed', { signal })
+    try {
+      yield this.decisionHistory(request)
+      for await (const [changed] of commits) {
+        if (changed === db) yield this.decisionHistory(request)
+      }
+    } finally { await commits.return?.() }
   }
 
   /** Read a referenced session slice from SessionPersistence, or a durable diff file.

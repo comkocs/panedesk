@@ -67,7 +67,14 @@
 }
 
 .quote {
+  max-height: 320px;
   margin: 4px 0;
+  overflow-y: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--dsw-alias-label-secondary);
+}
+
+.plannerMenu {
+  max-height: min(320px, 60vh);
 }

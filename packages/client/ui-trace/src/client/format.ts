@@ -1,5 +1,6 @@
 /** Pure text used by the panel and by file export. */
-import type { DecisionRevision, TraceEvent, TraceItem, TraceReference, TraceSource } from '@panedesk/dsh-trace-store/types'
+import type { SessionEvent } from '@panedesk/dsh-session/types'
+import type { DecisionRevision, ReferenceContent, TraceEvent, TraceItem, TraceReference, TraceSource } from '@panedesk/dsh-trace-store/types'
 import type { TraceKey } from './locales.ts'
 
 /** Localized labels the formatters need. */
@@ -104,10 +105,17 @@ function payloadText(payload: string, key: string): string | undefined {
  */
 function eventAction(event: TraceEvent, t: TraceText): string {
   const summary = payloadText(event.payload, 'summary')
-  if (event.type === 'file/changed') return t('changedFile', { summary: summary ?? t('changedUnknown') })
-  if (event.type === 'workspace/changes') return t('changedFiles')
+  if (event.type === 'file/changed') {
+    if (summary?.startsWith('created ')) return t('createdFile', { summary: summary.slice(8) })
+    return t('changedFile', { summary: summary?.replace(/^edited /, '') ?? t('changedUnknown') })
+  }
+  if (event.type === 'workspace/changes') {
+    const payload = JSON.parse(event.payload) as { files: { path: string }[] }
+    return t('changedFile', { summary: payload.files.map(file => file.path).join(', ') })
+  }
+  if (event.type === 'tool/call') return t('ranCommand', { summary: summary ?? '' })
   if (event.type === 'user/message') return t('saidSomething')
-  if (event.type === 'assistant/message') return t('replied')
+  if (event.type === 'assistant/message') return summary === undefined ? t('replied') : t('repliedWith', { summary })
   if (event.type === 'session/started') return t('started')
   if (event.type === 'session/ended') return t('ended')
   if (event.type === 'session/linked') return t('linkedSession')
@@ -119,6 +127,29 @@ function eventAction(event: TraceEvent, t: TraceText): string {
   if (event.type === 'turn/end') return t('turnEnded')
   if (event.type === 'deliverables/presented') return t('presented')
   return t('recorded', { type: event.type })
+}
+
+/** Render stored comparisons as diff lines and messages as visible text only.
+ * @param content Selected reference and its stored source text.
+ * @returns Readable content without assistant reasoning.
+ */
+export function referenceText(content: ReferenceContent): string {
+  if (content.reference.kind === 'change') {
+    const diff = JSON.parse(content.text) as { kind: string; path: string; hunks?: { lines: string[] }[] }
+    return diff.kind === 'text' ? `${diff.path}\n${diff.hunks!.flatMap(hunk => hunk.lines).join('\n')}` : diff.path
+  }
+  if (content.reference.kind !== 'session-slice') return content.text
+  const events = JSON.parse(content.text) as SessionEvent[]
+  return events.map(event => {
+    if (event.type === 'assistant/message' || event.type === 'user/message') {
+      const message = event.type === 'assistant/message' ? event.data.message : event.data
+      return message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    }
+    if (event.type === 'tool/call' && event.data.name === 'bash') {
+      return (JSON.parse(event.data.arguments) as { command: string }).command
+    }
+    return JSON.stringify(event)
+  }).join('\n')
 }
 
 /** Markdown export of one item, its timeline, and the decisions that name it.

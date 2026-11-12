@@ -18,13 +18,13 @@ Web／桌面 Host 挂载 `traceStore`；事项记录与严格拍板缺省关闭�
 - 工作区：`status`、`enable`、`disable`、`associateProject`、`setStrict`。
 - 事项：`createItem`、`closeItem`、`voidItem`、`listItems`。
 - 活动：`timeline`、`assignEvents`、`comment`、`linkSession`、`readReference`。
-- 拍板：`writeDecision`、`confirmDecision`、`rejectDecision`、`revertDecision`、`listDecisions`、`decisionHistory`。
+- 拍板：`writeDecision`、`confirmDecision`、`rejectDecision`、`revertDecision`、`listDecisions`、`decisionHistory`、`followDecisions`（首帧历史及拍板写入提交后的更新）。
 
 全局 `project_traces` 域将规范化工作区路径映射至稳定项目号与工作区开关。显式关联复用已登记项目，不扫描目录。`timeline` 选择事项或以 null 选择未归属活动，使用不包含游标自身的事件分页，缺省每页 100 条。`linkSession` 关联该会话及后代之后产生的活动。停用记录保留数据并关闭严格档；数据操作要求记录处于开启状态。
 
 普通拍板写入立即生效。严格档指定非子代理的规划会话：只有其可信 Host agent 能提议或提议回退，用户可直接回退，只有用户能确认或驳回精确的待处理版本。用户提供的窗口号不代表规划权限。版本只追加；确认与驳回均新增版本，仅生效或回退时更新现行指针。记录、项目关联与严格档开关也仅限用户操作。
 
-观察器记录会话与子代理运行起止、轮次／消息序号引用、消息投递状态、交付附件、已就绪的工作区改动摘要，以及每次成功的 write 或 edit 工具结果（独立的文件改动事件和一条改动引用）。shell 写文件没有逐次 diff，只在工作区改动摘要包含它时记下。会话／序号、子代理运行号与消息版本构成确定去重键。对话与子代理输出留在 SessionPersistence；显式取引用时只读所选片段。附件保留声明路径，不复制文件。改动对比先同步至项目所属 JSON 文件，再提交引用，且在记录器清理之前完成。
+观察器记录会话与子代理运行起止、轮次／消息序号引用、消息投递状态、交付附件、已就绪的工作区改动摘要，以及每次成功的 write 或 edit 工具结果（独立的文件改动事件和一条改动引用）。成功的 write 结果没有 diffs 时，从对应调用的 `file_path` 和 `content` 生成改前为空的新建对比。Bash 调用保留序号引用以显示命令开头；其文件改动仍依赖工作区改动摘要，不提供逐次 diff。会话／序号、子代理运行号与消息版本构成确定去重键。对话与子代理输出留在 SessionPersistence；显式取引用时只读所选片段。附件保留声明路径，不复制文件。改动对比先同步至项目所属 JSON 文件，再提交引用，且在记录器清理之前完成。
 
 验证存储登记原设置来源。首次成功迁移将 JSON 原样复制至项目 `settings`；失败时继续使用原工作区存储。关闭事项记录的工作区仍走原适配器。项目设置副本在停用后保留，再开启时复用；模型不能修改设置。
 

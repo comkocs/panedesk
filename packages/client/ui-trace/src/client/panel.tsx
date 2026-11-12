@@ -8,7 +8,7 @@ import type { DecisionRevision, ItemId, ReferenceContent, TraceItem } from '@pan
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { TraceOpenActions, TracePanelActions } from './index.ts'
-import { decisionStatus, eventLine, eventType, itemMarkdown, itemStatus, sourceLine } from './format.ts'
+import { decisionStatus, eventLine, eventType, itemMarkdown, itemStatus, referenceText, sourceLine } from './format.ts'
 import css from './panel.module.css'
 
 type Props = PropsRuntime<'sidebar.right.pane.tab'> & PropsLocale<'trace'> & InjectFace<TracePanelActions>
@@ -127,7 +127,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
         {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" onClick={() => {
           void reference(workspaceId, row.id).then(result => {
             if (!result.ok) { setFailure(result.error.message); return }
-            setOpened(result.value); setFailure(null)
+            setOpened({ ...result.value, text: referenceText(result.value) }); setFailure(null)
           }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
         }}>{t('viewReference')}: {row.summary}</Button>)}
       </li>)}</ul>
@@ -176,15 +176,12 @@ function ItemList({ items, selected, onSelect, t }: {
   </li>)}</ul>
 }
 
-function DecisionHistory({ useResource, t, workspaceId, tick, decisionId }:
-  Pick<Props, 'useResource' | 't'> & { workspaceId: WorkspaceId; tick: number; decisionId: DecisionRevision['id'] }) {
-  const resource = useResource<'tracehistory'>(`dsh-resource://tracehistory/${encodeURIComponent(workspaceId)}?decision=${encodeURIComponent(decisionId)}&revision=${tick}`)
-  const rows = resource.value?.rows ?? []
-  if (resource.status === 'failed') return <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>
-  const past = rows.filter(row => row.revision !== rows.at(-1)?.revision)
+function DecisionHistory({ t, rows }:
+  Pick<Props, 't'> & { rows: readonly DecisionRevision[] }) {
+  const past = rows.filter(row => row.status === 'rejected' || row.revision !== rows.at(-1)?.revision)
   if (past.length === 0) return <p>{t('historyEmpty')}</p>
   return <ul className={css.list}>{past.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
-    <span>{row.title} · {decisionStatus(row.status, t)} · v{row.revision}</span>
+    <span>{row.title} · {decisionStatus(row.status === 'proposed' && rows.find(next => next.revision === row.revision + 1)?.status === 'rejected' ? 'rejected' : row.status, t)} · v{row.revision}</span>
     <span className={css.muted}>{sourceLine(row.source, t)}</span>
   </li>)}</ul>
 }
@@ -212,7 +209,7 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
       <strong>{row.title}</strong>
       <span>{sourceLine(row.source, t)} · {decisionStatus(row.status, t)} · v{row.revision}</span>
       <p>{row.body}</p>
-      <Button variant="outline" onClick={() => { void revert(workspaceId, row.id).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('revert')}</Button>
+      {row.status !== 'reverted' && <Button variant="outline" onClick={() => { void revert(workspaceId, row.id).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('revert')}</Button>}
     </li>)}</ul>
     {strict && <section>
       <h2>{t('proposed')}</h2>
@@ -228,6 +225,6 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
       </li>)}</ul>
     </section>}
     <h2>{t('history')}</h2>
-    {ids.map(id => <DecisionHistory key={id} {...{ useResource, t, workspaceId, tick, decisionId: id }} />)}
+    {ids.map(id => <DecisionHistory key={id} t={t} rows={revisionsOf(id)} />)}
   </section>
 }
