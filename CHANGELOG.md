@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.5
+
+### Fixed
+
+- Trace records files created by the write tool, not only edits.
+- "View reference" shows a change line by line, with long lines wrapped, and reply references show the reply without reasoning.
+- Unassigned activity rows start with the reply text, file or command they refer to.
+- Trace export says it is starting and the desktop save dialog picks the place.
+- The trace recording receipt sits next to its switch.
+- The decisions tab refreshes when a model records a decision, shows rejected revisions as rejected, hides Roll back on rolled-back items, and the planning-window list scrolls.
+- Floating window edges are wider and easier to grab.
+- Ticking "No more tests" on a subagent row shows at once.
+- The activity column no longer clips its timer.
+- The provider check wraps and scrolls the raw response.
+- Every New Session click writes a timing line.
+- A second full test run in one turn is refused with one reason.
+
 ## 2.0.4
 
 ### Changed
