@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-api-session-controller",
   "description": "Session Remote commands, cold reads, and live control transport",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "publishConfig": {
     "access": "public"
   },

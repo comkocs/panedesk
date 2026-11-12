@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-seat-profiles",
   "description": "Owner-authorized seat profile editor and mapped table import",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-seat-profiles" },
