@@ -47,7 +47,8 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     if (!store.recordsSession(session)) return
     if (event.type === 'request/context') { models.set(session.id, event.data.model); return }
     if (event.type !== 'turn/start' && event.type !== 'turn/end' && event.type !== 'deliverables/presented'
-      && event.type !== 'user/message' && event.type !== 'assistant/message') return
+      && event.type !== 'user/message' && event.type !== 'assistant/message'
+      && !(event.type === 'tool/call' && event.data.name === 'bash')) return
     const references: Omit<TraceReference, 'id' | 'eventId'>[] = [{
       kind: 'session-slice', sessionId: session.id, seqStart: event.seq, seqEnd: event.seq,
       path: null, beforeHash: null, afterHash: null, summary: event.type, diffFile: null,
@@ -154,12 +155,16 @@ async function captureToolChange(
   if (callSeq === undefined) return
   const handle = await ctx.sessionPersistence.open(session.id, 'read')
   let toolName: string
+  const diffs = fileDiffs(event.data.meta)
   try {
     const call = (await handle.read(callSeq, 1)).events[0]
     if (call?.type !== 'tool/call' || call.seq !== callSeq || !FILE_CHANGE_TOOLS.has(call.data.name)) return
     toolName = call.data.name
+    if (toolName === 'write' && diffs.length === 0) {
+      const args = JSON.parse(call.data.arguments) as { file_path: string; content: string }
+      diffs.push({ path: args.file_path, oldText: null, newText: args.content })
+    }
   } finally { await handle.close() }
-  const diffs = fileDiffs(event.data.meta)
   if (diffs.length === 0) return
   const directory = await store.diffDirectory(session)
   if (directory === undefined) return

@@ -10,6 +10,7 @@ import type { ProjectId, TraceStatus } from '@panedesk/dsh-trace-store/types'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { TraceSettingsActions } from './index.ts'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
+import css from './panel.module.css'
 
 type Props = PropsRuntime<'settings.panedesk.item'> & PropsLocale<'trace'> & InjectFace<TraceSettingsActions>
 
@@ -59,6 +60,7 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
   return <section>
     <label><input type="checkbox" checked={enabled} disabled={status === null}
       onChange={event => { apply(event.target.checked ? enable(workspaceId) : disable(workspaceId), event.target.checked ? t('recordingOn') : t('recordingOff')) }} />{t('enabled')}</label>
+    {saved !== null && <p role="status">{saved}</p>}
     <h4>{t('associate')}</h4>
     <p>{t('associateHint')}</p>
     <label>{t('projectId')}<Input value={projectId} onChange={event => { setProjectId(event.target.value) }} /></label>
@@ -68,7 +70,7 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
     <p>{t('strictHint')}</p>
     <label><input type="checkbox" checked={status?.strict === true} disabled={!enabled}
       onChange={event => { apply(setStrict(workspaceId, event.target.checked, event.target.checked ? planner ?? windows[0] ?? null : null)) }} />{t('strict')}</label>
-    <Menu open={plannerMenu} portal onClose={() => { setPlannerMenu(false) }} selectedId={planner}
+    <Menu open={plannerMenu} portal autoFocus listClassName={css.plannerMenu} onClose={() => { setPlannerMenu(false) }} selectedId={planner}
       anchor={<Button variant="outline" aria-label={t('planner')} disabled={!enabled || status?.strict !== true}
         onClick={() => { setPlannerMenu(true) }}>{planner === undefined ? t('plannerNone') : sessions[planner]?.displayTitle ?? planner}</Button>}
       items={windows.map(id => ({ id, label: sessions[id]?.displayTitle ?? id }))}
@@ -76,6 +78,5 @@ function WorkspaceSwitches({ useSessions, useResource, enable, disable, associat
     {windows.length === 0 && <p>{t('noSessions')}</p>}
     {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
     {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
-    {saved !== null && <p role="status">{saved}</p>}
   </section>
 }
