@@ -44,7 +44,7 @@ function ProbeFailureFacts(props: { failure: ProbeFailure; t: (key: ModelsKey) =
       ? <p>{t('protocolRawBody')}: {t('protocolBodyMissing')}</p>
       : <details>
         <summary>{t('protocolRawBody')}</summary>
-        <pre>{body}</pre>
+        <pre className={styles['probeBody']}>{body}</pre>
       </details>}
   </div>
 }

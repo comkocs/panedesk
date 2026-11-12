@@ -838,7 +838,7 @@
   right: 7px;
   left: 7px;
   width: auto;
-  height: 8px;
+  height: 12px;
   cursor: ns-resize;
 }
 
@@ -846,7 +846,7 @@
 .floatResize[data-dockkit-resize-edge='w'] {
   top: 7px;
   bottom: 7px;
-  width: 8px;
+  width: 12px;
   height: auto;
   cursor: ew-resize;
 }
@@ -855,10 +855,10 @@
 .floatResize[data-dockkit-resize-edge*='s'] { bottom: -7px; }
 .floatResize[data-dockkit-resize-edge*='e'] { right: -7px; }
 .floatResize[data-dockkit-resize-edge*='w'] { left: -7px; }
-.floatResize[data-dockkit-resize-edge='n'] { top: -4px; }
-.floatResize[data-dockkit-resize-edge='s'] { bottom: -4px; }
-.floatResize[data-dockkit-resize-edge='e'] { right: -4px; }
-.floatResize[data-dockkit-resize-edge='w'] { left: -4px; }
+.floatResize[data-dockkit-resize-edge='n'] { top: -6px; }
+.floatResize[data-dockkit-resize-edge='s'] { bottom: -6px; }
+.floatResize[data-dockkit-resize-edge='e'] { right: -6px; }
+.floatResize[data-dockkit-resize-edge='w'] { left: -6px; }
 
 .floatResize[data-dockkit-resize-edge='nw'],
 .floatResize[data-dockkit-resize-edge='se'] { cursor: nwse-resize; }

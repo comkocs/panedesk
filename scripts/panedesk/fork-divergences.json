@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "floating-edge-targets-and-feedback-readability",
+      "description": "Widen floating edge targets and keep verification feedback and probe responses readable",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "Keep floating edge targets six pixels on either side of the panel, echo task test restrictions immediately with failure rollback, preserve activity timers, and wrap selectable probe response bodies in a vertical scroller.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-dockkit/**",
+          "packages/client/ui-subagent-tree/**",
+          "packages/client/ui-settings-models/**"
+        ]
+      }
+    },
+    {
       "id": "first-window-provider-checks-and-click-timing",
       "description": "Use smaller first-open bounds, retain provider error bodies, and time every New Session click",
       "origin": "Panedesk desktop interaction feedback",

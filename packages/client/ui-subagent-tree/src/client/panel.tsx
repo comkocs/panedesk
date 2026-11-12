@@ -101,7 +101,8 @@ function flattenRows(root: SubagentTreeNode, labelOf: (sessionId: SessionId) => 
  * @returns The tree table with per-row monitoring and active-node Stop controls.
  */
 export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorkspaces, renderSlot, t, labelOf, stop, openVerification, setTestsStopped, prohibitChecklist }: SubagentTreeTabProps) {
-  const [verificationError, setVerificationError] = useState(false)
+  const [verificationError, setVerificationError] = useState<string>()
+  const [testChanges, setTestChanges] = useState<Record<string, { value: boolean; pending: boolean }>>({})
   const [stopError, setStopError] = useState(false)
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
   const stopNode = async (node: SubagentTreeNode): Promise<void> => {
@@ -116,6 +117,33 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
   const view: SubagentTreeView | undefined = resource.value
   const message = stateKey(resource.status, resource.value, resource.failure?.code)
   const rows = view === undefined ? [] : flattenRows(view.root, labelOf)
+  const acknowledged = rows.filter(({ node }) => {
+    const change = testChanges[node.verificationTaskId ?? '']
+    return change !== undefined && !change.pending && change.value === (node.testsStopped ?? false)
+  })
+  if (acknowledged.length > 0) {
+    const changes = { ...testChanges }
+    for (const { node } of acknowledged) delete changes[node.verificationTaskId!]
+    setTestChanges(changes)
+  }
+  const changeTests = async (node: SubagentTreeNode, value: boolean): Promise<void> => {
+    const taskId = node.verificationTaskId!
+    const previous = testChanges[taskId]
+    setVerificationError(undefined)
+    setTestChanges(changes => ({ ...changes, [taskId]: { value, pending: true } }))
+    try {
+      await setTestsStopped(node, value)
+      setTestChanges(changes => ({ ...changes, [taskId]: { value, pending: false } }))
+    } catch (error) {
+      setTestChanges(changes => {
+        const restored = { ...changes }
+        if (previous === undefined) delete restored[taskId]
+        else restored[taskId] = previous
+        return restored
+      })
+      setVerificationError(error instanceof Error ? error.message : String(error))
+    }
+  }
   const nodeKey = (node: SubagentTreeNode): string => `${node.external ? 'external' : 'native'}:${node.sessionId}`
   const monitored = rows.find(row => nodeKey(row.node) === monitoredId)
   const number = (value: number | null | undefined): string => value === null || value === undefined ? t('unknown') : String(value)
@@ -124,7 +152,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
   return <section className={css.tab} data-subagent-tree="">
     <h1 className={css.heading}>{t('title')}</h1>
     <Button variant="outline" onClick={openVerification}>{t('verification')}</Button>
-    {verificationError && <p role="alert">{t('verificationFailed')}</p>}
+    {verificationError !== undefined && <p role="alert">{t('verificationFailed', { reason: verificationError })}</p>}
     <p>{t('description')}</p>
     <p>{t('transcriptNote')}</p>
     <p role={resource.status === 'failed' ? 'alert' : 'status'} aria-live="polite">{t(message)}</p>
@@ -153,11 +181,11 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
         <td className={css.status} data-end-reason={node.endReason}>{t(node.status)}{node.status === 'finished' && node.endReason !== undefined ? ` · ${t(node.endReason === 'error' ? 'errored' : node.endReason)}` : ''}</td>
         <td className={css.activityColumn}><ActivityCell activity={node.external ? null : node.activity} t={t} />
           {!node.external && node.parentSessionId !== null && isActive(node.status) && node.verificationTaskId !== undefined && <label onClick={event => { event.stopPropagation() }}>
-            <input key={node.verificationTaskId} type="checkbox" checked={node.testsStopped ?? false}
-              onChange={event => {
-                setVerificationError(false)
-                void setTestsStopped(node, event.target.checked).catch((_error: unknown) => { setVerificationError(true) })
-              }} />{t(node.testsStopped ? 'testsStopped' : 'stopTests')}
+            <input key={node.verificationTaskId} type="checkbox"
+              checked={testChanges[node.verificationTaskId]?.value ?? node.testsStopped ?? false}
+              disabled={testChanges[node.verificationTaskId]?.pending}
+              onChange={event => { void changeTests(node, event.target.checked) }}
+            />{t((testChanges[node.verificationTaskId]?.value ?? node.testsStopped) ? 'testsStopped' : 'stopTests')}
           </label>}
         </td>
         <td title={node.model ?? t(node.external ? 'unknown' : 'modelUnknown')} style={{ color: modelColor(node.model) }}>{node.model ?? t(node.external ? 'unknown' : 'modelUnknown')}</td>

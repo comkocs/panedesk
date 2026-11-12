@@ -834,6 +834,14 @@ select.input {
   width: fit-content;
 }
 
+.probeBody {
+  max-height: 320px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .candidateId {
   flex: 1 1 auto;
   min-width: 0;
