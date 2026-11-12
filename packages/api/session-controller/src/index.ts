@@ -308,8 +308,9 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
-   * Append the timing for one New Session click after its page has been shown.
-   * @param request - click identity and Client-measured click-to-page milliseconds.
+   * Append one line for a New Session click when the Client reports it.
+   * A report with no paired Host recorder still appends its line.
+   * @param request - click identity, kind, and Client-measured click-to-page milliseconds.
    */
   @Remote('recordNewSessionTiming')
   recordNewSessionTiming(request: SessionNewSessionTimingRequest): void {

@@ -86,9 +86,10 @@ export default class VerificationPolicy extends TypertRemoteService {
   }
 
   private refusal(category: ActivityCategory, once = false): PreToolDecision {
+    if (once) return { kind: 'deny', reason: 'Full test run already used once this turn. 本轮全量已用过一次。' }
     const en = ACTIVITY_REFUSAL.en.replace('<category>', ACTIVITY_CATEGORIES[category].en)
     const zh = ACTIVITY_REFUSAL.zh.replace('〈类〉', ACTIVITY_CATEGORIES[category].zh)
-    return { kind: 'deny', reason: `${once ? 'Full test run already used once this turn. 本轮全量已用过一次。 ' : ''}${en} / ${zh}` }
+    return { kind: 'deny', reason: `${en} / ${zh}` }
   }
 
   private async decide(exec: ToolExecution, next: () => Promise<PreToolDecision>): Promise<PreToolDecision> {

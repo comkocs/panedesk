@@ -370,6 +370,8 @@ export interface SessionNewSessionTimingRequest {
   readonly clientElapsedMs: number
   /** False when creation failed or navigation was superseded instead of showing its page. */
   readonly pageShown: boolean
+  /** Whether the click created a Session or switched to an existing blank one. */
+  readonly kind?: 'created' | 'reused'
   /** Workspace selected by the click, when present. */
   readonly workspaceId?: WorkspaceId
   /** Session displayed after navigation, when present. */

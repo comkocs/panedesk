@@ -31,7 +31,7 @@ The same system-prompt line tells the agent to call `verification_checklist` wit
 
 #### What the model sees
 
-One read-only policy line, fixed bilingual category refusals, an explicit already-used-full-run prefix, budget approval prompts and client timeout errors. The policy line also carries this instruction: "Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array." No settings mutation tool is added.
+One read-only policy line, fixed bilingual category refusals, a one-sentence already-used-full-run refusal, budget approval prompts and client timeout errors. The policy line also carries this instruction: "Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array." No settings mutation tool is added.
 
 #### Token effect
 

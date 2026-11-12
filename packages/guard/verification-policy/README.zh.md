@@ -31,7 +31,7 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 #### 模型看到什么
 
-一行只读策略、固定双语类别拒绝、明确的全量已用前缀、预算审批提示与客户端超时错误。该行同时带这条指示：「Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.」不新增设置修改工具。
+一行只读策略、固定双语类别拒绝、一句全量已用拒绝、预算审批提示与客户端超时错误。该行同时带这条指示：「Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.」不新增设置修改工具。
 
 #### Token 影响
 
