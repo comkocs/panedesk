@@ -98,14 +98,21 @@ export class SessionCommandController {
   private readonly newSessionTimings = new Map<NewSessionTimingId, NewSessionTiming>()
 
   /**
-   * Finish one click's line after the Client has shown the page.
+   * Append one click's line when the Client reports it.
+   * A report that has no Host creation recorder still appends its own line;
+   * the report is not held until a creation pairs with it.
    * @param request - click identity and click-to-page observation.
    */
   recordNewSessionTiming(request: SessionNewSessionTimingRequest): void {
     const pending = this.newSessionTimings.get(request.timingId)
     this.newSessionTimings.delete(request.timingId)
-    const timing = pending ?? startNewSessionTiming(request.workspaceId, undefined, 'reused')
-    if (pending === undefined && request.sessionId !== undefined) timing.identify(request.sessionId)
+    if (pending !== undefined) {
+      if (request.kind !== undefined) pending.classify(request.kind)
+      pending.finish(request.clientElapsedMs, request.pageShown)
+      return
+    }
+    const timing = startNewSessionTiming(request.workspaceId, request.clientElapsedMs, request.kind ?? 'reused')
+    if (request.sessionId !== undefined) timing.identify(request.sessionId)
     timing.finish(request.clientElapsedMs, request.pageShown)
   }
 
@@ -157,12 +164,14 @@ export class SessionCommandController {
           && (workspace === undefined || workspace.sessionIds.includes(sessionId)),
       }, timing)
     } catch (error) {
-      if (request.timingId === undefined) timing.finish()
+      timing.finish()
+      if (request.timingId !== undefined) this.newSessionTimings.delete(request.timingId)
       this.rejectCreation(error)
     }
     const sessionId = created.sessionId ?? created.agent?.id
     if (sessionId === undefined) {
-      if (request.timingId === undefined) timing.finish()
+      timing.finish()
+      if (request.timingId !== undefined) this.newSessionTimings.delete(request.timingId)
       throw new RemoteError('gateway/internal', 'session creation finished without an identity', {})
     }
     timing.identify(sessionId)

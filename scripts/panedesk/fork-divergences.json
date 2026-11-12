@@ -16644,6 +16644,20 @@
           "packages/client/ui-trace/**"
         ]
       }
+    },
+    {
+      "id": "new-session-click-log-and-once-full-run-refusal",
+      "description": "Log every New Session click and state a used full run in one sentence",
+      "origin": "Panedesk session controls",
+      "reason": "A click that joined an in-flight navigation or never reached Host creation left no timing line. A second full run in the once setting repeated the turned-off refusal.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/api/session-controller/**",
+          "packages/client/ui-workspace/**",
+          "packages/guard/verification-policy/**"
+        ]
+      }
     }
   ]
 }

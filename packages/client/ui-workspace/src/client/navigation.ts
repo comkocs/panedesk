@@ -1,6 +1,6 @@
 /** Workspace archive and directory UI capability. */
 
-import type { NewSessionTimingId } from '@panedesk/dsh-api-session-controller/types'
+import type { NewSessionTimingId, SessionNewSessionTimingRequest } from '@panedesk/dsh-api-session-controller/types'
 import { Service, type Context } from '@panedesk/cordis'
 import type { ClientRemote, DirectoryListing, RemoteFailure } from '@panedesk/dsh-api-remotes/client'
 import type {
@@ -26,6 +26,7 @@ import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
 
 type SessionConnectionOptions = Pick<StartSessionOptions, 'agentPreset'> & { readonly timingId?: NewSessionTimingId }
+type NewSessionClickKind = NonNullable<SessionNewSessionTimingRequest['kind']>
 
 interface MainSelection {
   readonly sessionId?: SessionId
@@ -221,13 +222,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private createInWorkspace(workspace: WorkspaceView, options: SessionConnectionOptions): Promise<SessionId> {
-    const archived = this.workspaces.list.getSnapshot().archivedSessionIds
-    const sessions = this.sessions.list.getSnapshot()
-    const blank = sessions.ids.find((id) => {
-      const summary = sessions.byId[id]
-      return summary !== undefined && summary.agentAvailable && summary.blank && summary.cwd === workspace.path
-        && workspace.sessionIds.includes(id) && !archived.includes(id)
-    })
+    const blank = this.reusableBlank(workspace)
     return this.createNamed({
       workspaceId: workspace.workspaceId,
       ...(options.timingId === undefined ? {} : { timingId: options.timingId }),
@@ -327,7 +322,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const startedAt = performance.now()
     const timingId = crypto.randomUUID() as NewSessionTimingId
     if (this.opening !== undefined) {
-      this.recordClick(timingId, startedAt, workspaceId, this.opening)
+      this.recordClick(timingId, startedAt, workspaceId, this.opening, 'reused')
       return
     }
     const { agentPreset, ...draft } = options ?? {}
@@ -346,14 +341,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
     const target = workspaceId ?? currentWorkspaceId ?? recent
+    const kind = this.blankIn(target)
     if (target === undefined) {
       if (initializeDraft) {
         this.notify({ kind: 'createFailed', message: this.ctx.locale.bind('workspace')('draft.workspaceRequired') })
-        this.recordClick(timingId, startedAt, target, Promise.resolve(false))
+        this.recordClick(timingId, startedAt, target, Promise.resolve(false), kind)
         return
       }
       this.clearMain()
-      this.recordClick(timingId, startedAt, target, Promise.resolve(true))
+      this.recordClick(timingId, startedAt, target, Promise.resolve(true), kind)
       return
     }
     const opening = this.openWorkspaceSession(target, initializeDraft ? (id) => {
@@ -362,14 +358,38 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       this.prepareDraft(binding, draftOptions)
     } : undefined, { timingId, ...(agentPreset === undefined ? {} : { agentPreset }) })
     this.opening = opening
-    this.recordClick(timingId, startedAt, target, opening)
+    this.recordClick(timingId, startedAt, target, opening, kind)
     void opening.catch(
       (reason: unknown) => { console.warn('new session failed:', reason) },
     ).finally(() => { this.opening = undefined })
   }
 
+  /** Blank Session this click can reopen in the Workspace, when the list already shows one. */
+  private reusableBlank(workspace: WorkspaceView): SessionId | undefined {
+    const archived = this.workspaces.list.getSnapshot().archivedSessionIds
+    const sessions = this.sessions.list.getSnapshot()
+    return sessions.ids.find((id) => {
+      const summary = sessions.byId[id]
+      return summary !== undefined && summary.agentAvailable && summary.blank && summary.cwd === workspace.path
+        && workspace.sessionIds.includes(id) && !archived.includes(id)
+    })
+  }
+
+  /** Whether the selected Workspace already has a blank Session this click can reopen. */
+  private blankIn(workspaceId: WorkspaceId | undefined): NewSessionClickKind {
+    if (workspaceId === undefined) return 'created'
+    const workspace = this.workspaces.list.getSnapshot().items.find(item => item.workspaceId === workspaceId)
+    return workspace !== undefined && this.reusableBlank(workspace) !== undefined ? 'reused' : 'created'
+  }
+
   /** Report after the selection has rendered and one frame has had a chance to paint. */
-  private recordClick(timingId: NewSessionTimingId, startedAt: number, workspaceId: WorkspaceId | undefined, opening: Promise<boolean>): void {
+  private recordClick(
+    timingId: NewSessionTimingId,
+    startedAt: number,
+    workspaceId: WorkspaceId | undefined,
+    opening: Promise<boolean>,
+    kind: NewSessionClickKind,
+  ): void {
     const settled = (shown: boolean): void => {
       const reference = this.mainReference
       requestAnimationFrame(() => {
@@ -380,6 +400,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
             timingId,
             clientElapsedMs: Math.round(performance.now() - startedAt),
             pageShown,
+            kind,
             ...(workspaceId === undefined ? {} : { workspaceId }),
             ...(sessionId === undefined ? {} : { sessionId }),
           }).then(result => {
