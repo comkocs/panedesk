@@ -427,6 +427,13 @@ Project operations are available to every window after the workspace's one-time 
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) decisionHistory(request: WorkspaceRequest & { decisionId?: DecisionId }): DecisionRevision[]
 
+/** Stream decision history initially and after project decision transactions commit.
+ * @param request Workspace selection.
+ * @param signal Remote stream lifetime.
+ * @returns Complete immutable revision lists; no polling or persisted changes.
+ */
+@Remote({ mode: 'stream', resources: { workspace: request => request.workspaceId } }) async *followDecisions(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<DecisionRevision[]>
+
 /** Read a referenced session slice from SessionPersistence, or a durable diff file.
  * @param request Workspace and database-owned reference identity.
  * @returns Reference metadata and source JSON text; attachments return their declared path.

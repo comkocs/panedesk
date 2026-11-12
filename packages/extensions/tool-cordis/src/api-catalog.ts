@@ -4088,8 +4088,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'recordNewSessionTiming\') recordNewSessionTiming(request: SessionNewSessionTimingRequest): void',
-        description: 'Append the timing for one New Session click after its page has been shown.',
-        parameters: [{ name: 'request', description: 'click identity and Client-measured click-to-page milliseconds.' }],
+        description: 'Append one line for a New Session click when the Client reports it. A report with no paired Host recorder still appends its line.',
+        parameters: [{ name: 'request', description: 'click identity, kind, and Client-measured click-to-page milliseconds.' }],
       },
       {
         signature: '@Remote(\'selectModel\') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>',
@@ -5917,6 +5917,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read all revisions, including pending proposals and rejected versions.',
         parameters: [{ name: 'request', description: 'Workspace and optional decision identity; omission returns the entire project\'s history.' }],
         returns: 'Immutable revisions in decision/revision order.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\', resources: { workspace: request => request.workspaceId } }) async *followDecisions(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<DecisionRevision[]>',
+        description: 'Stream decision history initially and after project decision transactions commit.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }, { name: 'signal', description: 'Remote stream lifetime.' }],
+        returns: 'Complete immutable revision lists; no polling or persisted changes.',
       },
       {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent>',
@@ -12013,7 +12019,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionNewSessionTimingRequest',
-    declaration: 'export interface SessionNewSessionTimingRequest {\n    readonly timingId: NewSessionTimingId;\n    readonly clientElapsedMs: number;\n    readonly pageShown: boolean;\n    readonly workspaceId?: WorkspaceId;\n    readonly sessionId?: SessionId;\n}',
+    declaration: 'export interface SessionNewSessionTimingRequest {\n    readonly timingId: NewSessionTimingId;\n    readonly clientElapsedMs: number;\n    readonly pageShown: boolean;\n    readonly kind?: \'created\' | \'reused\';\n    readonly workspaceId?: WorkspaceId;\n    readonly sessionId?: SessionId;\n}',
   },
   {
     name: 'SessionObservation',
