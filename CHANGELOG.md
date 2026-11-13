@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.8
+
+### Fixed
+
+- Local accounting no longer stops a conversation: a busy or unreadable ledger is logged and the model call, tool or run continues, and one failure no longer blocks later calls with "Cache accounting requires repair".
+- Ledger reads no longer walk every stored response fragment while holding the writer lock, and streamed response fragments are no longer stored one file per chunk, so long-used installations stop timing out on `writer.lock`.
+
 ## 2.0.7
 
 ### Changed
