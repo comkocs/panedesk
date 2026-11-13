@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-trace",
   "description": "Project item panel, decision view, and workspace recording switches",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-trace" },

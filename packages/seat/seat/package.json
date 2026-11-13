@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-seat",
   "description": "Seat service definitions and engine event declarations",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "publishConfig": {
     "access": "public"
   },
