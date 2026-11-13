@@ -3,8 +3,8 @@
  * provider what it serves.
  *
  * The list is the profile's `models` array as the card holds it: an empty list
- * means "serve this route's built-in catalog", and any entry replaces that
- * catalog, so a row is only ever added deliberately. Fetching asks the endpoint
+ * means "serve this route's built-in catalog" for installed providers, but
+ * offers no models on a hand-declared route. Any entry replaces that catalog. Fetching asks the endpoint
  * **the form currently shows** — including a key typed but not yet saved — so
  * adding a provider is one pass instead of save-then-return; the reply is
  * candidates the user picks from, never configuration written behind them.
@@ -406,7 +406,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       <div className={styles['modelListHead']}>
         <div className={styles['modelCatalogHeading']}>
           <span className={styles['modelCatalogTitle']}>{t('models')}</span>
-          {props.overridden === undefined
+          {props.overridden === undefined || (catalogProvider === undefined && !props.overridden)
             ? null
             : (
               <span className={styles['modelCatalogMeta']}>
@@ -414,7 +414,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
               </span>
             )}
         </div>
-        {props.overridden === true && props.onReset !== undefined
+        {catalogProvider !== undefined && props.overridden === true && props.onReset !== undefined
           ? (
             <button
               type="button"

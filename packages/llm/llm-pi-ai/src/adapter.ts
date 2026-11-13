@@ -392,6 +392,7 @@ function requestHeaders(headers: Readonly<Record<string, string>> | undefined): 
  */
 export class PiAiAdapter extends LlmAdapter {
   private snapshot: PiAiSnapshot | undefined
+  private readonly textOnlyModels = new Set<string>()
 
   constructor(private readonly config: PiAiAdapterOptions) {
     super()
@@ -544,7 +545,7 @@ export class PiAiAdapter extends LlmAdapter {
     const profile = this.profileOf(snapshot, options.provider)
     const model = probeModel ?? this.modelOf(snapshot, options.provider, options.model)
     const cache = requestCache(model, options)
-    const evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
+    let evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
     let responseBody: string | undefined
     const updates = conversationUpdates(model)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
@@ -589,9 +590,11 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
-      // pi-ai otherwise drops image blocks according to advisory catalog metadata.
-      const requestModel: Model<Api> = { ...model, input: ['text', 'image'] }
-      const events = snapshot.models.streamSimple(requestModel, context, {
+      const modelKey = JSON.stringify([options.provider, options.model])
+      const supportsImages = !probing && profile.inputModalities.get(model.id)!.includes('image')
+        && !this.textOnlyModels.has(modelKey)
+      const requestModel: Model<Api> = { ...model, input: supportsImages ? ['text', 'image'] : ['text'] }
+      const streamOptions: SimpleStreamOptions = {
         ...profileOptions(profile, reasoning, apiKey),
         ...cache.options,
         onResponse: (response) => { evidence.status = response.status },
@@ -618,35 +621,81 @@ export class PiAiAdapter extends LlmAdapter {
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
         headers: { ...requestHeaders(profile.headers), ...cache.options.headers },
-      })
-      const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
-      let exhausted = false
-      try {
-        while (true) {
-          const result = await watchdog.next(iterator)
-          if (result.done) {
-            exhausted = true
+      }
+      let emitted = false
+      let original: { kind: 'finish'; chunks: StreamChunk[] }
+        | { kind: 'throw'; error: unknown; evidence: PiResponseEvidence; responseBody: string | undefined }
+        | undefined
+      const canDowngrade = (): boolean => original === undefined && !emitted && supportsImages
+        && context.messages.some(message => Array.isArray(message.content)
+          && message.content.some(block => block.type === 'image'))
+        && evidence.status === 400 && !watchdog.signal.aborted
+      while (true) {
+        let iterator: AsyncIterator<StreamChunk> | undefined
+        let exhausted = false
+        let pendingUsage: StreamChunk | undefined
+        try {
+          const events = snapshot.models.streamSimple(requestModel, context, streamOptions)
+          iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
+          while (true) {
+            const result = await watchdog.next(iterator)
+            if (result.done) {
+              exhausted = true
+              return
+            }
+            const chunk = evidence.enrich(result.value, {
+              ...cache.metadata, accountLabel: profile.displayName || profile.provider || 'unknown',
+            }, apiKey)
+            // pi-ai emits usage before its error finish; keep it private until the retry decision.
+            if (!emitted && supportsImages && chunk.type === 'usage') {
+              pendingUsage = chunk
+              continue
+            }
+            if (chunk.type === 'finish') {
+              if (chunk.reason.kind === 'error' && canDowngrade()) {
+                original = { kind: 'finish', chunks: pendingUsage === undefined ? [chunk] : [pendingUsage, chunk] }
+                break
+              }
+              if (chunk.reason.kind === 'error' || chunk.reason.kind === 'aborted') {
+                if ((probing && chunk.reason.kind === 'error') || original !== undefined) {
+                  const failure = chunk.reason.failure
+                  throw new LlmError(failure.message, failure.code, {
+                    ...failure, ...responseBody === undefined ? {} : { body: responseBody },
+                  })
+                }
+              } else if (original !== undefined) {
+                this.textOnlyModels.add(modelKey)
+              }
+            }
+            emitted = true
+            if (pendingUsage !== undefined) {
+              yield pendingUsage
+              pendingUsage = undefined
+            }
+            yield chunk
+          }
+        } catch (error: unknown) {
+          if (original?.kind === 'finish') {
+            yield* original.chunks
             return
           }
-          const chunk = evidence.enrich(result.value, {
-            ...cache.metadata, accountLabel: profile.displayName || profile.provider || 'unknown',
-          }, apiKey)
-          if (probing && chunk.type === 'finish' && chunk.reason.kind === 'error') {
-            const failure = chunk.reason.failure
-            throw new LlmError(failure.message, failure.code, {
-              ...failure, ...responseBody === undefined ? {} : { body: responseBody },
-            })
+          if (original?.kind === 'throw') {
+            evidence = original.evidence
+            responseBody = original.responseBody
+            throw original.error
           }
-          yield chunk
+          if (!canDowngrade()) throw error
+          original = { kind: 'throw', error, evidence, responseBody }
+        } finally {
+          if (!exhausted && iterator !== undefined) {
+            // A timed-out demand can stay pending; the outer finally aborts the SDK.
+            /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned stream. */
+            void iterator.return?.(undefined).catch(() => {})
+          }
         }
-      } finally {
-        if (!exhausted) {
-          consumer.abort('pi-ai stream consumer stopped')
-          // A demand the deadline abandoned can stay pending forever, and this
-          // generator queues its return behind it; the abort above owns SDK termination.
-          /* v8 ignore next -- the detached drain only rejects while unwinding an abandoned stream. */
-          void iterator.return(undefined).catch(() => {})
-        }
+        requestModel.input = ['text']
+        evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
+        responseBody = undefined
       }
     } catch (error: unknown) {
       if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) {
