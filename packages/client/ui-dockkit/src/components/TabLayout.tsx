@@ -1,4 +1,4 @@
-/** Stable tab siblings in one horizontal Grid, including viewport-positioned floats. */
+/** Stable tab siblings in one Grid of one pane or two side by side or stacked, including viewport-positioned floats. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MutableRefObject, ReactNode } from 'react'
 import clsx from 'clsx'
@@ -30,12 +30,14 @@ interface TabHostProps extends LayoutProps {
   readonly tab: TabRecord
   readonly pane: PaneNode
   readonly column: number
+  /** `column` is a row index when the pair is stacked. */
+  readonly stacked: boolean
   readonly floats: ReturnType<typeof useFloatGestures>
   readonly focusRequest: MutableRefObject<{ readonly tabId: TabId; readonly origin: Element | null } | undefined>
 }
 
 /** A tab's ancestors stay identical across selection, pane moves and floating. */
-function TabHost({ state, callbacks, intents, tab, pane, column, floats, focusRequest, keepMounted,
+function TabHost({ state, callbacks, intents, tab, pane, column, stacked, floats, focusRequest, keepMounted,
   active = true }: TabHostProps): ReactNode {
   const floating = pane.host === 'float'
   const selected = floating || pane.activeTabId === tab.id
@@ -78,7 +80,11 @@ function TabHost({ state, callbacks, intents, tab, pane, column, floats, focusRe
   return (
     <div className={clsx(css.tabCell, floating && css.floatingCell)} hidden={!selected}
       data-dockkit-host={floating ? 'float' : 'dock'} data-dockkit-column={floating ? undefined : column}
-      style={{ gridColumn: floating ? 1 : column * 2 + 1, gridRow: 1, order: floating ? depth : 0 }}>
+      style={{
+        gridColumn: floating || stacked ? 1 : column * 2 + 1,
+        gridRow: floating || !stacked ? 1 : column * 2 + 1,
+        order: floating ? depth : 0,
+      }}>
       <section ref={host} tabIndex={-1} className={clsx(css.tabHost, floating ? css.float : css.pane)}
         aria-hidden={!visible || undefined}
         data-dockkit-content={tab.id}
@@ -109,10 +115,10 @@ function TabHost({ state, callbacks, intents, tab, pane, column, floats, focusRe
 }
 
 /**
- * One or two horizontal panes; CSS resolves content sizes from track fractions.
+ * One pane, or two side by side or stacked; CSS resolves content sizes from track fractions.
  * @param props - committed layout, gesture preview and body retention policy.
  * @returns stable tab containers, including floating tabs.
- * @throws if the docked tree is not one pane or two horizontal panes.
+ * @throws if the docked tree is not one pane or exactly two panes.
  */
 export function TabLayout(props: LayoutProps): ReactNode {
   const { state, callbacks, preview } = props
@@ -127,29 +133,35 @@ export function TabLayout(props: LayoutProps): ReactNode {
     },
   }
   const root = getNode(state, state.rootId)
-  if (root.kind === 'split' && (root.axis !== 'row' || root.children.length !== 2)) {
-    throw new Error('DockLayout requires one pane or two horizontally split panes')
+  if (root.kind === 'split' && root.children.length !== 2) {
+    throw new Error('DockLayout requires one pane or two split panes')
   }
+  const stacked = root.kind === 'split' && root.axis === 'column'
   const panes = root.kind === 'pane' ? [root] : root.children.map(id => getPane(state, id))
   const sizes = root.kind === 'split' ? preview?.splitId === root.id ? preview.sizes : root.sizes : [1]
   const floats = useFloatGestures(state, props.intents)
-  const columns = sizes.map(size => `minmax(0, ${size}fr)`).join(' 0px ')
+  const tracks = sizes.map(size => `minmax(0, ${size}fr)`).join(' 0px ')
   return (
     <div className={css.tabLayout} data-dockkit-split={root.kind === 'split' ? root.id : undefined}
-      style={{ gridTemplateColumns: columns }}>
+      style={stacked ? { gridTemplateRows: tracks, gridTemplateColumns: 'minmax(0, 1fr)' } : { gridTemplateColumns: tracks }}>
       {/* Logical order changes must not make React move a connected webview's ancestor. */}
       {Object.values(state.tabs).sort((a, b) => a.id.localeCompare(b.id)).map((tab) => {
         const pane = findTabPane(state, tab.id)
         return <TabHost key={tab.id} {...props} callbacks={tabCallbacks} tab={tab} pane={pane}
-          column={panes.findIndex(candidate => candidate.id === pane.id)} floats={floats} focusRequest={focusRequest} />
+          column={panes.findIndex(candidate => candidate.id === pane.id)} stacked={stacked} floats={floats} focusRequest={focusRequest} />
       })}
       {panes.filter(pane => pane.tabs.length === 0).map(pane => (
-        <div key={pane.id} className={css.emptyTabHost} data-dockkit-empty style={{ gridColumn: panes.indexOf(pane) * 2 + 1, gridRow: 1 }}>
+        <div key={pane.id} className={css.emptyTabHost} data-dockkit-empty
+          style={stacked
+            ? { gridColumn: 1, gridRow: panes.indexOf(pane) * 2 + 1 }
+            : { gridColumn: panes.indexOf(pane) * 2 + 1, gridRow: 1 }}>
           <TabPanel state={state} pane={pane} callbacks={callbacks} />
         </div>
       ))}
-      {root.kind === 'split' && <div className={clsx(css.divider, css.tabLayoutDivider)}
-        data-dockkit-divider={`${root.id}:0`} style={{ gridColumn: 2, gridRow: 1 }}
+      {root.kind === 'split' && <div
+        className={clsx(css.divider, stacked ? css.tabLayoutRowDivider : css.tabLayoutDivider)}
+        data-dockkit-divider={`${root.id}:0`}
+        style={stacked ? { gridColumn: 1, gridRow: 2 } : { gridColumn: 2, gridRow: 1 }}
         onPointerDown={(event) => { callbacks.onDividerPressed(root.id, 0, event) }} />}
     </div>
   )

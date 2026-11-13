@@ -451,7 +451,6 @@ export function createSidebarRightStore(
       // pane's only tab to that pane's own edge, the default page backfills it.
       dropTab: (d, sessionId: string, tabId: TabId, paneId: PaneId, zone: DockZone) => {
         d.bySession = seat(d, sessionId, s => advance(s, (state, mint, makeTab) => {
-          if (zone === 'top' || zone === 'bottom') return []
           if (zone !== 'center' && dockPaneIds(state).length >= 2) return []
           const plan = (): readonly LayoutOp[] => planDropTab(state, mint, tabId, paneId, zone, makeTab)
           return zone === 'center' ? arriving(state, tabId, paneId, plan) : plan()

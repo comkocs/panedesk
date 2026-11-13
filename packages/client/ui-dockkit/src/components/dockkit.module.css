@@ -206,6 +206,29 @@
   background: linear-gradient(to bottom, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 1px 100% no-repeat;
 }
 
+/* A stacked pair: the seam is horizontal, so the hit target reaches above and below it. */
+.tabLayoutRowDivider {
+  height: 0;
+  cursor: row-resize;
+  z-index: calc(var(--dsh-dockkit-dock-layer, 10) + 1);
+  pointer-events: auto;
+}
+
+.tabLayoutRowDivider::before {
+  left: 0;
+  right: 0;
+  top: -0.25px;
+  height: 0.5px;
+}
+
+.tabLayoutRowDivider::after {
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: -4px;
+  background: linear-gradient(to right, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 100% 1px no-repeat;
+}
+
 /* A body that overflows scrolls inside its pane; nothing escapes the pane. */
 .pane {
   display: flex;

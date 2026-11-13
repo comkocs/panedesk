@@ -54,11 +54,11 @@ kind: "package-reference"
 
 `DockController` 原样满足 `DockIntents`，因此嵌入方可将它交给 `DockLayout` 来保活 Sidebar 布局，或交给 `DockSurface` 来渲染递归分割树。经由自己 store 路由的嵌入方则实现同名方法。有三个 props 承载的是控制策略而非手势：`canSplit`（整面有效，即格预算；用 `splitPaneDisabled` 禁用分栏控件）、`canAddTab(paneId)`（按格，省略添加控件；不传则每格都画）与 `canCloseTab(tabId)`（按 tab，把 chip 的关闭控件和菜单的关闭项一并收起；不传则每个 tab 都可关闭）。隐藏添加控件不会移动 tab 条里的其它任何东西，收起关闭也不会移动 chip 里的任何东西——关闭控件压在标题末端之上而非并排。某格仅剩的一个 chip 在关闭被收起时画成安静样式——没有胶囊底色，没有悬停填充——因为既没有别的 tab 可供选择，也没有任何可对它做的事。套件自己再加一条策略，即下文的空间规则，它用 `splitPaneNarrow` 禁用某格的分栏控件；`onRoom(fits)` 上报其读数，让以编程方式分栏的嵌入方能遵守同一规则。
 
-`dropZones="horizontal"` 提供左右两个半区提示；预算或宽度不允许再拆时，正文整格接收移动。提示是一张内缩 8px 的虚线卡片，显示该落区的图形和 `labels.dropZone[zone]`；预览层覆盖全部 tab 正文，指针所在的卡片取强调色，另一张保持安静的轮廓。`minPaneFraction` 控制预览的最小比例，`planResizeSplit` 接受相同最小值以约束提交；Sidebar使用0.2并在自己的store限制两格。通用引擎仍保留原有树与其它分割方向。 `hideSplitWhenBlocked` 在分栏被阻止时（窗格预算已满或格太窄）直接隐藏分栏控件而不是渲染禁用态，默认值为 false。
+`dropZones="horizontal"` 提供左右两个半区提示；`dropZones="split"` 高亮指针所在的那一条边，包括把格子上下拆开的顶边和底边，这条边不能再拆时退回整格移动。预算或宽度不允许再拆时，正文整格接收移动。提示是一张内缩 8px 的虚线卡片，显示该落区的图形和 `labels.dropZone[zone]`；预览层覆盖全部 tab 正文，指针所在的卡片取强调色，另一张保持安静的轮廓。`minPaneFraction` 控制预览的最小比例，`planResizeSplit` 接受相同最小值以约束提交；Sidebar使用0.2并在自己的store限制两格。通用引擎仍保留原有树与其它分割方向。 `hideSplitWhenBlocked` 在分栏被阻止时（窗格预算已满或格太窄）直接隐藏分栏控件而不是渲染禁用态，默认值为 false。
 
 tab 的 `kind` 是不透明字符串。种子 tab 是工厂（`DockControllerOptions`），因此新格里放什么由嵌入方决定，与本包无关。内容身份是二元组（`kind`、`contentId`）：`findContentTab(state, contentId, kind?)` 在任意位置找到展示它的 tab，`findPaneContentTab(state, paneId, contentId, kind?)` 在一个格内找；`planOpenContent` 会聚焦该 tab 而非再开一个，除非被告知 `revealIfOpened: false`；显式的 `index` 把新 tab 放到 tab 条的某个位置而非末尾。
 
-Sidebar 使用的 `DockLayout` 在选中项变化、跨格移动与浮动期间，把每个 tab 保留在稳定的 DOM 容器中。它接受一个停靠格或左右两个格，由 CSS Grid 计算宽度。`keepMounted(tab)` 保留已访问正文，`active` 控制 Session 可见性，不改变内容的父子关系。
+Sidebar 使用的 `DockLayout` 在选中项变化、跨格移动与浮动期间，把每个 tab 保留在稳定的 DOM 容器中。它接受一个停靠格，或左右并排、或上下叠放的两个格，由 CSS Grid 计算宽度或高度。拖动分割条时按指针在分割盒里的位置换算尺寸，因此分割条自身的按下坐标即使对不齐，尺寸仍跟着指针走。`keepMounted(tab)` 保留已访问正文，`active` 控制 Session 可见性，不改变内容的父子关系。
 
 `DockSurface` 是独立递归渲染器的停靠区。它周围的 chrome——轨道、折叠形态、任何历史控件——属于嵌入方，由嵌入方读取 `state.expanded` 后自行决定；套件不自带撤销/重做控件。嵌入方确实想放到面上的整面控件通过 `chrome` prop 传入，套件把它放在右上格 tab 条的最末端（每个横向分裂的最后一个子节点、每个纵向分裂的第一个子节点），因此停靠面不需要自己的标题行。`FloatLayer` 拥有自己的手势并以视口坐标定位浮窗，因此可以挂在任何位置，包括 portal 里。 两种浮窗渲染器都让标题栏与 Windows 顶栏至少间隔 20px（原生全屏时距视口顶部 20px），新建和恢复的浮窗均适用。拖动和调整大小从实际显示位置开始。两种渲染器都在内容上方提供四条 12px 边拖柄和四个 14px 角拖柄，边拖柄向面板盒子内外各延伸 6px，并显示水平、垂直与斜向缩放光标。外框不裁切拖柄，标题与正文各自保留圆角裁切。移动及缩放按下时阻止文字选择，不禁用正文平时的文字选择。调整大小时对边固定，遵守 220×140 最小尺寸和视口边界，松开后记录一次 `resizeFloat` 意图。
 

@@ -36,8 +36,12 @@ export interface DockSurfaceProps {
   readonly canSplit: boolean
   /** Hide a blocked split control — pane budget spent or pane too narrow — instead of rendering it disabled; defaults to false. */
   readonly hideSplitWhenBlocked?: boolean
-  /** Body drop geometry: all edge bands, or left/right halves with whole-pane moves once splitting is unavailable. */
-  readonly dropZones?: 'edges' | 'horizontal'
+  /**
+   * Body drop geometry. `edges` offers every band, `horizontal` offers left/right
+   * halves, and `split` offers the one edge the pointer is in — including a
+   * vertical split — falling back to a whole-pane move where that edge cannot split.
+   */
+  readonly dropZones?: 'edges' | 'horizontal' | 'split'
   /** Smallest share a divider may leave a pane; defaults to the kit's fraction. */
   readonly minPaneFraction?: number
   /**
@@ -89,6 +93,8 @@ interface DividerDrag {
   readonly origin: number
   /** The split's pixel extent along the axis, so travel converts to fractions. */
   readonly extent: number
+  /** The split box's start along the axis, so a pointer maps to a fraction of it. */
+  readonly start: number
   readonly sizes: readonly number[]
 }
 
@@ -108,6 +114,23 @@ const NO_FITS: ReadonlyMap<PaneId, HalvesFit> = new Map()
 const ALWAYS = (): boolean => true
 
 /**
+ * The edge band a pointer sits in, or the pane centre when that edge cannot
+ * split. A blocked edge stays a move onto the pane rather than no drop at all.
+ * @param rect - the pane's box.
+ * @param x - pointer x.
+ * @param y - pointer y.
+ * @param canSplit - whether another pane may still be created.
+ * @param fit - whether the pane has room for a horizontal or vertical pair.
+ * @returns the landing zone.
+ */
+function splitZone(rect: DOMRect, x: number, y: number, canSplit: boolean, fit: HalvesFit): 'left' | 'right' | 'top' | 'bottom' | 'center' {
+  const zone = zoneInRect(rect, x, y)
+  if (zone === 'center' || !canSplit) return 'center'
+  const room = zone === 'left' || zone === 'right' ? fit.row : fit.column
+  return room ? zone : 'center'
+}
+
+/**
  * Resolve where a pointer sits inside the docked surface. An edge zone is only
  * offered where the split it would make is allowed: within the pane budget and
  * with room for two halves; otherwise the release is not a move at all.
@@ -118,7 +141,7 @@ function hitTest(
   y: number,
   canSplit: boolean,
   fits: ReadonlyMap<PaneId, HalvesFit>,
-  dropZones: 'edges' | 'horizontal',
+  dropZones: 'edges' | 'horizontal' | 'split',
 ): DropTarget | undefined {
   for (const [paneId, pane] of paneElements(root)) {
     const rect = pane.getBoundingClientRect()
@@ -132,7 +155,9 @@ function hitTest(
       ? canSplit && fitOf(fits, paneId).row
         ? x < rect.x + rect.width / 2 ? 'left' : 'right'
         : 'center'
-      : zoneInRect(rect, x, y)
+      : dropZones === 'split'
+        ? splitZone(rect, x, y, canSplit, fitOf(fits, paneId))
+        : zoneInRect(rect, x, y)
     if (zone !== 'center') {
       const fit = fitOf(fits, paneId)
       const room = zone === 'left' || zone === 'right' ? fit.row : fit.column
@@ -143,11 +168,29 @@ function hitTest(
   return undefined
 }
 
-/** Fractions a divider drag has reached, clamped to the pane minimum. */
+/**
+ * Fractions a divider drag has reached, clamped to the pane minimum.
+ * The pointer maps onto the split box directly. A delta from the press point
+ * stays zero while the pointer has not actually moved, which a transformed
+ * divider reports for the whole gesture: its press coordinate is the
+ * post-transform point and later events stay pre-transform.
+ */
 function draggedSizes(drag: DividerDrag, x: number, y: number, minimum: number): readonly number[] {
-  const moved = (drag.axis === 'row' ? x : y) - drag.origin
-  const delta = drag.extent > 0 ? moved / drag.extent : 0
-  return clampSizes(dividerSizes(drag.sizes, drag.index, delta), minimum)
+  const pointer = drag.axis === 'row' ? x : y
+  const placed = drag.extent > 0 && pointer !== drag.origin
+    ? pointerFraction(drag, pointer) - boundaryFraction(drag)
+    : drag.extent > 0 ? (pointer - drag.origin) / drag.extent : 0
+  return clampSizes(dividerSizes(drag.sizes, drag.index, placed), minimum)
+}
+
+/** Fraction of the split the pointer sits at, measured from the split's start. */
+function pointerFraction(drag: DividerDrag, pointer: number): number {
+  return Math.min(Math.max((pointer - drag.start) / drag.extent, 0), 1)
+}
+
+/** Fraction where the dragged boundary sits: the end of the neighbour it follows. */
+function boundaryFraction(drag: DividerDrag): number {
+  return drag.sizes.slice(0, drag.index + 1).reduce((sum, size) => sum + size, 0)
 }
 
 /** Fractions closer than this are the same split: renormalizing recorded sizes moves them by no more. */
@@ -258,6 +301,7 @@ function Surface({
         axis: split.axis,
         origin: split.axis === 'row' ? event.clientX : event.clientY,
         extent: split.axis === 'row' ? box.width : box.height,
+        start: split.axis === 'row' ? box.x : box.y,
         sizes: split.sizes,
       }
       // A release that left the fractions where they were — a click on the
@@ -280,6 +324,7 @@ function Surface({
     canCloseTab: canCloseTab ?? ALWAYS,
     dropTarget: preview.dropTarget,
     horizontalDrops: dropZones === 'horizontal',
+    splitDrops: dropZones === 'split',
     draggingTabId: preview.draggingTabId,
     labels,
     renderTab,

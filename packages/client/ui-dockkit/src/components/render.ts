@@ -33,6 +33,8 @@ export interface PaneCallbacks {
   readonly dropTarget: DropTarget | undefined
   /** Show both horizontal landing regions while a body split is being targeted. */
   readonly horizontalDrops?: boolean
+  /** Highlight the one edge the pointer is in, including a vertical split. */
+  readonly splitDrops?: boolean
   /** Tab currently being dragged, so its chip can render as lifted. */
   readonly draggingTabId: TabId | undefined
   readonly labels: DockLabels
