@@ -319,6 +319,13 @@ Project operations are available to every window after the workspace's one-time 
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) status(request: WorkspaceRequest): TraceStatus
 
+/** Stream workspace switches initially and after saved setting changes.
+ * @param request Workspace selection.
+ * @param signal Remote stream lifetime.
+ * @returns Current switches, including when recording is disabled.
+ */
+@Remote({ mode: 'stream', resources: { workspace: request => request.workspaceId } }) async *followStatus(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<TraceStatus>
+
 /** Authorize recording once; an existing project identity is reused.
  * @param request Workspace and optional UI window.
  * @returns Committed switches.
@@ -368,8 +375,8 @@ Project operations are available to every window after the workspace's one-time 
 @Remote({ resources: { workspace: request => request.workspaceId } }) listItems(request: WorkspaceRequest): TraceItem[]
 
 /** Page a single item's timeline, or unassigned activity, by monotonic event number.
- * @param request Workspace, item filter, exclusive cursor (default zero), and page size (default 100).
- * @returns Ordered events, references, and continuation cursor.
+ * @param request Workspace, item filter, exclusive cursor (omitted starts the selection), and page size (default 100).
+ * @returns Item events oldest first or unassigned events newest first, references, and continuation cursor.
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) timeline(request: TimelineRequest): TimelinePage
 
@@ -434,9 +441,9 @@ Project operations are available to every window after the workspace's one-time 
  */
 @Remote({ mode: 'stream', resources: { workspace: request => request.workspaceId } }) async *followDecisions(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<DecisionRevision[]>
 
-/** Read a referenced session slice from SessionPersistence, or a durable diff file.
+/** Read stored reply text, a referenced session slice, or a durable diff file.
  * @param request Workspace and database-owned reference identity.
- * @returns Reference metadata and source JSON text; attachments return their declared path.
+ * @returns Reference metadata and JSON reply string or source events; diffs return JSON and attachments their declared path.
  */
 @Remote({ resources: { workspace: request => request.workspaceId } }) async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent>
 

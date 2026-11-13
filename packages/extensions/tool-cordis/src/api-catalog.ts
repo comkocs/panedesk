@@ -5811,6 +5811,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Saved switches, or disabled defaults.',
       },
       {
+        signature: '@Remote({ mode: \'stream\', resources: { workspace: request => request.workspaceId } }) async *followStatus(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<TraceStatus>',
+        description: 'Stream workspace switches initially and after saved setting changes.',
+        parameters: [{ name: 'request', description: 'Workspace selection.' }, { name: 'signal', description: 'Remote stream lifetime.' }],
+        returns: 'Current switches, including when recording is disabled.',
+      },
+      {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) enable(request: WorkspaceRequest): Promise<TraceStatus>',
         description: 'Authorize recording once; an existing project identity is reused.',
         parameters: [{ name: 'request', description: 'Workspace and optional UI window.' }],
@@ -5861,8 +5867,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) timeline(request: TimelineRequest): TimelinePage',
         description: 'Page a single item\'s timeline, or unassigned activity, by monotonic event number.',
-        parameters: [{ name: 'request', description: 'Workspace, item filter, exclusive cursor (default zero), and page size (default 100).' }],
-        returns: 'Ordered events, references, and continuation cursor.',
+        parameters: [{ name: 'request', description: 'Workspace, item filter, exclusive cursor (omitted starts the selection), and page size (default 100).' }],
+        returns: 'Item events oldest first or unassigned events newest first, references, and continuation cursor.',
       },
       {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) assignEvents(request: ItemRequest & { eventIds: number[] }): Promise<void>',
@@ -5926,9 +5932,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent>',
-        description: 'Read a referenced session slice from SessionPersistence, or a durable diff file.',
+        description: 'Read stored reply text, a referenced session slice, or a durable diff file.',
         parameters: [{ name: 'request', description: 'Workspace and database-owned reference identity.' }],
-        returns: 'Reference metadata and source JSON text; attachments return their declared path.',
+        returns: 'Reference metadata and JSON reply string or source events; diffs return JSON and attachments their declared path.',
       },
       {
         signature: 'registerSettingSource(key: string, read: SettingSource): () => void',
