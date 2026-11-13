@@ -13,7 +13,7 @@ kind: "package-reference"
 
 ## 使用本包
 
-包入口导出 `ACTIVITY_CATEGORIES`、`ACTIVITY_RULES`、`ACTIVITY_REFUSAL`、`classifyActivity`、`activitySummary` 及对应类型。`activityCategory.classify(toolName, args, session)` 解析调用任务确认新建的路径与工作区规则；`activityCategory.read(sessionId)` 返回各类次数、累计毫秒、占比和当前或上一操作。子代理一次激活算一个任务；主窗已提交的人工来源消息开启任务，合成通知不重置任务。新的子代理激活重置自身统计。
+包入口导出 `ACTIVITY_CATEGORIES`、`ACTIVITY_RULES`、`ACTIVITY_REFUSAL`、`classifyActivity`、`commandSegments`、`activitySummary` 及对应类型。`commandSegments` 按 `;`、`&&`、`||`、换行或管道把一条命令切成各段，引号内的分隔符仍留在该段。`activityCategory.classify(toolName, args, session)` 解析调用任务确认新建的路径与工作区规则；`activityCategory.read(sessionId)` 返回各类次数、累计毫秒、占比和当前或上一操作。子代理一次激活算一个任务；主窗已提交的人工来源消息开启任务，合成通知不重置任务。新的子代理激活重置自身统计。
 
 `projects` 缺省为空字典，以规范工作区路径为键，值为有序 `{ contains, category }` 行。首个非空文字匹配覆盖默认命令类别。工作区选择器与编辑器位于「Panedesk 特色设置」；值使用既有运行配置，不写用户项目文件。归类规则是显示偏好，不是执行开关。
 

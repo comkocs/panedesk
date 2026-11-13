@@ -42,6 +42,10 @@ export function ConversationContent(props: ConversationContentProps) {
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<WorkspaceId | undefined>()
+  // The Host has opened this pick and reported it back. A ready list that has
+  // not accounted the Session yet must not drop the pick; only a failed open
+  // or a Workspace that leaves the list does.
+  const [claimedWorkspaceId, setClaimedWorkspaceId] = useState<WorkspaceId | undefined>()
   const pickerAnchor = useRef<HTMLButtonElement>(null)
 
   // Publishes the two live measurements floating View chrome reads off the
@@ -76,14 +80,18 @@ export function ConversationContent(props: ConversationContentProps) {
   )
 
   // Clear the pending pick once the session lands in it, or when the picked
-  // workspace disappears from a ready list (deleted from the sidebar).
+  // workspace disappears from a ready list (deleted from the sidebar). A pick
+  // the Host already opened stays until the list accounts the Session: the
+  // ready list can lag the Host's attach by one refresh.
   useEffect(() => {
     if (pendingWorkspaceId === undefined) return
+    const claimed = claimedWorkspaceId === pendingWorkspaceId
     if (sessionWorkspace?.workspaceId === pendingWorkspaceId
-      || (workspaces.phase === 'ready' && pendingWorkspace === undefined)) {
+      || (workspaces.phase === 'ready' && pendingWorkspace === undefined && !claimed)) {
       setPendingWorkspaceId(undefined)
+      setClaimedWorkspaceId(undefined)
     }
-  }, [pendingWorkspaceId, sessionWorkspace?.workspaceId, workspaces.phase, pendingWorkspace])
+  }, [claimedWorkspaceId, pendingWorkspaceId, sessionWorkspace?.workspaceId, workspaces.phase, pendingWorkspace])
 
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
@@ -125,9 +133,11 @@ export function ConversationContent(props: ConversationContentProps) {
         onPick: (workspaceId) => {
           setPickerOpen(false)
           setPendingWorkspaceId(workspaceId)
-          void selectWorkspace(workspaceId).catch(() => {
-            setPendingWorkspaceId(current => current === workspaceId ? undefined : current)
-          })
+          setClaimedWorkspaceId(undefined)
+          void selectWorkspace(workspaceId).then(
+            () => { setClaimedWorkspaceId(workspaceId) },
+            () => { setPendingWorkspaceId(current => current === workspaceId ? undefined : current) },
+          )
         },
         onClose: () => { setPickerOpen(false) },
       })}

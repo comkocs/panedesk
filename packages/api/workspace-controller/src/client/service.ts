@@ -112,6 +112,12 @@ export interface IWorkspaces {
     sessionId: SessionId,
     beforeSessionId?: SessionId,
   ): Promise<WorkspaceView>
+  /**
+   * Show one Session under its Workspace before the Host's attach push lands.
+   * @param workspaceId - Workspace the Session was opened in.
+   * @param sessionId - Session the Host created or reused for it.
+   */
+  accountSession(workspaceId: WorkspaceId, sessionId: SessionId): void
 }
 
 /** Owns the bare Workspace snapshot and Workspace-only commands. */
@@ -148,6 +154,10 @@ export class WorkspaceController extends Service implements IWorkspaces {
   async delete(workspaceId: WorkspaceId): Promise<void> {
     const result = await this.model.delete(workspaceId)
     if (!result.ok) throw commandError('delete', result.error)
+  }
+
+  accountSession(workspaceId: WorkspaceId, sessionId: SessionId): void {
+    this.model.accountSession(workspaceId, sessionId)
   }
 
   async insertBefore(workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId): Promise<void> {

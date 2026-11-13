@@ -1,7 +1,7 @@
 /** Workspace verification decisions shared by native tools and nested programmatic calls. */
 import { Context, Service } from '@panedesk/cordis'
 import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
-import { ACTIVITY_CATEGORIES, ACTIVITY_REFUSAL, type ActivityCategory } from '@panedesk/dsh-activity-category'
+import { ACTIVITY_CATEGORIES, ACTIVITY_REFUSAL, commandSegments, type ActivityCategory } from '@panedesk/dsh-activity-category'
 import { deadline, timeoutOf } from '@panedesk/dsh-timeout'
 import type { Session } from '@panedesk/dsh-session'
 import type { ToolExecution, ToolExecutionToken, PreToolDecision } from '@panedesk/dsh-tools'
@@ -98,6 +98,7 @@ export default class VerificationPolicy extends TypertRemoteService {
     const settings = this.forSession(session)
     if (!settings.enabled) return next()
     const classified = await this.ctx.activityCategory.classify(exec.name, exec.arguments as Record<string, unknown>, session)
+    const fullSegments = await this.fullRunSegments(exec.name, exec.arguments as Record<string, unknown>, session)
     const { taskId, rootTaskId } = this.ctx.activityCategory.taskIdentity(session)
     const tags = [classified.category, ...(classified.selfWrittenScript ? ['script' as const] : [])]
     const switches: Partial<Record<ActivityCategory, boolean>> = {
@@ -122,16 +123,38 @@ export default class VerificationPolicy extends TypertRemoteService {
         decision = { kind: 'ask', reason: en, displayReason: { en, zh } }
       }
     }
-    if (classified.category === 'test-full' && settings.fullTests === 'once') {
+    // A command the whole-call classifier reads as focused can still contain a
+    // later full run (`echo x; pnpm test -k a; pnpm test`). Count those segments
+    // under the same once allowance.
+    if (settings.fullTests === 'once' && (classified.category === 'test-full' || fullSegments > 0)) {
       const totals = await this.ctx.activityCategory.readRootTurn(session)
       const turn = this.fullTurns.get(rootTaskId) ?? { used: false, pending: new Set<ToolExecutionToken>() }
       this.fullTurns.set(rootTaskId, turn)
-      if (turn.used || turn.pending.size > 0 || (totals?.totals.find(row => row.category === 'test-full')?.count ?? 0) > 0) return this.refusal('test-full', true)
+      // One command that runs the full suite twice spends the allowance twice.
+      if (fullSegments > 1 || turn.used || turn.pending.size > 0 || (totals?.totals.find(row => row.category === 'test-full')?.count ?? 0) > 0) return this.refusal('test-full', true)
       // Reserve synchronously after the ledger read so sibling agents cannot both pass an empty snapshot.
       turn.pending.add(exec.token)
       this.reservations.set(exec.token, rootTaskId)
     }
     return decision
+  }
+
+  /**
+   * Count the segments of one command the classifier reads as a full run.
+   * A command without segments counts as the whole call's own category.
+   * @param toolName - tool under decision.
+   * @param args - parsed tool arguments.
+   * @param session - calling session, so each segment keeps the call's rules.
+   * @returns how many segments classify as a full run.
+   */
+  private async fullRunSegments(toolName: string, args: Record<string, unknown>, session: Session): Promise<number> {
+    const command = args['command']
+    if (typeof command !== 'string') return 0
+    const segments = commandSegments(command).filter(segment => segment.trim().length > 0)
+    if (segments.length < 2) return segments.length
+    const classified = await Promise.all(segments.map(segment =>
+      this.ctx.activityCategory.classify(toolName, { ...args, command: segment }, session)))
+    return classified.filter(item => item.category === 'test-full').length
   }
 
   /** Append checklist prohibitions for an exact task without changing workspace settings.

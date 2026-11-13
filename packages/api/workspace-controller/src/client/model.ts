@@ -3,6 +3,7 @@
 import { notifySubscribers } from '@panedesk/dsh-client-store'
 import type {} from '@panedesk/dsh-api-workspace-controller/remote'
 import { isRemoteFailure } from '@panedesk/dsh-api-gateway/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
 import type { RemoteFailure, RemoteResult, TypertClientRemote } from '@panedesk/dsh-typert-protocol'
 import type {
   WorkspaceArchiveSessionRequest,
@@ -277,6 +278,18 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
   /** Merge one decoded Workspace upsert from the current follow generation. */
   upsertView(workspace: WorkspaceView): void {
     this.upsert(workspace)
+  }
+
+  /**
+   * Account one Session to a Workspace before the Host's attach push arrives.
+   * The next Host projection replaces this row, so a refused attach does not stick.
+   * @param workspaceId - Workspace the Session was opened in.
+   * @param sessionId - Session the Host created or reused for it.
+   */
+  accountSession(workspaceId: WorkspaceId, sessionId: SessionId): void {
+    const current = this.items.find(item => item.workspaceId === workspaceId)
+    if (current === undefined || current.sessionIds.includes(sessionId)) return
+    this.upsert({ ...current, sessionIds: [sessionId, ...current.sessionIds] })
   }
 
   /** Apply one decoded Workspace removal from the current follow generation. */
