@@ -34,9 +34,6 @@ export function apply(ctx: Context): void {
     async execute(args, exec) {
       if (exec.agent === undefined) throw new Error('working_directory requires an agent Session')
       const cd = args.cd?.trim() ?? ''
-      if (cd.length === 0 && args.cd !== undefined && args.cd.length > 0) {
-        throw new Error('working_directory: cd is only whitespace. Omit cd to read the current directory, or pass an existing directory path.')
-      }
       const cwd = cd.length === 0
         ? await ctx.workingDirectory.ensure(exec.agent, exec.signal)
         : await ctx.workingDirectory.set(exec.agent, cd, exec.signal)
