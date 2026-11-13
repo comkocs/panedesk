@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.13
+
+### Added
+
+- Subagent presets: a Subagent presets button on the new-session screen and a page under Panedesk settings define three task tiers with editable criteria and an optional model and reasoning effort each, which duties the main session keeps, and whether subagents may delegate further. While on, the presets are added to the system prompt as guidance: the main session sees the tiers and its duties, and a subagent sees the nested-delegation rule.
+
 ## 2.0.12
 
 ### Fixed
