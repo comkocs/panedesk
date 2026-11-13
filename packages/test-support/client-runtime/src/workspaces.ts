@@ -130,6 +130,24 @@ export class TestWorkspaces implements IWorkspaces {
    * @param beforeSessionId - anchor; omitted appends.
    * @returns the updated view.
    */
+  /**
+   * Account one Session before the Host push (recorded). The default adds it to the listed row.
+   * @param workspaceId - Workspace the Session was opened in.
+   * @param sessionId - Session the Host created or reused for it.
+   */
+  accountSession(workspaceId: WorkspaceId, sessionId: SessionId): void {
+    this.calls.push({ method: 'accountSession', args: [workspaceId, sessionId] })
+    const stub = this.stubs.get('accountSession')
+    if (stub !== undefined) { stub(workspaceId, sessionId); return }
+    const snapshot = this.list.getSnapshot()
+    const row = snapshot.items.find(item => item.workspaceId === workspaceId)
+    if (row === undefined || row.sessionIds.includes(sessionId)) return
+    const items = snapshot.items.map(item => item === row
+      ? { ...item, sessionIds: [sessionId, ...item.sessionIds] }
+      : item)
+    this.list.set({ ...snapshot, items })
+  }
+
   async insertSessionBefore(workspaceId: WorkspaceId, sessionId: SessionId, beforeSessionId?: SessionId): Promise<WorkspaceView> {
     this.calls.push({ method: 'insertSessionBefore', args: [workspaceId, sessionId, beforeSessionId] })
     const stub = this.stubs.get('insertSessionBefore')

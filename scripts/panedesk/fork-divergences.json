@@ -70,7 +70,7 @@
       "id": "workspace-verification-switches",
       "description": "Enforce workspace verification switches before native and programmatic tool calls",
       "origin": "Panedesk verification controls",
-      "reason": "Keep user-owned switches in versioned workspace storage, share activity classification and timing, limit full tests across a root turn, and expose task restrictions to verification checklists.",
+      "reason": "Keep user-owned switches in versioned workspace storage, share activity classification and timing, limit full tests across a root turn including two or more full runs inside one command, and expose task restrictions to verification checklists.",
       "match": {
         "type": "behavior",
         "paths": [

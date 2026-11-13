@@ -243,6 +243,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     readonly timingId?: NewSessionTimingId
   }): Promise<SessionId> {
     const sessionId = await this.sessions.create(request)
+    // The Host accounts the Session before this returns, but the Workspace list
+    // can lag that attach by one push. Show it under the Workspace immediately.
+    this.workspaces.accountSession(request.workspaceId, sessionId)
     const named = request.sessionId
     if (named !== undefined && named !== sessionId) {
       void this.sessions.refreshProjections(named).catch((reason: unknown) => {
@@ -301,8 +304,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       throw error
     }
     if (navigation.aborted) return false
+    // replaceMain reveals the Conversation by selecting the empty panel, and
+    // that selection aborts the navigation it just committed. The page is
+    // shown when the replacement itself ran; the abort is not a failure.
     this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
-    return !navigation.aborted
+    return true
   }
 
   async forkSession(
@@ -394,8 +400,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const reference = this.mainReference
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const pageShown = shown && reference === this.mainReference && !this.lifetime.signal.aborted
-          const sessionId = pageShown ? reference?.sessionId : undefined
+          // A click that reopens the blank Session already on screen keeps the
+          // same page reference and does not move the panel, so the report is
+          // the page staying put, not a page that failed to appear.
+          const pageShown = shown && (reference === undefined || reference === this.mainReference) && !this.lifetime.signal.aborted
+          const sessionId = pageShown ? this.mainReference?.sessionId : undefined
           void this.ctx.remote.session.recordNewSessionTiming({
             timingId,
             clientElapsedMs: Math.round(performance.now() - startedAt),

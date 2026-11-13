@@ -32,6 +32,40 @@ interface MatchInput {
   selfWrittenScript: boolean
 }
 
+/**
+ * Split one shell command into the segments a separator runs on its own.
+ * `;`, `&&`, `||`, a newline, and a pipe each start another segment. A
+ * separator inside quotes stays part of its segment.
+ * @param command - raw command text from one tool call.
+ * @returns one string per segment, in order, without the separators.
+ */
+export function commandSegments(command: string): readonly string[] {
+  const segments: string[] = []
+  let current = ''
+  let quote: "'" | '"' | undefined
+  const push = (): void => {
+    segments.push(current)
+    current = ''
+  }
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index]!
+    if (quote !== undefined) {
+      current += char
+      if (char === quote) quote = undefined
+      continue
+    }
+    if (char === "'" || char === '"') { quote = char; current += char; continue }
+    if (char === '\n' || char === '\r' || char === ';' || char === '|' || char === '&') {
+      if ((char === '|' || char === '&') && command[index + 1] === char) index++
+      push()
+      continue
+    }
+    current += char
+  }
+  push()
+  return segments
+}
+
 /** Split command words while retaining quoted paths and shell command separators. */
 function words(command: string): string[] {
   return (command.match(/(?:[^\s'";&|]+|'[^']*'|"[^"]*")+|&&|\|\||[;&|]/g) ?? [])
