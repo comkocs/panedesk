@@ -388,7 +388,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return workspace !== undefined && this.reusableBlank(workspace) !== undefined ? 'reused' : 'created'
   }
 
-  /** Report after the selection has rendered and one frame has had a chance to paint. */
+  /**
+   * Report one click. A click that stays on the blank page already showing
+   * reports at once: waiting for animation frames never runs while the desktop
+   * window is in the background, so that click wrote no line. A click that
+   * navigates still waits for two frames so the opened view can paint.
+   */
   private recordClick(
     timingId: NewSessionTimingId,
     startedAt: number,
@@ -396,25 +401,35 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     opening: Promise<boolean>,
     kind: NewSessionClickKind,
   ): void {
+    const report = (pageShown: boolean, sessionId: SessionId | undefined): void => {
+      void this.ctx.remote.session.recordNewSessionTiming({
+        timingId,
+        clientElapsedMs: Math.round(performance.now() - startedAt),
+        pageShown,
+        kind,
+        ...(workspaceId === undefined ? {} : { workspaceId }),
+        ...(sessionId === undefined ? {} : { sessionId }),
+      }).then(result => {
+        if (!result.ok) console.warn('new session timing failed:', result.error)
+      }).catch((error: unknown) => { console.warn('new session timing failed:', error) })
+    }
     const settled = (shown: boolean): void => {
       const reference = this.mainReference
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // A click that reopens the blank Session already on screen keeps the
-          // same page reference and does not move the panel, so the report is
-          // the page staying put, not a page that failed to appear.
+      // A click that reopens the blank Session already on screen keeps the
+      // same page reference and does not move the panel, so the report is
+      // the page staying put, not a page that failed to appear.
+      const staying = shown && reference !== undefined && reference === this.mainReference && !this.lifetime.signal.aborted
+      if (staying) {
+        report(true, reference.sessionId)
+        return
+      }
+      const paint = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame
+        : (callback: FrameRequestCallback): number => { callback(0); return 0 }
+      paint(() => {
+        paint(() => {
           const pageShown = shown && (reference === undefined || reference === this.mainReference) && !this.lifetime.signal.aborted
-          const sessionId = pageShown ? this.mainReference?.sessionId : undefined
-          void this.ctx.remote.session.recordNewSessionTiming({
-            timingId,
-            clientElapsedMs: Math.round(performance.now() - startedAt),
-            pageShown,
-            kind,
-            ...(workspaceId === undefined ? {} : { workspaceId }),
-            ...(sessionId === undefined ? {} : { sessionId }),
-          }).then(result => {
-            if (!result.ok) console.warn('new session timing failed:', result.error)
-          }).catch((error: unknown) => { console.warn('new session timing failed:', error) })
+          report(pageShown, pageShown ? this.mainReference?.sessionId : undefined)
         })
       })
     }

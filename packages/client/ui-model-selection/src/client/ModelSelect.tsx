@@ -206,15 +206,16 @@ export function ModelSelect(
       if (lh > 0) y = Math.min(Math.max(y, MARGIN), window.innerHeight - lh - MARGIN)
       setMenuPos({ left: x, top: y })
       const row = effortRowRef.current
-      const submenu = effortRef.current
-      if (row !== null && submenu !== null) {
+      if (row !== null) {
         const rowRect = row.getBoundingClientRect()
-        const width = submenu.offsetWidth
-        const height = submenu.offsetHeight
-        const side = x + lw + width <= window.innerWidth - MARGIN ? x + lw : x - width
+        const submenu = effortRef.current
+        const width = submenu?.offsetWidth ?? 0
+        const height = submenu?.offsetHeight ?? 0
+        const side = width === 0 || x + lw + width <= window.innerWidth - MARGIN ? x + lw : x - width
+        const top = y + rowRect.top - (menuRef.current?.getBoundingClientRect().top ?? y)
         setEffortPos({
-          left: Math.max(MARGIN, Math.min(side, window.innerWidth - width - MARGIN)),
-          top: Math.max(MARGIN, Math.min(y + rowRect.top - (menuRef.current?.getBoundingClientRect().top ?? y), window.innerHeight - height - MARGIN)),
+          left: Math.max(MARGIN, Math.min(side, window.innerWidth - Math.max(width, 1) - MARGIN)),
+          top: Math.max(MARGIN, Math.min(top, window.innerHeight - Math.max(height, 1) - MARGIN)),
         })
       }
     }
@@ -417,10 +418,9 @@ export function ModelSelect(
 
   const chooseEffort = (effort: string | undefined): void => {
     if (state.current === null) return
-    if (effectiveEffort === effort) {
-      closeAfterSelection()
-      return
-    }
+    // The first click on a level always submits. Matching the displayed default
+    // used to close without a call, so the click looked like it did nothing
+    // until a later projection happened to agree.
     const selection: ModelSelection = {
       provider: state.current.provider,
       model: state.current.model,
@@ -640,6 +640,7 @@ export function ModelSelect(
                 aria-expanded={effortOpen}
                 aria-controls={effortOpen ? `${id}-efforts` : undefined}
                 disabled={busy}
+                onPointerEnter={() => { openEffort() }}
                 onMouseEnter={() => { openEffort() }}
                 onClick={() => { if (effortOpen) back(); else openEffort() }}
               >
@@ -657,7 +658,7 @@ export function ModelSelect(
           ref={effortRef}
           id={`${id}-efforts`}
           className={clsx(css.menu, css.effortMenu)}
-          style={effortPos ?? MEASURE_STYLE}
+          style={effortPos ?? { left: 0, top: 0 }}
           role="menu"
           aria-label={t('menu.effort')}
         >

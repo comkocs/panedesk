@@ -321,7 +321,7 @@ function SidebarPanel(panel: PanelProps & { width: number; panelRef: RefObject<H
         <DockLayout
           state={surface.layout}
           canSplit={canSplit(surface.layout) && dockPaneIds(surface.layout).length < 2}
-          dropZones="horizontal"
+          dropZones="split"
           minPaneFraction={0.2}
           canAddTab={paneId => guideIn(surface.layout, paneId) === undefined}
           canCloseTab={tabId => canCloseTab(surface, tabId)}

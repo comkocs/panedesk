@@ -43,6 +43,12 @@ export class ModelDirectory {
 
   /** Latest selection operation wins; an older response never overwrites a newer one. */
   private generation = 0
+  /**
+   * The selection the latest successful submit asked for. The durable projection
+   * arrives a frame later, and reading it immediately would paint the previous
+   * effort back over the click that just landed.
+   */
+  private accepted: ModelSelection | null = null
   private disposed = false
   private readonly unsubscribeCatalog: () => void
   private readonly unsubscribeSelection: () => void
@@ -122,6 +128,11 @@ export class ModelDirectory {
         ...this.isBlank() ? {} : { session_id: this.sessionId }, model_name: to, switch_from: previousEffort ?? 'default', switch_to: nextEffort ?? 'default',
       })
     }
+    this.accepted = {
+      provider: selection.provider,
+      model: selection.model,
+      ...nextEffort === undefined ? {} : { reasoningEffort: nextEffort },
+    }
     this.store.update((s) => { s.status = 'ready'; s.pending = null; s.error = null })
     this.syncInputs()
     return { ok: true, value: undefined }
@@ -176,7 +187,9 @@ export class ModelDirectory {
       })
       return
     }
-    const selection = projected.next ?? catalog.value.default
+    const projectedSelection = projected.next ?? catalog.value.default
+    if (this.accepted !== null && sameSelection(projectedSelection, this.accepted)) this.accepted = null
+    const selection = this.accepted ?? projectedSelection
     const routable = catalog.value.groups.some(group => group.id === selection.provider
       && group.models.some(model => model.id === selection.model))
     this.store.set({
@@ -196,4 +209,10 @@ export class ModelDirectory {
 
 function modelSelectionProjection(value: unknown): ModelSelectionProjection | undefined {
   return value === undefined ? undefined : value as ModelSelectionProjection
+}
+
+/** Whether two selections name the same provider, model, and effort. An omitted effort matches only another omission. */
+function sameSelection(left: ModelSelection, right: ModelSelection): boolean {
+  return left.provider === right.provider && left.model === right.model
+    && left.reasoningEffort === right.reasoningEffort
 }

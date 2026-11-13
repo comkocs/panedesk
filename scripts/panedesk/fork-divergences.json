@@ -14,6 +14,21 @@
       }
     },
     {
+      "id": "start-page-clicks-split-edges-and-immediate-effort",
+      "description": "Report a repeated New Session click on the page already showing, resize a split from the pointer, and open effort levels at once",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "A click that stays on the blank page already showing reports its timing immediately. A divider drag follows the pointer's place in the split, a tab dropped on a panel edge splits that pane above, below, or beside, and the effort card opens as the pointer enters its row, with the first click on a level taking effect.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-workspace/**",
+          "packages/client/ui-dockkit/**",
+          "packages/client/ui-model-selection/**",
+          "packages/client/ui-sidebar-right/**"
+        ]
+      }
+    },
+    {
       "id": "direct-model-list-effort-submenu-and-local-order",
       "description": "Open the model list directly with an effort submenu and local drag ordering",
       "origin": "Panedesk desktop interaction feedback",
