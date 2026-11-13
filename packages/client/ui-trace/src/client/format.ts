@@ -115,7 +115,10 @@ function eventAction(event: TraceEvent, t: TraceText): string {
   }
   if (event.type === 'tool/call') return t('ranCommand', { summary: summary ?? '' })
   if (event.type === 'user/message') return t('saidSomething')
-  if (event.type === 'assistant/message') return summary === undefined ? t('replied') : t('repliedWith', { summary })
+  if (event.type === 'assistant/message') {
+    const reply = payloadText(event.payload, 'text')?.slice(0, 30)
+    return reply === undefined ? t('replied') : t('repliedWith', { summary: reply })
+  }
   if (event.type === 'session/started') return t('started')
   if (event.type === 'session/ended') return t('ended')
   if (event.type === 'session/linked') return t('linkedSession')
@@ -139,7 +142,8 @@ export function referenceText(content: ReferenceContent): string {
     return diff.kind === 'text' ? `${diff.path}\n${diff.hunks!.flatMap(hunk => hunk.lines).join('\n')}` : diff.path
   }
   if (content.reference.kind !== 'session-slice') return content.text
-  const events = JSON.parse(content.text) as SessionEvent[]
+  const events = JSON.parse(content.text) as string | SessionEvent[]
+  if (typeof events === 'string') return events
   return events.map(event => {
     if (event.type === 'assistant/message' || event.type === 'user/message') {
       const message = event.type === 'assistant/message' ? event.data.message : event.data

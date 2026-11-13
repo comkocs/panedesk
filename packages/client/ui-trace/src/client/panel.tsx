@@ -34,14 +34,15 @@ export function TracePanel(props: Props) {
   const workspaces = props.useWorkspaces(value => value.items)
   const workspace = workspaces.find(item => item.sessionIds.includes(props.sessionId))
   const [page, setPage] = useState<'items' | 'decisions'>('items')
-  const [revision, setRevision] = useState(0)
-  const resource = props.useResource<'trace'>(workspace === undefined ? '' : `dsh-resource://trace/${encodeURIComponent(workspace.workspaceId)}?revision=${revision}`)
+  const [notice, setNotice] = useState<string | null>(null)
+  const resource = props.useResource<'trace'>(workspace === undefined ? '' : `dsh-resource://trace/${encodeURIComponent(workspace.workspaceId)}`)
   const status = resource.value?.status ?? null
   const failed = resource.status === 'failed'
   if (workspace === undefined) return <section className={css.tab}><p>{props.t('off')}</p></section>
-  return <section className={css.tab}>
+  return <section className={css.tab} onClickCapture={() => { setNotice(null) }} onChangeCapture={() => { setNotice(null) }}>
     <h1 className={css.heading}>{props.t('title')}</h1>
     <p>{props.t('description')}</p>
+    {notice !== null && <p role="status">{notice}</p>}
     {failed && <p role="alert">{props.t('failed', { reason: resource.failure!.message })}</p>}
     {status === null && !failed && <p role="status">{props.t('loading')}</p>}
     {status !== null && !status.enabled && <section>
@@ -54,21 +55,20 @@ export function TracePanel(props: Props) {
         <Button variant={page === 'decisions' ? 'primary' : 'outline'} onClick={() => { setPage('decisions') }}>{props.t('decisions')}</Button>
       </div>
       {page === 'items'
-        ? <ItemsPage {...props} workspaceId={workspace.workspaceId} strict={status.strict} changed={() => { setRevision(value => value + 1) }} />
+        ? <ItemsPage {...props} workspaceId={workspace.workspaceId} setNotice={setNotice} />
         : <DecisionsPage {...props} workspaceId={workspace.workspaceId} strict={status.strict} />}
     </section>}
   </section>
 }
 
-function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, t, workspaceId, changed }:
-  Props & { workspaceId: WorkspaceId; strict: boolean; changed: () => void }) {
+function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, t, workspaceId, setNotice }:
+  Props & { workspaceId: WorkspaceId; setNotice: (notice: string | null) => void }) {
   const [tick, setTick] = useState(0)
   const [selected, setSelected] = useState<ItemId | null>(null)
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const [title, setTitle] = useState('')
   const [opened, setOpened] = useState<ReferenceContent | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const stamp = `${encodeURIComponent(workspaceId)}?revision=${tick}`
   const itemsResource = useResource<'traceitems'>(`dsh-resource://traceitems/${stamp}`)
   const looseResource = useResource<'tracetimeline'>(`dsh-resource://tracetimeline/${stamp}`)
@@ -81,7 +81,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const open = items?.find(item => item.id === selected)
   const show = (itemId: ItemId): void => { setSelected(itemId) }
   const download = (name: string, text: string, type: string): void => {
-    const safe = name.replace(/[^\w.-]+/g, '_').replace(/^\.+/, '') || 'item'
+    const safe = name.replace(/[<>:"/\\|?*\u0000-\u001f\u007f-\u009f]/g, '_')
     try {
       const link = document.createElement('a')
       const url = URL.createObjectURL(new Blob([text], { type }))
@@ -102,14 +102,13 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const closedItems = items?.filter(item => item.status !== 'open') ?? []
   return <section>
     {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
-    {notice !== null && <p role="status">{notice}</p>}
     {readFailure && <p role="alert">{t('failed', { reason: readFailure.message })}</p>}
     <div className={css.row}>
       <label>{t('itemTitle')}<Input value={title} onChange={event => { setTitle(event.target.value) }} /></label>
       <Button variant="primary" disabled={title.trim() === ''} onClick={() => {
         void createItem(workspaceId, title.trim(), sessionId).then(result => {
           if (!result.ok) { setFailure(result.error.message); return }
-          setFailure(null); setTitle(''); setTick(value => value + 1); changed(); show(result.value.id)
+          setFailure(null); setTitle(''); setTick(value => value + 1); show(result.value.id)
         }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
       }}>{t('create')}</Button>
     </div>
@@ -123,20 +122,20 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
       <p>{sourceLine(open.source, t)}</p>
       {events.length === 0 && <p>{t('timelineEmpty')}</p>}
       <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
-        <span>{eventLine(event, t)}</span>
-        {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" onClick={() => {
+        <span className={css.activity}>{eventLine(event, t)}</span>
+        {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" size="sm" className={css.reference} onClick={() => {
           void reference(workspaceId, row.id).then(result => {
             if (!result.ok) { setFailure(result.error.message); return }
             setOpened({ ...result.value, text: referenceText(result.value) }); setFailure(null)
           }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
-        }}>{t('viewReference')}: {row.summary}</Button>)}
+        }}>{t('viewReference')}</Button>)}
       </li>)}</ul>
       {opened !== null && <pre className={css.quote}>{opened.text === '' ? t('referenceEmpty') : opened.text}</pre>}
       <div className={css.row}>
         {open.status === 'open' && <Button variant="outline" onClick={() => {
           void closeItem(workspaceId, open.id).then(result => {
             if (!result.ok) { setFailure(result.error.message); return }
-            setFailure(null); setTick(value => value + 1); changed()
+            setFailure(null); setTick(value => value + 1)
           }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
         }}>{t('closeItem')}</Button>}
         <Button variant="outline" onClick={() => { download(`${open.title}.json`, JSON.stringify({ item: open, events, refs }, null, 2), 'application/json') }}>{t('exportJson')}</Button>

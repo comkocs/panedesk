@@ -29,7 +29,7 @@ export interface TraceStatus {
 export interface WorkspaceRequest { workspaceId: WorkspaceId; sessionId?: SessionId }
 /** Durable item and its creator. */
 export interface TraceItem { id: ItemId; title: string; status: 'open' | 'closed' | 'void'; source: TraceSource }
-/** Timeline entry; payload is JSON text, never a second copy of conversation text. */
+/** Timeline entry; JSON payload may retain up to 4000 UTF-16 code units of visible reply text. */
 export interface TraceEvent {
   id: number; itemId: ItemId | null; type: string; sessionId: SessionId | null
   seqStart: number | null; seqEnd: number | null; source: TraceSource; payload: string; dedupKey: string
@@ -50,11 +50,11 @@ export interface DecisionRevision {
 }
 /** Selecting an item never changes the session's working directory. */
 export interface ItemRequest extends WorkspaceRequest { itemId: ItemId }
-/** Optional item filter: null selects only unassigned events. */
+/** Null selects unassigned events newest first; an item selects its events oldest first. */
 export interface TimelineRequest extends WorkspaceRequest { itemId: ItemId | null; cursor?: number; limit?: number }
 /** Existing decision id creates another revision; omission creates a decision. */
 export interface DecisionWriteRequest extends WorkspaceRequest { decisionId?: DecisionId; itemId: ItemId | null; title: string; body: string }
 /** The exact proposal revision prevents confirmation of a different later proposal. */
 export interface DecisionRevisionRequest extends WorkspaceRequest { decisionId: DecisionId; revision: number }
-/** Origin text is fetched only on explicit request; attachment paths are not dereferenced by this service. */
+/** Session slices contain a JSON reply string or event array; attachment paths are not dereferenced. */
 export interface ReferenceContent { reference: TraceReference; text: string }

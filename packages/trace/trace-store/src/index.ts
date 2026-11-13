@@ -111,6 +111,23 @@ export default class TraceStore extends TypertRemoteService {
   @Remote({ resources: { workspace: request => request.workspaceId } })
   status(request: WorkspaceRequest): TraceStatus { return this.mappings.get(this.path(request.workspaceId)) ?? disabledStatus }
 
+  /** Stream workspace switches initially and after saved setting changes.
+   * @param request Workspace selection.
+   * @param signal Remote stream lifetime.
+   * @returns Current switches, including when recording is disabled.
+   */
+  @Remote({ mode: 'stream', resources: { workspace: request => request.workspaceId } })
+  async *followStatus(request: WorkspaceRequest, signal: AbortSignal): AsyncIterable<TraceStatus> {
+    const path = this.path(request.workspaceId)
+    const changes = on(this.changes, 'status', { signal })
+    try {
+      yield this.status(request)
+      for await (const [changed] of changes) {
+        if (changed === path) yield this.status(request)
+      }
+    } finally { await changes.return?.() }
+  }
+
   /** Authorize recording once; an existing project identity is reused.
    * @param request Workspace and optional UI window.
    * @returns Committed switches.
@@ -123,6 +140,7 @@ export default class TraceStore extends TypertRemoteService {
       const status = { ...prior, enabled: true, projectId: prior.projectId ?? randomUUID() as ProjectId }
       const db = this.database(status.projectId)
       await this.mappings.put(this.path(request.workspaceId), status)
+      this.changes.emit('status', this.path(request.workspaceId))
       this.migrateSettings(request.workspaceId, db)
       return status
     })
@@ -138,6 +156,7 @@ export default class TraceStore extends TypertRemoteService {
     return this.enqueue(async () => {
       const status = { ...this.status(request), enabled: false, strict: false, plannerSessionId: null }
       await this.mappings.put(this.path(request.workspaceId), status)
+      this.changes.emit('status', this.path(request.workspaceId))
       return status
     })
   }
@@ -155,6 +174,7 @@ export default class TraceStore extends TypertRemoteService {
       }
       const status = { ...this.status(request), projectId: request.projectId, strict: false, plannerSessionId: null }
       await this.mappings.put(this.path(request.workspaceId), status)
+      this.changes.emit('status', this.path(request.workspaceId))
       if (status.enabled) this.migrateSettings(request.workspaceId, this.database(request.projectId))
       return status
     })
@@ -176,6 +196,7 @@ export default class TraceStore extends TypertRemoteService {
       }
       const status = { ...prior, strict: request.strict, plannerSessionId: request.strict ? request.plannerSessionId : null }
       await this.mappings.put(this.path(request.workspaceId), status)
+      this.changes.emit('status', this.path(request.workspaceId))
       return status
     })
   }
@@ -234,16 +255,18 @@ export default class TraceStore extends TypertRemoteService {
   }
 
   /** Page a single item's timeline, or unassigned activity, by monotonic event number.
-   * @param request Workspace, item filter, exclusive cursor (default zero), and page size (default 100).
-   * @returns Ordered events, references, and continuation cursor.
+   * @param request Workspace, item filter, exclusive cursor (omitted starts the selection), and page size (default 100).
+   * @returns Item events oldest first or unassigned events newest first, references, and continuation cursor.
    */
   @Remote({ resources: { workspace: request => request.workspaceId } })
   timeline(request: TimelineRequest): TimelinePage {
     const { db } = this.selected(request)
     const limit = request.limit ?? 100
+    const unassigned = request.itemId === null
     const rows = db.prepare(`SELECT id,item_id AS itemId,type,session_id AS sessionId,seq_start AS seqStart,seq_end AS seqEnd,
       json_object('actor',actor,'sessionId',operation_session,'model',model,'time',time) AS source,payload,dedup_key AS dedupKey
-      FROM events WHERE item_id IS ? AND id > ? ORDER BY id LIMIT ?`).all(request.itemId, request.cursor ?? 0, limit + 1) as (Omit<TraceEvent, 'source'> & { source: string })[]
+      FROM events WHERE item_id IS ? AND id ${unassigned ? '<' : '>'} ? ORDER BY id ${unassigned ? 'DESC' : 'ASC'} LIMIT ?`)
+      .all(request.itemId, request.cursor ?? (unassigned ? Number.MAX_SAFE_INTEGER : 0), limit + 1) as (Omit<TraceEvent, 'source'> & { source: string })[]
     const events = rows.slice(0, limit).map(row => ({ ...row, source: JSON.parse(row.source) as TraceSource }))
     const refs = events.flatMap(event => db.prepare(`SELECT ${referenceColumns} FROM refs WHERE event_id=?`).all(event.id) as TraceReference[])
     return { events, refs, nextCursor: rows.length > limit ? events.at(-1)!.id : null }
@@ -423,9 +446,9 @@ export default class TraceStore extends TypertRemoteService {
     } finally { await commits.return?.() }
   }
 
-  /** Read a referenced session slice from SessionPersistence, or a durable diff file.
+  /** Read stored reply text, a referenced session slice, or a durable diff file.
    * @param request Workspace and database-owned reference identity.
-   * @returns Reference metadata and source JSON text; attachments return their declared path.
+   * @returns Reference metadata and JSON reply string or source events; diffs return JSON and attachments their declared path.
    */
   @Remote({ resources: { workspace: request => request.workspaceId } })
   async readReference(request: WorkspaceRequest & { referenceId: ReferenceId }): Promise<ReferenceContent> {
@@ -433,6 +456,11 @@ export default class TraceStore extends TypertRemoteService {
     const reference = db.prepare(`SELECT ${referenceColumns} FROM refs WHERE id=?`).get(request.referenceId) as TraceReference
     let text: string
     if (reference.kind === 'session-slice') {
+      const event = db.prepare('SELECT type,payload FROM events WHERE id=?').get(reference.eventId) as { type: string; payload: string }
+      if (event.type === 'assistant/message') {
+        const payload = JSON.parse(event.payload) as { text?: string }
+        if (payload.text !== undefined) return { reference, text: JSON.stringify(payload.text) }
+      }
       const handle = await this.ctx.sessionPersistence.open(reference.sessionId!, 'read')
       try { text = JSON.stringify((await handle.read(reference.seqStart!, reference.seqEnd! - reference.seqStart! + 1)).events) }
       finally { await handle.close() }

@@ -16673,6 +16673,19 @@
       }
     },
     {
+      "id": "trace-reply-references-and-live-workspace-switches",
+      "description": "Keep bounded reply text, separate reference actions, preserve export filenames, and refresh strict decisions",
+      "origin": "Panedesk item panel",
+      "reason": "Store visible reply text without reasoning, show newest unassigned activity first, retain export feedback until the next operation, and stream saved workspace switches alongside committed proposals.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/trace-store/**",
+          "packages/client/ui-trace/**"
+        ]
+      }
+    },
+    {
       "id": "new-session-click-log-and-once-full-run-refusal",
       "description": "Log every New Session click and state a used full run in one sentence",
       "origin": "Panedesk session controls",

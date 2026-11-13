@@ -15,16 +15,16 @@ The Web/Desktop Host mounts `traceStore`; recording and strict decisions default
 
 The default export is the Host service. `/types` exports client-safe records, `/typert` supplies Host descriptors, and `/remote` exposes the same method names through the application Remote assembly. Workspace requests use `workspaceId`; optional `sessionId` identifies a user's window but does not grant model authority. Model callers use the current Host agent initiator for automatic session/model attribution.
 
-- Workspace: `status`, `enable`, `disable`, `associateProject`, `setStrict`.
+- Workspace: `status`, `followStatus` (initial switches and updates after saves), `enable`, `disable`, `associateProject`, `setStrict`.
 - Items: `createItem`, `closeItem`, `voidItem`, `listItems`.
 - Activity: `timeline`, `assignEvents`, `comment`, `linkSession`, `readReference`.
 - Decisions: `writeDecision`, `confirmDecision`, `rejectDecision`, `revertDecision`, `listDecisions`, `decisionHistory`, `followDecisions` (initial history and updates after committed decision writes).
 
-The global `project_traces` domain maps canonical workspace paths to stable project identities and workspace switches. Explicit association reuses a registered project without scanning directories. `timeline` selects an item or null for unassigned activity, with an exclusive event cursor and a default page size of 100. `linkSession` assigns subsequent activity from that session and its descendants. Disabling recording retains data but disables strict mode; data operations require recording to be enabled.
+The global `project_traces` domain maps canonical workspace paths to stable project identities and workspace switches. Explicit association reuses a registered project without scanning directories. `timeline` selects an item oldest first or null for unassigned activity newest first, with an exclusive event cursor in that direction and a default page size of 100. `linkSession` assigns subsequent activity from that session and its descendants. Disabling recording retains data but disables strict mode; data operations require recording to be enabled.
 
 Ordinary decision writes become active immediately. Strict mode names a non-subagent planning session: only its trusted Host agent may propose or propose a reversion, the user may revert directly, and only the user may confirm or reject the exact pending revision. A user-supplied window id is not planning authority. Revisions are append-only; confirmation and rejection append new revisions, while the active pointer changes only on activation or reversion. Switching recording, association, or strict mode also requires the user.
 
-Observers record session and child-run lifecycle edges, turn/message sequence references, message delivery state, presented attachments, ready workspace-change summaries, and each successful write or edit tool result as its own file-change event with a change reference. A successful write without result diffs uses the paired call's `file_path` and `content` as a new-file comparison with an empty before side. Bash calls retain sequence references for command previews; their file changes still rely on workspace-change summaries rather than per-call diffs. Deterministic session/sequence, subagent-run, and message-version keys suppress duplicate facts. Conversation and child output remain in SessionPersistence; explicit reference reads fetch only the selected slice. Attachment references retain declared paths rather than copying files. Change comparisons are synced to project-owned JSON files before their references commit, and before recorder cleanup.
+Observers record session and child-run lifecycle edges, turn/message sequence references, message delivery state, presented attachments, ready workspace-change summaries, and each successful write or edit tool result as its own file-change event with a change reference. A successful write without result diffs uses the paired call's `file_path` and `content` as a new-file comparison with an empty before side. Bash calls retain sequence references for command previews; their file changes still rely on workspace-change summaries rather than per-call diffs. Deterministic session/sequence, subagent-run, and message-version keys suppress duplicate facts. Assistant message payloads retain visible reply text in `text`, capped at 4000 UTF-16 code units without reasoning; explicit reference reads return that stored text as a JSON string. Other conversation and child output remain in SessionPersistence; older reply references and other session references fetch only the selected slice. Attachment references retain declared paths rather than copying files. Change comparisons are synced to project-owned JSON files before their references commit, and before recorder cleanup.
 
 Verification storage registers its original settings source. The first successful migration copies its JSON unchanged into project `settings`; failure leaves original workspace storage active. Recording-off workspaces keep using the original adapter. The project settings copy survives opt-out and is reused after re-enabling; settings are not model-writable.
 
@@ -38,7 +38,7 @@ No new tools or prompt text. Host consumers can use the service operations; this
 
 #### Token effect
 
-Recording adds no model requests or conversation copies. Explicit downstream reads determine their own output budget.
+Recording adds no model requests; bounded reply text stays in project storage, not model input. Explicit downstream reads determine their own output budget.
 
 #### KV Cache effect
 

@@ -58,6 +58,17 @@
   border-radius: 6px;
 }
 
+.activity {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reference {
+  align-self: flex-start;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
 .selected {
   background: var(--dsw-alias-fill-secondary);
 }

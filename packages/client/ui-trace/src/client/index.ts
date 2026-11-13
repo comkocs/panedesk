@@ -127,9 +127,17 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     const request = (workspaceId: WorkspaceId) => ({ workspaceId })
     const workspaceOf = (address: string): WorkspaceId => decodeURIComponent(new URL(address).pathname.slice(1)) as WorkspaceId
     scope.effect(() => scope.resources.register<'trace'>({
-      protocol: 'trace', async *open(address): AsyncIterable<RemoteResult<TraceStatusResource>> {
-        const result = await scope.remote.traceStore.status(request(workspaceOf(address)))
-        yield result.ok ? { ok: true, value: { status: result.value } } : result
+      protocol: 'trace', async *open(address, { signal }): AsyncIterable<RemoteResult<TraceStatusResource>> {
+        try {
+          for await (const status of scope.remote.traceStore.followStatus(request(workspaceOf(address)), signal)) {
+            yield { ok: true, value: { status } }
+          }
+        } catch (error) {
+          if (signal.aborted) return
+          const failure = remoteErrorOf(error)
+          if (failure === undefined) throw error
+          yield { ok: false, error: failure }
+        }
       },
     }), 'trace: status resource')
     scope.effect(() => scope.resources.register<'traceitems'>({
@@ -146,7 +154,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         const result = await scope.remote.traceStore.timeline({ ...request(workspaceId), itemId: item === null ? null : Number(item) })
         if (result.ok) {
           for (const event of result.value.events) {
-            if (event.type !== 'assistant/message' && event.type !== 'tool/call') continue
+            if (event.type !== 'tool/call') continue
             const ref = result.value.refs.find(row => row.eventId === event.id && row.kind === 'session-slice')!
             const content = await scope.remote.traceStore.readReference({ workspaceId, referenceId: ref.id })
             if (!content.ok) { yield content; return }
