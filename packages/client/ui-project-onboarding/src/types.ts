@@ -15,13 +15,22 @@ export interface OpeningPreset {
 }
 
 /** Localized editable delegation guidance, selected by the product language. */
-export type DelegationText = { zh: string; en: string }
+export type DelegationText = {
+  /** Chinese text. */
+  zh: string
+  /** English text. */
+  en: string
+}
 
 /** One task tier's advisory selection; empty identifiers let the agent choose. */
 export type SubagentTier = {
+  /** When a task belongs to this tier, in each product language. */
   criteria: DelegationText
+  /** LLM provider id of the suggested subagent model; empty lets the agent choose. */
   provider: string
+  /** Suggested subagent model id; empty lets the agent choose. */
   model: string
+  /** Suggested reasoning effort id; empty uses the model default. */
   effort: string
 }
 
@@ -29,11 +38,17 @@ export type SubagentTier = {
 export type SubagentPresets = {
   /** Language captured when saving the form, also used by the Host prompt. */
   language: 'zh' | 'en'
+  /** Whether new requests receive the delegation guidance section. */
   enabled: boolean
+  /** Large, medium, and small task tiers. */
   tiers: Record<'a' | 'b' | 'c', SubagentTier>
+  /** Duties the main session keeps; unticked duties go to subagents. */
   mainDuties: Record<'read' | 'split' | 'delegate' | 'review' | 'merge' | 'release' | 'report' | 'small', boolean>
+  /** Further main-session duties in free text. */
   otherMainDuties: string
+  /** Whether subagents may delegate to their own subagents. */
   allowNested: boolean
+  /** When a subagent may delegate further, in each product language. */
   nestedCondition: DelegationText
 }
 
