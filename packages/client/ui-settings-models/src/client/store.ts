@@ -15,6 +15,7 @@ import type { SnapshotStore } from '@panedesk/dsh-client-store'
 import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import type { SettingsDescribeFace } from '@panedesk/dsh-client-ui-settings/client'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
+import { sortProtocols } from './protocol-label.ts'
 
 /**
  * Any route key walks a dict schema to the same profile node, so the lookup
@@ -145,7 +146,8 @@ export function protocolChoices(
   const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
   const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
   if (list?.type !== 'union' || list.list === undefined) return []
-  return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+  const values = list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+  return sortProtocols(values, value => value)
 }
 
 /**

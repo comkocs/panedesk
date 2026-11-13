@@ -61,6 +61,7 @@ export interface RecognizeModelsProps {
 interface Recognized {
   readonly models: readonly LlmDiscoveredModel[]
   readonly checked: ReadonlySet<string>
+  readonly unlisted: ReadonlySet<string>
   readonly orderBasis: RecognizeOrderBasis
 }
 
@@ -100,7 +101,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
         return
       }
       const selection = defaultRecognizedSelection(answer.models, props.configuredModels)
-      setRecognized({ models: selection.models, checked: new Set(selection.checked), orderBasis: selection.orderBasis })
+      setRecognized({ models: selection.models, checked: new Set(selection.checked), unlisted: selection.unlisted, orderBasis: selection.orderBasis })
     } catch (error: unknown) {
       setFailure(error instanceof Error ? error.message : String(error))
       setRecognized(undefined)
@@ -199,6 +200,7 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
                     />
                     <span className={styles['candidateId']}>{model.name ?? model.id}</span>
                     {configuredIds.has(model.id) ? <span>{t('recognizedAdded')}</span> : null}
+                    {recognized.unlisted.has(model.id) ? <span>{t('recognizedUnlisted')}</span> : null}
                     <ProtocolProbe
                       target={probeTarget}
                       model={model.id}

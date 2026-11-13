@@ -29,6 +29,7 @@ import type { LlmNativeAuth, SettingsNamespaceView } from '@panedesk/dsh-api-rem
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
+import type { CreateAction } from './CustomProviderCard.tsx'
 import { deriveKeyRef, protocolChoices, providerUsable, reasoningLevelChoices } from './store.ts'
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
@@ -299,6 +300,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   /** Whether each add panel has a write or an interrogation in flight. */
   const [catalogBusy, setCatalogBusy] = useState(false)
   const [customBusy, setCustomBusy] = useState(false)
+  // The custom panel's create action, mirrored as a button in the add card's header.
+  const [createAction, setCreateAction] = useState<CreateAction | undefined>(undefined)
   /** Base of the add card's tab and panel ids. */
   const addId = useId()
   const [deleteTarget, setDeleteTarget] = useState<EditorTarget | undefined>(undefined)
@@ -651,40 +654,54 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           ? (
             <div className={styles['addCard']}>
               <div className={styles['addModes']}>
-                {bothOffered
-                  ? (
-                    <SegmentedControl
-                      id={addId}
-                      label={t('addMode')}
-                      value={mode}
-                      disabled={switchLocked}
-                      options={[
-                        {
-                          value: 'custom',
-                          label: t('addCustom'),
-                          disabled: !customEnabled,
-                          ...customEnabled ? {} : { title: t('addCustomUnavailable') },
-                        },
-                        {
-                          value: 'catalog',
-                          label: t('addCatalog'),
-                          disabled: !catalogEnabled,
-                          ...catalogEnabled ? {} : { title: t('addCatalogExhausted') },
-                        },
-                      ]}
-                      onChange={(next) => {
-                        setAddMode(next)
-                        setVisited(previous => new Set([...previous, next]))
-                      }}
-                    />
-                  )
-                  : (
-                    // One mode alone has no switch to name it, so the card
-                    // carries the mode as its title instead.
-                    <div className={styles['editorHeader']}>
-                      <span className={styles['editorTitle']}>{t(mode === 'catalog' ? 'addCatalog' : 'addCustom')}</span>
-                    </div>
-                  )}
+                <div className={styles['addModesRow']}>
+                  {bothOffered
+                    ? (
+                      <SegmentedControl
+                        id={addId}
+                        label={t('addMode')}
+                        value={mode}
+                        disabled={switchLocked}
+                        options={[
+                          {
+                            value: 'custom',
+                            label: t('addCustom'),
+                            disabled: !customEnabled,
+                            ...customEnabled ? {} : { title: t('addCustomUnavailable') },
+                          },
+                          {
+                            value: 'catalog',
+                            label: t('addCatalog'),
+                            disabled: !catalogEnabled,
+                            ...catalogEnabled ? {} : { title: t('addCatalogExhausted') },
+                          },
+                        ]}
+                        onChange={(next) => {
+                          setAddMode(next)
+                          setVisited(previous => new Set([...previous, next]))
+                        }}
+                      />
+                    )
+                    : (
+                      // One mode alone has no switch to name it, so the card
+                      // carries the mode as its title instead.
+                      <div className={styles['editorHeader']}>
+                        <span className={styles['editorTitle']}>{t(mode === 'catalog' ? 'addCatalog' : 'addCustom')}</span>
+                      </div>
+                    )}
+                  {mode === 'custom' && createAction !== undefined
+                    ? (
+                      <button
+                        type="button"
+                        className={`${styles['primaryButton']} ${styles['addModesAction']}`}
+                        disabled={createAction.disabled}
+                        onClick={createAction.run}
+                      >
+                        {createAction.busy ? t('creating') : t('create')}
+                      </button>
+                    )
+                    : null}
+                </div>
                 <p className={styles['advancedHint']}>
                   {t(mode === 'catalog' ? 'addCatalogHint' : 'addCustomHint')}
                 </p>
@@ -710,6 +727,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                         if (changed) void controller.load()
                       }}
                       onBusyChange={setCustomBusy}
+                      onHeaderAction={setCreateAction}
                     />
                   </div>
                 )

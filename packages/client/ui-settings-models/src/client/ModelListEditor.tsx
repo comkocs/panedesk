@@ -211,6 +211,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   }
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
+  const [unlisted, setUnlisted] = useState<ReadonlySet<string>>(new Set())
   const [candidateQuery, setCandidateQuery] = useState('')
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set())
   // Capacities are edited as text, so a field's keystrokes are held here rather
@@ -319,6 +320,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       setCandidateQuery('')
       setCandidates(selection.models)
       setPicked(new Set(selection.checked))
+      setUnlisted(selection.unlisted)
     } finally {
       setBusy(false)
     }
@@ -541,6 +543,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                       {candidate.id}
                     </span>
                     {configuredIds.has(candidate.id) ? <span>{t('recognizedAdded')}</span> : null}
+                    {unlisted.has(candidate.id) ? <span>{t('recognizedUnlisted')}</span> : null}
                   </label>
                 </li>
               ))}

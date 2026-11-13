@@ -25,7 +25,7 @@
  * offers each model those levels.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { JsonValue } from '@panedesk/dsh-util-values'
 import { apiKeyFailure } from './apiKey.ts'
@@ -92,6 +92,18 @@ export interface CustomProviderCardProps {
    * interrogation is in flight, so the owner can hold its surface still.
    */
   onBusyChange?: (busy: boolean) => void
+  /**
+   * Mirror the create action into the add card's header: called with the
+   * action's state whenever it changes, and with undefined on unmount.
+   */
+  onHeaderAction?: (action: CreateAction | undefined) => void
+}
+
+/** The create action as the add card's header button shows it. */
+export interface CreateAction {
+  disabled: boolean
+  busy: boolean
+  run: () => void
 }
 
 /**
@@ -215,6 +227,15 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       setBusy(false)
     }
   }
+  // The header button runs the latest draft's create, not the one it was handed.
+  const createRef = useRef(create)
+  createRef.current = create
+  const { onHeaderAction } = props
+  const submitDisabled = disabled || !ready
+  useEffect(() => {
+    onHeaderAction?.({ disabled: submitDisabled, busy, run: () => { void createRef.current() } })
+  }, [onHeaderAction, submitDisabled, busy])
+  useEffect(() => () => { onHeaderAction?.(undefined) }, [onHeaderAction])
 
   return (
     <div className={styles['editor']}>

@@ -8,8 +8,10 @@ export type RecognizeOrderBasis = 'version' | 'createdAt' | 'server'
 export interface RecognizedSelection {
   /** Models in display order. */
   readonly models: readonly LlmDiscoveredModel[]
-  /** Ids checked by default: the newest model in each family. */
+  /** Ids checked by default: listed configured models and the newest model in each family. */
   readonly checked: ReadonlySet<string>
+  /** Configured ids this listing did not return; shown unchecked so saving removes them. */
+  readonly unlisted: ReadonlySet<string>
   /** Which fact decided the order. */
   readonly orderBasis: RecognizeOrderBasis
 }
@@ -33,8 +35,9 @@ function newestFirst(left: LlmDiscoveredModel, right: LlmDiscoveredModel): numbe
 /**
  * Order one listing and check the newest model per family, retaining variant words.
  * @param models - models the endpoint advertised, in its own order.
- * @param configured - existing entries, shown first and checked even when unlisted.
- * @returns the display order, the default checks, and the basis.
+ * @param configured - existing entries, shown first; checked when the listing returns them, or
+ * when the listing is empty and so says nothing about them.
+ * @returns the display order, the default checks, the unlisted configured ids, and the basis.
  */
 export function defaultRecognizedSelection(
   models: readonly LlmDiscoveredModel[],
@@ -52,10 +55,14 @@ export function defaultRecognizedSelection(
     checked.add(model.id)
   }
   const known = new Set(configured.map(model => model.id))
-  for (const id of known) checked.add(id)
+  const listed = new Set(models.map(model => model.id))
+  // A key or endpoint that no longer serves a configured model drops it unless re-checked.
+  const unlisted = new Set(models.length === 0 ? [] : [...known].filter(id => !listed.has(id)))
+  for (const id of known) if (!unlisted.has(id)) checked.add(id)
   return {
     models: [...configured, ...ordered.filter(model => !known.has(model.id))],
     checked,
+    unlisted,
     orderBasis: versioned ? 'version' : dated ? 'createdAt' : 'server',
   }
 }

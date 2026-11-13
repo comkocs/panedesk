@@ -201,7 +201,7 @@ export function SubagentTreeTab({ useResource, useTabInfo, useSessions, useWorks
       </tr>)}</tbody>
     </table>}
     <Modal open={monitored !== undefined} onClose={() => { setMonitoredId(null) }}
-      title={t('monitorTitle')} closeLabel={t('monitorClose')} contentClassName={css.monitorContent ?? ''}>
+      title={t('monitorTitle')} closeLabel={t('monitorClose')} className={css.monitorDialog ?? ''} contentClassName={css.monitorContent ?? ''}>
       {monitored !== undefined && <>
         {!monitored.node.external && monitored.node.parentSessionId !== null && renderSlot('subagent.tree.details', {
           parentSessionId: monitored.node.parentSessionId, childSessionId: monitored.node.sessionId,

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import type { ProbeTarget } from './ModelListEditor.tsx'
 import type { ModelProbeOutcome, ModelsOperations, ProtocolResults } from './operations.ts'
 import type { ModelsKey } from './locales.ts'
-import { protocolLabel } from './protocol-label.ts'
+import { protocolLabel, sortProtocols } from './protocol-label.ts'
 import styles from './ModelsSection.module.css'
 
 /** Live endpoint facts and the owning card's save completion. */
@@ -114,16 +114,18 @@ export function ProtocolProbe(props: ProtocolProbeProps): ReactNode {
     </button>
     <span className={styles['advancedHint']}> {t('protocolCost')}</span>
     {results === undefined ? null : <>
-      <table>
+      <table className={styles['probeTable']}>
         <thead><tr><th>{t('customApi')}</th>{capabilities.map(key => <th key={key}>{t(labels[key])}</th>)}</tr></thead>
-        <tbody>{results.map(result => {
+        <tbody>{sortProtocols(results, result => result.api).map(result => {
           const passed = result.text.ok
           return <tr key={result.api}>
             <th><label><input type="radio" name={`protocol-${target.provider ?? 'draft'}-${model}`} checked={selected === result.api} disabled={!passed || busy || props.disabled} onChange={() => { setSelected(result.api) }} />{protocolLabel(t, result.api)}</label></th>
             {capabilities.map(key => {
               const check = result[key]
+              // Only whether the check passed; the failure category stays on hover.
               return <td key={key}>{key === 'image' && !props.imageDeclared ? t('protocolImageUndeclared')
-                : check.ok ? t('protocolPassed') : <ProbeFailureFacts failure={check} t={t} />}</td>
+                : check.ok ? t('protocolPassed')
+                  : <span title={t(PROBE_REASONS[check.reason ?? 'other'])}>{t('protocolNotPassed')}</span>}</td>
             })}
           </tr>
         })}</tbody>

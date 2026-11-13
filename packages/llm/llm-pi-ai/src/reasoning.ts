@@ -13,9 +13,9 @@ export interface ReasoningModelHint {
 /**
  * Infer effort spellings without replacing an explicit model declaration.
  * @param model - model id, display name, protocol, and endpoint capability override.
- * @returns inferred levels and unchanged wire spellings, or false when effort support is unknown.
+ * @returns inferred levels and unchanged wire spellings (`off` sends nothing), or false when effort support is unknown.
  */
-export function inferReasoningEfforts(model: ReasoningModelHint): false | Partial<Record<ModelThinkingLevel, string>> {
+export function inferReasoningEfforts(model: ReasoningModelHint): false | Partial<Record<ModelThinkingLevel, string | null>> {
   const identities = [model.id, model.name ?? ''].map(value => value.toLowerCase())
   if (identities.some(value => /image|tts|embedding|audio|speech|whisper|transcri|dall-e|sora|video/.test(value))) return false
   if (model.supportsReasoningEffort === false) return false
@@ -26,6 +26,9 @@ export function inferReasoningEfforts(model: ReasoningModelHint): false | Partia
   } else if (matches(/(?:^|[\s/:])(?:glm|deepseek|gemini)-/)
     && model.supportsReasoningEffort === true) {
     levels = ['low', 'medium', 'high']
+  } else if (matches(/(?:^|[\s/:])glm-/)) {
+    // GLM endpoints switch thinking on or off instead of taking an effort level.
+    return { off: null, high: 'high' }
   } else {
     return false
   }

@@ -368,6 +368,20 @@
   gap: 8px;
 }
 
+/* The mode switch on the left, the create action at the card's top right. */
+.addModesRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  align-self: stretch;
+}
+
+.addModesAction {
+  flex: none;
+  margin-left: auto;
+}
+
 /* One panel per mode. Both stay mounted while the card is open; the hidden
    attribute must win over the panel's own display, or the inactive draft
    would show beneath the active one. */
@@ -832,6 +846,33 @@ select.input {
 .protocolProbe > .secondaryButton {
   align-self: flex-start;
   width: fit-content;
+}
+
+/* Pass/fail matrix in the cost hint's type, so it reads as a quiet aside. */
+.probeTable {
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.probeTable th,
+.probeTable td {
+  padding: 1px 12px 1px 0;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.probeTable label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.probeTable input {
+  margin: 0;
 }
 
 .probeBody {
