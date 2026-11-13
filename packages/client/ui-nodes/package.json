@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-nodes",
   "description": "Owner-authorized node health and parked callback settings",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-nodes" },

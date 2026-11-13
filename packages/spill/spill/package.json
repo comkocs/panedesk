@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-spill",
   "description": "Abstract spill storage seam (ctx.spillStore) for the DeepSeek Harness — save oversized tool text and return a retrieval locator",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "publishConfig": {
     "access": "public"
   },

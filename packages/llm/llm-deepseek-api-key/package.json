@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-llm-deepseek-api-key",
   "description": "DeepSeek api-key provider authentication and discovery",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "publishConfig": {
     "access": "public"
   },

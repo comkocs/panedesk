@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-host-directory-picker-native",
   "description": "Native-OS-chooser backend of the directory-picker seam for the DeepSeek Harness web GUI host",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "publishConfig": {
     "access": "public"
   },

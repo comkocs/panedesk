@@ -1,7 +1,7 @@
 {
   "name": "panedesk",
   "description": "Panedesk CLI (panedesk / pdesk): profile launch, plugin management, and configuration inspection",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "publishConfig": {
     "access": "public"
   },
