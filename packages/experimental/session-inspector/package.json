@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-session-inspector",
   "description": "Experimental virtualized Session log and live Chat group/node inspectors",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "publishConfig": {
     "access": "public"
   },

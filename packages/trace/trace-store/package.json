@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-trace-store",
   "description": "Opt-in per-project SQLite activity, items, and decision history",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/trace/trace-store" },

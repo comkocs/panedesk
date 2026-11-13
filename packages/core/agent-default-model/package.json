@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-agent-default-model",
   "description": "Default model selection shared by Agent entry points",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "publishConfig": {
     "access": "public"
   },
