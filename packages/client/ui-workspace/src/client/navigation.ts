@@ -173,6 +173,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param sessions - pure Session Controller.
    * @param view - the browser's viewing-store write set (one instance shared with its registration).
    * @param notify - show one notice through the Workspace notice channel.
+   * @param session - the session Remote namespace, taken where it is injected; the service's own context does not inject it.
    */
   constructor(
     ctx: Context,
@@ -181,6 +182,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     private readonly sessions: ISessions,
     private readonly view: Pick<WorkspaceViewStoreActions, 'pinSessionOrder'>,
     private readonly notify: (toast: RowToast) => void,
+    private readonly session: Pick<ClientRemote['session'], 'recordNewSessionTiming'>,
   ) {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => {
@@ -402,7 +404,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     kind: NewSessionClickKind,
   ): void {
     const report = (pageShown: boolean, sessionId: SessionId | undefined): void => {
-      void this.ctx.remote.session.recordNewSessionTiming({
+      void this.session.recordNewSessionTiming({
         timingId,
         clientElapsedMs: Math.round(performance.now() - startedAt),
         pageShown,
