@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-db-connections",
   "description": "PostgreSQL connection catalog with credential storage and SSH forwarding",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "type": "module",
   "license": "MIT",
   "publishConfig": { "access": "public" },

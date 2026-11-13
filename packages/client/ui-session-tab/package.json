@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-session-tab",
   "description": "Right-sidebar session tab opened from a session row, plus a per-message pin that survives a restart and never changes what the model sees",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "publishConfig": {
     "access": "public"
   },
