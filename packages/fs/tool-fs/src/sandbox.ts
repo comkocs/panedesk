@@ -13,7 +13,7 @@
 import type { Context } from '@panedesk/cordis'
 import type { ToolExecution } from '@panedesk/dsh-tools'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
-import { ESCALATION_TARGETS, approveEscalation, escalationHintMarker, sandboxDenialMarker, sandboxPermissionsDescription, validateEscalationArgs } from '@panedesk/dsh-sandbox'
+import { ESCALATION_TARGETS, approveEscalation, escalationHintMarker, escalationPair, sandboxDenialMarker, sandboxPermissionsDescription } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
 import { FsError } from '@panedesk/dsh-fs'
 
@@ -66,8 +66,9 @@ export class FsSandboxController {
       },
       justification: {
         type: 'string',
-        description: 'Required with sandbox_permissions: one sentence for the user explaining '
-          + 'why this exact file operation needs the wider access. Use the language of the user’s current request.',
+        description: 'One sentence for the user explaining why this exact file operation needs the wider access. '
+          + 'Required only together with a sandbox_permissions value wider than the current mode; omit both, or pass empty strings, to keep the current mode. '
+          + 'Use the language of the user’s current request.',
       },
     }
   }
@@ -87,9 +88,9 @@ export class FsSandboxController {
    *   unsandboxed backend.
    */
   async resolvePolicy(toolName: string, args: FsEscalationArgs, exec: ToolExecution): Promise<SandboxExecutionPolicy | undefined> {
-    validateEscalationArgs(args.sandbox_permissions, args.justification)
     const standingPolicy = this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
-    if (args.sandbox_permissions === undefined || args.justification === undefined) {
+    const escalation = escalationPair(args.sandbox_permissions, args.justification, standingPolicy?.mode)
+    if (escalation === undefined) {
       return standingPolicy
     }
     if (this.escalationModes.length === 0) {
@@ -97,7 +98,7 @@ export class FsSandboxController {
     }
     const policy = standingPolicy as SandboxExecutionPolicy
     const approvedMode = await approveEscalation(
-      { requestedMode: args.sandbox_permissions, justification: args.justification, effectiveMode: policy.mode, subject: 'operation' },
+      { requestedMode: escalation.mode, justification: escalation.justification, effectiveMode: policy.mode, subject: 'operation' },
       {
         approver: this.ctx.get('approval'),
         agent: exec.agent,

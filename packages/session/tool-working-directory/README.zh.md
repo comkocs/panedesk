@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-与 `tools` 和 `workingDirectory` 一起挂载。调用 `working_directory({})` 读取目录，或调用 `working_directory({ cd: "src" })` 改变目录。此工具没有配置字段。
+与 `tools` 和 `workingDirectory` 一起挂载。调用 `working_directory({})` 读取目录，或调用 `working_directory({ cd: "src" })` 改变目录。省略或空白的 `cd` 读取当前目录。此工具没有配置字段。
 
 ```yaml
 - name: '@panedesk/dsh-tool-working-directory'

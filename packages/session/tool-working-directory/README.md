@@ -25,7 +25,7 @@ Read the Session’s current directory or enter an existing directory with the s
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount alongside `tools` and `workingDirectory`. Call `working_directory({})` to read or `working_directory({ cd: "src" })` to change directory. The tool has no configuration fields.
+Mount alongside `tools` and `workingDirectory`. Call `working_directory({})` to read or `working_directory({ cd: "src" })` to change directory. An omitted or blank `cd` reads the current directory. The tool has no configuration fields.
 
 ```yaml
 - name: '@panedesk/dsh-tool-working-directory'

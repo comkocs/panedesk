@@ -32,7 +32,7 @@ import type { JobId, JobRegistry, JobView } from '@panedesk/dsh-jobs'
 import type {} from '@panedesk/dsh-shell-env'
 import type {} from '@panedesk/dsh-user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
-import { ESCALATION_TARGETS, approveEscalation, sandboxPermissionsDescription, validateEscalationArgs } from '@panedesk/dsh-sandbox'
+import { ESCALATION_TARGETS, approveEscalation, escalationPair, sandboxPermissionsDescription } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 import { parseExitStatus } from '@panedesk/dsh-shell'
@@ -104,7 +104,7 @@ interface PwshForegroundResult {
 }
 
 /* jscpd:ignore-start -- minimal mirror of dsh-tool-bash's validation and execute plumbing (Agent Note). */
-function validatePwshArgs(args: PwshToolArgs): void {
+function validatePwshArgs(args: PwshToolArgs, effectiveMode: SandboxMode | undefined): { mode: string; justification: string } | undefined {
   if (args.command.trim().length === 0) {
     throw new Error('invalid command: expected a non-empty string')
   }
@@ -114,9 +114,8 @@ function validatePwshArgs(args: PwshToolArgs): void {
   if (args.timeoutMs !== undefined && (!Number.isFinite(args.timeoutMs) || args.timeoutMs <= 0)) {
     throw new Error(`invalid timeoutMs: expected a positive number, got ${JSON.stringify(args.timeoutMs)}`)
   }
-  // The escalation pairing (sandbox_permissions ⇔ justification, non-empty) is
-  // the shared rule both enforcing families validate identically.
-  validateEscalationArgs(args.sandbox_permissions, args.justification)
+  // Blank escalation fields are omitted; a mode that does not widen needs no sentence.
+  return escalationPair(args.sandbox_permissions, args.justification, effectiveMode)
 }
 /* jscpd:ignore-end */
 
@@ -415,7 +414,8 @@ export function apply(ctx: Context, config: Config = {}): void {
           },
           justification: {
             type: 'string' as const,
-            description: 'Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. '
+            description: 'One sentence for the user explaining why this exact command needs the wider access. '
+              + 'Required only together with a sandbox_permissions value wider than the current mode; omit both, or pass empty strings, to keep the current mode. '
               + 'Use the language of the user’s current request.',
           },
         } : {},
@@ -503,12 +503,12 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
       /* jscpd:ignore-start -- the execute path mirrors dsh-tool-bash's by design (see the pwsh-tool-and-executor Agent Note). */
       async execute(args: PwshToolArgs, exec) {
-        validatePwshArgs(args)
         // Description is display metadata; workdir defaults to the caller's session.
         const standingPolicy = resolveSandboxPolicy(exec)
-        const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
-          ? await approvePwshEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
-          : undefined
+        const escalation = validatePwshArgs(args, standingPolicy?.mode)
+        const approvedMode = escalation === undefined
+          ? undefined
+          : await approvePwshEscalation(escalation.mode, escalation.justification, exec, standingPolicy)
         const policy = approvedMode === undefined
           ? standingPolicy
           : { ...(standingPolicy as SandboxExecutionPolicy), mode: approvedMode }

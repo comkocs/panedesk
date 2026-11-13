@@ -73,7 +73,7 @@ kind: "package-reference"
 
 ### 选择子级 LLM
 
-所有新建和恢复的 Session 都公开可选 `model`、`provider`、`reasoning_effort` 以及 `list_subagent_models`。设置与历史 Session 策略均不控制选择能力。发现工具列出全部已配置提供方／模型路由，也可按提供方过滤或检查模型推理强度。没有 `agentOptions` 能力的后端在派遣时拒绝路由选择。
+所有新建和恢复的 Session 都公开可选 `model`、`provider`、`reasoning_effort` 以及 `list_subagent_models`。可选字符串为空白与省略相同。工具说明要求调用方不要让子会话去调 `list_subagent_models` 或 `verification_checklist`，除非该工具在子会话自己的名单里。设置与历史 Session 策略均不控制选择能力。发现工具列出全部已配置提供方／模型路由，也可按提供方过滤或检查模型推理强度。没有 `agentOptions` 能力的后端在派遣时拒绝路由选择。
 
 模型名在所有已注册提供方的 `llm.listModels` 中精确匹配。唯一命中时选择该提供方；多处命中时报告 provider/model 候选，无命中时报告可用模型。提供 `provider` 可消除歧义，只给提供方会失败。显式选择覆盖配置与提供方默认值；更换路由而未指定强度时清除路由相关推理默认值，其他省略值继承兼容的父级值。现有 LLM 适配器负责验证路由并按该提供方配置的协议发送。
 

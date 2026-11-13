@@ -15,8 +15,8 @@ export function registerListSubagentModels(ctx: Context): void {
     name: 'list_subagent_models',
     description: 'List all configured subagent models. Optionally filter by provider, or inspect a model and its reasoning efforts. A model name must identify one provider unless provider is supplied.',
     parameters: {
-      provider: { type: 'string', description: 'Optional registered LLM provider id.' },
-      model: { type: 'string', description: 'Optional exact model id to inspect.' },
+      provider: { type: 'string', description: 'Optional registered LLM provider id. Omit it, or pass an empty string, to list every configured model.' },
+      model: { type: 'string', description: 'Optional exact model id to inspect. Omit it, or pass an empty string, to list models instead of inspecting one.' },
     },
     output: {
       schema: { type: 'string' },
@@ -28,11 +28,17 @@ export function registerListSubagentModels(ctx: Context): void {
       const models = await configuredModels(llm)
       const line = (model: typeof models[number]): string =>
         `${model.provider}/${model.id} — ${model.name}${model.description === undefined ? '' : `: ${model.description}`}`
-      if (args.model === undefined) {
-        const selected = args.provider === undefined ? models : models.filter(model => model.provider === args.provider)
+      const blank = (value: string | undefined): string | undefined => {
+        const trimmed = value?.trim()
+        return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed
+      }
+      const modelId = blank(args.model)
+      const providerId = blank(args.provider)
+      if (modelId === undefined) {
+        const selected = providerId === undefined ? models : models.filter(model => model.provider === providerId)
         return selected.map(line).join('\n') || '(no configured models)'
       }
-      const route = resolveModelRoute(models, args.model, args.provider)
+      const route = resolveModelRoute(models, modelId, providerId)
       const model = await llm.resolveModelInfo(route.provider, route.model, exec.signal)
       const efforts = model.reasoning?.efforts.map(effort =>
         `${effort.id}${model.reasoning?.defaultEffort === effort.id ? ' (default)' : ''} — ${effort.name}`,

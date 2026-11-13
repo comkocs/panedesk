@@ -35,7 +35,7 @@ export const Config = z.object({
 const subagentTools = new Set([
   'read', 'write', 'edit', 'grep', 'glob', 'bash', 'pwsh', 'web_fetch', 'web_search', 'read_image',
   'skill', 'todo_write', 'working_directory', 'load_workspace_dependencies',
-  'subagent', 'list_agents', 'send_message', 'interrupt_agent',
+  'subagent', 'list_subagent_models', 'list_agents', 'send_message', 'interrupt_agent',
 ])
 
 const fields: Record<string, readonly string[]> = {
