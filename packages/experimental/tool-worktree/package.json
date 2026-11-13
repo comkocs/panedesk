@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-tool-worktree",
   "description": "Model tool that creates and enters a new Git worktree",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },

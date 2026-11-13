@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-command-goal",
   "description": "Human-facing slash command for persisted same-session goals",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-tool-agent-team",
   "description": "Scoped model-facing Agent Teams tools over ctx.agentTeams",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },

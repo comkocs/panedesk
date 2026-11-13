@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-computer-use",
   "description": "Exclusive named computer-use provider registration",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },

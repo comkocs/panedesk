@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-product-analytics",
   "description": "Desktop product event collection and authenticated Host reporting",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-sdk-app",
   "description": "The dsh SDK profile bundle: stdio JSON-RPC serving and process lifecycle over dsh-base",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publishConfig": {
     "access": "public"
   },
