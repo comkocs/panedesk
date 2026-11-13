@@ -269,7 +269,7 @@ Use `node apps/desktop/scripts/test-windows-installer.mjs --uninstall-only --com
 
 ## Updates
 
-On Windows, the downloaded-update confirmation explains that the application closes during installation, reopens automatically, and should not be launched again while updating. An installer restart carrying `--updated` raises and focuses the main window once when startup opens the workspace directly, without enabling always-on-top. Ordinary launches and other platforms do not use this foregrounding step.
+Clicking Install and Restart on the update indicator installs at once, stopping running tasks, without a second confirmation; the confirmation below appears only when a download the user started completes or when the update is installed from Check for Updates. On Windows, the downloaded-update confirmation explains that the application closes during installation, reopens automatically, and should not be launched again while updating. An installer restart carrying `--updated` raises and focuses the main window once when startup opens the workspace directly, without enabling always-on-top. Ordinary launches and other platforms do not use this foregrounding step.
 
 Native update overlays wait for a ready document and a visible parent, and reappear when that parent is shown again. Closing an overlay releases its input interception and parent listeners. The [local window qualification](tests/README.md#verification-overlay) exercises these transitions without starting a workspace.
 

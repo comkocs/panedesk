@@ -601,6 +601,8 @@ async function main(): Promise<void> {
 
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
   const updateChannel = desktopUpdateChannel(manifest)
+  // Clicking the indicator's Install and Restart is the confirmation; it does not ask a second time.
+  let installClicked = false
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
     async () => {
@@ -620,7 +622,7 @@ async function main(): Promise<void> {
       }
       if (isMandatory()) {
         if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
-      } else {
+      } else if (!installClicked) {
         const parent = currentDialogWindow()
         if (parent === undefined) return false
         const result = await updateDialog.show(parent, confirmation)
@@ -863,7 +865,8 @@ async function main(): Promise<void> {
         if (state.phase === 'ready' || (state.phase === 'error' && state.failedOperation === 'install')) {
           if (state.version !== undefined) {
             failedOperation = 'install'
-            await showUpdateFailure(await updates.install(state.version))
+            installClicked = !manual
+            try { await showUpdateFailure(await updates.install(state.version)) } finally { installClicked = false }
           }
           return
         }
