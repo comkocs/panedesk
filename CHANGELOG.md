@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.12
+
+### Fixed
+
+- New Session clicks write their timing line again; the report failed in the client because the navigation service read a Remote namespace its own context does not inject.
+- The trace items page shows new activity on its own: the selected item's timeline and unassigned activity reread every three seconds while shown, and the close and export buttons sit above the timeline instead of after it.
+
 ## 2.0.11
 
 ### Fixed

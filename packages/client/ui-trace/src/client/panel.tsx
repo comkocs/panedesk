@@ -111,12 +111,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
     {open !== undefined && <section>
       <h2>{t('timeline')}</h2>
       <p>{sourceLine(open.source, t)}</p>
-      {events.length === 0 && <p>{t('timelineEmpty')}</p>}
-      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
-        <span className={css.activity}>{eventLine(event, t)}</span>
-        {refs.filter(row => row.eventId === event.id).map(row => <ReferenceRow key={row.id} referenceId={row.id}
-          workspaceId={workspaceId} reference={reference} t={t} setFailure={setFailure} />)}
-      </li>)}</ul>
+      {/* Above the timeline, which keeps growing while the window works. */}
       <div className={css.row}>
         {open.status === 'open' && <Button variant="outline" onClick={() => {
           void closeItem(workspaceId, open.id).then(result => {
@@ -128,6 +123,12 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
         <Button variant="outline" onClick={() => { download(`${open.title}.md`, itemMarkdown(open, events, refs, [], t), 'text/markdown') }}>{t('exportMd')}</Button>
       </div>
       {notice !== null && <p role="status">{notice}</p>}
+      {events.length === 0 && <p>{t('timelineEmpty')}</p>}
+      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
+        <span className={css.activity}>{eventLine(event, t)}</span>
+        {refs.filter(row => row.eventId === event.id).map(row => <ReferenceRow key={row.id} referenceId={row.id}
+          workspaceId={workspaceId} reference={reference} t={t} setFailure={setFailure} />)}
+      </li>)}</ul>
     </section>}
     <h2>{t('unassigned')}</h2>
     {loose.length === 0 && <p>{t('unassignedEmpty')}</p>}

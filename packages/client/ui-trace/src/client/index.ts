@@ -149,21 +149,38 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
       },
     }), 'trace: items resource')
     scope.effect(() => scope.resources.register<'tracetimeline'>({
-      protocol: 'tracetimeline', async *open(address): AsyncIterable<RemoteResult<TraceTimelineResource>> {
+      protocol: 'tracetimeline', async *open(address, { signal }): AsyncIterable<RemoteResult<TraceTimelineResource>> {
         const url = new URL(address)
         const workspaceId = decodeURIComponent(url.pathname.slice(1)) as WorkspaceId
         const item = url.searchParams.get('item')
-        const result = await scope.remote.traceStore.timeline({ ...request(workspaceId), itemId: item === null ? null : Number(item) })
-        if (result.ok) {
+        // Re-read while open so new activity appears without leaving the page; command previews are read once.
+        const summaries = new Map<number, string>()
+        let shown = ''
+        while (!signal.aborted) {
+          const result = await scope.remote.traceStore.timeline({ ...request(workspaceId), itemId: item === null ? null : Number(item) })
+          if (!result.ok) { yield result; return }
           for (const event of result.value.events) {
             if (event.type !== 'tool/call') continue
-            const ref = result.value.refs.find(row => row.eventId === event.id && row.kind === 'session-slice')!
-            const content = await scope.remote.traceStore.readReference({ workspaceId, referenceId: ref.id })
-            if (!content.ok) { yield content; return }
-            event.payload = JSON.stringify({ summary: referenceText(content.value).slice(0, 30) })
+            let summary = summaries.get(event.id)
+            if (summary === undefined) {
+              const ref = result.value.refs.find(row => row.eventId === event.id && row.kind === 'session-slice')!
+              const content = await scope.remote.traceStore.readReference({ workspaceId, referenceId: ref.id })
+              if (!content.ok) { yield content; return }
+              summary = referenceText(content.value).slice(0, 30)
+              summaries.set(event.id, summary)
+            }
+            event.payload = JSON.stringify({ summary })
           }
+          const key = result.value.events.map(event => event.id).join(',')
+          if (key !== shown) {
+            shown = key
+            yield { ok: true, value: { page: result.value } }
+          }
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 3000)
+            signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+          })
         }
-        yield result.ok ? { ok: true, value: { page: result.value } } : result
       },
     }), 'trace: timeline resource')
     scope.effect(() => scope.resources.register<'tracedecisions'>({
