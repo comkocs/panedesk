@@ -8,7 +8,9 @@ import contribution from '@panedesk/dsh-client-ui-project-onboarding/remote'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
 import type {} from '@panedesk/dsh-api-workspace-controller/client'
 import type { OpeningNamePattern } from '@panedesk/dsh-session-title/client'
-import type { OpeningPreset } from '../types.ts'
+import type { OpeningPreset, SubagentPresets } from '../types.ts'
+import type { SubagentInjected } from './subagent-props.ts'
+import { SubagentQuick, SubagentSettings } from './SubagentPresets.tsx'
 import type { WorkflowPrompts } from '../workflow-defaults.ts'
 import type { PresetsInjected } from './preset-props.ts'
 import { OpeningPresetSettings, OpeningPresetPicker, OpeningPresetQuick } from './OpeningPresets.tsx'
@@ -35,6 +37,23 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     ctx.effect(() => ctx.locale.register('projectOnboarding', { en, zh }))
     const mirror = ctx.configForms.describe()
     const presets = ctx.configForms.get<{ openingPresets: OpeningPreset[] }>('ui-project-onboarding')
+    const subagents = ctx.configForms.get<{ subagentPresets: SubagentPresets }>('ui-project-onboarding')
+    const subagentFace = (): SubagentInjected => ({
+      hooks: { subagentPresets: subagents, subagentLocale: ctx.locale },
+      saveSubagentPresets: (value, revision) => subagents.mutate([{ op: 'set', path: ['subagentPresets'], value }], revision),
+      loadSubagentModels: async () => {
+        const result = await ctx.remote.session.modelCatalog()
+        if (!result.ok) throw new Error(result.error.message)
+        return result.value.groups
+      },
+    })
+    ctx.slots.inject('conversation.hero.actions', () => ctx.slots.register({
+      name: 'conversation.hero.actions', id: 'subagent-presets', order: 5, locale: 'projectOnboarding', inject: subagentFace,
+    }, SubagentQuick))
+    ctx.slots.inject('settings.section', () => ctx.slots.register({
+      name: 'settings.section', id: 'subagent-presets', group: 'panedesk', order: 28,
+      label: () => ctx.locale.bind('projectOnboarding')('subagentTitle'), locale: 'projectOnboarding', inject: subagentFace,
+    }, SubagentSettings))
     const naming = ctx.configForms.get<{ openingName?: OpeningNamePattern }>('ui-settings-general')
     const desktop = globalThis as typeof globalThis & {
       __DSH_DIRECTORY_PICKER__?: { pick(): Promise<string | null> }

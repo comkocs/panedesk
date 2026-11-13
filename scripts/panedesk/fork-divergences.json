@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "subagent-delegation-presets",
+      "description": "Share task-tier delegation presets between onboarding and settings",
+      "origin": "Panedesk delegation preferences",
+      "reason": "Persist bilingual task criteria, optional models and efforts, main-session duties, and nested delegation guidance; render current role-specific system instructions without changing tool dispatch.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-project-onboarding/**"]
+      }
+    },
+    {
       "id": "text-only-history-images-and-declared-model-recovery",
       "description": "Honor image input declarations and recover declared provider models through discovery",
       "origin": "Panedesk model compatibility feedback",

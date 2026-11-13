@@ -65,6 +65,7 @@
     "src/types.ts",
     "src/preset-name.ts",
     "src/workflow-defaults.ts",
+    "src/subagent-defaults.ts",
     "src/css-modules.d.ts"
   ]
 }

@@ -66,6 +66,7 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-api-remotes": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-session-title": "workspace:*",
     "@panedesk/dsh-workspace": "workspace:*",
     "@panedesk/dsh-client-ui-workspace": "workspace:*",

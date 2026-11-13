@@ -35,6 +35,8 @@ Opening presets live in the default-empty `ui-project-onboarding.openingPresets`
 
 The Opening menu occupies the former mode-picker position; the mode picker sits at the row's right edge. Current-directory presets lead, then other presets are grouped by their first directory; multiple target directories use a submenu when the current directory does not match. Selection reuses a blank session in the target workspace, replaces its draft without sending, applies optional model / permission overrides, and focuses the composer. The editor loads provider / model choices from `session.modelCatalog()` and permission choices from `permissionPresets.catalog().options`, with Follow current first in both menus. The model menu lists each provider/model ID once and adds the model ID to names that repeat within a provider; saved aliases remain readable. Models with reasoning efforts expose an adjacent menu starting with Default. New model selections use `provider/model` with an optional ` / effort`; permission selections store the catalog's stable `value`. Existing model IDs and space-separated efforts remain readable. Omitted values leave the receiving session unchanged. The preset name is recorded through the existing title event at selection, with the existing opening-date and duplicate-name rules. The new-session screen places Opening presets and Workflow side by side above and to the right of the brand mark through `conversation.hero.actions`. Opening presets directly lists the same sorted choices, Add preset opens the editor with existing rows collapsed and no new blank card, and Manage opens its settings section. Workflow offers the same three draft actions and a direct settings link. Both links reuse `settingsNavigation.openSection`; both menus remain available when central starters are disabled. Configuration editing and preset selection make no model request; configured model and permission changes apply when the user later sends.
 
+Subagent presets appears to the left of Opening presets on the new-session screen and opens the same compact form as Settings → Panedesk → Subagent presets. The default-enabled `ui-project-onboarding.subagentPresets` product object stores three editable task tiers, optional provider/model/effort choices, eight default-checked main-session duties, an optional additional duty, and default-enabled read-only nested delegation conditions. Unchecked duties are assigned to subagents. Model and effort menus read `session.modelCatalog()` when opened; an unspecified model disables effort selection, and changing models resets effort to Default. Save and Restore default persist the complete form and show a receipt. Criteria and conditions have Chinese and English defaults; editing uses the current UI language, and saving records that language for the Host prompt. Before the first save, the Host uses Chinese. Preferences are per user, not per project, and never change tool parameters or enforce classification or delegation.
+
 <a id="dev-note"></a>
 ## Dev Note
 
@@ -47,15 +49,15 @@ Host preferences and seat policy synchronization live in `src/index.ts` and `src
 
 #### What the model sees
 
-Viewing or saving `ui-project-onboarding.projects` preferences adds no model context. The workflow-pack action changes only a human-visible draft until the user sends it.
+Viewing or saving `ui-project-onboarding.projects` preferences adds no model context. The workflow-pack action changes only a human-visible draft until the user sends it. When subagent presets are enabled, the Host's `ui:subagent-presets` system section reads current saved preferences at each assembly: main sessions receive task tiers and duty allocation, while sessions with `origin: subagent` receive only nested delegation rules. Specified models use the `subagent` tool's `provider`, `model`, and optional `effort` values; unspecified models are chosen by task. Turning the preference off removes the section on the next request.
 
 #### Token effect
 
-Viewing or saving preferences makes no model request and consumes no model tokens. Automatic mode may permit subsequent rule-driven model work.
+Viewing or saving preferences makes no model request and consumes no model tokens. Automatic mode may permit subsequent rule-driven model work. Enabled delegation guidance adds the role-specific section's text to subsequent requests.
 
 #### KV Cache effect
 
-The package does not change prompt prefixes or retained model history before the user submits a draft.
+Workflow drafts do not change prompt prefixes before submission. Saving delegation preferences changes the role-specific system section on the next request and may invalidate the cached prefix from that section onward; it does not rewrite retained history.
 
 ## Known Limitations and Deferred Work
 

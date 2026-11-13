@@ -1,6 +1,15 @@
 /** Typed copy for project guidance and settings. */
 import { workflowDefaults } from '../workflow-defaults.ts'
+import { delegationCopy } from '../subagent-defaults.ts'
 export const zh = {
+  ...delegationCopy.zh,
+  subagentTitle: '子代理预设', subagentEnabled: '新会话按此预设派遣子代理',
+  subagentCriteria: '判定标准', subagentModel: '子代理模型', subagentUnspecified: '不指定（按任务自选）',
+  subagentMainDuties: '主窗负责', subagentUnchecked: '没勾的项交给子代理做。', subagentOther: '其他（自填）',
+  subagentAllowNested: '允许子代理再派孙代理', subagentNestedCondition: '孙代理条件', subagentSaved: '子代理预设已保存。',
+  subagentWhat: '按大、中、小任务设置子代理判定标准与模型，勾选主窗职责及孙代理规则。',
+  subagentWhether: '缺省开；只提供模型说明，不自动判档或强制派遣。按用户保存到产品配置，不按项目；保存后下一次请求生效。',
+  subagentAi: '请帮我核对子代理三档判定标准、模型、主窗职责和孙代理规则；我会在本页保存。',
   presetsTitle: '开窗词预设', opening: '开窗词', managePresets: '管理预设…', addPreset: '添加预设', editPresets: '添加 / 编辑预设',
   presetName: '名字（不超过 20 字）', presetPrompt: '开窗词', presetDirectories: '文件夹',
   dropDirectory: '从开窗词推断文件夹，或拖入文件夹', changeDirectory: '修改文件夹', presetModel: '模型',
@@ -63,6 +72,14 @@ export type ProjectOnboardingKey = keyof typeof zh
 
 /** English project guidance and settings copy. */
 export const en = {
+  ...delegationCopy.en,
+  subagentTitle: 'Subagent presets', subagentEnabled: 'Use these subagent presets in new sessions',
+  subagentCriteria: 'Criteria', subagentModel: 'Subagent model', subagentUnspecified: 'Unspecified (choose by task)',
+  subagentMainDuties: 'Main-session duties', subagentUnchecked: 'Unchecked duties are delegated to subagents.', subagentOther: 'Other (custom)',
+  subagentAllowNested: 'Allow subagents to delegate to nested subagents', subagentNestedCondition: 'Nested delegation condition', subagentSaved: 'Subagent presets saved.',
+  subagentWhat: 'Set task-tier criteria and models for large, medium, and small tasks, main-session duties, and nested delegation rules.',
+  subagentWhether: 'On by default. Guidance only: no automatic classification or enforced delegation. Saved per user in product settings, not per project; changes apply on the next request.',
+  subagentAi: 'Help me review the three subagent tiers, models, main-session duties, and nested delegation rules; I will save them here.',
   presetsTitle: 'Opening presets', opening: 'Opening', managePresets: 'Manage presets…', addPreset: 'Add preset', editPresets: 'Add / edit presets',
   presetName: 'Name (up to 20 characters)', presetPrompt: 'Opening text', presetDirectories: 'Folder',
   dropDirectory: 'Infer from opening text or drop a folder', changeDirectory: 'Change folder', presetModel: 'Model',

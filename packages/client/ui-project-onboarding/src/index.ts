@@ -6,10 +6,16 @@ import { workflowDefaults, type WorkflowPrompts } from './workflow-defaults.ts'
 import type {} from '@panedesk/dsh-settings'
 import z from '@panedesk/schemastery'
 
-import type { OpeningPreset, ProjectSelection } from './types.ts'
+import type { OpeningPreset, ProjectSelection, SubagentPresets } from './types.ts'
+import type {} from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-system-prompt'
+import { subagentSchema } from './subagent-schema.ts'
+import { subagentPrompt } from './subagent-prompt.ts'
 
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Product-wide task tiers and main-session/nested delegation guidance. */
+  subagentPresets: Volatile<SubagentPresets>
   /** Localized requirements-review draft. */
   workflowRequirementsPrompt: Volatile<WorkflowPrompts['workflowRequirementsPrompt']>
   /** Localized workflow-setup draft. */
@@ -26,6 +32,7 @@ export interface Config {
 
 /** Validate persisted per-workspace preferences. */
 export const Config = z.object({
+  subagentPresets: subagentSchema.volatile(),
   openingPresets: z.array(z.object({
     name: z.string().required(), prompt: z.string().required(),
     directories: z.array(z.string().required()).min(1).required(),
@@ -44,7 +51,7 @@ export const Config = z.object({
 /** Loader and settings namespace identity. */
 export const name = 'ui-project-onboarding'
 /** Configuration service owning product persistence and authorization. */
-export const inject = ['settings']
+export const inject = ['settings', 'systemPrompt']
 
 /** Hide automatic schema forms in favor of the project-specific page.
  * @param ctx Host context carrying the product settings service.
@@ -52,6 +59,12 @@ export const inject = ['settings']
  */
 export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.settings.configure({ auto: false }, ctx.fiber))
+  ctx.systemPrompt.section({
+    name: 'ui:subagent-presets',
+    order: ctx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
+    interpolate: false,
+    text: context => subagentPrompt(config.subagentPresets.get(), context.agent?.session.header.origin === 'subagent'),
+  })
   ctx.inject(['seatEngine'], (ctx) => {
     ctx.effect(() => ctx.seatEngine.registerProjectPolicyResolver((definition) => {
       const projects = config.projects.get()
