@@ -39,20 +39,18 @@ export function TraceSettingsRow(props: Props) {
 function WorkspaceSwitches({ useSessions, useResource, enable, disable, associate, setStrict, t, workspaceId, sessionIds }:
   Props & { workspaceId: WorkspaceId; sessionIds: readonly SessionId[] }) {
   const sessions = useSessions(state => state.byId)
-  const [revision, setRevision] = useState(0)
-  const resource = useResource<'trace'>(`dsh-resource://trace/${encodeURIComponent(workspaceId)}?revision=${revision}`)
-  const [override, setOverride] = useState<TraceStatus | null>(null)
+  const resource = useResource<'trace'>(`dsh-resource://trace/${encodeURIComponent(workspaceId)}`)
   const [failure, setFailure] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [projectId, setProjectId] = useState('')
   const [plannerMenu, setPlannerMenu] = useState(false)
-  const status = override ?? resource.value?.status ?? null
+  const status = resource.value?.status ?? null
   const windows = sessionIds.filter(id => sessions[id]?.origin !== 'subagent')
   const apply = (next: Promise<RemoteResult<TraceStatus>>, receipt?: string): void => {
     setFailure(null); setSaved(null)
     void next.then(result => {
       if (!result.ok) { setFailure(result.error.message); return }
-      setOverride(result.value); setRevision(current => current + 1); setSaved(receipt ?? t('saved'))
+      setSaved(receipt ?? t('saved'))
     }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
   }
   const enabled = status?.enabled === true

@@ -1,4 +1,4 @@
-/** Runtime observers retain references, not copies of conversation or subagent output. */
+/** Runtime observers retain references and bounded visible reply text, without reasoning. */
 import { createHash } from 'node:crypto'
 import { mkdir, open } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -57,8 +57,11 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
       kind: 'attachment', sessionId: session.id, seqStart: event.seq, seqEnd: event.seq,
       path: file.path, beforeHash: null, afterHash: null, summary: file.description ?? '', diffFile: null,
     })
+    const payload = event.type === 'assistant/message'
+      ? JSON.stringify({ text: event.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n').slice(0, 4000) })
+      : '{}'
     observe(store.capture(session.id, { type: event.type, key: `session:${session.id}:${event.seq}`,
-      payload: '{}', seqStart: event.seq, seqEnd: event.seq, time: event.time,
+      payload, seqStart: event.seq, seqEnd: event.seq, time: event.time,
       model: models.get(session.id), actor: event.type === 'user/message' ? 'user' : undefined }, references))
   })
   ctx.on('session/event', (session, event) => {
