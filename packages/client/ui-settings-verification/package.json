@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-settings-verification",
   "description": "Per-workspace verification settings in the Panedesk settings group",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/client/ui-settings-verification" },

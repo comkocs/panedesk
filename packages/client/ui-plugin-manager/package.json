@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-plugin-manager",
   "description": "Plugin management for the panedesk web client: the sidebar Plugins panel installs, enables, disables, retries, and composes installed plugin packages",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "publishConfig": {
     "access": "public"
   },

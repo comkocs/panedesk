@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-home-paths",
   "description": "Shared filesystem path helpers for the DeepSeek Harness",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "publishConfig": {
     "access": "public"
   },

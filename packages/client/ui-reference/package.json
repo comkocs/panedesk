@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-reference",
   "description": "Unified Web @file and @session reference source",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "publishConfig": {
     "access": "public"
   },

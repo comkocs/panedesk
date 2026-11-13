@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-cache-pill",
   "description": "Composer cache pill: remaining cache time for the window and its subagents, and an explicit-route tier switch that takes effect on the next request",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "publishConfig": {
     "access": "public"
   },
