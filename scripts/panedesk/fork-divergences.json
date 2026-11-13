@@ -2,9 +2,9 @@
   "divergences": [
     {
       "id": "subagent-delegation-presets",
-      "description": "Share task-tier delegation presets between onboarding and settings",
+      "description": "Align shared subagent presets with ordered tier model lists and optional size bands",
       "origin": "Panedesk delegation preferences",
-      "reason": "Persist bilingual task criteria, optional models and efforts, main-session duties, and nested delegation guidance; render current role-specific system instructions without changing tool dispatch.",
+      "reason": "Keep compact responsive tier controls and horizontal text-first duties; persist bilingual criteria, ordered provider/model/effort/size lists, optional size rules, and nested guidance. Read legacy single models as the first all-size choice and render role-specific priority guidance without changing tool dispatch.",
       "match": {
         "type": "behavior",
         "paths": ["packages/client/ui-project-onboarding/**"]
