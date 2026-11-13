@@ -19,6 +19,9 @@
   height: 100%;
   box-sizing: border-box;
   overflow: auto;
+  /* The tree is wider than the sidebar, so its bottom scrollbar is a drag
+     target in its own right; a thicker bar is easier to grab. */
+  --dsh-scrollbar-width: 12px;
   padding: 8px 10px;
   font-size: 12px;
   line-height: 18px;
@@ -133,6 +136,10 @@
   grid-column: 1 / -1;
   margin: 4px 0 0;
   color: var(--dsw-alias-label-tertiary);
+}
+
+.monitorDialog {
+  width: min(760px, 100%);
 }
 
 .monitorContent {

@@ -40,7 +40,8 @@
    the halves abut, so a rule a pane draws across its own edge — a header's
    hairline — runs unbroken past the seam. The visible rule is a 0.5px hairline
    centred on the seam, matching the embedder's other borders, and `::after`
-   widens the pointer target to 8px by reaching 4px over each neighbour.
+   widens the pointer target to 12px across a side-by-side seam and 16px across
+   a stacked one, reaching half of that over each neighbour.
    `z-index` keeps that overhang above the later sibling, which would otherwise
    take the hit. */
 .divider {
@@ -75,8 +76,8 @@
 .splitRow > .divider::after {
   top: 0;
   bottom: 0;
-  left: -4px;
-  right: -4px;
+  left: -6px;
+  right: -6px;
 }
 
 .splitColumn > .divider {
@@ -94,11 +95,11 @@
 .splitColumn > .divider::after {
   left: 0;
   right: 0;
-  top: -4px;
-  bottom: -4px;
+  top: -8px;
+  bottom: -8px;
 }
 
-/* Hover: a 1px grip fades in over the hairline, its caption ink deepest at
+/* Hover: a 3px grip fades in over the hairline, its caption ink deepest at
    its middle and fading toward both ends. The grip is painted on the `::after`
    hit target, centred on the seam, and crossfaded through opacity, because a
    gradient cannot transition from the hairline's solid colour. */
@@ -112,11 +113,11 @@
 }
 
 .splitRow > .divider::after {
-  background: linear-gradient(to bottom, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 1px 100% no-repeat;
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 3px 100% no-repeat;
 }
 
 .splitColumn > .divider::after {
-  background: linear-gradient(to right, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 100% 1px no-repeat;
+  background: linear-gradient(to right, transparent, var(--dsw-alias-label-caption) 50%, transparent) center / 100% 3px no-repeat;
 }
 
 /* Both floors: a flex item's minimum is its content's, and a body's longest

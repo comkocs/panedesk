@@ -13,6 +13,24 @@ const PROTOCOL_LABEL_KEYS: Readonly<Record<string, ModelsKey>> = {
   'anthropic-messages': 'protocolAnthropicMessages',
 }
 
+/** Display order: Responses first, Anthropic second, Chat Completions last; unnamed protocols follow. */
+const PROTOCOL_ORDER: readonly string[] = ['openai-responses', 'anthropic-messages', 'openai-completions']
+
+/**
+ * Sort protocol-keyed items into the page's display order, keeping the
+ * adapter's order among protocols the page does not name.
+ * @param items - items to sort.
+ * @param protocolOf - the schema identifier of an item's protocol.
+ * @returns a sorted copy.
+ */
+export function sortProtocols<T>(items: readonly T[], protocolOf: (item: T) => string): T[] {
+  const rank = (item: T): number => {
+    const at = PROTOCOL_ORDER.indexOf(protocolOf(item))
+    return at === -1 ? PROTOCOL_ORDER.length : at
+  }
+  return items.toSorted((left, right) => rank(left) - rank(right))
+}
+
 /**
  * The picker text for one protocol identifier.
  * @param t - section copy.

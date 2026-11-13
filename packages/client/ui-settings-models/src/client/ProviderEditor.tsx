@@ -270,15 +270,16 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
    * path ops against the STORED section: the draft comes from the redacted
    * descriptor, so a wholesale replace rebuilt from it could delete fields
    * outside the card. Ops name only the fields this card can see.
+   * @param source - the draft to write; defaults to the card's current draft.
    */
-  const applyOnce = async (): Promise<string | undefined> => {
+  const applyOnce = async (source: Record<string, unknown> = draft): Promise<string | undefined> => {
     const ns = namespace.ns
     // A pi-ai profile names the conventional reference only when this page is
     // about to store a key. Otherwise the provider keeps its native auth path.
-    const next = layout === 'pi-ai' && stringAt(draft, 'apiKeyEnv') === undefined
+    const next = layout === 'pi-ai' && stringAt(source, 'apiKeyEnv') === undefined
       && stringAt(fallback, 'apiKeyEnv') === undefined && keyValue.length > 0
-      ? schema.setPath(draft, ['apiKeyEnv'], keyRef)
-      : draft
+      ? schema.setPath(source, ['apiKeyEnv'], keyRef)
+      : source
     if (props.credentialOnly !== true) {
       // The same checker gates the submit button, so a card cannot reach this
       // with a bad row; it stays because the schema check below would refuse
@@ -542,12 +543,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 <ModelListEditor
                   {...catalogProps}
                   onSaveSelection={async (next) => {
-                    const outcome = await operations.writeSettings(namespace.ns, [{
-                      op: 'set', path: [...settingsPath, 'models'], value: next as JsonValue,
-                    }], expectedRevision)
-                    if (outcome.kind !== 'written') return outcome.kind === 'conflict' ? t('conflict') : outcome.message
-                    setExpectedRevision(outcome.view.revision)
-                    setCommittedOriginal(schema.getPath(outcome.view.user, settingsPath))
+                    // Saved with the rest of the card, so a key or endpoint typed
+                    // for this fetch is stored together with the models it listed.
+                    const failure = await applyOnce(schema.setPath(draft, ['models'], next))
+                    if (failure !== undefined) return failure
                     props.onClose(true)
                     return undefined
                   }}
