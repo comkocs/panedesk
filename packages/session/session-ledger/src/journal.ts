@@ -528,14 +528,13 @@ class JournalView {
 export async function readJournal(root: string, options: JournalOptions): Promise<LedgerScan> {
   root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
-    await validateArtifactClosures(root, options.maxRecordBytes)
     const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
     return structuredClone(view.scan(root))
   })
 }
 
-/** Read the complete incremental projection after full artifact integrity validation.
+/** Read the complete incremental projection; reads never walk the artifact store, so the writer lock stays short.
  * @param root - Existing node directory.
  * @param options - Storage limits and service-owned view lifetime.
  * @param projection - Read instant, local identity, freshness and selection.
@@ -546,7 +545,6 @@ export async function readJournalSnapshot(root: string, options: JournalOptions,
   root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const view = await JournalView.forRoot(root, options)
-    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures)
     await view.refresh(root, options.maxRecordBytes)
     return view.snapshot(projection)
   })
@@ -557,14 +555,12 @@ export async function readJournalEvents(root: string, options: JournalOptions): 
   root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const view = await JournalView.forRoot(root, options)
-    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures)
     await view.refresh(root, options.maxRecordBytes)
     return { events: [...view.index.events.values()], complete: view.snapshot({ asOf: Date.now(), observationMaxAgeMs: 10000 }).complete }
   })
 }
 
-/** Read keyed facts after checking closures for their call IDs; conflicting journals retain full projection semantics.
- * Unchanged closure contents are cached; selected directories and file identities are checked under the writer lock.
+/** Read keyed facts; conflicting journals retain full projection semantics.
  * @param root - Existing canonical node directory.
  * @param options - Storage limits and service-owned view lifetime.
  * @param selection - Exact wait identity or session start selection.
@@ -593,11 +589,6 @@ export async function readJournalFacts(root: string, options: JournalOptions, se
     }
     // Ambiguous ordering and corrupt identities use the unchanged full projection path.
     if (view.index.conflicts.length || selection.kind !== 'waits' && events.length > 1) events = view.scan(root).events
-    // Only returned facts authorize stream reads: waits and latest-start use their optional callId.
-    // Normal open-runs and run-only latest-start facts have no callId and validate no streams.
-    // Imported run facts with callId and full-projection fallback validate every returned call ID.
-    const callIds = new Set(events.flatMap(event => event.callId === undefined ? [] : [event.callId]))
-    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures, callIds)
     const complete = ![...view.segments.values()].some(segment => segment.tail || segment.corrupt || segment.importedConflicts)
     return structuredClone({ events, complete })
   })

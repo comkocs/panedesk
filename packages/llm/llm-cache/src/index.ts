@@ -223,8 +223,7 @@ export function apply(ctx: Context, config: Config): void {
     const start = state.lastStart
     if (service === undefined || start === undefined) return
     state.pending = state.pending.then(() => fact(service, start, value)).catch((error: unknown) => {
-      state.failure = error
-      ctx.logger.warn('Cache ledger observation failed; further calls are blocked')
+      ctx.logger.warn('Cache ledger observation failed; the call continues without it', error)
     })
   }
 
@@ -500,7 +499,6 @@ export function apply(ctx: Context, config: Config): void {
     if (state.timer !== undefined) clearTimeout(state.timer)
     await Promise.all([...state.active])
     await state.pending
-    if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
   })
 
   const contributor: CallContributor = {
@@ -512,8 +510,7 @@ export function apply(ctx: Context, config: Config): void {
       sessionState.active.add(completed.promise)
       let scope: CallContributionScope | undefined
       let started = false
-      const dispose = (failure?: unknown) => {
-        if (failure !== undefined) state.failure = failure
+      const dispose = () => {
         if (started) state.inFlight -= 1
         completed.resolve()
         operations.delete(completed.promise)
@@ -526,7 +523,6 @@ export function apply(ctx: Context, config: Config): void {
       try {
         await sessionState.pending
         if (sessionState.stopped || lifetime.signal.aborted) throw new Error('Cache accounting is closing')
-        if (sessionState.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: sessionState.failure })
         const route = routeOf(request.provider)
         const resolution = request.cache === undefined ? { mode: 'unknown' as const, ttlSeconds: undefined, downgradeReason: undefined }
           : resolveCachePolicy({ retention: request.cache.retention,
@@ -551,7 +547,6 @@ export function apply(ctx: Context, config: Config): void {
             ? { lastCacheEvidenceAt: state.evidence.lastCacheEvidenceAt } : {}),
         }
         await state.pending
-        if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
         return {
           evidence, modelFamily: route.modelFamily, signal: lifetime.signal,
           async started(value) {

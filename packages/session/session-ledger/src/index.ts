@@ -248,29 +248,28 @@ export class JournalSessionLedger extends SessionLedger {
     for (const category of Object.values(this.configuredWaits)) {
       if (!['sleep', 'external-marker', 'subagent'].includes(category)) throw new Error('Invalid configured wait category')
     }
+    // Wait accounting is best effort: a busy or unreadable ledger never stops a tool.
     ctx.on('tools/execute', async (exec, next) => {
       if (!exec.agent) return next()
-      const snapshot = await this.hotSnapshot({ kind: 'open-runs', sessionId: exec.agent.session.id })
-      const runs = snapshot.rows.filter(row => row.kind === 'run' && !row.finish)
-      const run = runs.at(-1)
-      if (!run || run.kind !== 'run') throw new LedgerUnavailableError(new Error('Tool execution has no durable run start'))
       const category = this.waits.get(exec.name)?.category ?? this.configuredWaits[exec.name] ?? 'unclassified'
       const startedAt = Date.now()
       const interval: LedgerInterval = { kind: category, startedAt, toolCallId: exec.callId }
-      const base = { schemaVersion: 1 as const, nodeId: run.start.nodeId, runId: run.start.runId, sessionId: run.start.sessionId }
-      const start = await this.appendEvent({ ...base, eventId: `wait/start:${run.start.runId}:${exec.callId}` as LedgerEventId, observedAt: startedAt, kind: 'wait/start', interval })
-      if (start.kind === 'conflict') throw new LedgerUnavailableError(new Error('Conflicting wait start'))
+      let base: { schemaVersion: 1; nodeId: LedgerRunStart['nodeId']; runId: LedgerRunStart['runId']; sessionId: LedgerRunStart['sessionId'] }
+      try {
+        const snapshot = await this.hotSnapshot({ kind: 'open-runs', sessionId: exec.agent.session.id })
+        const run = snapshot.rows.filter(row => row.kind === 'run' && !row.finish).at(-1)
+        if (!run || run.kind !== 'run') return next()
+        base = { schemaVersion: 1, nodeId: run.start.nodeId, runId: run.start.runId, sessionId: run.start.sessionId }
+        await this.appendEvent({ ...base, eventId: `wait/start:${base.runId}:${exec.callId}` as LedgerEventId, observedAt: startedAt, kind: 'wait/start', interval })
+      } catch (error) {
+        ctx.logger.warn('Local accounting skipped a tool wait', error)
+        return next()
+      }
       const monotonic = performance.now()
-      let failure: unknown
-      try { return await next() } catch (error) { failure = error; throw error } finally {
+      try { return await next() } finally {
         const endedAt = Date.now()
-        try {
-          const end = await this.appendEvent({ ...base, eventId: `wait/end:${run.start.runId}:${exec.callId}` as LedgerEventId, observedAt: endedAt, kind: 'wait/end', interval: { ...interval, endedAt, durationMs: performance.now() - monotonic } })
-          if (end.kind === 'conflict') throw new LedgerUnavailableError(new Error('Conflicting wait end'))
-        } catch (error) {
-          if (failure !== undefined) throw new AggregateError([failure, error], 'Tool execution and local accounting both failed')
-          throw error
-        }
+        await this.appendEvent({ ...base, eventId: `wait/end:${base.runId}:${exec.callId}` as LedgerEventId, observedAt: endedAt, kind: 'wait/end', interval: { ...interval, endedAt, durationMs: performance.now() - monotonic } })
+          .catch((error: unknown) => { ctx.logger.warn('Local accounting skipped a tool wait end', error) })
       }
     })
   }

@@ -460,6 +460,24 @@
       }
     },
     {
+      "id": "best-effort-local-accounting",
+      "description": "Keep local accounting from stopping calls, tools and runs, stop persisting streamed response fragments, and keep artifact walks out of ledger reads",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "Every streamed chunk became its own fsynced artifact directory, and every snapshot walked all artifact directories under the exclusive writer lock. A long-used installation held the lock continuously, other writers timed out after 30 seconds, and the first failure blocked every later call in the session as requiring repair.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/session/session-ledger/src/call-accounting.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/journal.ts",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/llm/llm-cache/src/index.ts",
+          "packages/core/agent-loop/src/ledger-run.ts"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",

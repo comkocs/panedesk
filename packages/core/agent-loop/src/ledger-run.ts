@@ -22,6 +22,24 @@ export async function beginAgentRun(
   sessionId: SessionId,
   settings?: LedgerIdentityOptions,
 ): Promise<((events: readonly SessionEvent[], failed: boolean) => Promise<void>) | undefined> {
+  // Run accounting is best effort: a busy or unreadable ledger never stops the agent.
+  let finish: ((events: readonly SessionEvent[], failed: boolean) => Promise<void>) | undefined
+  try { finish = await admitAgentRun(ctx, sessionId, settings) } catch (error) {
+    ctx.logger.warn('Local accounting skipped an agent run', error)
+    return undefined
+  }
+  if (finish === undefined) return undefined
+  const settle = finish
+  return async (events, failed) => {
+    await settle(events, failed).catch((error: unknown) => { ctx.logger.warn('Local accounting skipped an agent run end', error) })
+  }
+}
+
+async function admitAgentRun(
+  ctx: Context,
+  sessionId: SessionId,
+  settings?: LedgerIdentityOptions,
+): Promise<((events: readonly SessionEvent[], failed: boolean) => Promise<void>) | undefined> {
   const ledger = ctx.get('sessionLedger')
   if (ledger === undefined) return undefined
   const bound = ledger.contextFor(sessionId)

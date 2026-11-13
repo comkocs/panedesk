@@ -77,8 +77,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     const start = state.lastStart
     if (start === undefined) return
     state.pending = state.pending.then(() => fact(service, start, value)).catch((error: unknown) => {
-      state.failure = error
-      ctx.logger.warn('Cache ledger observation failed; further calls are blocked')
+      ctx.logger.warn('Cache ledger observation failed; the call continues without it', error)
     })
   }
 
@@ -97,7 +96,6 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     state.stopped = true
     await Promise.all([...state.active])
     await state.pending
-    if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
   })
   ctx.on('agent/disposed', ({ agent }) => { states.delete(agent.id) })
 
@@ -116,7 +114,6 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     try {
       await sessionState.pending
       if (sessionState.stopped || lifetime.signal.aborted) throw new Error('Cache accounting is closing')
-      if (sessionState.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: sessionState.failure })
       contribution = await contributor?.prepare({ request, id, agent, auxiliary })
       yield* metered(request, next, id, agent, state, service, contribution)
     } catch (error: unknown) {
@@ -142,7 +139,6 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     const callId = randomUUID() as LedgerCallId
     const evidence: LedgerCacheEvidence = contribution?.evidence ?? { cacheMode: 'unknown', breakReasons: [] }
     await state.pending
-    if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
     if (request.purpose === undefined && !state.retryPending) {
       state.logicalRequestId = randomUUID() as LedgerRequestId; state.attemptIndex = 0; state.backoffMs = 0
     }
@@ -150,9 +146,16 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     const startedAt = Date.now()
     const clock = performance.now()
     const sessionId = request.sessionId ?? agent?.id
-    const attribution = await service.resolveCallContext({
-      ...sessionId === undefined ? {} : { sessionId }, provider: request.provider, model: request.model,
-    })
+    let attribution: Awaited<ReturnType<SessionLedger['resolveCallContext']>>
+    try {
+      attribution = await service.resolveCallContext({
+        ...sessionId === undefined ? {} : { sessionId }, provider: request.provider, model: request.model,
+      })
+    } catch (error: unknown) {
+      ctx.logger.warn('Local accounting skipped a model call', error)
+      yield* next()
+      return
+    }
     const start: LedgerCallStart = {
       ...attribution.context, runId: attribution.runId, callId,
       logicalRequestId: request.purpose === undefined ? state.logicalRequestId : randomUUID() as LedgerRequestId,
@@ -167,26 +170,23 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     const signal = AbortSignal.any([lifetime.signal,
       ...(contribution?.signal === undefined ? [] : [contribution.signal]),
       ...(request.signal === undefined ? [] : [request.signal])])
-    committed(await service.beginCall(start))
+    try { committed(await service.beginCall(start)) } catch (error: unknown) {
+      ctx.logger.warn('Local accounting skipped a model call', error)
+      yield* next()
+      return
+    }
     if (request.purpose !== 'keepalive') state.lastStart = start
     let release: (() => void) | undefined
     let admittedAt: number | undefined
     let usage: TokenUsage | undefined
     let finish: Extract<StreamChunk, { type: 'finish' }> | undefined
-    let partial: LedgerArtifactReference | undefined
     const artifacts: LedgerArtifactReference[] = []
     const toolCallIds = new Set<ToolCallId>()
-    let seq = 0
     let failure: unknown
     async function artifact(kind: 'partial-response' | 'keepalive-request', content: string, index: number): Promise<LedgerArtifactReference | undefined> {
-      try {
-        const result = await service.appendArtifact({ callId, kind, seq: index, content })
-        if (result.kind === 'conflict') throw new Error('Ledger sidecar conflict')
-        return result.reference
-      } catch (error: unknown) {
-        state.failure = error
-        throw error
-      }
+      const result = await service.appendArtifact({ callId, kind, seq: index, content })
+      if (result.kind === 'conflict') throw new Error('Ledger sidecar conflict')
+      return result.reference
     }
     try {
       const scope: CallContributionScope = { start, signal,
@@ -204,8 +204,6 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
         if (chunk.type === 'usage') usage = chunk.usage
         if (chunk.type === 'finish') finish = chunk
         if (chunk.type === 'block-end' && chunk.block.type === 'tool-call' && chunk.block.id) toolCallIds.add(chunk.block.id)
-        // Persist fragments before exposing them, including requests that later terminate without settlement.
-        if (chunk.type !== 'finish' && chunk.type !== 'usage') partial = await artifact('partial-response', JSON.stringify(chunk), seq++)
         yield chunk
       }
     } catch (error: unknown) {
@@ -217,16 +215,6 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
       release?.()
       try {
         const failed = failure !== undefined || finish === undefined || finish.reason.kind === 'error' || finish.reason.kind === 'aborted'
-        if (partial !== undefined) {
-          try {
-            const closed = await service.finishArtifact(partial)
-            artifacts.push(closed.reference)
-            if (request.purpose === undefined) state.partial = failed ? closed.reference : undefined
-          } catch (error: unknown) {
-            state.failure = error
-            await fact(service, start, { kind: 'alert', alert: { code: 'ledger-unavailable', message: 'Partial response sidecar closure failed', redacted: true } })
-          }
-        }
         const terminalEvidence = finish === undefined ? undefined : LlmAdapter.ledgerEvidence?.get(finish)
         if (terminalEvidence?.usageObserved === false) usage = undefined
         else if (terminalEvidence?.usage !== undefined) usage = terminalEvidence.usage
@@ -292,10 +280,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
           if (failed) await fact(service, start, { kind: 'alert', alert: { code: admittedAt === undefined ? 'concurrency-rejected' : 'disconnect', message: 'Model call did not complete', redacted: true } })
         }
       } catch (error: unknown) {
-        state.failure = error
-        ctx.logger.warn('Call settlement failed; further calls are blocked until accounting is repaired')
-        if (failure !== undefined) throw new AggregateError([failure, error], 'Model call and ledger settlement failed')
-        throw error
+        ctx.logger.warn('Call settlement failed; the call result stands without it', error)
       } finally {
         if (agent === undefined && request.sessionId === undefined) states.delete(id)
       }
