@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.7
+
+### Changed
+
+- Panedesk opens straight into the workspace without the sign-in page; with no credential configured it opens on the add-provider card.
+
+### Fixed
+
+- The protocol test streams every OpenAI Responses check, so relays that accept only streamed Responses requests no longer fail the text, tool, and image checks.
+
 ## 2.0.6
 
 ### Changed
