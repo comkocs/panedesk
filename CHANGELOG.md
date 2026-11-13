@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.14
+
+### Changed
+
+- Subagent presets: tiers are now named Tier A, B, and C with criteria based on the kind of change, and each tier holds an ordered list of models instead of a single one. Pick a model and reasoning effort, then Add; added models appear as removable tags under the tier and are offered to the agent in priority order. An optional task-size setting (off by default) splits each tier into large, medium, and small with editable rules. Main-session duties are laid out horizontally with the label before its checkbox, and the form is aligned in a single grid. Presets saved by 2.0.13 are read as the first model of the tier.
+
 ## 2.0.13
 
 ### Added
