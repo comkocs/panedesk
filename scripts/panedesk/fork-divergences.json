@@ -1,6 +1,18 @@
 {
   "divergences": [
     {
+      "id": "direct-model-list-effort-submenu-and-local-order",
+      "description": "Open the model list directly with an effort submenu and local drag ordering",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "Keep model selection one click away, expose effort choices beside the list footer, and share saved provider and model ordering across both picker entries.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-model-selection/**"
+        ]
+      }
+    },
+    {
       "id": "floating-edge-targets-and-feedback-readability",
       "description": "Widen floating edge targets and keep verification feedback and probe responses readable",
       "origin": "Panedesk desktop interaction feedback",
