@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.11
+
+### Fixed
+
+- GLM-5.3 and later offer Low, High, and Max reasoning levels instead of Off and High, and the chosen level reaches Zhipu endpoints as `reasoning_effort`; previously High ran at the endpoint default and Off asked for disabled thinking, which these models do not accept.
+
 ## 2.0.10
 
 ### Fixed

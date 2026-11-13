@@ -11,6 +11,16 @@ export interface ReasoningModelHint {
 }
 
 /**
+ * Whether a model belongs to the GLM-5.3-and-later family, which always thinks and takes
+ * `reasoning_effort` as `low`, `high` or `max` (the endpoint default).
+ * @param model - model id and display name.
+ * @returns true for GLM-5.3 and later.
+ */
+export function takesGlmEffort(model: Pick<ReasoningModelHint, 'id' | 'name'>): boolean {
+  return [model.id, model.name ?? ''].some(value => /(?:^|[\s/:])glm[-\s](?:5\.[3-9]|[6-9])/.test(value.toLowerCase()))
+}
+
+/**
  * Infer effort spellings without replacing an explicit model declaration.
  * @param model - model id, display name, protocol, and endpoint capability override.
  * @returns inferred levels and unchanged wire spellings (`off` sends nothing), or false when effort support is unknown.
@@ -23,11 +33,13 @@ export function inferReasoningEfforts(model: ReasoningModelHint): false | Partia
   let levels: readonly ModelThinkingLevel[]
   if (matches(/(?:^|[\s/:])(?:gpt-|o\d|claude-|grok-|(?:astra|sol|terra|luna)[\s\d.-])/)) {
     levels = ['low', 'medium', 'high', 'xhigh']
+  } else if (takesGlmEffort(model)) {
+    levels = ['low', 'high', 'max']
   } else if (matches(/(?:^|[\s/:])(?:glm|deepseek|gemini)-/)
     && model.supportsReasoningEffort === true) {
     levels = ['low', 'medium', 'high']
   } else if (matches(/(?:^|[\s/:])glm-/)) {
-    // GLM endpoints switch thinking on or off instead of taking an effort level.
+    // Earlier GLM endpoints switch thinking on or off instead of taking an effort level.
     return { off: null, high: 'high' }
   } else {
     return false

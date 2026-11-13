@@ -30,7 +30,7 @@ import type {
   ThinkingLevelMap,
 } from '@earendil-works/pi-ai'
 import { presetContextWindow } from './context-presets.ts'
-import { inferReasoningEfforts } from './reasoning.ts'
+import { inferReasoningEfforts, takesGlmEffort } from './reasoning.ts'
 
 /**
  * Pricing for a model the installed catalog does not describe. The harness
@@ -821,6 +821,11 @@ function resolveModelCompat(
         + ` ${offered.length === 0 ? 'no configurable compat' : offered.join(', ')}`)
     }
     configured[field] = value
+  }
+  // pi-ai's detection sends no `reasoning_effort` to Zhipu endpoints, which would leave GLM-5.3 at its default level.
+  if (api === 'openai-completions' && base === undefined && configured['supportsReasoningEffort'] === undefined
+    && takesGlmEffort(entry)) {
+    configured['supportsReasoningEffort'] = true
   }
   if (Object.keys(configured).length === 0) return {}
   // The installed entry's compat matches the entry's OWN api — a route-level

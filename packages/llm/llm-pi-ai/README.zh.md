@@ -102,7 +102,7 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 ### 带推理（reasoning）与协议兼容运行
 
-`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是分派时在协议中发送的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；自定义模型则按 id 和显示名推断档位。GPT 文本模型、o 系列、Astra、Sol、Terra、Luna、Claude 与 Grok 提供 `low`、`medium`、`high` 和 `xhigh`。图片、语音、音频、视频与嵌入模型不提供档位。GLM、DeepSeek 与 Gemini 显式设置 `compat.supportsReasoningEffort: true` 时提供 `low`、`medium` 和 `high`；未设置时 GLM 提供 `off` 与 `high`（其接口读作关闭 / 开启思考），DeepSeek 与 Gemini 不提供档位，因为未知端点不会被假定接受推理强度参数。`false` 显式禁用推理，显式档位字典始终优先。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目、名称预设与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
+`reasoningEfforts` 声明模型可选择的 thinking 等级：每个键都是选择器提供的等级，其值是分派时在协议中发送的拼写，因此 `max: ultra` 可以为拥有自有词汇的网关重命名等级。省略该字段时保留已安装目录条目的能力；自定义模型则按 id 和显示名推断档位。GPT 文本模型、o 系列、Astra、Sol、Terra、Luna、Claude 与 Grok 提供 `low`、`medium`、`high` 和 `xhigh`。图片、语音、音频、视频与嵌入模型不提供档位。GLM-5.3 及以后始终思考，提供 `low`、`high` 和 `max`，即使在智谱端点上也以 `reasoning_effort` 发送（否则 pi-ai 不发送，端点按默认 `max` 处理）。其他 GLM 模型、DeepSeek 与 Gemini 显式设置 `compat.supportsReasoningEffort: true` 时提供 `low`、`medium` 和 `high`；未设置时这些 GLM 模型提供 `off` 与 `high`（其接口读作关闭 / 开启思考），DeepSeek 与 Gemini 不提供档位，因为未知端点不会被假定接受推理强度参数。`false` 显式禁用推理，显式档位字典始终优先。对于 pi-ai 无法识别的端点，`compat` 开关重塑请求——哪个角色携带系统提示词、哪个字段限制输出、thinking 等级如何传递——可逐路由、逐模型配置。条目、名称预设与已安装目录都没有尺寸的模型，会采用路由的 `defaultContextWindow` 与 `defaultMaxTokens` 回退值。
 
 确切模型元数据将 `reasoning.efforts` 按可选强度从低到高排列。未配置路由推理强度时，模型选择和请求均默认使用 `high`，没有 `high` 时使用最高可用档位。配置函数可从该列表中选择，再由 `prepareCall()` 校验具体强度。适配器只接收解析后的控制项。选择 `off` 不保证禁用推理：以省略推理字段表达该值的协议会沿用网关默认行为。所选等级下产生的推理 token 都计入该请求的输出上限。
 

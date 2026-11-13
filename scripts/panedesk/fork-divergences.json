@@ -520,6 +520,21 @@
       }
     },
     {
+      "id": "glm-reasoning-effort-levels",
+      "description": "Offer GLM-5.3 and later low, high, and max reasoning levels and send them as reasoning_effort on Zhipu endpoints",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "GLM-5.3 always thinks and takes reasoning_effort low, high, or max, but custom GLM models offered only off and high, and pi-ai sends no reasoning_effort to Zhipu endpoints, so high ran at the endpoint default max and off asked for disabled thinking the model rejects.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/llm/llm-pi-ai/src/reasoning.ts",
+          "packages/llm/llm-pi-ai/src/catalog.ts",
+          "packages/llm/llm-pi-ai/README.md",
+          "packages/llm/llm-pi-ai/README.zh.md"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",
