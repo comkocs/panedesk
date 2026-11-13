@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.0.6
+
+### Changed
+
+- The model picker opens on the model list, with reasoning effort as a bottom row whose levels open beside it on hover.
+- Models and provider groups can be reordered by holding the right mouse button and dragging, and the order is kept.
+- Protocol choices list OpenAI Responses first, Anthropic Messages second, and OpenAI Chat Completions last.
+- The protocol test shows only pass or fail per check in a compact table.
+- The add card has a Create provider button at its top right.
+- GLM models offer thinking off and on.
+- Split dividers, the subagent tree scrollbar, and the subagent monitor dialog are larger.
+
+### Fixed
+
+- Fetching models after changing a provider's key no longer keeps models the new key does not list and saves the typed key with the selection.
+- A provider you declared yourself can have all its models removed and keeps its key.
+- Trace reply references keep the reply text, timeline rows no longer overlap, unassigned activity lists the newest first, exported file names keep non-ASCII characters, the export notice stays, and the decisions tab shows new proposals after strict mode is turned on.
+- Every New Session click writes a timing line.
+- Picking another workspace on a new session opens it on the first try.
+- Two full test runs in one command count as two.
+- Empty optional tool arguments are treated as omitted, a permission request no wider than the current mode runs without approval, and subagents are no longer told to call tools they lack.
+
 ## 2.0.5
 
 ### Fixed
