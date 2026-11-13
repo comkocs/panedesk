@@ -447,6 +447,19 @@
       }
     },
     {
+      "id": "desktop-starts-in-workspace-and-streamed-responses-probe",
+      "description": "Open the desktop workspace at startup without the sign-in page and probe the Responses protocol with streamed requests only",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "Panedesk users bring their own model providers, so the sign-in page stood between launch and the workspace; an installation without any credential now opens on the add-provider card. Responses relays backed by Codex accept only streamed requests, so the non-streamed text, tool, and image checks reported failures for a protocol the runtime uses successfully.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop/src/main.ts",
+          "packages/llm/llm/src/index.ts"
+        ]
+      }
+    },
+    {
       "id": "custom-model-reasoning-inference",
       "description": "Infer custom gateway reasoning levels per model and expose editable row summaries",
       "origin": "Custom model gateway reasoning selection",

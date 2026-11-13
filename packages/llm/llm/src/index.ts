@@ -1279,6 +1279,7 @@ export class LlmRuntime extends TypertRemoteService {
       choices?: { message?: { content?: string; tool_calls?: { type?: string; function?: { name?: string; arguments?: string } }[] }; delta?: { content?: string } }[]
       content?: { type?: string; text?: string; name?: string; input?: object }[]
       output?: { type?: string; name?: string; arguments?: string; content?: { type?: string; text?: string }[] }[]
+      item?: { type?: string; name?: string; arguments?: string }
     }
     const failed = (reason: NonNullable<LlmProtocolCheck['reason']>, status?: number, info?: string): LlmProtocolCheck => {
       const body = info === undefined ? undefined : failureBody(info, apiKey)
@@ -1331,7 +1332,8 @@ export class LlmRuntime extends TypertRemoteService {
       using timer = deadline(signal, timeoutMs, 'PROBE_TIMEOUT')
       const anthropic = api === 'anthropic-messages'
       const responses = api === 'openai-responses'
-      const streaming = capability === 'stream'
+      // Responses always runs streamed, like the runtime; relays such as Codex-backed gateways refuse it otherwise.
+      const streaming = capability === 'stream' || responses
       const tool = capability === 'tool'
       const image = capability === 'image'
       const prompt = tool ? 'Call the ping tool once.' : image ? 'Name the image color in one word.' : 'Say hello in one word.'
@@ -1384,6 +1386,7 @@ export class LlmRuntime extends TypertRemoteService {
             call.type === 'function' && call.function?.name === 'ping' && typeof call.function.arguments === 'string')) === true
             || reply.content?.some(block => block.type === 'tool_use' && block.name === 'ping' && block.input !== undefined) === true
             || reply.output?.some(item => item.type === 'function_call' && item.name === 'ping' && typeof item.arguments === 'string') === true
+            || (reply.item?.type === 'function_call' && reply.item.name === 'ping' && typeof reply.item.arguments === 'string')
           finished ||= reply.type === 'message_stop' || reply.type === 'response.completed'
         }
         if (streaming) {
