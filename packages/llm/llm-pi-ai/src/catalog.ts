@@ -906,10 +906,9 @@ export function resolveRouteModels(
   const entries: readonly PiAiModelProfile[] = configured.length > 0
     ? configured
     : [...defaults.values()].map(model => ({ id: model.id, ...overrides[model.id] }))
-  if (entries.length === 0) {
-    invalid(provider, 'resolves no models; the installed catalog does not describe this route, so its models'
-      + ' must be listed in configuration')
-  }
+  // A declared route whose models were all removed keeps its endpoint and key
+  // and simply offers nothing to the picker until models are listed again.
+  if (entries.length === 0) return { models: [], inputModalities: new Map(), configuredMaxTokens: new Map(), modelErrors }
   const routeApi = sharedCatalogApi(defaults)
   // Vocabulary before protocols: a withheld or undeclared switch is refused
   // wherever it is written, so it cannot look applied on a route whose models
