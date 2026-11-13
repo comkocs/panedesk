@@ -4,7 +4,7 @@ import { Button, Input } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type {} from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-ui-workspace/client'
-import type { DecisionRevision, ItemId, ReferenceContent, TraceItem } from '@panedesk/dsh-trace-store/types'
+import type { DecisionRevision, ItemId, ReferenceContent, ReferenceId, TraceItem } from '@panedesk/dsh-trace-store/types'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { TraceOpenActions, TracePanelActions } from './index.ts'
@@ -42,7 +42,6 @@ export function TracePanel(props: Props) {
   return <section className={css.tab} onClickCapture={() => { setNotice(null) }} onChangeCapture={() => { setNotice(null) }}>
     <h1 className={css.heading}>{props.t('title')}</h1>
     <p>{props.t('description')}</p>
-    {notice !== null && <p role="status">{notice}</p>}
     {failed && <p role="alert">{props.t('failed', { reason: resource.failure!.message })}</p>}
     {status === null && !failed && <p role="status">{props.t('loading')}</p>}
     {status !== null && !status.enabled && <section>
@@ -55,19 +54,18 @@ export function TracePanel(props: Props) {
         <Button variant={page === 'decisions' ? 'primary' : 'outline'} onClick={() => { setPage('decisions') }}>{props.t('decisions')}</Button>
       </div>
       {page === 'items'
-        ? <ItemsPage {...props} workspaceId={workspace.workspaceId} setNotice={setNotice} />
+        ? <ItemsPage {...props} workspaceId={workspace.workspaceId} notice={notice} setNotice={setNotice} />
         : <DecisionsPage {...props} workspaceId={workspace.workspaceId} strict={status.strict} />}
     </section>}
   </section>
 }
 
-function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, t, workspaceId, setNotice }:
-  Props & { workspaceId: WorkspaceId; setNotice: (notice: string | null) => void }) {
+function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, exportText, t, workspaceId, notice, setNotice }:
+  Props & { workspaceId: WorkspaceId; notice: string | null; setNotice: (notice: string | null) => void }) {
   const [tick, setTick] = useState(0)
   const [selected, setSelected] = useState<ItemId | null>(null)
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const [title, setTitle] = useState('')
-  const [opened, setOpened] = useState<ReferenceContent | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const stamp = `${encodeURIComponent(workspaceId)}?revision=${tick}`
   const itemsResource = useResource<'traceitems'>(`dsh-resource://traceitems/${stamp}`)
@@ -82,21 +80,14 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   const show = (itemId: ItemId): void => { setSelected(itemId) }
   const download = (name: string, text: string, type: string): void => {
     const safe = name.replace(/[<>:"/\\|?*\u0000-\u001f\u007f-\u009f]/g, '_')
-    try {
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(new Blob([text], { type }))
-      link.href = url
-      link.download = safe
-      document.body.append(link)
-      link.click()
-      link.remove()
-      setTimeout(() => { URL.revokeObjectURL(url) }, 0)
-      setNotice(t('exported', { name: safe }))
-      setFailure(null)
-    } catch (error: unknown) {
+    setNotice(t('exporting', { name: safe }))
+    setFailure(null)
+    void exportText(safe, text, type).then(saved => {
+      if (saved !== undefined) setNotice(saved === null ? t('exportCancelled') : t('exported', { name: saved }))
+    }).catch((error: unknown) => {
       setNotice(null)
       setFailure(error instanceof Error ? error.message : String(error))
-    }
+    })
   }
   const openItems = items?.filter(item => item.status === 'open') ?? []
   const closedItems = items?.filter(item => item.status !== 'open') ?? []
@@ -123,14 +114,9 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
       {events.length === 0 && <p>{t('timelineEmpty')}</p>}
       <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
         <span className={css.activity}>{eventLine(event, t)}</span>
-        {refs.filter(row => row.eventId === event.id).map(row => <Button key={row.id} variant="ghost" size="sm" className={css.reference} onClick={() => {
-          void reference(workspaceId, row.id).then(result => {
-            if (!result.ok) { setFailure(result.error.message); return }
-            setOpened({ ...result.value, text: referenceText(result.value) }); setFailure(null)
-          }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
-        }}>{t('viewReference')}</Button>)}
+        {refs.filter(row => row.eventId === event.id).map(row => <ReferenceRow key={row.id} referenceId={row.id}
+          workspaceId={workspaceId} reference={reference} t={t} setFailure={setFailure} />)}
       </li>)}</ul>
-      {opened !== null && <pre className={css.quote}>{opened.text === '' ? t('referenceEmpty') : opened.text}</pre>}
       <div className={css.row}>
         {open.status === 'open' && <Button variant="outline" onClick={() => {
           void closeItem(workspaceId, open.id).then(result => {
@@ -141,6 +127,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
         <Button variant="outline" onClick={() => { download(`${open.title}.json`, JSON.stringify({ item: open, events, refs }, null, 2), 'application/json') }}>{t('exportJson')}</Button>
         <Button variant="outline" onClick={() => { download(`${open.title}.md`, itemMarkdown(open, events, refs, [], t), 'text/markdown') }}>{t('exportMd')}</Button>
       </div>
+      {notice !== null && <p role="status">{notice}</p>}
     </section>}
     <h2>{t('unassigned')}</h2>
     {loose.length === 0 && <p>{t('unassignedEmpty')}</p>}
@@ -162,6 +149,22 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
   </section>
 }
 
+function ReferenceRow({ referenceId, workspaceId, reference, t, setFailure }: Pick<Props, 'reference' | 't'> & {
+  referenceId: ReferenceId; workspaceId: WorkspaceId; setFailure: (failure: string | null) => void
+}) {
+  const [opened, setOpened] = useState<ReferenceContent | null>(null)
+  return <>
+    <Button variant="ghost" size="sm" className={css.reference} aria-expanded={opened !== null} onClick={() => {
+      if (opened !== null) { setOpened(null); return }
+      void reference(workspaceId, referenceId).then(result => {
+        if (!result.ok) { setFailure(result.error.message); return }
+        setOpened({ ...result.value, text: referenceText(result.value) }); setFailure(null)
+      }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
+    }}>{t(opened === null ? 'viewReference' : 'hideReference')}</Button>
+    {opened !== null && <pre className={css.quote}>{opened.text === '' ? t('referenceEmpty') : opened.text}</pre>}
+  </>
+}
+
 function ItemList({ items, selected, onSelect, t }: {
   items: readonly TraceItem[]
   selected: ItemId | null
@@ -172,16 +175,6 @@ function ItemList({ items, selected, onSelect, t }: {
     <Button variant="ghost" className={item.id === selected ? css.selected : undefined} onClick={() => { onSelect(item.id) }}>
       {item.title} · {itemStatus(item.status, t)}
     </Button>
-  </li>)}</ul>
-}
-
-function DecisionHistory({ t, rows }:
-  Pick<Props, 't'> & { rows: readonly DecisionRevision[] }) {
-  const past = rows.filter(row => row.status === 'rejected' || row.revision !== rows.at(-1)?.revision)
-  if (past.length === 0) return <p>{t('historyEmpty')}</p>
-  return <ul className={css.list}>{past.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
-    <span>{row.title} · {decisionStatus(row.status === 'proposed' && rows.find(next => next.revision === row.revision + 1)?.status === 'rejected' ? 'rejected' : row.status, t)} · v{row.revision}</span>
-    <span className={css.muted}>{sourceLine(row.source, t)}</span>
   </li>)}</ul>
 }
 
@@ -199,6 +192,11 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
   const revisionsOf = (id: string) => (rows ?? []).filter(row => row.id === id)
   const active = ids.flatMap(id => revisionsOf(id).filter(row => row.status === 'active' || row.status === 'reverted').slice(-1))
   const proposed = ids.flatMap(id => revisionsOf(id).slice(-1).filter(row => row.status === 'proposed'))
+  const past = ids.flatMap(id => revisionsOf(id).filter(row => row.status === 'rejected' || row.revision !== revisionsOf(id).at(-1)?.revision))
+  const decisionSource = (row: DecisionRevision) => sourceLine(
+    row.source.actor === 'user' ? { ...(revisionsOf(row.id).findLast(revision => revision.revision < row.revision
+      && revision.title === row.title && revision.body === row.body && revision.source.actor !== 'user')?.source ?? row.source), time: row.source.time } : row.source, t,
+  )
   return <section>
     {failure !== null && <p role="alert">{t('actionFailed', { reason: failure })}</p>}
     {resource.status === 'failed' && <p role="alert">{t('failed', { reason: resource.failure!.message })}</p>}
@@ -206,7 +204,7 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
     {active.length === 0 && <p>{t('decisionsEmpty')}</p>}
     <ul className={css.list}>{active.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
       <strong>{row.title}</strong>
-      <span>{sourceLine(row.source, t)} · {decisionStatus(row.status, t)} · v{row.revision}</span>
+      <span>{decisionSource(row)} · {decisionStatus(row.status, t)} · v{row.revision}</span>
       <p>{row.body}</p>
       {row.status !== 'reverted' && <Button variant="outline" onClick={() => { void revert(workspaceId, row.id).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('revert')}</Button>}
     </li>)}</ul>
@@ -215,7 +213,7 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
       {proposed.length === 0 && <p>{t('proposedEmpty')}</p>}
       <ul className={css.list}>{proposed.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
         <strong>{row.title}</strong>
-        <span>{sourceLine(row.source, t)}</span>
+        <span>{decisionSource(row)}</span>
         <p>{row.body}</p>
         <div className={css.row}>
           <Button variant="primary" onClick={() => { void confirm(workspaceId, row.id, row.revision).then(refresh).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) }) }}>{t('confirm')}</Button>
@@ -224,6 +222,10 @@ function DecisionsPage({ useResource, revert, confirm, reject, t, workspaceId, s
       </li>)}</ul>
     </section>}
     <h2>{t('history')}</h2>
-    {ids.map(id => <DecisionHistory key={id} t={t} rows={revisionsOf(id)} />)}
+    {past.length === 0 && <p>{t('historyEmpty')}</p>}
+    <ul className={css.list}>{past.map(row => <li key={`${row.id}:${row.revision}`} className={css.item}>
+      <span>{row.title} · {decisionStatus(row.status === 'proposed' && revisionsOf(row.id).find(next => next.revision === row.revision + 1)?.status === 'rejected' ? 'rejected' : row.status, t)} · v{row.revision}</span>
+      <span className={css.muted}>{decisionSource(row)}</span>
+    </li>)}</ul>
   </section>
 }

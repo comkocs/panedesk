@@ -16773,6 +16773,23 @@
       }
     },
     {
+      "id": "trace-settled-replies-and-inline-feedback",
+      "description": "Capture settled reply text and show inline references, export results, and consistent decision sources",
+      "origin": "Panedesk item panel",
+      "reason": "Read replies by committed sequence with visible stream text when assembled text is empty, keep export feedback beside its controls with native save completion and cancellation, expand each reference in place, and show decision history emptiness once without replacing author attribution with confirmation metadata.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/trace-store/**",
+          "packages/client/ui-trace/**",
+          "apps/desktop/src/ipc.ts",
+          "apps/desktop/src/preload-app.ts",
+          "apps/desktop/src/directory-picker.ts",
+          "apps/desktop/README*"
+        ]
+      }
+    },
+    {
       "id": "optional-tool-arguments-and-subagent-hints",
       "description": "Treat blank optional tool arguments as omitted and keep subagent prompts inside the child tool list",
       "origin": "Panedesk tool arguments",

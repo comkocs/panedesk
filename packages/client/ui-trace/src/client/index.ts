@@ -86,6 +86,8 @@ export interface TracePanelActions {
   confirm(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<RemoteResult<DecisionRevision>>
   /** Reject one pending proposal. */
   reject(this: void, workspaceId: WorkspaceId, decisionId: DecisionId, revision: number): Promise<RemoteResult<DecisionRevision>>
+  /** Save text through the desktop dialog; Web starts a download and cannot observe its result. */
+  exportText(this: void, name: string, text: string, type: string): Promise<string | null | undefined>
   /** Open the workspace switches. */
   openSettings(this: void): void
 }
@@ -209,6 +211,21 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
         revert: (workspaceId, decisionId) => scope.remote.traceStore.revertDecision({ ...request(workspaceId), decisionId }),
         confirm: (workspaceId, decisionId, revision) => scope.remote.traceStore.confirmDecision({ ...request(workspaceId), decisionId, revision }),
         reject: (workspaceId, decisionId, revision) => scope.remote.traceStore.rejectDecision({ ...request(workspaceId), decisionId, revision }),
+        exportText: async (name, text, type) => {
+          const desktop = globalThis as typeof globalThis & {
+            __DSH_TEXT_EXPORT__?: { save(name: string, text: string): Promise<string | null> }
+          }
+          if (desktop.__DSH_TEXT_EXPORT__ !== undefined) return desktop.__DSH_TEXT_EXPORT__.save(name, text)
+          const link = document.createElement('a')
+          const url = URL.createObjectURL(new Blob([text], { type }))
+          link.href = url
+          link.download = name
+          document.body.append(link)
+          link.click()
+          link.remove()
+          setTimeout(() => { URL.revokeObjectURL(url) }, 0)
+          return undefined
+        },
         openSettings: () => { scope.settingsNavigation.openSection('panedesk-features') },
       }),
     }, TracePanel))

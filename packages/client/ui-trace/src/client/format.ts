@@ -12,10 +12,7 @@ export type TraceText = (key: TraceKey, values?: Record<string, string | number>
  * @returns Actor, model, and local time.
  */
 export function sourceLine(source: TraceSource, t: TraceText): string {
-  const actor = source.actor === 'user' ? t('actorUser')
-    : source.actor === 'planner' ? t('actorPlanner')
-      : source.actor === 'subagent' ? t('actorSubagent')
-        : t('actorExecutor')
+  const actor = actorName(source.sessionId !== null && source.actor === 'user' ? 'executor' : source.actor, t)
   return t('recordedBy', {
     actor: source.sessionId === null ? actor : `${actor} ${source.sessionId}`,
     model: source.model ?? t('modelUnknown'),

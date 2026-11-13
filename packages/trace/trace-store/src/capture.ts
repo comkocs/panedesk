@@ -46,8 +46,9 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
   ctx.on('session/event', (session, event) => {
     if (!store.recordsSession(session)) return
     if (event.type === 'request/context') { models.set(session.id, event.data.model); return }
+    if (event.type === 'assistant/message') return
     if (event.type !== 'turn/start' && event.type !== 'turn/end' && event.type !== 'deliverables/presented'
-      && event.type !== 'user/message' && event.type !== 'assistant/message'
+      && event.type !== 'user/message'
       && !(event.type === 'tool/call' && event.data.name === 'bash')) return
     const references: Omit<TraceReference, 'id' | 'eventId'>[] = [{
       kind: 'session-slice', sessionId: session.id, seqStart: event.seq, seqEnd: event.seq,
@@ -57,12 +58,23 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
       kind: 'attachment', sessionId: session.id, seqStart: event.seq, seqEnd: event.seq,
       path: file.path, beforeHash: null, afterHash: null, summary: file.description ?? '', diffFile: null,
     })
-    const payload = event.type === 'assistant/message'
-      ? JSON.stringify({ text: event.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n').slice(0, 4000) })
-      : '{}'
     observe(store.capture(session.id, { type: event.type, key: `session:${session.id}:${event.seq}`,
-      payload, seqStart: event.seq, seqEnd: event.seq, time: event.time,
+      payload: '{}', seqStart: event.seq, seqEnd: event.seq, time: event.time,
       model: models.get(session.id), actor: event.type === 'user/message' ? 'user' : undefined }, references))
+  })
+  ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+    if (frame.type !== 'end' || frame.outcome.kind !== 'committed' || frame.outcome.eventType !== 'assistant/message'
+      || !store.recordsSession(agent.session)) return
+    const event = agent.session.eventAt(frame.outcome.seq) as SessionEvent<'assistant/message'>
+    const text = event.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+      || event.data.stream.flatMap(record => record.type === 'text-chunks' ? record.texts
+        : record.type === 'chunk' && record.chunk.type === 'text-delta' ? [record.chunk.text] : []).join('')
+    observe(store.capture(agent.id, { type: event.type, key: `session:${agent.id}:${event.seq}`,
+      payload: JSON.stringify({ text: text.slice(0, 4000) }), seqStart: event.seq, seqEnd: event.seq, time: event.time,
+      model: event.data.message.source.model }, [{
+      kind: 'session-slice', sessionId: agent.id, seqStart: event.seq, seqEnd: event.seq,
+      path: null, beforeHash: null, afterHash: null, summary: event.type, diffFile: null,
+    }]))
   })
   ctx.on('session/event', (session, event) => {
     if (event.type !== 'tool/result' || !store.recordsSession(session)) return
