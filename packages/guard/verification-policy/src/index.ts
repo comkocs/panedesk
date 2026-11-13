@@ -141,17 +141,17 @@ export default class VerificationPolicy extends TypertRemoteService {
 
   /**
    * Count the segments of one command the classifier reads as a full run.
-   * A command without segments counts as the whole call's own category.
+   * A single-segment command is left to the whole call's own category.
    * @param toolName - tool under decision.
    * @param args - parsed tool arguments.
    * @param session - calling session, so each segment keeps the call's rules.
-   * @returns how many segments classify as a full run.
+   * @returns how many segments of a multi-segment command classify as a full run.
    */
   private async fullRunSegments(toolName: string, args: Record<string, unknown>, session: Session): Promise<number> {
     const command = args['command']
     if (typeof command !== 'string') return 0
     const segments = commandSegments(command).filter(segment => segment.trim().length > 0)
-    if (segments.length < 2) return segments.length
+    if (segments.length < 2) return 0
     const classified = await Promise.all(segments.map(segment =>
       this.ctx.activityCategory.classify(toolName, { ...args, command: segment }, session)))
     return classified.filter(item => item.category === 'test-full').length
