@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-plugin-market",
   "description": "Configured plugin market indexes for the Web Discover page and the plugin_market agent tool",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "publishConfig": {
     "access": "public"
   },

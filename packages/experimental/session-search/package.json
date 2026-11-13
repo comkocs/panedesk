@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-session-search",
   "description": "Give Agents tools to search and read earlier sessions from the current workspace.",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"

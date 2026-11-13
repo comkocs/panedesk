@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-http-proxy",
   "description": "Process-wide outbound HTTP proxy policy for DeepSeek Harness: resolve it from the launch environment and install it as undici's global dispatcher",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "publishConfig": {
     "access": "public"
   },

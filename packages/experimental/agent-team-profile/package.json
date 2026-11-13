@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-agent-team-profile",
   "description": "Agent Teams collaboration, tools, and Web UI in one experimental bundle",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"

@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-jobs",
   "description": "Background job registry (ctx.jobs) for the DeepSeek Harness — shared ids, owner isolation, polling, cancellation, and completion listeners for long-running tool work",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "publishConfig": {
     "access": "public"
   },

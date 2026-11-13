@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-acp-app",
   "description": "The dsh ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over dsh-base",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "publishConfig": {
     "access": "public"
   },

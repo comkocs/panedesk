@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-tool-seat-messages",
   "description": "Direct same-node seat messages and online seat observations",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
