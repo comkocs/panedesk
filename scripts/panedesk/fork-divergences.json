@@ -420,14 +420,15 @@
     },
     {
       "id": "models-page-compact-probe-and-thicker-drag-targets",
-      "description": "Order protocols Responses-first, compact the protocol test, add a header create button, drop unlisted models on fetch, infer GLM thinking on and off, and thicken drag targets",
+      "description": "Order protocols Responses-first, compact the protocol test, add a header create button, drop unlisted models on fetch, infer GLM thinking on and off, let a declared route keep no models, and thicken drag targets",
       "origin": "Panedesk desktop interaction feedback",
-      "reason": "The protocol test matrix read as a wall of HTTP facts, the create action sat only at the card foot, a fetch after a key change kept models the new key no longer serves and dropped the typed key, GLM models offered no reasoning level, and split dividers, the subagent tree scrollbar, and the subagent monitor dialog were too narrow to use comfortably.",
+      "reason": "The protocol test matrix read as a wall of HTTP facts, the create action sat only at the card foot, a fetch after a key change kept models the new key no longer serves and dropped the typed key, GLM models offered no reasoning level, and split dividers, the subagent tree scrollbar, and the subagent monitor dialog were too narrow to use comfortably. Removing every model from a declared route was refused although the page says the route then offers none.",
       "match": {
         "type": "behavior",
         "paths": [
           "packages/client/ui-settings-models/**",
           "packages/llm/llm-pi-ai/src/reasoning.ts",
+          "packages/llm/llm-pi-ai/src/catalog.ts",
           "packages/client/ui-dockkit/src/components/dockkit.module.css",
           "packages/client/ui-subagent-tree/**"
         ]
