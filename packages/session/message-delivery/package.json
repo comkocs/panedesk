@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-message-delivery",
   "description": "Same-node message service definitions",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "publishConfig": {
     "access": "public"
   },

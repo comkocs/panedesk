@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-file-upload",
   "description": "Agent-scoped browser file upload, streaming intake, and staged receipt service",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "publishConfig": {
     "access": "public"
   },

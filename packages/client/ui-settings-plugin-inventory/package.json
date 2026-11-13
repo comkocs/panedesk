@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-client-ui-settings-plugin-inventory",
   "description": "Read-only Cordis Loader inventory tab in Web Plugins settings",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "publishConfig": {
     "access": "public"
   },

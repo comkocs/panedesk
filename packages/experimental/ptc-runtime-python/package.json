@@ -1,7 +1,7 @@
 {
   "name": "@panedesk/dsh-experimental-ptc-runtime-python",
   "description": "CPython subprocess implementation of the DeepSeek Harness PTC execution seam",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
