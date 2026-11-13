@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.9
+
+### Changed
+
+- A tab dropped on an edge of the right sidebar splits it above, below, or beside, with the landing zone highlighted.
+- The reasoning effort card opens as soon as the pointer reaches its row, and the first click on a level takes effect.
+- A provider you declared yourself shows Fetch available models instead of a Restore default models button that had no defaults to restore.
+
+### Fixed
+
+- Switching a conversation that contains images to a model without image input no longer fails with HTTP 400: images are sent as text placeholders to models declared without image input, and an image-bearing request rejected with HTTP 400 is resent once with placeholders and the model is remembered as text-only.
+- Trace reply references keep the reply text, and unassigned replies show their opening words.
+- Trace export shows its notice next to the export buttons and reports when the file is saved or the save is cancelled.
+- View reference opens under the activity it belongs to.
+- The decisions history shows its empty notice once, and sources read the same everywhere.
+- Every New Session click writes a timing line, including a click on the blank page already showing.
+- Dragging the divider between two right-sidebar panes resizes them.
+
 ## 2.0.8
 
 ### Fixed
