@@ -650,13 +650,15 @@ export interface Config {
 
 ## `@panedesk/dsh-client-ui-project-onboarding`
 
-- `inject`: `settings`
+- `inject`: `settings` · `systemPrompt`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/client/ui-project-onboarding/src/index.ts:12`](../packages/client/ui-project-onboarding/src/index.ts)
+- `source`: [`packages/client/ui-project-onboarding/src/index.ts:16`](../packages/client/ui-project-onboarding/src/index.ts)
 
 ```ts config-catalog
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Product-wide task tiers and main-session/nested delegation guidance. */
+  subagentPresets: Volatile<SubagentPresets>
   /** Localized requirements-review draft. */
   workflowRequirementsPrompt: Volatile<WorkflowPrompts['workflowRequirementsPrompt']>
   /** Localized workflow-setup draft. */
@@ -669,6 +671,24 @@ export interface Config {
   showWorkflowStarters: Volatile<boolean>
   /** Saved opening choices keyed by absolute workspace directory in product settings. */
   projects: Volatile<Record<string, ProjectSelection>>
+}
+
+/** Product-wide advisory delegation preferences, independent of workspaces. */
+export type SubagentPresets = {
+  /** Language captured when saving the form, also used by the Host prompt. */
+  language: 'zh' | 'en'
+  /** Whether new requests receive the delegation guidance section. */
+  enabled: boolean
+  /** Large, medium, and small task tiers. */
+  tiers: Record<'a' | 'b' | 'c', SubagentTier>
+  /** Duties the main session keeps; unticked duties go to subagents. */
+  mainDuties: Record<'read' | 'split' | 'delegate' | 'review' | 'merge' | 'release' | 'report' | 'small', boolean>
+  /** Further main-session duties in free text. */
+  otherMainDuties: string
+  /** Whether subagents may delegate to their own subagents. */
+  allowNested: boolean
+  /** When a subagent may delegate further, in each product language. */
+  nestedCondition: DelegationText
 }
 
 /** Three editable prompts, with independent English and Chinese text. */
@@ -694,6 +714,26 @@ export interface ProjectSelection {
   mode: 'off' | 'remind' | 'auto'
   /** Whether the user explicitly confirmed this workspace choice. */
   chosen: boolean
+}
+
+/** One task tier's advisory selection; empty identifiers let the agent choose. */
+export type SubagentTier = {
+  /** When a task belongs to this tier, in each product language. */
+  criteria: DelegationText
+  /** LLM provider id of the suggested subagent model; empty lets the agent choose. */
+  provider: string
+  /** Suggested subagent model id; empty lets the agent choose. */
+  model: string
+  /** Suggested reasoning effort id; empty uses the model default. */
+  effort: string
+}
+
+/** Localized editable delegation guidance, selected by the product language. */
+export type DelegationText = {
+  /** Chinese text. */
+  zh: string
+  /** English text. */
+  en: string
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-project-onboarding -->
