@@ -6,6 +6,7 @@
 
 - GLM-5.3 and later offer Low, High, and Max reasoning levels instead of Off and High, and the chosen level reaches Zhipu endpoints as `reasoning_effort`; previously High ran at the endpoint default and Off asked for disabled thinking, which these models do not accept.
 - Unassigned trace activity no longer lists replies that only call tools, so every replied row shows its opening words, and rows name their window by the first eight characters of the session id.
+- In the right sidebar, a tab dragged over a pane splits it above or below across the top and bottom 40% of the pane instead of only near its bottom edge, and the divider between two stacked panes takes the pointer as far from the seam as docked dividers do.
 
 ## 2.0.10
 

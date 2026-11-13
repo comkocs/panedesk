@@ -12,7 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ReactNode } from 'react'
 import type { DockIntents, DockLabels, TabMenuExtras, TabRenderer } from '../contract/adapter.ts'
 import type { LayoutState, PaneId, SplitId, TabId } from '../contract/types.ts'
-import { clampSizes, FLOAT_DEFAULT_SIZE, MIN_PANE_FRACTION } from '../engine/constraints.ts'
+import { clampSizes, FLOAT_DEFAULT_SIZE, MIN_PANE_FRACTION, zoneAt } from '../engine/constraints.ts'
 import { getSplit, topRightPaneId } from '../engine/tree.ts'
 import type { DropTarget, HalvesFit } from '../engine/geometry.ts'
 import {
@@ -124,10 +124,10 @@ const ALWAYS = (): boolean => true
  * @returns the landing zone.
  */
 function splitZone(rect: DOMRect, x: number, y: number, canSplit: boolean, fit: HalvesFit): 'left' | 'right' | 'top' | 'bottom' | 'center' {
-  const zone = zoneInRect(rect, x, y)
-  if (zone === 'center' || !canSplit) return 'center'
-  const room = zone === 'left' || zone === 'right' ? fit.row : fit.column
-  return room ? zone : 'center'
+  if (!canSplit || !(rect.width > 0) || !(rect.height > 0)) return 'center'
+  // Only an axis with room for two halves competes, so a narrow column splits by height alone;
+  // the 40% bands match the drop hint's edge boxes.
+  return zoneAt(fit.row ? (x - rect.x) / rect.width : 0.5, fit.column ? (y - rect.y) / rect.height : 0.5, 0.4)
 }
 
 /**
