@@ -69,6 +69,8 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     const text = event.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
       || event.data.stream.flatMap(record => record.type === 'text-chunks' ? record.texts
         : record.type === 'chunk' && record.chunk.type === 'text-delta' ? [record.chunk.text] : []).join('')
+    // A reply that only calls tools says nothing a reader could recognize it by.
+    if (text.trim() === '') return
     observe(store.capture(agent.id, { type: event.type, key: `session:${agent.id}:${event.seq}`,
       payload: JSON.stringify({ text: text.slice(0, 4000) }), seqStart: event.seq, seqEnd: event.seq, time: event.time,
       model: event.data.message.source.model }, [{

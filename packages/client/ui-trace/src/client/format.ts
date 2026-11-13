@@ -77,7 +77,8 @@ function actorName(actor: TraceSource['actor'], t: TraceText): string {
  * @returns Localized window name.
  */
 function sessionName(event: TraceEvent, t: TraceText): string {
-  const id = event.source.sessionId ?? event.sessionId ?? ''
+  // The first eight characters tell windows apart and leave the narrow sidebar to the action.
+  const id = (event.source.sessionId ?? event.sessionId ?? '').replace(/^session-/, '').slice(0, 8)
   return event.source.actor === 'subagent' ? t('subagentNamed', { name: id }) : t('windowNamed', { name: id })
 }
 
