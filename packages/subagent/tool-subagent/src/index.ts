@@ -203,6 +203,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
         : ' Omitted LLM selections use configured child defaults, inheriting compatible missing values from the parent.'
       const choiceDescription = selectionDescription
           + ' Inspect routes and efforts with `list_subagent_models` before selecting. A changed route without an effort uses the model default.'
+          + ' A child session may not have `list_subagent_models` or `verification_checklist`; do not tell it to call either unless that tool is in its own list. Look the value up in this session and write it into the child prompt.'
           + (subagentProvider.inheritsParentContext
             ? ' Changing the route can prevent provider-side reuse of the inherited conversation prefix.'
             : '')
@@ -217,7 +218,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
         parameters: {
           cwd: {
             type: 'string',
-            description: 'Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.',
+            description: 'Initial child working directory. Relative paths use your current directory; omit it, or pass an empty string, to inherit it. Later directory changes in either agent are independent.',
           },
           ...config.deliveryDeclarations === true ? {
             deliveryPaths: {
@@ -247,15 +248,15 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           },
           provider: {
             type: 'string',
-            description: 'Optional LLM provider id to disambiguate model. Requires model.',
+            description: 'Optional LLM provider id to disambiguate model. Requires model. Omit it, or pass an empty string, to leave the provider unset.',
           },
           model: {
             type: 'string',
-            description: 'Exact model id from any configured provider. Overrides the preset model; omit to use preset, configured, or parent defaults.',
+            description: 'Exact model id from any configured provider. Overrides the preset model; omit it, or pass an empty string, to use preset, configured, or parent defaults.',
           },
           reasoning_effort: {
             type: 'string',
-            description: 'Optional adapter-owned reasoning effort for the selected model.',
+            description: 'Optional adapter-owned reasoning effort for the selected model. Omit it, or pass an empty string, to use the route default.',
           },
 
         },
@@ -380,8 +381,9 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           }
           exec.signal.throwIfAborted()
           const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
+          const childCwd = args.cwd?.trim()
           const request = {
-            ...args.cwd === undefined ? {} : { cwd: args.cwd },
+            ...childCwd === undefined || childCwd.length === 0 ? {} : { cwd: childCwd },
             ...config.deliveryDeclarations !== true || args.deliveryPaths === undefined ? {} : { deliveryPaths: args.deliveryPaths },
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,

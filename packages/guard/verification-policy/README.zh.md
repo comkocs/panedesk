@@ -23,7 +23,7 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 包入口默认服务提供 `addTaskProhibitions(request: VerificationTaskRestrictions): void` 及其远端包装 `prohibitTaskCategories(request: VerificationTaskRestrictions): void` 给清单消费者，以及远端 `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` 给设置与灰显判断。两个禁止方法都向精确活动任务追加类别号，不改工作区设置。树行勾选另有可逆状态，取消勾选不会移除清单禁止项。
 
-同一行系统提示要求代理开工前调用 `verification_checklist`，提交一句需求标题和计划检查项；没有要验证的内容时提交空的 items 数组。
+同一行系统提示要求代理开工前调用 `verification_checklist`，提交一句需求标题和计划检查项；没有要验证的内容时提交空的 items 数组。组装出的工具名单里没有 `verification_checklist` 时不加这句。
 
 ## 模型体验
 
@@ -31,7 +31,7 @@ Web／桌面装配安装 `verificationPolicy`。它复用活动服务的归类�
 
 #### 模型看到什么
 
-一行只读策略、固定双语类别拒绝、一句全量已用拒绝、预算审批提示与客户端超时错误。该行同时带这条指示：「Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.」不新增设置修改工具。
+一行只读策略、固定双语类别拒绝、一句全量已用拒绝、预算审批提示与客户端超时错误。组装出的工具名单含 `verification_checklist` 时，该行同时带这条指示：「Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.」不新增设置修改工具。
 
 #### Token 影响
 

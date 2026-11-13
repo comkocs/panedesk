@@ -16726,6 +16726,26 @@
           "packages/guard/verification-policy/**"
         ]
       }
+    },
+    {
+      "id": "optional-tool-arguments-and-subagent-hints",
+      "description": "Treat blank optional tool arguments as omitted and keep subagent prompts inside the child tool list",
+      "origin": "Panedesk tool arguments",
+      "reason": "Optional strings filled with an empty value were rejected, and a nested session was told to call tools it is not shown.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/session/tool-working-directory/**",
+          "packages/subagent/tool-subagent/**",
+          "packages/subagent/subagent/**",
+          "packages/sandbox/sandbox/**",
+          "packages/shell/tool-bash/**",
+          "packages/shell/tool-pwsh/**",
+          "packages/fs/tool-fs/**",
+          "packages/guard/verification-policy/**",
+          "packages/settings/tool-panedesk-settings/**"
+        ]
+      }
     }
   ]
 }

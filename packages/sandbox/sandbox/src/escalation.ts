@@ -41,23 +41,69 @@ export const WIDER_MODES: Record<string, readonly SandboxMode[]> = {
 export const ESCALATION_TARGETS: readonly SandboxMode[] = ['workspace-write', 'danger-full-access']
 
 /**
- * Validate the escalation argument pairing a tool schema cannot express:
- * `sandbox_permissions` and `justification` travel together — an approval
- * prompt without a reason, or a reason driving nothing, is a malformed ask —
- * and the justification must be a non-empty sentence.
+ * Treat a blank optional string as omitted. Models often send `""` for a field
+ * the schema lists but does not require; that is the same as leaving it out.
+ * @param value - the raw argument, if given.
+ * @returns the trimmed value, or `undefined` when it was omitted or blank.
+ */
+export function omittedIfBlank(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  return trimmed.length === 0 ? undefined : trimmed
+}
+
+/** Rank on the closed sandbox ladder; unknown names sit below every known mode. */
+const MODE_RANK: Readonly<Record<string, number>> = { 'read-only': 0, 'workspace-write': 1, 'danger-full-access': 2 }
+
+/**
+ * Whether a requested mode is the current one or narrower, so the call can
+ * keep running under the current mode without an approval sentence.
+ * @param requested - trimmed requested mode.
+ * @param effective - the call's current mode.
+ * @returns true when the request does not widen access.
+ */
+export function modeWithinCurrent(requested: string, effective: SandboxMode): boolean {
+  const requestedRank = MODE_RANK[requested]
+  const effectiveRank = MODE_RANK[effective]
+  return requestedRank !== undefined && effectiveRank !== undefined && requestedRank <= effectiveRank
+}
+
+/**
+ * Validate the escalation argument pairing a tool schema cannot express.
+ * Both fields blank means no escalation. A mode that does not widen access
+ * also needs no sentence. A widening mode without a sentence, or a sentence
+ * without a mode, says which field to omit or fill.
+ * @param sandboxPermissions - the raw `sandbox_permissions` argument, if given.
+ * @param justification - the raw `justification` argument, if given.
+ * @param effectiveMode - the call's current mode, when the caller knows it.
+ * @returns the paired mode and sentence, or `undefined` when nothing widens.
+ */
+export function escalationPair(
+  sandboxPermissions: string | undefined,
+  justification: string | undefined,
+  effectiveMode?: SandboxMode,
+): { mode: string; justification: string } | undefined {
+  const mode = omittedIfBlank(sandboxPermissions)
+  const reason = omittedIfBlank(justification)
+  if (mode === undefined && reason === undefined) return undefined
+  if (mode !== undefined && reason === undefined && effectiveMode !== undefined && modeWithinCurrent(mode, effectiveMode)) return undefined
+  if (mode !== undefined && reason === undefined) {
+    throw new Error('invalid escalation: sandbox_permissions requires a justification — pass one sentence with the mode, or omit both fields to keep the current mode')
+  }
+  if (reason !== undefined && mode === undefined) {
+    throw new Error('invalid escalation: justification is only valid together with sandbox_permissions — pass the wider mode too, or omit both fields to keep the current mode')
+  }
+  return { mode: mode as string, justification: reason as string }
+}
+
+/**
+ * Reject a half-filled escalation pair. Both blank is not an escalation.
+ * Callers that need the trimmed pair use {@link escalationPair}.
  * @param sandboxPermissions - the raw `sandbox_permissions` argument, if given.
  * @param justification - the raw `justification` argument, if given.
  */
-export function validateEscalationArgs(sandboxPermissions: string | undefined, justification: string | undefined): void {
-  if (sandboxPermissions !== undefined && justification === undefined) {
-    throw new Error('invalid escalation: sandbox_permissions requires a justification')
-  }
-  if (justification !== undefined && sandboxPermissions === undefined) {
-    throw new Error('invalid escalation: justification is only valid together with sandbox_permissions')
-  }
-  if (justification !== undefined && justification.trim().length === 0) {
-    throw new Error('invalid justification: expected a non-empty sentence')
-  }
+export function validateEscalationArgs(sandboxPermissions: string | undefined, justification: string | undefined, effectiveMode?: SandboxMode): void {
+  escalationPair(sandboxPermissions, justification, effectiveMode)
 }
 
 /**
@@ -93,7 +139,8 @@ export function escalationHintMarker(subject: string): string {
  * @returns the parameter description, exactly as the model sees it.
  */
 export function sandboxPermissionsDescription(subject: string): string {
-  return `The narrowest wider sandbox mode for a one-shot retry of the exact ${subject} the sandbox just denied; the retry asks the user for approval.`
+  return `The narrowest wider sandbox mode for a one-shot retry of the exact ${subject} the sandbox just denied; the retry asks the user for approval. `
+    + 'Omit this field, or pass an empty string, to keep the current mode. A mode that is the same as or narrower than the current mode runs under the current mode without approval.'
 }
 
 /**
@@ -160,22 +207,23 @@ export interface EscalationRequest {
 
 /**
  * Resolve a sandbox permission request before execution. Repeating the call's
- * effective mode returns it without approval. A strictly wider mode requires
- * approval and applies only to this call. Narrower or unsupported targets,
- * missing approval services or agents for widening, and non-grant outcomes
- * throw before execution.
+ * effective mode, or requesting a narrower one, returns the current mode
+ * without approval. A strictly wider mode requires approval and applies only
+ * to this call. Unsupported targets, missing approval services or agents for
+ * widening, and non-grant outcomes throw before execution.
  * @param request - the escalation to judge (see {@link EscalationRequest}).
  * @param approval - the approval ingredients the tool holds (see {@link EscalationApproval}).
  * @returns the granted mode, consumed by the one call that asked.
  */
 export async function approveEscalation<A, C>(request: EscalationRequest, approval: EscalationApproval<A, C>): Promise<SandboxMode> {
   const { requestedMode: mode, effectiveMode, justification, subject } = request
-  if (mode === effectiveMode) return effectiveMode
-  // Strict widening is an EXECUTION check against the call's effective mode —
-  // deliberately not a schema constraint (the enum is the closed target
-  // vocabulary; the effective mode is per-call truth).
+  // Same or narrower than the call's effective mode needs nothing: run as-is.
+  // Strict widening stays an EXECUTION check — deliberately not a schema
+  // constraint (the enum is the closed target vocabulary; the effective mode
+  // is per-call truth). A name outside that ladder still fails here.
   if (!(WIDER_MODES[effectiveMode] ?? []).includes(mode as SandboxMode)) {
-    throw new Error(`sandbox escalation to "${mode}" is not strictly wider than this call's current "${effectiveMode}" mode`)
+    if (mode === effectiveMode || (WIDER_MODES[mode] ?? []).includes(effectiveMode)) return effectiveMode
+    throw new Error(`sandbox mode "${mode}" is not a known mode; omit sandbox_permissions and justification to keep the current "${effectiveMode}" mode, or pass one of: ${(WIDER_MODES[effectiveMode] ?? []).join(', ') || '(none — already unrestricted)'}`)
   }
   if (approval.approver === undefined) {
     throw new Error(`sandbox escalation to "${mode}" requires approval, but no approval service is composed`)

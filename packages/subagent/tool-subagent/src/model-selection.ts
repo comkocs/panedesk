@@ -230,6 +230,17 @@ export function assertAllowedModelRoutes(routes: unknown): asserts routes is rea
   }
 }
 
+/**
+ * Blank optional route text is the same as omitting the field.
+ * @param value - raw model-facing argument.
+ * @returns the trimmed value, or `undefined` when omitted or blank.
+ */
+function present(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  return trimmed.length === 0 ? undefined : trimmed
+}
+
 /** Model-facing child LLM route fields. */
 export interface DelegationModelRequest {
   readonly provider?: string
@@ -243,16 +254,9 @@ export interface DelegationModelRequest {
  * @returns Whether at least one route or effort field is present.
  */
 export function hasDelegationModelRequest(request: DelegationModelRequest): boolean {
-  return request.provider !== undefined
-    || request.model !== undefined
-    || request.reasoning_effort !== undefined
-}
-
-/** Reject an empty model-facing route value at the tool JSON boundary. */
-function assertNonEmpty(value: string | undefined, field: keyof DelegationModelRequest): void {
-  if (value !== undefined && value.length === 0) {
-    throw new Error(`child LLM \`${field}\` must be non-empty`)
-  }
+  return present(request.provider) !== undefined
+    || present(request.model) !== undefined
+    || present(request.reasoning_effort) !== undefined
 }
 
 /**
@@ -271,28 +275,28 @@ export function requestedAgentOptions(
   request: DelegationModelRequest,
   enabled: boolean,
 ): AgentOptions | undefined {
-  if (!hasDelegationModelRequest(request)) return configured
+  const provider = present(request.provider)
+  const model = present(request.model)
+  const reasoningEffort = present(request.reasoning_effort)
+  if (provider === undefined && model === undefined && reasoningEffort === undefined) return configured
   if (!enabled) {
     throw new Error('child model selection is disabled for this tool instance')
   }
-  assertNonEmpty(request.provider, 'provider')
-  assertNonEmpty(request.model, 'model')
-  assertNonEmpty(request.reasoning_effort, 'reasoning_effort')
-  if ((request.provider === undefined) !== (request.model === undefined)) {
-    throw new Error('child LLM `provider` and `model` must be supplied together')
+  if ((provider === undefined) !== (model === undefined)) {
+    throw new Error('child LLM `provider` and `model` must be supplied together — pass both, or omit both (an empty string counts as omitted)')
   }
 
   const baselineProvider = configured?.provider ?? parentOptions.provider
   const baselineModel = configured?.model ?? parentOptions.model
-  const routeChanged = request.provider !== undefined
-    && (request.provider !== baselineProvider || request.model !== baselineModel)
+  const routeChanged = provider !== undefined
+    && (provider !== baselineProvider || model !== baselineModel)
   const { reasoningEffort: _configuredReasoningEffort, ...configuredWithoutReasoning } = configured ?? {}
   return {
-    ...routeChanged && request.reasoning_effort === undefined ? configuredWithoutReasoning : configured,
-    ...request.provider === undefined ? {} : { provider: request.provider, model: request.model },
-    ...request.reasoning_effort === undefined
+    ...routeChanged && reasoningEffort === undefined ? configuredWithoutReasoning : configured,
+    ...provider === undefined || model === undefined ? {} : { provider, model },
+    ...reasoningEffort === undefined
       ? {}
-      : { reasoningEffort: ReasoningEffortId(request.reasoning_effort) },
+      : { reasoningEffort: ReasoningEffortId(reasoningEffort) },
   }
 }
 

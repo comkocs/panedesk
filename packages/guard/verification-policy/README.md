@@ -23,7 +23,7 @@ Client launches use the existing cooperative deadline on `tools/execute`, propag
 
 The package entry's default service exposes `addTaskProhibitions(request: VerificationTaskRestrictions): void` and its remote wrapper `prohibitTaskCategories(request: VerificationTaskRestrictions): void` for checklist consumers, and remote `readWorkspace(request: VerificationWorkspaceRequest): VerificationView` for settings and grey-out decisions. Both prohibition methods append category ids for an exact activity task; workspace settings remain unchanged. The tree checkbox has separate reversible state, so unchecking it does not remove checklist prohibitions.
 
-The same system-prompt line tells the agent to call `verification_checklist` with a one-sentence requirement title and its planned checks before starting work, or to submit an empty items array when there is nothing to verify.
+The same system-prompt line tells the agent to call `verification_checklist` with a one-sentence requirement title and its planned checks before starting work, or to submit an empty items array when there is nothing to verify. That sentence is added only when the assembled tool list includes `verification_checklist`.
 
 ## Model Experience
 
@@ -31,7 +31,7 @@ The same system-prompt line tells the agent to call `verification_checklist` wit
 
 #### What the model sees
 
-One read-only policy line, fixed bilingual category refusals, a one-sentence already-used-full-run refusal, budget approval prompts and client timeout errors. The policy line also carries this instruction: "Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array." No settings mutation tool is added.
+One read-only policy line, fixed bilingual category refusals, a one-sentence already-used-full-run refusal, budget approval prompts and client timeout errors. When `verification_checklist` is in the assembled tool list, the policy line also carries this instruction: "Before you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array." No settings mutation tool is added.
 
 #### Token effect
 

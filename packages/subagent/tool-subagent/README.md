@@ -73,7 +73,7 @@ Compose persona and tools in the [preset plugin list](../../preset/agent-preset-
 
 ### Selecting a child LLM
 
-Every new and restored Session exposes optional `model`, `provider`, and `reasoning_effort`, plus `list_subagent_models`. Neither settings nor historical Session policy gates selection. Discovery lists every configured provider/model route, or filters by provider and inspects a model’s reasoning efforts. Backends without `agentOptions` reject a selected route at dispatch.
+Every new and restored Session exposes optional `model`, `provider`, and `reasoning_effort`, plus `list_subagent_models`. A blank optional string is the same as omitting that field. The tool description tells the caller not to ask a child for `list_subagent_models` or `verification_checklist` unless that tool is in the child's own list. Neither settings nor historical Session policy gates selection. Discovery lists every configured provider/model route, or filters by provider and inspects a model’s reasoning efforts. Backends without `agentOptions` reject a selected route at dispatch.
 
 A model name is matched exactly against `llm.listModels` for all registered providers. One match selects that provider; multiple matches fail with provider/model candidates, and no match fails with the available models. Supply `provider` to disambiguate. Provider-only requests fail. Explicit selection overlays configured and provider defaults; a changed route without an effort clears route-owned reasoning defaults. Omitted values otherwise inherit compatible parent values. The existing LLM adapter validates and sends the selected route using its configured protocol.
 
