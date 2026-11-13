@@ -507,9 +507,9 @@
     },
     {
       "id": "desktop-install-and-restart-single-click",
-      "description": "Install a downloaded update from the indicator's Install and Restart without a second confirmation",
+      "description": "Install an update from the indicator with one click: Install and Restart installs at once, an indicator download installs when it finishes, and a Host that exits only after forced termination or tasks started after the click do not refuse the installation",
       "origin": "Panedesk desktop interaction feedback",
-      "reason": "The update indicator already reads Install and Restart, and the following confirmation repeated the same choice, so every update took two clicks to restart.",
+      "reason": "Every update took a second click to restart: the indicator's Install and Restart was followed by a confirmation repeating the same choice, and a long-running Host that missed the graceful shutdown deadline made the first attempt fail with Retry update after restoring the Host.",
       "match": {
         "type": "behavior",
         "paths": [

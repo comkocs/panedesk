@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.10
+
+### Fixed
+
+- Updating from the indicator takes one click: a download started there installs as soon as it finishes unless tasks are running, and a workspace that takes longer than the graceful deadline to shut down, or a task started after the click, no longer fails the first attempt with Retry update.
+
 ## 2.0.9
 
 ### Changed

@@ -24,7 +24,7 @@ import {
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager } from './project-manager.ts'
-import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
+import { DesktopHostFatalError, DesktopHostProcess } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
@@ -374,9 +374,7 @@ async function main(): Promise<void> {
   // NSIS passes --updated when it launches the application after installation.
   let raiseAfterUpdate = process.platform === 'win32' && process.argv.includes('--updated')
   let shellInstallerOwnsQuit = false
-  let requireCleanStop = false
   let updateStoppedHost = false
-  let updateStopFailure: DesktopHostUncleanExitError | undefined
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const systemLanguages = app.getPreferredSystemLanguages()
   let locale = resolveDesktopStartupLocale(null, systemLanguages)
@@ -515,12 +513,7 @@ async function main(): Promise<void> {
       stop: async () => {
         analyticsEnabled = false
         stopAccount?.()
-        try { await host.stop(requireCleanStop) }
-        catch (error) {
-          if (!requireCleanStop || !(error instanceof DesktopHostUncleanExitError)) throw error
-          // Backend cleanup succeeded; installation still rejects the unsuccessful task teardown.
-          updateStopFailure = error
-        }
+        await host.stop()
       },
       updateTasks: (action: 'inspect' | 'lock' | 'unlock') => host.updateTasks(action),
       inspectQuit: () => host.inspectQuit(),
@@ -601,8 +594,9 @@ async function main(): Promise<void> {
 
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
   const updateChannel = desktopUpdateChannel(manifest)
-  // Clicking the indicator's Install and Restart is the confirmation; it does not ask a second time.
-  let installClicked = false
+  // A click on the update indicator is the confirmation: Install and Restart installs at once, and a download
+  // started there installs when it finishes, asking only while tasks are running.
+  let installClicked: 'install' | 'download' | undefined
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
     async () => {
@@ -622,7 +616,7 @@ async function main(): Promise<void> {
       }
       if (isMandatory()) {
         if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
-      } else if (!installClicked) {
+      } else if (installClicked === undefined || (installClicked === 'download' && active)) {
         const parent = currentDialogWindow()
         if (parent === undefined) return false
         const result = await updateDialog.show(parent, confirmation)
@@ -633,24 +627,17 @@ async function main(): Promise<void> {
       if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
       try {
         const stillActive = await host.updateTasks('lock')
-        if (stillActive && !active) throw new DesktopUpdatePreparationError('tasks-changed', locale.messages.updateTasksChanged)
         mandatoryUI?.preparingRestart(stillActive)
         // The embedded Platform document holds credentials issued by the Host that is about to stop.
         await platformView.closeAndWait()
-        requireCleanStop = true
-        updateStopFailure = undefined
+        // The confirmed installation proceeds once the Host has exited, including after forced termination.
         await backend.stop()
         updateStoppedHost = true
-        // The backend's async cleanup callback can assign this after the reset above.
-        const stopFailure = updateStopFailure as DesktopHostUncleanExitError | undefined
-        if (stopFailure !== undefined) throw new DesktopUpdatePreparationError('stop-failed', locale.messages.updateStopFailed, stopFailure.message)
         updateJournal?.action('install-confirmed')
         shellInstallerOwnsQuit = true
       } catch (error) {
         if (!updateStoppedHost) await host.updateTasks('unlock').catch((unlockError: unknown) => { console.error(unlockError) })
         throw error
-      } finally {
-        requireCleanStop = false
       }
       return true
     },
@@ -865,8 +852,8 @@ async function main(): Promise<void> {
         if (state.phase === 'ready' || (state.phase === 'error' && state.failedOperation === 'install')) {
           if (state.version !== undefined) {
             failedOperation = 'install'
-            installClicked = !manual
-            try { await showUpdateFailure(await updates.install(state.version)) } finally { installClicked = false }
+            installClicked = manual ? undefined : 'install'
+            try { await showUpdateFailure(await updates.install(state.version)) } finally { installClicked = undefined }
           }
           return
         }
@@ -881,7 +868,8 @@ async function main(): Promise<void> {
         if (!isMandatory() && state.version !== undefined) {
           controller?.abort()
           failedOperation = 'download'
-          await showUpdateFailure(await downloadUpdate(state.version))
+          installClicked = manual ? undefined : 'download'
+          try { await showUpdateFailure(await downloadUpdate(state.version)) } finally { installClicked = undefined }
         }
       } finally {
         controller?.abort()
