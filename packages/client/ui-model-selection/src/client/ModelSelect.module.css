@@ -282,7 +282,7 @@
   height: 14px;
 }
 
-/* Two-level root cells use the same compact rhythm as the model rows. */
+/* The effort footer uses the same compact rhythm as the model rows. */
 .cell {
   box-sizing: border-box;
   display: flex;
@@ -328,4 +328,48 @@
   width: 12px;
   height: 12px;
   color: var(--dsw-alias-menu-icon);
+}
+
+.effortFooter {
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.effortMenu {
+  z-index: 1101;
+  min-width: min(160px, calc(100vw - 32px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+
+.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.dropBefore,
+.dropAfter {
+  position: relative;
+}
+
+.dropBefore::after,
+.dropAfter::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--dsw-alias-state-business-primary);
+  pointer-events: none;
+}
+
+.dropBefore::after {
+  top: 0;
+}
+
+.dropAfter::after {
+  bottom: 0;
 }
