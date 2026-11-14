@@ -31,6 +31,8 @@ Browser is enabled in Web and Desktop profiles. Select **Browser** in the Sessio
 
 Choose Browser for a Web page that should remain beside the current Session. Choose [Document Preview](../ui-sidebar-documentpreview/README.md) for local files, and use the explicit external-browser action when a site refuses iframe embedding or needs browser capabilities this package withholds.
 
+The optional **Connect your Chrome** settings page places its enablement text beside the switch and uses the Panedesk settings shell's compact typography and aligned fields.
+
 ### Minimal configuration
 
 The built-in browser has no plugin configuration. A profile can explicitly enable its shipped entry:

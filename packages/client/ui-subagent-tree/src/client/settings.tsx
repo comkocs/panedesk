@@ -57,8 +57,8 @@ export function RegistrySettingsRow({ useRegistry, useDocument, save, setEnabled
     <ol><li>{t('registryStep1')}</li><li>{t('registryStep2')}</li><li>{t('registryStep3')}</li></ol>
     <p>{t('registryAI')}</p>
     <p>{t('registryScope')}</p>
-    <Switch checked={form.value?.externalRegistryEnabled ?? false} disabled={!writable || path === ''}
-      label={t('registryEnabled')} onChange={next => { void run(() => setEnabled(next), 'registrySaveFailed') }} />
+    <label><Switch checked={form.value?.externalRegistryEnabled ?? false} disabled={!writable || path === ''}
+      label={t('registryEnabled')} onChange={next => { void run(() => setEnabled(next), 'registrySaveFailed') }} /><span>{t('registryEnabled')}</span></label>
     <label>{t('registryPath')}<Input value={path} disabled={!writable}
       onChange={event => {
         const next = event.target.value

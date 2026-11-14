@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Button } from './Button.tsx'
 import { writeClipboard } from './clipboard.ts'
+import css from './SettingsPageHeader.module.css'
 
 /** Localized three-line guidance and optional first-use instructions. */
 export interface SettingsPageHeaderProps {
@@ -19,7 +20,7 @@ export interface SettingsPageHeaderProps {
  */
 export function SettingsPageHeader({ what, whether, ai, labels, steps }: SettingsPageHeaderProps) {
   const [copied, setCopied] = useState<boolean>()
-  return <header>
+  return <header className={css.header}>
     <p><strong>{labels.what}: </strong>{what}</p>
     <p><strong>{labels.whether}: </strong>{whether}</p>
     <p><strong>{labels.ai}: </strong>{ai} <Button size="sm" variant="outline" onClick={() => {

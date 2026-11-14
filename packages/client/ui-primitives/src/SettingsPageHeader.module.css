@@ -1,0 +1,7 @@
+.header { display: grid; gap: 8px; min-width: 0; margin-bottom: 16px; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary); }
+.header p, .header h3, .header ol { margin: 0; }
+.header strong { font-size: inherit; color: var(--dsw-alias-label-primary); }
+.header h3 { margin-bottom: 8px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.header ol { padding-left: 20px; }
+.header li + li { margin-top: 8px; }
+.header button { margin-left: 8px; vertical-align: baseline; font-size: 12px; line-height: 18px; }

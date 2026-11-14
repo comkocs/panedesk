@@ -40,6 +40,7 @@
       "inject": [
         "@panedesk/dsh-api-remotes",
         "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-resources",
         "@panedesk/dsh-client-ui-renderer",
         "@panedesk/dsh-client-ui-settings"
       ]
@@ -75,6 +76,7 @@
     "@panedesk/dsh-session": "workspace:*",
 
     "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-resources": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
     "@panedesk/dsh-client-ui-conversation": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",

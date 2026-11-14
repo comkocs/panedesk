@@ -2,7 +2,7 @@
 
 Adds **Settings → Panedesk → Database connections** using the shared settings section slot, typed English/Chinese copy and the generated `databaseConnections` Remote contribution.
 
-Page actions use shared outlined buttons; Save uses the primary style.
+Page actions use shared compact outlined buttons; Save uses the primary style. Fields share the settings shell's fixed label column, with 8px row gaps and hairline separators.
 
 ## Usage
 

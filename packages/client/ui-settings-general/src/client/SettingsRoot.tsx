@@ -78,6 +78,7 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
       key={row.id}
       type="button"
       className={clsx(css.navCell, row.id === active && css.active)}
+      title={row.label}
       aria-current={row.id === active ? 'true' : undefined}
       data-modal-autofocus={row.id === active ? '' : undefined}
       onClick={() => { onSelect(row.id) }}
@@ -156,7 +157,7 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
             </Button>
           </div>
-          <div className={css.options}>
+          <div className={clsx(css.options, activeGroup === 'panedesk' && css.panedesk)}>
             {activeGroup === 'panedesk' && active !== undefined && <PanedeskGuidance key={active} id={active} t={t} />}
             {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
           </div>

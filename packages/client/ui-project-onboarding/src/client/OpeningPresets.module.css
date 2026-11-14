@@ -1,5 +1,5 @@
 .modal { width: min(720px, 100%); }
-.editor { display: grid; gap: 12px; }
+.editor { display: grid; gap: 16px; font-size: 12px; line-height: 18px; }
 .editor > button { justify-self: start; }
 .folder { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .folderPath { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -16,7 +16,7 @@
 .summaryText[data-invalid='true'] { color: var(--dsw-alias-state-error-primary); }
 .editor [aria-invalid='true'] { border-color: var(--dsw-alias-state-error-primary); }
 .editor label { display: grid; gap: 4px; }
-.editor textarea, .editor input { width: 100%; box-sizing: border-box; color: inherit; background: transparent; border: 1px solid var(--dsw-alias-border-l3); border-radius: 4px; padding: 8px; font: inherit; }
+.editor textarea, .editor input { width: 100%; box-sizing: border-box; color: inherit; background: transparent; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 4px; padding: 8px; font: inherit; }
 .editor textarea { min-height: 72px; resize: vertical; }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .dragPreview { position: absolute; top: 0; left: -10000px; width: 180px; height: 12px; border-radius: 4px; background: var(--dsw-alias-brand-primary); opacity: 0.5; pointer-events: none; }

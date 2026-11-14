@@ -6188,6 +6188,9 @@ importers:
       '@panedesk/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
       '@panedesk/dsh-client-store':
         specifier: workspace:*
         version: link:../store

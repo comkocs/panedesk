@@ -11,7 +11,7 @@ kind: "package-reference"
 
 为[会话遥测子系统](../../../docs/subsystems/session-telemetry.zh.md)展示会话数、子代理、token 用量和已记录调用的时间轴。[账本查询服务](../../session/ledger-query/README.zh.md)负责聚合及缺失数据语义。
 
-设置页的刷新操作使用共用有边框按钮。
+设置页采用紧凑控件和 8px 行间距，启用文字与开关同行，路径对齐共用设置正文左缘。这些样式不改变统计图表弹层。
 
 ## 目录
 

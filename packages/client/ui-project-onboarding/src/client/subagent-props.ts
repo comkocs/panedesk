@@ -17,7 +17,7 @@ export interface SubagentInjected {
 }
 
 /** Shared form input, independent of the owning slot. */
-export type SubagentProps = InjectFace<SubagentInjected> & PropsLocale<'projectOnboarding'>
+export type SubagentProps = InjectFace<SubagentInjected> & PropsLocale<'projectOnboarding'> & Pick<PropsRuntime<'settings.section'>, 'useResource'>
 /** Settings page entry. */
 export type SubagentSettingsProps = PropsRuntime<'settings.section'> & SubagentProps
 /** New-session upper-right entry. */

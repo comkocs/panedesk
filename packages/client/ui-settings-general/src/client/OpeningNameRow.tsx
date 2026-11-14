@@ -123,8 +123,8 @@ export function OpeningNameRow({ useOpeningName, useDocument, save, setEnabled, 
     <label className={css.title} htmlFor="panedesk-opening-name">{t('openingName.title')}</label>
     <p className={css.description}>{t('openingName.description')}</p>
     <p className={css.description}>{t('openingName.scope')}</p>
-    <Switch checked={enabled} disabled={!writable} label={t('openingName.enabled')}
-      onChange={next => { run(() => setEnabled(next)) }} />
+    <label><Switch checked={enabled} disabled={!writable} label={t('openingName.enabled')}
+      onChange={next => { run(() => setEnabled(next)) }} /><span>{t('openingName.enabled')}</span></label>
     {documentPath && <div>
       <p className={css.description}>{t('openingName.config', { path: documentPath })}</p>
       <p className={css.description}>{t('openingName.directory', { path: documentPath.replace(/[\\/][^\\/]*$/u, '') })}</p>

@@ -38,8 +38,8 @@ export function ToolsSection({ useResource, usePreferences, save, saveFullTools,
   }
   return <section>
     <p>{t('note')}</p><p>{t('conditions')}</p>
-    <Switch label={t('subagentsFullTools')} checked={preferences.value?.subagentsFullTools ?? false}
-      disabled={!writable} onChange={persist} />
+    <label><Switch label={t('subagentsFullTools')} checked={preferences.value?.subagentsFullTools ?? false}
+      disabled={!writable} onChange={persist} /><span>{t('subagentsFullTools')}</span></label>
     <Button disabled={!writable} onClick={() => { persist([]) }}>{t('enableAll')}</Button>
     {failed && <p role="alert">{t('saveFailed')}</p>}
     {catalog.status === 'failed' || preferences.status === 'unavailable'

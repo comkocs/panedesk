@@ -122,8 +122,8 @@ export function WorkflowSettings({ useWorkflow, useWorkflowLocale, setEnabled, s
   return <div className={css.page}>
     <SettingsPageHeader what={t('workflowWhat')} whether={t('workflowWhether')} ai={t('workflowAi')}
       labels={{ what: t('headerWhat'), whether: t('headerWhether'), ai: t('headerAi'), copy: t('copy'), copied: t('copied'), copyFailed: t('copyFailed'), once: t('once') }} />
-    <Switch checked={form.value?.showWorkflowStarters === true} label={t('showWorkflowStarters')}
-      disabled={busy || form.status !== 'ready' || !form.writable} onChange={enabled => { void save(enabled) }} />
+    <label><Switch checked={form.value?.showWorkflowStarters === true} label={t('showWorkflowStarters')}
+      disabled={busy || form.status !== 'ready' || !form.writable} onChange={enabled => { void save(enabled) }} /><span>{t('showWorkflowStarters')}</span></label>
     {form.status === 'ready' && form.value && workflowChoices.map(([label, , key]) => <PromptField key={`${key}:${language}`}
       label={t(label)} text={form.value![key][language]} restore={workflowDefaults[key][language]}
       disabled={!form.writable} save={text => setPrompt(key, language, text)} t={t} />)}

@@ -30,8 +30,8 @@ export function ChromeSettings({ usePreferences, setPreference, t }: Props): Rea
   return <section>
     <h2>{t('chrome.title')}</h2>
     <p>{t('chrome.description')}</p>
-    <Switch label={t('chrome.enabled')} checked={preferences.value?.enabled ?? false} disabled={disabled}
-      onChange={enabled => { void save('enabled', enabled) }} />
+    <label><Switch label={t('chrome.enabled')} checked={preferences.value?.enabled ?? false} disabled={disabled}
+      onChange={enabled => { void save('enabled', enabled) }} /><span>{t('chrome.enabled')}</span></label>
     <label>{t('chrome.endpoint')}<Input value={endpoint ?? preferences.value?.endpoint ?? ''} disabled={disabled}
       onChange={event => { setEndpoint(event.currentTarget.value) }} /></label>
     <Button variant="outline" disabled={disabled || endpoint === null}

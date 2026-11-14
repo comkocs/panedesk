@@ -1,6 +1,24 @@
 {
   "divergences": [
     {
+      "id": "compact-settings-and-subagent-controls",
+      "description": "Align Panedesk settings typography and stabilize subagent preset controls",
+      "origin": "Panedesk settings presentation feedback",
+      "reason": "Use compact aligned settings controls, single-line navigation, fixed-width subagent selectors, catalog effort labels, opaque downward menus, and persistent save feedback without changing stored preferences.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-project-onboarding/**",
+          "packages/client/ui-settings-general/**",
+          "packages/client/ui-primitives/src/SettingsPageHeader*",
+          "packages/client/ui-database-connections/**",
+          "packages/client/ui-stats/**",
+          "packages/client/ui-sidebar-browser/src/client/view/ChromeSettings.tsx",
+          "packages/client/ui-subagent-tree/src/client/settings.tsx"
+        ]
+      }
+    },
+    {
       "id": "subagent-delegation-presets",
       "description": "Align shared subagent presets with ordered tier model lists and optional size bands",
       "origin": "Panedesk delegation preferences",

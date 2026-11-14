@@ -41,11 +41,14 @@
 .page, .choice {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .choice {
+  gap: 8px;
   padding: 16px;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-md);
@@ -54,7 +57,7 @@
 .modes {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .choice p {

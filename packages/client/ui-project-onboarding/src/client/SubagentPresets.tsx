@@ -17,7 +17,12 @@ function Form(props: SubagentProps) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [menu, setMenu] = useState<{ tier: keyof SubagentPresets['tiers']; kind: 'model' | 'effort' | 'size' }>()
-  const [groups, setGroups] = useState<ModelCatalog['groups']>([])
+  const catalog = props.useResource<'subagent-model-catalog'>('dsh-resource://subagent-model-catalog/current')
+  const [loadedGroups, setGroups] = useState<ModelCatalog['groups']>()
+  const groups = loadedGroups ?? catalog.value ?? []
+  const effortName = (model: SubagentModel) => groups.find(group => group.id === model.provider)?.models
+    .find(item => item.id === model.model)?.reasoning?.efforts.find(effort => effort.id === model.effort)?.name
+    ?? (model.effort || t('defaultEffort'))
   const emptyModel: SubagentModel = { provider: '', model: '', effort: '', size: 'large' }
   const [picks, setPicks] = useState<Record<keyof SubagentPresets['tiers'], SubagentModel>>({ a: emptyModel, b: emptyModel, c: emptyModel })
   if (form.status !== 'ready' || !form.value) return <p>{t(form.status === 'loading' ? 'loading' : 'error')}</p>
@@ -48,37 +53,43 @@ function Form(props: SubagentProps) {
       const models = groups.flatMap(group => group.models.map(model => ({ id: JSON.stringify([group.id, model.id]), label: `${group.id} / ${model.id}`, provider: group.id, model })))
       const efforts = models.find(model => model.provider === pick.provider && model.model.id === pick.model)?.model.reasoning?.efforts ?? []
       const modelId = pick.model ? JSON.stringify([pick.provider, pick.model]) : ''
+      const modelLabel = pick.model ? `${pick.provider} / ${pick.model}` : t('subagentUnspecified')
+      const effortLabel = effortName(pick)
+      const sizeLabel = t('subagentSizeValue', { size: t(`size_${pick.size}`) })
       const bands = value.sizes.enabled ? subagentSizes : ['all'] as const
       return <section className={css.tier} key={key}>
         <label className={css.field}><strong>{t(`tier_${key}`)}</strong><input aria-label={`${t(`tier_${key}`)} ${t('subagentCriteria')}`} value={tier.criteria[language]} disabled={disabled}
           onChange={event => changeTier(key, { criteria: { ...tier.criteria, [language]: event.target.value } })} /></label>
         <div className={css.modelRow}>
-          <Menu open={menu?.tier === key && menu.kind === 'model'} onClose={() => setMenu(undefined)} portal autoFocus
+          <Menu open={menu?.tier === key && menu.kind === 'model'} onClose={() => setMenu(undefined)} side="bottom" autoFocus compact
             selectedId={modelId} items={[{ id: '', label: t('subagentUnspecified') }, ...models]}
-            anchor={<Button variant="outline" disabled={disabled} aria-label={`${t(`tier_${key}`)} ${t('subagentModel')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'model'}
-              onClick={() => openMenu(key, 'model')}>{pick.model ? `${pick.provider} / ${pick.model}` : t('subagentUnspecified')}</Button>}
+            className={css.modelMenu} listClassName={css.menu}
+            anchor={<Button variant="outline" size="sm" title={modelLabel} disabled={disabled} aria-label={`${t(`tier_${key}`)} ${t('subagentModel')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'model'}
+              onClick={() => openMenu(key, 'model')}><span>{modelLabel}</span></Button>}
             onSelect={id => {
               const selected = models.find(model => model.id === id)
               changePick({ provider: selected?.provider ?? '', model: selected?.model.id ?? '', effort: '' }); setMenu(undefined)
             }} />
-          <Menu open={menu?.tier === key && menu.kind === 'effort'} onClose={() => setMenu(undefined)} portal autoFocus
+          <Menu open={menu?.tier === key && menu.kind === 'effort'} onClose={() => setMenu(undefined)} side="bottom" autoFocus compact
             selectedId={pick.effort} items={[{ id: '', label: t('defaultEffort') }, ...efforts.map(effort => ({ id: effort.id, label: effort.name }))]}
-            anchor={<Button variant="outline" disabled={disabled || !pick.model} aria-label={`${t(`tier_${key}`)} ${t('presetEffort')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'effort'}
-              onClick={() => openMenu(key, 'effort')}>{pick.effort || t('defaultEffort')}</Button>}
+            className={css.effortMenu} listClassName={css.menu}
+            anchor={<Button variant="outline" size="sm" title={effortLabel} disabled={disabled || !pick.model} aria-label={`${t(`tier_${key}`)} ${t('presetEffort')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'effort'}
+              onClick={() => openMenu(key, 'effort')}><span>{effortLabel}</span></Button>}
             onSelect={effort => { changePick({ effort }); setMenu(undefined) }} />
-          {value.sizes.enabled && <Menu open={menu?.tier === key && menu.kind === 'size'} onClose={() => setMenu(undefined)} portal autoFocus
+          {value.sizes.enabled && <Menu open={menu?.tier === key && menu.kind === 'size'} onClose={() => setMenu(undefined)} side="bottom" autoFocus compact
             selectedId={pick.size} items={subagentSizes.map(size => ({ id: size, label: t(`size_${size}`) }))}
-            anchor={<Button variant="outline" disabled={disabled} aria-label={`${t(`tier_${key}`)} ${t('subagentSize')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'size'}
-              onClick={() => setMenu({ tier: key, kind: 'size' })}>{t(`size_${pick.size}`)}</Button>}
+            className={css.sizeMenu} listClassName={css.menu}
+            anchor={<Button variant="outline" size="sm" title={sizeLabel} disabled={disabled} aria-label={`${t(`tier_${key}`)} ${t('subagentSize')}`} aria-haspopup="menu" aria-expanded={menu?.tier === key && menu.kind === 'size'}
+              onClick={() => setMenu({ tier: key, kind: 'size' })}><span>{sizeLabel}</span></Button>}
             onSelect={size => { changePick({ size: size as SubagentModel['size'] }); setMenu(undefined) }} />}
-          <Button variant="outline" disabled={disabled || !pick.model} onClick={() => changeTier(key, { models: [...tier.models, { ...pick, size: value.sizes.enabled ? pick.size : 'all' }] })}>{t('subagentAdd')}</Button>
+          <Button variant="outline" size="sm" disabled={disabled || !pick.model} onClick={() => changeTier(key, { models: [...tier.models, { ...pick, size: value.sizes.enabled ? pick.size : 'all' }] })}>{t('subagentAdd')}</Button>
         </div>
         <div className={css.modelList}>{bands.map(size => {
           const choices = tier.models.map((model, index) => ({ model, index })).filter(({ model }) => !value.sizes.enabled || model.size === 'all' || model.size === size)
           return <div className={css.modelGroup} key={size}>
             {value.sizes.enabled && <span className={css.hint}>{t(`size_${size}`)}</span>}
             <div className={css.chips}>{choices.length ? choices.map(({ model, index }) => <span className={css.chip} key={index}>
-              <span>{model.provider} / {model.model} · {model.effort || t('defaultEffort')}</span>
+              <span>{model.provider} / {model.model} · {effortName(model)}</span>
               <Button variant="ghost" size="sm" disabled={disabled} aria-label={`${t('deletePreset')} ${model.provider} / ${model.model}`} onClick={() => changeTier(key, { models: tier.models.filter((_, at) => at !== index) })}>×</Button>
             </span>) : <span className={css.hint}>{t('subagentNoModels')}</span>}</div>
           </div>
@@ -104,13 +115,16 @@ function Form(props: SubagentProps) {
       <label className={css.field}><span>{t('subagentNestedCondition')}</span><input value={value.nestedCondition[language]} disabled={disabled}
         onChange={event => change({ ...value, nestedCondition: { ...value.nestedCondition, [language]: event.target.value } })} /></label>
     </section>
-    <div className={presetCss.actions}>
-      <Button variant="primary" disabled={disabled} onClick={() => { void persist(value) }}>{t('save')}</Button>
-      <Button variant="outline" disabled={disabled} onClick={() => { setPicks({ a: emptyModel, b: emptyModel, c: emptyModel }); void persist(subagentDefaults) }}>{t('restoreDefault')}</Button>
-      {saved && <span className={presetCss.saved} role="status" onAnimationEnd={() => setSaved(false)}>{t('subagentSaved')}</span>}
+    <div className={css.footer}>
+      <div className={presetCss.actions}>
+        <Button variant="primary" size="sm" disabled={disabled} onClick={() => { void persist(value) }}>{t('save')}</Button>
+        <Button variant="outline" size="sm" disabled={disabled} onClick={() => { setPicks({ a: emptyModel, b: emptyModel, c: emptyModel }); void persist(subagentDefaults) }}>{t('restoreDefault')}</Button>
+        {saved && <span className={presetCss.saved} role="status" onAnimationEnd={() => setSaved(false)}>{t('subagentSaved')}</span>}
+      </div>
+      {!form.writable && <p>{t('readonly')}</p>}
+      {error && <p role="alert">{error}</p>}
+      {catalog.status === 'failed' && <p role="alert">{t('error')}</p>}
     </div>
-    {!form.writable && <p>{t('readonly')}</p>}
-    {error && <p role="alert">{error}</p>}
   </div>
 }
 

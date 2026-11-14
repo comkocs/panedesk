@@ -44,8 +44,8 @@ export function StatsSettings({ useResource, usePreferences, setPreference, open
   const paths = locations.value
   return <section className={css.settings}>
     <h2>{t('title')}</h2><p>{t('settingsDescription')}</p>
-    <Switch label={t('enabled')} checked={value?.enabled ?? false} disabled={busy || !preferences.writable || value === undefined}
-      onChange={enabled => { void perform(() => setPreference('enabled', enabled), 'saveError', 'saved') }} />
+    <label><Switch label={t('enabled')} checked={value?.enabled ?? false} disabled={busy || !preferences.writable || value === undefined}
+      onChange={enabled => { void perform(() => setPreference('enabled', enabled), 'saveError', 'saved') }} /><span>{t('enabled')}</span></label>
     <p>{t('defaultEnabled')}</p>
     <h3>{t('configFile')}</h3><code>{paths?.configFile ?? t('unknownLocation')}</code>
     <div className={css.controls}>

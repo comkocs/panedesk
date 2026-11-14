@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../session/session-title" },
     { "path": "../ui-workspace" },
+    { "path": "../resources" },
     { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../../api/workspace-controller/tsconfig.client.json" },
     { "path": "../../core/session" },

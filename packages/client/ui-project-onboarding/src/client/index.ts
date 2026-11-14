@@ -1,6 +1,7 @@
 /** Session-only project guidance and path-keyed product preferences. */
 import type { Context } from '@panedesk/cordis'
-import type {} from '@panedesk/dsh-api-remotes/client'
+import type { ModelCatalog } from '@panedesk/dsh-api-remotes/client'
+import type {} from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
@@ -24,8 +25,12 @@ import { ProjectSettingsController } from './settings-controller.ts'
 import { en, zh } from './locales.ts'
 import type { GuideInjected, ProjectInjected, SettingsInjected, WorkflowInjected } from './props.ts'
 
+declare module '@panedesk/dsh-client-ui-slots' {
+  interface ResourceProtocolMap { 'subagent-model-catalog': ModelCatalog['groups'] }
+}
+
 /** Services used by the preferences projection and its slot contributions. */
-export const inject = ['slots', 'locale', 'remote', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'configForms', 'resources']
 
 /** Register project settings, optional workflow starters, and the project guidance overlay.
  * @param ctx Client plugin scope; no service objects reach React components.
@@ -38,6 +43,13 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     const mirror = ctx.configForms.describe()
     const presets = ctx.configForms.get<{ openingPresets: OpeningPreset[] }>('ui-project-onboarding')
     const subagents = ctx.configForms.get<{ subagentPresets: SubagentPresets }>('ui-project-onboarding')
+    ctx.effect(() => ctx.resources.register<'subagent-model-catalog'>({
+      protocol: 'subagent-model-catalog',
+      async *open() {
+        const result = await ctx.remote.session.modelCatalog()
+        yield result.ok ? { ok: true, value: result.value.groups } : result
+      },
+    }))
     const subagentFace = (): SubagentInjected => ({
       hooks: { subagentPresets: subagents, subagentLocale: ctx.locale },
       saveSubagentPresets: (value, revision) => subagents.mutate([{ op: 'set', path: ['subagentPresets'], value }], revision),

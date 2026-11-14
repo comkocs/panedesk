@@ -31,6 +31,8 @@ Browser 在 Web 和 Desktop profile 中默认启用。点击会话顶栏的**浏
 
 当 Web 页面需要保留在当前 Session 旁时，选择 Browser。本地文件使用 [Document Preview](../ui-sidebar-documentpreview/README.zh.md)；站点拒绝 iframe 嵌入或需要本包不授予的浏览器 capability 时，使用明确的外部浏览器操作。
 
+可选的「连接自己的 Chrome」设置页将启用文字放在开关旁，并复用 Panedesk 设置外壳的紧凑字号与字段对齐。
+
 ### 最小配置
 
 内置浏览器没有插件配置字段。profile 可以显式启用随附条目：
