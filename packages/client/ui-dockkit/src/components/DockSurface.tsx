@@ -126,8 +126,8 @@ const ALWAYS = (): boolean => true
 function splitZone(rect: DOMRect, x: number, y: number, canSplit: boolean, fit: HalvesFit): 'left' | 'right' | 'top' | 'bottom' | 'center' {
   if (!canSplit || !(rect.width > 0) || !(rect.height > 0)) return 'center'
   // Only an axis with room for two halves competes, so a narrow column splits by height alone;
-  // the 40% bands match the drop hint's edge boxes.
-  return zoneAt(fit.row ? (x - rect.x) / rect.width : 0.5, fit.column ? (y - rect.y) / rect.height : 0.5, 0.4)
+  // the 45% bands match the drop hint's edge boxes.
+  return zoneAt(fit.row ? (x - rect.x) / rect.width : 0.5, fit.column ? (y - rect.y) / rect.height : 0.5, 0.45)
 }
 
 /**

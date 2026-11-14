@@ -211,11 +211,12 @@ export function ModelSelect(
         const submenu = effortRef.current
         const width = submenu?.offsetWidth ?? 0
         const height = submenu?.offsetHeight ?? 0
-        const side = width === 0 || x + lw + width <= window.innerWidth - MARGIN ? x + lw : x - width
+        const margin = 8
+        const side = width === 0 || x + lw + width <= window.innerWidth - margin ? x + lw : x - width
         const top = y + rowRect.top - (menuRef.current?.getBoundingClientRect().top ?? y)
         setEffortPos({
-          left: Math.max(MARGIN, Math.min(side, window.innerWidth - Math.max(width, 1) - MARGIN)),
-          top: Math.max(MARGIN, Math.min(top, window.innerHeight - Math.max(height, 1) - MARGIN)),
+          left: Math.max(margin, Math.min(side, window.innerWidth - Math.max(width, 1) - margin)),
+          top: Math.max(margin, Math.min(top, window.innerHeight - Math.max(height, 1) - margin)),
         })
       }
     }

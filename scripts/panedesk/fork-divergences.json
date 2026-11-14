@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "split-drop-effort-card-model-selection",
+      "description": "Refine split drop targets, effort card placement, and model discovery selection",
+      "origin": "Panedesk desktop interaction feedback",
+      "reason": "Narrow the split move zone, keep effort choices adjacent and within the viewport, and initialize model discovery selections from the existing catalog.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-dockkit/**", "packages/client/ui-model-selection/**", "packages/client/ui-settings-models/**"]
+      }
+    },
+    {
       "id": "compact-settings-and-subagent-controls",
       "description": "Align Panedesk settings typography and stabilize subagent preset controls",
       "origin": "Panedesk settings presentation feedback",

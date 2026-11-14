@@ -319,7 +319,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       const selection = defaultRecognizedSelection(found, models.map(model => ({ id: textOf(model, 'id'), name: textOf(model, 'name') })))
       setCandidateQuery('')
       setCandidates(selection.models)
-      setPicked(new Set(selection.checked))
+      setPicked(new Set(models.length > 0 ? models.map(model => textOf(model, 'id')) : found.map(model => model.id)))
       setUnlisted(selection.unlisted)
     } finally {
       setBusy(false)
@@ -504,7 +504,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         footer={(
           <>
             <Button variant="outline" disabled={busy} onClick={closePicker}>{t('cancel')}</Button>
-            <Button variant="outline" disabled={busy} onClick={() => { void adoptPicked() }}>{t('fetchAdopt')}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => { void adoptPicked() }}>{t('fetchApplySelection')}</Button>
           </>
         )}
       >

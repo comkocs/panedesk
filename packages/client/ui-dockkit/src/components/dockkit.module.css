@@ -672,6 +672,16 @@
   width: 40%;
 }
 
+[data-dockkit-drop-zones='split'] .dockHint[data-dockkit-dock-zone='left'],
+[data-dockkit-drop-zones='split'] .dockHint[data-dockkit-dock-zone='right'] {
+  width: 45%;
+}
+
+[data-dockkit-drop-zones='split'] .dockHint[data-dockkit-dock-zone='top'],
+[data-dockkit-drop-zones='split'] .dockHint[data-dockkit-dock-zone='bottom'] {
+  height: 45%;
+}
+
 [data-dockkit-drop-zones='horizontal'] .dockHint[data-dockkit-dock-zone='left'] {
   width: 50%;
   padding-right: 4px;

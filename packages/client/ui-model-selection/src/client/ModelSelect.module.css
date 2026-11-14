@@ -332,7 +332,7 @@
 
 .effortFooter {
   flex-shrink: 0;
-  margin-top: 4px;
+  margin: 4px -4px -4px;
   padding-top: 4px;
   border-top: 0.5px solid var(--dsw-alias-border-l1);
 }
@@ -340,7 +340,7 @@
 .effortMenu {
   z-index: 1101;
   min-width: min(160px, calc(100vw - 32px));
-  max-height: calc(100vh - 24px);
+  max-height: calc(100vh - 16px);
   overflow-y: auto;
 }
 
