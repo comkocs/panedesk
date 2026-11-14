@@ -4,7 +4,7 @@
 .form strong { font-size: inherit; }
 .tier, .section { display: grid; gap: 8px; min-width: 0; }
 .field { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
-.field input { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
+.field input, .field textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
 .toggle { display: flex; align-items: center; gap: 8px; }
 .modelRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .modelMenu { width: 220px; }

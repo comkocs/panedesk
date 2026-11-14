@@ -5,7 +5,7 @@ import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { ConfigFormSnapshot } from '@panedesk/dsh-client-ui-settings/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import { toolDescriptionKey } from './tool-locales.ts'
-import css from './DeveloperToolsRow.module.css'
+import css from './ToolsSection.module.css'
 
 /** Persisted disabled names; an empty list enables every available tool. */
 export interface ToolSettings { disabledTools: string[]; subagentsFullTools: boolean }

@@ -140,7 +140,7 @@ function SettingsPanel({ rows, renderSlot, activeId, navigationRevision, onSelec
                     <span className={css.navLabel}>{t(`group.${group}`)}</span>
                     {open ? <IconChevronDownOutlineRegular size={14} /> : <IconChevronRightOutlineRegular size={14} />}
                   </button>
-                  {group === 'dsh' && <div id={descriptionId} className={css.groupDescription}>{t('group.dsh.description')}</div>}
+                  {group === 'dsh' && <div id={descriptionId} className={css.groupDescription} title={t('group.dsh.description')}>{t('group.dsh.description')}</div>}
                   <div id={childrenId} className={css.navChildren} hidden={!open}>
                     {children.map(renderRow)}
                   </div>

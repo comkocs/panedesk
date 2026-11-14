@@ -58,8 +58,8 @@ function Form(props: SubagentProps) {
       const sizeLabel = t('subagentSizeValue', { size: t(`size_${pick.size}`) })
       const bands = value.sizes.enabled ? subagentSizes : ['all'] as const
       return <section className={css.tier} key={key}>
-        <label className={css.field}><strong>{t(`tier_${key}`)}</strong><input aria-label={`${t(`tier_${key}`)} ${t('subagentCriteria')}`} value={tier.criteria[language]} disabled={disabled}
-          onChange={event => changeTier(key, { criteria: { ...tier.criteria, [language]: event.target.value } })} /></label>
+        <label className={css.field}><strong>{t(`tier_${key}`)}</strong><textarea rows={3} aria-label={`${t(`tier_${key}`)} ${t('subagentCriteria')}`} value={tier.criteria[language]} disabled={disabled}
+          onChange={event => changeTier(key, { criteria: { ...tier.criteria, [language]: event.target.value.replace(/[\r\n]/g, '') } })} /></label>
         <div className={css.modelRow}>
           <Menu open={menu?.tier === key && menu.kind === 'model'} onClose={() => setMenu(undefined)} side="bottom" autoFocus compact
             selectedId={modelId} items={[{ id: '', label: t('subagentUnspecified') }, ...models]}

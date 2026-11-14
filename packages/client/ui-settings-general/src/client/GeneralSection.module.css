@@ -5,7 +5,12 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  font-size: 12px;
+  line-height: 18px;
 }
+
+.section :is(input, select, textarea) { font-size: 12px; line-height: 18px; }
+.section :is(h2, h3, h4, legend) { font-size: 13px; line-height: 18px; font-weight: 500; }
 
 .section > :global([data-slot='settings.general.item']) > :last-child {
   border-bottom: none;

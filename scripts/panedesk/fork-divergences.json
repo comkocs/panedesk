@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "responsive-settings-and-wrapped-criteria",
+      "description": "Scale settings and refine settings and preset presentation",
+      "origin": "Panedesk settings presentation feedback",
+      "reason": "Keep settings readable on larger screens and wrap long subagent criteria without changing stored values.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-settings-general/**", "packages/client/ui-project-onboarding/**"]
+      }
+    },
+    {
       "id": "model-picker-hover-and-discovery-controls",
       "description": "Open effort choices promptly and refine model discovery controls",
       "origin": "Panedesk model selection feedback",
