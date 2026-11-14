@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.15
+
+### Changed
+
+- Settings: sidebar entries stay on one line (long names end with an ellipsis and show in full on hover), and Panedesk pages share one type scale with the subagent presets page: 12px body text and controls, 13px section headings, an aligned label column, compact buttons, and consistent spacing. The page introduction uses body-size text.
+- Subagent presets: the model, reasoning-effort, and size pickers have fixed widths with truncated names, their menus open downward instead of covering the tier above, tags show effort names as the menu does, the size picker reads "Size: Large", and Save and Restore defaults stay visible at the bottom while scrolling.
+- Items panel: Close and the export buttons stay at the top while the timeline scrolls, rows no longer show the raw event type on hover, cut-off reply excerpts end with an ellipsis, and items and activity show the model the session last actually requested.
+- Right sidebar: dragging a tab into a pane splits it up or down across most of its height; only a small middle area moves the tab into the pane.
+- Model menu: the reasoning-effort card lines up with its row, with no gap to cross, and stays inside the window.
+- Models settings: the fetched-model dialog confirms with Apply selection, and when the provider already has models, only those start checked.
+
 ## 2.0.14
 
 ### Changed
