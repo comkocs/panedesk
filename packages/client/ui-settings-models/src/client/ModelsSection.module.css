@@ -9,6 +9,8 @@
   gap: 12px;
   max-width: 720px;
   color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 /* A lone action inside the column (the load-failure retry) sizes to its label.
@@ -19,16 +21,16 @@
 
 .title {
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 13px;
+  line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 
 .intro {
   margin: 0;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 12px;
+  line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -81,8 +83,8 @@
 }
 
 .rowName {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
@@ -124,8 +126,8 @@
   flex: none;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 18px;
   color: var(--dsw-alias-state-success-primary);
 }
 
@@ -253,8 +255,8 @@
 }
 
 .editorTitle {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
@@ -429,7 +431,7 @@
   margin-left: -4px;
   border-radius: var(--dsw-radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary);
@@ -480,7 +482,7 @@
 }
 
 .modelCatalogTitle {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary);
@@ -633,7 +635,7 @@
 
 .modelReasoningValueInput {
   font-family: var(--ds-font-family-code);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .modelEmpty {
@@ -673,8 +675,8 @@
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-md);
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 12px;
+  line-height: 18px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
 }
@@ -912,4 +914,9 @@ select.input {
    stretched because the typed-id field and the discovered list fill it. */
 .recognize > .secondaryButton {
   align-self: flex-start;
+}
+
+.recognize input {
+  font-size: 12px;
+  line-height: 18px;
 }

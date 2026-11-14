@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "model-picker-hover-and-discovery-controls",
+      "description": "Open effort choices promptly and refine model discovery controls",
+      "origin": "Panedesk model selection feedback",
+      "reason": "Make effort choices easier to find, clarify catalog selection, and align model settings typography.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-model-selection/**", "packages/client/ui-settings-models/**"]
+      }
+    },
+    {
       "id": "sidebar-scrollbars-and-split-continuity",
       "description": "Thicken right-panel horizontal scrollbars and align split feedback and layout retention",
       "origin": "Desktop panel interaction feedback",

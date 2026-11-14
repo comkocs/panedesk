@@ -631,7 +631,7 @@ export function ModelSelect(
               )}
           </>
           {effortChoices.length > 0 && (
-            <div className={css.effortFooter} role="menu" aria-label={t('menu.effort')}>
+            <div className={css.effortFooter} role="menu" aria-label={t('menu.effort')} onPointerEnter={busy ? undefined : () => { openEffort() }}>
               <button
                 ref={effortRowRef}
                 type="button"
@@ -641,9 +641,7 @@ export function ModelSelect(
                 aria-expanded={effortOpen}
                 aria-controls={effortOpen ? `${id}-efforts` : undefined}
                 disabled={busy}
-                onPointerEnter={() => { openEffort() }}
-                onMouseEnter={() => { openEffort() }}
-                onClick={() => { if (effortOpen) back(); else openEffort() }}
+                onClick={() => { openEffort() }}
               >
                 <span className={css.cellLabel}>{t('menu.effort')}</span>
                 <span className={css.cellValue}>{effortLabel}</span>

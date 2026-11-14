@@ -378,11 +378,12 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
 
   const toggleVisibleCandidates = (): void => {
     setPicked((current) => {
-      if (visibleCandidates.every(candidate => current.has(candidate.id))) {
-        return new Set()
-      }
       const next = new Set(current)
-      for (const candidate of visibleCandidates) next.add(candidate.id)
+      if (visibleCandidates.every(candidate => current.has(candidate.id))) {
+        for (const candidate of visibleCandidates) next.delete(candidate.id)
+      } else {
+        for (const candidate of visibleCandidates) next.add(candidate.id)
+      }
       return next
     })
   }
@@ -499,7 +500,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         onClose={() => { if (!busy) closePicker() }}
         title={t('fetchTitle')}
         closeLabel={t('close')}
-        description={t('fetchDescription')}
+        description={t(models.length > 0 ? 'fetchDescription' : 'fetchDescriptionEmpty')}
         className={styles['fetchDialog'] as string}
         footer={(
           <>
