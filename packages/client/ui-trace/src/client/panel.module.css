@@ -29,6 +29,20 @@
   align-items: center;
 }
 
+/* The timeline's close and export row, plus its notice, stay at the top of the panel scroller. */
+.actions {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  margin: -8px -10px 0;
+  padding: 8px 10px;
+  background: var(--dsw-alias-bg-base);
+}
+
+.notice {
+  margin: 6px 0 0;
+}
+
 .list {
   display: flex;
   flex-direction: column;

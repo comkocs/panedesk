@@ -8,7 +8,7 @@ import type { DecisionRevision, ItemId, ReferenceContent, ReferenceId, TraceItem
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
 import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type { TraceOpenActions, TracePanelActions } from './index.ts'
-import { decisionStatus, eventLine, eventType, itemMarkdown, itemStatus, referenceText, sourceLine } from './format.ts'
+import { decisionStatus, eventLine, itemMarkdown, itemStatus, referenceText, sourceLine } from './format.ts'
 import css from './panel.module.css'
 
 type Props = PropsRuntime<'sidebar.right.pane.tab'> & PropsLocale<'trace'> & InjectFace<TracePanelActions>
@@ -111,20 +111,22 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
     {open !== undefined && <section>
       <h2>{t('timeline')}</h2>
       <p>{sourceLine(open.source, t)}</p>
-      {/* Above the timeline, which keeps growing while the window works. */}
-      <div className={css.row}>
-        {open.status === 'open' && <Button variant="outline" onClick={() => {
-          void closeItem(workspaceId, open.id).then(result => {
-            if (!result.ok) { setFailure(result.error.message); return }
-            setFailure(null); setTick(value => value + 1)
-          }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
-        }}>{t('closeItem')}</Button>}
-        <Button variant="outline" onClick={() => { download(`${open.title}.json`, JSON.stringify({ item: open, events, refs }, null, 2), 'application/json') }}>{t('exportJson')}</Button>
-        <Button variant="outline" onClick={() => { download(`${open.title}.md`, itemMarkdown(open, events, refs, [], t), 'text/markdown') }}>{t('exportMd')}</Button>
+      {/* Pinned to the panel scrollport so close and export stay reachable as the timeline grows. */}
+      <div className={css.actions}>
+        <div className={css.row}>
+          {open.status === 'open' && <Button variant="outline" onClick={() => {
+            void closeItem(workspaceId, open.id).then(result => {
+              if (!result.ok) { setFailure(result.error.message); return }
+              setFailure(null); setTick(value => value + 1)
+            }).catch((error: unknown) => { setFailure(error instanceof Error ? error.message : String(error)) })
+          }}>{t('closeItem')}</Button>}
+          <Button variant="outline" onClick={() => { download(`${open.title}.json`, JSON.stringify({ item: open, events, refs }, null, 2), 'application/json') }}>{t('exportJson')}</Button>
+          <Button variant="outline" onClick={() => { download(`${open.title}.md`, itemMarkdown(open, events, refs, [], t), 'text/markdown') }}>{t('exportMd')}</Button>
+        </div>
+        {notice !== null && <p className={css.notice} role="status">{notice}</p>}
       </div>
-      {notice !== null && <p role="status">{notice}</p>}
       {events.length === 0 && <p>{t('timelineEmpty')}</p>}
-      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item} title={eventType(event)}>
+      <ul className={css.list}>{events.map(event => <li key={event.id} className={css.item}>
         <span className={css.activity}>{eventLine(event, t)}</span>
         {refs.filter(row => row.eventId === event.id).map(row => <ReferenceRow key={row.id} referenceId={row.id}
           workspaceId={workspaceId} reference={reference} t={t} setFailure={setFailure} />)}
@@ -132,7 +134,7 @@ function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, refe
     </section>}
     <h2>{t('unassigned')}</h2>
     {loose.length === 0 && <p>{t('unassignedEmpty')}</p>}
-    <ul className={css.loose}>{loose.map(event => <li key={event.id} title={eventType(event)}>
+    <ul className={css.loose}>{loose.map(event => <li key={event.id}>
       <label><input type="checkbox" checked={checked.has(event.id)} onChange={input => {
         const next = new Set(checked)
         if (input.target.checked) next.add(event.id); else next.delete(event.id)

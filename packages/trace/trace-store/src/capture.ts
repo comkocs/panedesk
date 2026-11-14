@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import type { Session, SessionEvent, SessionId } from '@panedesk/dsh-session'
+import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import type { SubagentRunInfo, SubagentRunEndInfo } from '@panedesk/dsh-subagent'
 import type { Agent } from '@panedesk/dsh-agent'
 import { carrierKeyOf } from '@panedesk/dsh-scope'
@@ -27,7 +27,6 @@ const FILE_CHANGE_TOOLS = new Set(['write', 'edit'])
  */
 export function installCapture(ctx: Context, store: TraceStore): () => Promise<void> {
   const pending = new Set<Promise<void>>()
-  const models = new Map<SessionId, string>()
   const observe = (operation: Promise<void>): void => {
     const settled = operation.catch(error => ctx.logger.warn('Trace capture failed / 事项采集失败', error))
     pending.add(settled)
@@ -40,12 +39,12 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
   })
   ctx.on('session/disposed', session => {
     if (store.recordsSession(session)) observe(store.capture(session.id, { type: 'session/ended', key: `session:${session.id}:end:${session.seq}`,
-      payload: '{}', time: Date.now(), model: models.get(session.id) }))
-    models.delete(session.id)
+      payload: '{}', time: Date.now() }))
+    store.forgetModel(session.id)
   })
   ctx.on('session/event', (session, event) => {
     if (!store.recordsSession(session)) return
-    if (event.type === 'request/context') { models.set(session.id, event.data.model); return }
+    if (event.type === 'request/context') { store.noteModel(session.id, event.data.model); return }
     if (event.type === 'assistant/message') return
     if (event.type !== 'turn/start' && event.type !== 'turn/end' && event.type !== 'deliverables/presented'
       && event.type !== 'user/message'
@@ -60,7 +59,7 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     })
     observe(store.capture(session.id, { type: event.type, key: `session:${session.id}:${event.seq}`,
       payload: '{}', seqStart: event.seq, seqEnd: event.seq, time: event.time,
-      model: models.get(session.id), actor: event.type === 'user/message' ? 'user' : undefined }, references))
+      actor: event.type === 'user/message' ? 'user' : undefined }, references))
   })
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
     if (frame.type !== 'end' || frame.outcome.kind !== 'committed' || frame.outcome.eventType !== 'assistant/message'
@@ -80,7 +79,7 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
   })
   ctx.on('session/event', (session, event) => {
     if (event.type !== 'tool/result' || !store.recordsSession(session)) return
-    observe(captureToolChange(ctx, store, session, event, models))
+    observe(captureToolChange(ctx, store, session, event))
   })
   for (const edge of ['subagent/start', 'subagent/end'] as const) ctx.on(edge, function (this: object, info: SubagentRunInfo | SubagentRunEndInfo) {
     const parent = carrierKeyOf(this) as Agent
@@ -88,7 +87,7 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
     observe(store.capture(parent.id, { type: edge, key: `${edge}:${info.runId}`, time: Date.now(),
       observedSessionId: info.id,
       payload: JSON.stringify({ runId: info.runId, provider: info.provider, local: info.local,
-        ...'stopReason' in info ? { stopReason: info.stopReason } : {} }), actor: 'subagent', model: models.get(info.id) }))
+        ...'stopReason' in info ? { stopReason: info.stopReason } : {} }), actor: 'subagent' }))
   })
   ctx.on('message/state', event => {
     const sessionIds = new Set([event.data.senderSessionId, event.data.targetSessionId])
@@ -96,7 +95,7 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
       if (sessionId === null) continue
       observe(store.capture(sessionId, { type: `message/${event.data.transition}`,
         key: `message:${event.nodeId}:${event.data.messageId}:${event.data.stateVersion}:${event.data.transition}:${sessionId}`,
-        payload: JSON.stringify(event.data), time: event.data.observedAt, model: models.get(sessionId) }))
+        payload: JSON.stringify(event.data), time: event.data.observedAt }))
     }
   })
   ctx.on('workspace-changes/include-child', session => store.recordsSession(session) ? true : undefined)
@@ -118,7 +117,7 @@ export function installCapture(ctx: Context, store: TraceStore): () => Promise<v
             summary: JSON.stringify(file), diffFile: filename })
         }
         await store.capture(session.id, { type: 'workspace/changes', key: `session:${session.id}:${seq}`,
-          payload: JSON.stringify(summary), seqStart: seq, seqEnd: seq, time: Date.now(), model: models.get(session.id) }, references)
+          payload: JSON.stringify(summary), seqStart: seq, seqEnd: seq, time: Date.now() }, references)
       })()
       observe(operation)
       return operation
@@ -161,11 +160,10 @@ function diffSummary(diff: ToolFileDiff): string {
  * @param store Single project writer.
  * @param session Session that appended the tool result.
  * @param event Completed tool result.
- * @param models Model last seen for each session.
  * @returns After the event commits, or immediately when the result is not a file change.
  */
 async function captureToolChange(
-  ctx: Context, store: TraceStore, session: Session, event: SessionEvent<'tool/result'>, models: Map<SessionId, string>,
+  ctx: Context, store: TraceStore, session: Session, event: SessionEvent<'tool/result'>,
 ): Promise<void> {
   if (event.data.message.isError === true) return
   const callSeq = event.sourceEventSeqs?.[0]
@@ -204,5 +202,5 @@ async function captureToolChange(
   const summary = references.map(reference => reference.summary).join('; ')
   await store.capture(session.id, { type: 'file/changed', key: `file:${session.id}:${event.seq}`,
     payload: JSON.stringify({ tool: toolName, summary, paths: diffs.map(diff => diff.path) }),
-    seqStart: event.seq, seqEnd: event.seq, time: event.time, model: models.get(session.id) }, references)
+    seqStart: event.seq, seqEnd: event.seq, time: event.time }, references)
 }

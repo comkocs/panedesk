@@ -13,7 +13,7 @@ The Web/Desktop Host mounts `traceStore`; recording and strict decisions default
 
 ## Use this package
 
-The default export is the Host service. `/types` exports client-safe records, `/typert` supplies Host descriptors, and `/remote` exposes the same method names through the application Remote assembly. Workspace requests use `workspaceId`; optional `sessionId` identifies a user's window but does not grant model authority. Model callers use the current Host agent initiator for automatic session/model attribution.
+The default export is the Host service. `/types` exports client-safe records, `/typert` supplies Host descriptors, and `/remote` exposes the same method names through the application Remote assembly. Workspace requests use `workspaceId`; optional `sessionId` identifies a user's window but does not grant model authority. Model callers use the current Host agent initiator for automatic session attribution. The recorded model is the one from that session's newest `request/context` since the Host started; when none has been seen, it falls back to the session option. Earlier records are not rewritten.
 
 - Workspace: `status`, `followStatus` (initial switches and updates after saves), `enable`, `disable`, `associateProject`, `setStrict`.
 - Items: `createItem`, `closeItem`, `voidItem`, `listItems`.

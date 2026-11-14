@@ -30,6 +30,8 @@ export default class TraceStore extends TypertRemoteService {
   private mappings!: KvTable<string, TraceStatus>
   private readonly databases = new Map<ProjectId, DatabaseSync>()
   private readonly settingSources = new Map<string, SettingSource>()
+  /** Model of each session's newest `request/context`. Older records are not backfilled. */
+  private readonly models = new Map<SessionId, string>()
   private readonly changes = new EventEmitter()
   private tail: Promise<void> = Promise.resolve()
   private readonly home = resolveDshHome()
@@ -91,6 +93,29 @@ export default class TraceStore extends TypertRemoteService {
     }
   }
 
+  /** Remember the model a session actually requested, replacing any earlier one.
+   * @param sessionId Session that sent the request.
+   * @param model Model id from that request.
+   */
+  noteModel(sessionId: SessionId, model: string): void {
+    this.models.set(sessionId, model)
+  }
+
+  /** Drop a session's remembered model when the session itself is gone.
+   * @param sessionId Disposed session.
+   */
+  forgetModel(sessionId: SessionId): void {
+    this.models.delete(sessionId)
+  }
+
+  /** Model last requested by one session, when a request has been seen since startup.
+   * @param sessionId Session to attribute, or undefined when the row has no session.
+   * @returns That model, or undefined so the caller can use the session option.
+   */
+  private modelFor(sessionId: SessionId | undefined): string | undefined {
+    return sessionId === undefined ? undefined : this.models.get(sessionId)
+  }
+
   private source(request: WorkspaceRequest): TraceSource {
     const initiator = this.ctx.agents.currentInitiator()
     const session = initiator?.session ?? (request.sessionId === undefined ? undefined : this.ctx.sessions.get(request.sessionId))
@@ -99,7 +124,7 @@ export default class TraceStore extends TypertRemoteService {
       actor: initiator === undefined ? 'user' : session?.header.origin === 'subagent' ? 'subagent'
         : session?.id === status.plannerSessionId ? 'planner' : 'executor',
       sessionId: session?.id ?? request.sessionId ?? null,
-      model: initiator?.options.model ?? (session === undefined ? null : this.ctx.agents.get(session.id)?.options.model ?? null),
+      model: this.modelFor(session?.id) ?? initiator?.options.model ?? (session === undefined ? null : this.ctx.agents.get(session.id)?.options.model ?? null),
       time: Date.now(),
     }
   }
@@ -573,7 +598,7 @@ export default class TraceStore extends TypertRemoteService {
     const header = await this.header(sessionId)
     const source: TraceSource = { actor: fact.actor ?? (header.origin === 'subagent' ? 'subagent' : 'executor'),
       sessionId: fact.observedSessionId ?? sessionId,
-      model: fact.model ?? this.ctx.agents.get(fact.observedSessionId ?? sessionId)?.options.model ?? null, time: fact.time }
+      model: fact.model ?? this.modelFor(fact.observedSessionId ?? sessionId) ?? this.ctx.agents.get(fact.observedSessionId ?? sessionId)?.options.model ?? null, time: fact.time }
     await this.enqueue(() => {
       if (!this.status({ workspaceId }).enabled) return
       const { db, status } = this.selected({ workspaceId })

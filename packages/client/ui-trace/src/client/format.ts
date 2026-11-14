@@ -44,19 +44,11 @@ export function decisionStatus(status: DecisionRevision['status'], t: TraceText)
 /** One activity sentence: what happened, without the raw event type.
  * @param event Timeline row.
  * @param t Localized copy.
- * @returns One readable line. The stored type stays available as {@link eventType}.
+ * @returns One readable line.
  */
 export function eventLine(event: TraceEvent, t: TraceText): string {
   const who = event.source.sessionId === null ? actorName(event.source.actor, t) : sessionName(event, t)
   return `${who} ${eventAction(event, t)}`
-}
-
-/** Stored event type, shown on hover rather than in the line.
- * @param event Timeline row.
- * @returns The recorded type string.
- */
-export function eventType(event: TraceEvent): string {
-  return event.type
 }
 
 /** Actor word without a session id.
@@ -114,7 +106,9 @@ function eventAction(event: TraceEvent, t: TraceText): string {
   if (event.type === 'tool/call') return t('ranCommand', { summary: summary ?? '' })
   if (event.type === 'user/message') return t('saidSomething')
   if (event.type === 'assistant/message') {
-    const reply = payloadText(event.payload, 'text')?.slice(0, 30)
+    const text = payloadText(event.payload, 'text')
+    // A longer reply keeps an ellipsis so the row shows that text was cut.
+    const reply = text === undefined || text.length <= 30 ? text : `${text.slice(0, 30)}…`
     return reply === undefined ? t('replied') : t('repliedWith', { summary: reply })
   }
   if (event.type === 'session/started') return t('started')

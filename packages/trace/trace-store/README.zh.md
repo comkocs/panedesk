@@ -13,7 +13,7 @@ Web／桌面 Host 挂载 `traceStore`；事项记录与严格拍板缺省关闭�
 
 ## 使用本包
 
-默认导出为 Host 服务。`/types` 导出客户端安全记录，`/typert` 提供 Host 描述，`/remote` 通过应用远端装配公开同名方法。工作区请求使用 `workspaceId`；可选 `sessionId` 标识用户所在窗口，但不授予模型权限。模型调用从当前 Host agent initiator 自动取得会话与模型出处。
+默认导出为 Host 服务。`/types` 导出客户端安全记录，`/typert` 提供 Host 描述，`/remote` 通过应用远端装配公开同名方法。工作区请求使用 `workspaceId`；可选 `sessionId` 标识用户所在窗口，但不授予模型权限。模型调用从当前 Host agent initiator 自动取得会话出处。记下的模型是该会话自 Host 启动以来最近一次 `request/context` 所用的模型；还没有请求过时才用会话选项里的模型。已有记录不改写。
 
 - 工作区：`status`、`followStatus`（初始开关及保存后的更新）、`enable`、`disable`、`associateProject`、`setStrict`。
 - 事项：`createItem`、`closeItem`、`voidItem`、`listItems`。

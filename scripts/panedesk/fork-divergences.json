@@ -16879,6 +16879,20 @@
           "packages/settings/tool-panedesk-settings/**"
         ]
       }
+    },
+    {
+      "id": "trace-actual-model-and-pinned-actions",
+      "description": "Label trace rows with the model last requested and keep item actions in view",
+      "origin": "Panedesk item panel",
+      "reason": "Rows named the session option after the window changed models, activity rows showed an English type tooltip, the close and export row scrolled away, and a cut reply preview had no ellipsis.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/trace/trace-store/**",
+          "packages/client/ui-trace/**",
+          "scripts/panedesk/fork-divergences.json"
+        ]
+      }
     }
   ]
 }
