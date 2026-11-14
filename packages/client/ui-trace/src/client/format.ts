@@ -47,8 +47,20 @@ export function decisionStatus(status: DecisionRevision['status'], t: TraceText)
  * @returns One readable line.
  */
 export function eventLine(event: TraceEvent, t: TraceText): string {
-  const who = event.source.sessionId === null ? actorName(event.source.actor, t) : sessionName(event, t)
-  return `${who} ${eventAction(event, t)}`
+  const { who, action } = eventParts(event, t)
+  return `${who} ${action}`
+}
+
+/** Separate attribution from activity without changing the exported sentence.
+ * @param event Timeline row.
+ * @param t Localized copy.
+ * @returns Window or actor prefix and action text.
+ */
+export function eventParts(event: TraceEvent, t: TraceText): { who: string; action: string } {
+  return {
+    who: event.source.sessionId === null ? actorName(event.source.actor, t) : sessionName(event, t),
+    action: eventAction(event, t),
+  }
 }
 
 /** Actor word without a session id.

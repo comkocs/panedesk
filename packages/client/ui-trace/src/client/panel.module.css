@@ -12,21 +12,90 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.tab p {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.tab [role='alert'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.header,
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header {
+  gap: 2px;
+}
+
 .heading {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
   margin: 0;
   font-size: 13px;
   font-weight: 500;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.count {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .pill {
   min-height: 28px;
 }
 
-.row {
+.tabs [role='tab'] {
+  height: 28px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.row,
+.create,
+.assign {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+}
+
+.row {
+  flex-wrap: wrap;
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+}
+
+.titleInput input {
+  width: 100%;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.create > button,
+.assign > button {
+  flex-shrink: 0;
+}
+
+.assign > p {
+  flex: 1;
 }
 
 /* The timeline's close and export row, plus its notice, stay at the top of the panel scroller. */
@@ -39,11 +108,12 @@
   background: var(--dsw-alias-bg-base);
 }
 
-.notice {
+.tab .notice {
   margin: 6px 0 0;
 }
 
-.list {
+.list,
+.loose {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -53,42 +123,120 @@
 }
 
 .loose {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   max-height: 240px;
-  margin: 0;
-  padding: 0;
   overflow: auto;
-  list-style: none;
+}
+
+.itemButton {
+  justify-content: flex-start;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.itemButton[aria-pressed='true'] {
+  background: var(--dsw-alias-fill-secondary);
+}
+
+.itemButton:hover,
+.looseRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.fold {
+  gap: 4px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.truncate,
+.metadata {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 4px 0;
   padding: 4px 6px;
   border-radius: 6px;
 }
 
 .activity {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.prefix {
+  font-family: var(--ds-font-family-code);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.looseRow {
+  position: relative;
+  min-height: 18px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.checkbox {
+  position: absolute;
+  inset: 0;
+  align-items: flex-start;
+  padding: 5px 6px;
+}
+
+/* The primitive keeps the full accessible label; the visible row separates attribution and action. */
+.checkbox > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.looseText {
+  display: block;
+  margin-left: 22px;
+  pointer-events: none;
 }
 
 .reference {
   align-self: flex-start;
   flex-shrink: 0;
-  margin-top: 4px;
 }
 
-.selected {
-  background: var(--dsw-alias-fill-secondary);
-}
-
-.muted {
+.muted,
+.metadata {
   color: var(--dsw-alias-label-secondary);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+}
+
+.tab .body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
 }
 
 .quote {

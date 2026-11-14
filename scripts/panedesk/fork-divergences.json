@@ -16891,6 +16891,19 @@
       }
     },
     {
+      "id": "trace-compact-sidebar-layout",
+      "description": "Align the items and decisions panel with the sidebar type scale",
+      "origin": "Panedesk item panel",
+      "reason": "Use compact segmented tabs, counted sections, collapsed closed items, two-part activity rows, and decision cards without changing recorded data or exports.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/ui-trace/**",
+          "scripts/panedesk/fork-divergences.json"
+        ]
+      }
+    },
+    {
       "id": "trace-actual-model-and-pinned-actions",
       "description": "Label trace rows with the model last requested and keep item actions in view",
       "origin": "Panedesk item panel",
