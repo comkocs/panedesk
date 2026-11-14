@@ -5805,6 +5805,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Project operations are available to every window after the workspace\'s one-time opt-in.',
     methods: [
       {
+        signature: 'noteModel(sessionId: SessionId, model: string): void',
+        description: 'Remember the model a session actually requested, replacing any earlier one.',
+        parameters: [{ name: 'sessionId', description: 'Session that sent the request.' }, { name: 'model', description: 'Model id from that request.' }],
+      },
+      {
+        signature: 'forgetModel(sessionId: SessionId): void',
+        description: 'Drop a session\'s remembered model when the session itself is gone.',
+        parameters: [{ name: 'sessionId', description: 'Disposed session.' }],
+      },
+      {
         signature: '@Remote({ resources: { workspace: request => request.workspaceId } }) status(request: WorkspaceRequest): TraceStatus',
         description: 'Read workspace switches without opening an unselected project.',
         parameters: [{ name: 'request', description: 'Workspace selection.' }],

@@ -313,6 +313,17 @@ Source: [`packages/api/terminal-controller/src/index.ts`](../../packages/api/ter
 Project operations are available to every window after the workspace's one-time opt-in.
 
 ```ts cordis-catalog
+/** Remember the model a session actually requested, replacing any earlier one.
+ * @param sessionId Session that sent the request.
+ * @param model Model id from that request.
+ */
+noteModel(sessionId: SessionId, model: string): void
+
+/** Drop a session's remembered model when the session itself is gone.
+ * @param sessionId Disposed session.
+ */
+forgetModel(sessionId: SessionId): void
+
 /** Read workspace switches without opening an unselected project.
  * @param request Workspace selection.
  * @returns Saved switches, or disabled defaults.
