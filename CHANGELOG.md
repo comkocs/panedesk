@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.16
+
+### Changed
+
+- Items panel: rebuilt on the sidebar type scale with a compact Items/Decisions switch, a one-line create row (Enter creates), 13px section headings with counts, single-line item rows, a collapsed Closed section, two-line timeline and activity rows that set the window id apart, themed checkboxes for unassigned activity, and decision cards.
+- Right sidebar: horizontal scrollbars are 12px tall in every sidebar view, matching the subagent tree. The split drop hint's middle box covers only the small middle area that moves a tab into the pane, and top/bottom split layouts are kept when a saved sidebar layout is restored.
+- Model menu: the reasoning-effort card opens as soon as the pointer reaches its row and has a visible border.
+- Models settings: the fetched-model dialog reads Check the models to keep, explains the default separately for empty and non-empty catalogs, and offers Select none once everything shown is checked. The Models page uses the shared settings type scale.
+- Settings: the window grows on large screens, the DSH group note stays on one line, tool names on the Tools page read as headings, and the General page uses the shared type scale.
+- Subagent presets: tier criteria wrap across three lines instead of scrolling sideways.
+
 ## 2.0.15
 
 ### Changed
