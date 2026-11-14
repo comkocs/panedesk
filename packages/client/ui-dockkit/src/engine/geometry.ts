@@ -20,7 +20,13 @@ export type DropTarget =
   /** Into a tab strip at an explicit slot: a reorder or a cross-pane move. */
   | { readonly kind: 'strip'; readonly paneId: PaneId; readonly index: number }
   /** Onto a pane body: the centre moves the tab in, an edge splits the pane. */
-  | { readonly kind: 'zone'; readonly paneId: PaneId; readonly zone: DockZone }
+  | {
+    readonly kind: 'zone'
+    readonly paneId: PaneId
+    readonly zone: DockZone
+    /** Split-mode centre region in body-local pixels; omitted for whole-body moves. */
+    readonly centerRect?: Rect
+  }
 
 /**
  * Whether a point is inside a rectangle, edges included.

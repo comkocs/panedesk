@@ -21,12 +21,13 @@
  * their width and their place at the strip's end.
  */
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode, RefObject } from 'react'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import { IconCloseFillRegular, IconPlusOutlineRegular, Tooltip } from '@panedesk/dsh-client-ui-primitives'
 import type { DockZone, LayoutState, PaneNode, TabId } from '../contract/types.ts'
 import { getTab } from '../engine/tree.ts'
 import type { PaneCallbacks, SplitBlock } from './render.ts'
+import type { Rect } from '../engine/geometry.ts'
 import { TabMenu } from './TabMenu.tsx'
 import { TabTitle } from './TabTitle.tsx'
 import css from './dockkit.module.css'
@@ -76,17 +77,24 @@ function ZoneGlyph({ zone }: { readonly zone: DockZone }): ReactNode {
 /**
  * One landing card, inset inside the region a release would fill: a dashed
  * frame, the zone's glyph, and its caption. `active` is the region under the
- * pointer; a sibling shown for orientation only draws quieter.
+ * pointer; a sibling shown for orientation only draws quieter. `centerRect`
+ * draws only the centred caption in the exact split-mode centre region.
  */
-function DockHint({ zone, active, labels }: {
+function DockHint({ zone, active, labels, centerRect }: {
   readonly zone: DockZone
   readonly active: boolean
   readonly labels: PaneCallbacks['labels']
+  readonly centerRect?: Rect | undefined
 }): ReactNode {
   return (
-    <div className={css.dockHint} data-dockkit-dock-zone={zone} data-dockkit-drop-active={active || undefined}>
+    <div className={clsx(css.dockHint, centerRect !== undefined && css.dockHintCenter)}
+      data-dockkit-dock-zone={zone} data-dockkit-drop-active={active || undefined}
+      style={centerRect === undefined ? undefined : {
+        '--dsh-dockkit-center-x': `${centerRect.x}px`, '--dsh-dockkit-center-y': `${centerRect.y}px`,
+        '--dsh-dockkit-center-width': `${centerRect.width}px`, '--dsh-dockkit-center-height': `${centerRect.height}px`,
+      } as CSSProperties}>
       <div className={css.dockHintCard}>
-        <ZoneGlyph zone={zone} />
+        {centerRect === undefined && <ZoneGlyph zone={zone} />}
         <span className={css.dockHintLabel}>{labels.dropZone[zone]}</span>
       </div>
     </div>
@@ -417,7 +425,8 @@ export function PaneDropHints({ pane, callbacks }: Pick<TabPanelProps, 'pane' | 
         <DockHint zone="left" active={zone === 'left'} labels={callbacks.labels} />
         <DockHint zone="right" active={zone === 'right'} labels={callbacks.labels} />
       </>
-      : <DockHint zone={zone} active labels={callbacks.labels} />}
+      : <DockHint zone={zone} active labels={callbacks.labels}
+        centerRect={target?.kind === 'zone' ? target.centerRect : undefined} />}
   </>
 }
 

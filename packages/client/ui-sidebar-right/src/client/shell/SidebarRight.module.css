@@ -47,6 +47,10 @@
   pointer-events: none;
 }
 
+.panel :global(*)::-webkit-scrollbar {
+  height: 12px;
+}
+
 /* Only docked Grid items slide. Their common ancestor remains untransformed
    and without a stacking context, so fixed floating children escape. */
 .panel :global([data-dockkit-host='dock']),

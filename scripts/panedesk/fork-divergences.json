@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "sidebar-scrollbars-and-split-continuity",
+      "description": "Thicken right-panel horizontal scrollbars and align split feedback and layout retention",
+      "origin": "Desktop panel interaction feedback",
+      "reason": "Use 12px horizontal scrollbars only inside docked and floating right panels, match the centre hint to its split drop region, and preserve stacked layouts through restoration while empty panes merge without removing their siblings.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-sidebar-right/**", "packages/client/ui-dockkit/**"]
+      }
+    },
+    {
       "id": "split-drop-effort-card-model-selection",
       "description": "Refine split drop targets, effort card placement, and model discovery selection",
       "origin": "Panedesk desktop interaction feedback",

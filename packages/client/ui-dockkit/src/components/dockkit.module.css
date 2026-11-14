@@ -658,6 +658,17 @@
   inset: 0;
 }
 
+.dockHint.dockHintCenter {
+  inset: var(--dsh-dockkit-center-y) auto auto var(--dsh-dockkit-center-x);
+  width: var(--dsh-dockkit-center-width);
+  height: var(--dsh-dockkit-center-height);
+  padding: 0;
+}
+
+.dockHintCenter .dockHintCard {
+  padding: 0;
+}
+
 .dockHint[data-dockkit-dock-zone='left'] {
   top: 0;
   bottom: 0;

@@ -113,6 +113,8 @@ const NO_FITS: ReadonlyMap<PaneId, HalvesFit> = new Map()
 /** The default policy for the omitted callbacks: every pane offers the add control, every tab its close. */
 const ALWAYS = (): boolean => true
 
+const SPLIT_EDGE_FRACTION = 0.45
+
 /**
  * The edge band a pointer sits in, or the pane centre when that edge cannot
  * split. A blocked edge stays a move onto the pane rather than no drop at all.
@@ -127,7 +129,7 @@ function splitZone(rect: DOMRect, x: number, y: number, canSplit: boolean, fit: 
   if (!canSplit || !(rect.width > 0) || !(rect.height > 0)) return 'center'
   // Only an axis with room for two halves competes, so a narrow column splits by height alone;
   // the 45% bands match the drop hint's edge boxes.
-  return zoneAt(fit.row ? (x - rect.x) / rect.width : 0.5, fit.column ? (y - rect.y) / rect.height : 0.5, 0.45)
+  return zoneAt(fit.row ? (x - rect.x) / rect.width : 0.5, fit.column ? (y - rect.y) / rect.height : 0.5, SPLIT_EDGE_FRACTION)
 }
 
 /**
@@ -162,6 +164,15 @@ function hitTest(
       const fit = fitOf(fits, paneId)
       const room = zone === 'left' || zone === 'right' ? fit.row : fit.column
       if (!canSplit || !room) return undefined
+    }
+    const fit = fitOf(fits, paneId)
+    if (dropZones === 'split' && zone === 'center' && canSplit && (fit.row || fit.column)) {
+      const body = (pane.querySelector<HTMLElement>(`.${css.paneBody}`) as HTMLElement).getBoundingClientRect()
+      const left = Math.max(body.x, rect.x + (fit.row ? rect.width * SPLIT_EDGE_FRACTION : 0))
+      const top = Math.max(body.y, rect.y + (fit.column ? rect.height * SPLIT_EDGE_FRACTION : 0))
+      const right = Math.min(body.right, rect.right - (fit.row ? rect.width * SPLIT_EDGE_FRACTION : 0))
+      const bottom = Math.min(body.bottom, rect.bottom - (fit.column ? rect.height * SPLIT_EDGE_FRACTION : 0))
+      return { kind: 'zone', paneId, zone, centerRect: { x: left - body.x, y: top - body.y, width: right - left, height: bottom - top } }
     }
     return { kind: 'zone', paneId, zone }
   }

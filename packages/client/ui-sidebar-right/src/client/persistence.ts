@@ -39,7 +39,7 @@ function validateReferences(value: z.infer<typeof surface>): void {
     if (visited.has(id) || entry === undefined) reject()
     visited.add(id)
     if (entry.kind === 'split') {
-      if (host !== 'dock' || id !== layout.rootId || entry.axis !== 'row' || entry.children.length !== 2
+      if (host !== 'dock' || id !== layout.rootId || entry.children.length !== 2
         || entry.children.length !== entry.sizes.length
         || Math.abs(entry.sizes.reduce((sum, size) => sum + size, 0) - 1) > 1e-9) reject()
       pending.push(...entry.children.map(id => ({ id, host })))
