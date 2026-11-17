@@ -34,8 +34,6 @@
             name: '@panedesk/dsh-tool-session-ops'
           - id: tool-jobs
             name: '@panedesk/dsh-tool-jobs'
-          - id: tool-schedule
-            name: '@panedesk/dsh-tool-schedule'
           - id: skill-filesystem
             name: '@panedesk/dsh-skill-filesystem'
           - id: tool-skill

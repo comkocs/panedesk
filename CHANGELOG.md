@@ -5,6 +5,7 @@
 ### Changed
 
 - System prompt: only the persona, @-path references, configured subagent presets, the one-line file-link rule, item tracking, MCP resource servers and an enabled verification policy remain. Tool-usage tips, untrusted-content warnings, the harness development and Web GUI notes, and the verification policy while it is off are gone. The runtime context keeps the working directory and drops the full-access sandbox, approval, checkout and GUI URL lines.
+- Built-in tools: shell and file tools no longer carry sandbox escalation fields or path-safety cautions, scheduled-reminder tools are no longer given to agents, and trace and verification checklist tools are sent only while item tracking or the verification policy is on.
 
 ### Fixed
 

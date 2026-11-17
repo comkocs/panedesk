@@ -37,6 +37,9 @@ export function apply(ctx: Context): void {
       if (workspaceId !== undefined && ctx.traceStore.status({ workspaceId }).enabled) {
         assembly.sections.push({ name: 'project-trace', interpolate: false,
           text: 'This project records activity: at the start of work, use trace_link_session to associate this session with the relevant item, and record decisions with trace_decision.' })
+      } else {
+        // Trace tools only answer "disabled" until recording is on, so they stay out of the request.
+        assembly.tools = assembly.tools.filter(tool => !tool.name.startsWith('trace_'))
       }
     }
     return assembly

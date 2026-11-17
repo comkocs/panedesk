@@ -13,7 +13,7 @@
 import type { Context } from '@panedesk/cordis'
 import type { ToolExecution } from '@panedesk/dsh-tools'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
-import { ESCALATION_TARGETS, approveEscalation, escalationHintMarker, escalationPair, sandboxDenialMarker, sandboxPermissionsDescription } from '@panedesk/dsh-sandbox'
+import { approveEscalation, escalationHintMarker, escalationPair, sandboxDenialMarker, sandboxPermissionsDescription } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
 import { FsError } from '@panedesk/dsh-fs'
 
@@ -43,7 +43,8 @@ export class FsSandboxController {
 
   constructor(private readonly ctx: Context) {
     const defaultMode = ctx.fs.sandboxMode
-    this.escalationModes = defaultMode === undefined ? [] : ESCALATION_TARGETS
+    // Panedesk advertises no sandbox escalation: a denied operation is reported, and the user switches modes.
+    this.escalationModes = []
     this.policy = defaultMode === undefined ? undefined : ctx.get('sandboxPolicy')
     if (defaultMode !== undefined && this.policy === undefined) {
       throw new Error('tool-fs: the mounted filesystem confines but ctx.sandboxPolicy is missing')

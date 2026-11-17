@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "lean-tool-definitions",
+      "description": "Drop unused tool parameters, cautions and tools from model requests",
+      "origin": "Panedesk built-in tool review",
+      "reason": "Shell and file tools no longer advertise sandbox escalation fields or path-safety cautions, scheduled-reminder tools are not mounted in agent presets, and trace and verification checklist tools are sent only while those features are on.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/bundle/web-app/presets/**", "packages/trace/tool-trace/**", "packages/guard/verification-policy/**"]
+      }
+    },
+    {
       "id": "lean-system-prompt",
       "description": "Drop non-essential system prompt and runtime-context text",
       "origin": "Panedesk system prompt review",
