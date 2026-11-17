@@ -5,6 +5,7 @@
 ### Changed
 
 - System prompt: only the persona, @-path references, configured subagent presets, the one-line file-link rule, item tracking, MCP resource servers and an enabled verification policy remain. Tool-usage tips, untrusted-content warnings, the harness development and Web GUI notes, and the verification policy while it is off are gone. The runtime context keeps the working directory and drops the full-access sandbox, approval, checkout and GUI URL lines.
+- Shell tools: a bash or PowerShell removal whose target is a drive root, a system, home or workspace directory, a command substitution or an unguarded variable now needs the user's approval before it runs; where approval is off it is refused with the reason so the agent can retry with a literal path.
 - Replies that need the user's answer or action end with a red-circle "needs you" section instead of an ask-user dialog.
 - Built-in tools: shell and file tools no longer carry sandbox escalation fields, and the shell cautions shrink to one line. Scheduled-reminder and ask-user tools start switched off on the Tools page, and trace and verification checklist tools are sent only while item tracking or the verification policy is on.
 

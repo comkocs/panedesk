@@ -10,6 +10,8 @@ import type { SandboxMode } from '@panedesk/dsh-sandbox'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution } from './types.ts'
 
 export { DSH_ENV_PREFIX } from './types.ts'
+export { dangerousRemoval } from './removal.ts'
+export type { RemovalHazard } from './removal.ts'
 export type {
   ShellExecRequest,
   ShellExecSpec,

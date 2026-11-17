@@ -25,7 +25,7 @@ import type {} from '@panedesk/dsh-shell-env'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
 import { approveEscalation, escalationPair, sandboxPermissionsDescription } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
-import { DSH_ENV_PREFIX } from '@panedesk/dsh-shell'
+import { DSH_ENV_PREFIX, dangerousRemoval } from '@panedesk/dsh-shell'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 import { processJob, processOutcome, processSources, ringDelta } from './background.ts'
 import { parseExitStatus, renderJobRead, renderPromoted, renderResult } from './render.ts'
@@ -202,6 +202,26 @@ export function apply(ctx: Context, config: Config = {}): void {
   const defaultMode = ctx.shell.sandboxMode
   // Panedesk advertises no sandbox escalation: a denied command is reported, and the user switches modes.
   const escalationModes: readonly SandboxMode[] = []
+  // As in Claude Code, a removal that could wipe a root, system, home or workspace directory needs a person;
+  // where approval is off it is refused with the reason, so the model retries with a literal path.
+  ctx.on('tools/pre-execute', async (exec, next) => {
+    if (exec.name !== 'bash') return next()
+    const args = exec.arguments as { command?: unknown; workdir?: unknown }
+    if (typeof args.command !== 'string') return next()
+    const base = exec.agent === undefined ? process.cwd() : ctx.workingDirectory.get(exec.agent.session)
+    const workdir = typeof args.workdir === 'string' ? args.workdir : ''
+    const cwd = workdir === '' ? base : isAbsolute(workdir) || workdir.startsWith('/') ? workdir : `${base}/${workdir}`
+    const found = dangerousRemoval(args.command, 'bash', cwd)
+    if (found === undefined) return next()
+    const approval = ctx.get('approval')
+    const outcome = approval === undefined || exec.agent === undefined ? 'unavailable' : await approval.request({
+      agent: exec.agent, toolName: exec.name, callId: exec.callId, reason: `Dangerous removal: ${found.en}`,
+      displayReason: { en: `Dangerous removal: ${found.en}`, zh: `危险删除:${found.zh}` }, signal: exec.signal,
+    })
+    if (outcome === 'allowed-once') return next()
+    return { kind: 'deny', reason: `Dangerous removal stopped before running: ${found.en}. `
+      + 'Remove a literal path below the working directory instead, or ask the user to run this command.' }
+  })
   const sandboxPolicy: SandboxPolicyService | undefined = defaultMode === undefined ? undefined : ctx.get('sandboxPolicy')
   if (defaultMode !== undefined && sandboxPolicy === undefined) {
     throw new Error('tool-bash: the mounted bash executor confines but ctx.sandboxPolicy is missing')
