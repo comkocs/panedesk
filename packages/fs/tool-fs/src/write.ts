@@ -60,16 +60,6 @@ interface WriteToolArgs {
  * @param sandbox - the shared sandbox-escalation API (advertisement, mode stamping, denial mapping).
  */
 export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void {
-  ctx.systemPrompt.section({
-    name: 'tool:write',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_WRITE'),
-    text: ({ scope }) => ctx.tools.get('write', scope) === undefined
-      ? ''
-      : 'Read an existing file before overwriting it with write (the default fs-observation-policy requires it)'
-        + (ctx.tools.get('edit', scope) === undefined ? '' : ' and prefer edit for targeted changes')
-        + '.',
-  })
-
   ctx.tools.register(defineTool({
     name: 'write',
     description: 'Create or fully replace a UTF-8 text file.',

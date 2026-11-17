@@ -294,14 +294,6 @@ export function presentGlobResult(_args: { pattern: string; path?: string }, res
  * @param caps - the deployment's resolved glob caps (plugin config after defaulting).
  */
 export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
-  ctx.systemPrompt.section({
-    name: 'tool:glob',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_GLOB'),
-    text: ({ scope }) => ctx.tools.get('glob', scope) === undefined
-      ? ''
-      : 'Use the glob tool — not shell find — to discover files by path pattern.',
-  })
-
   const overCapDescription = caps.sampleOverCapGlobResults ? 'is sampled across top-level entries' : 'keeps the first paths'
   const tool = defineTool({
     name: 'glob',

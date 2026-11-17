@@ -66,14 +66,6 @@ export function parseReadArgs(args: { file_path: string; offset?: number; limit?
  * @param caps - the deployment's resolved read caps (plugin config after defaulting).
  */
 export function applyReadTool(ctx: Context, caps: ReadToolCaps): void {
-  ctx.systemPrompt.section({
-    name: 'tool:read',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_READ'),
-    text: ({ scope }) => ctx.tools.get('read', scope) === undefined
-      ? ''
-      : 'Use the read tool — not shell commands like cat — to inspect text files. Use offset and limit to continue reading large files.',
-  })
-
   ctx.tools.register(defineTool({
     name: 'read',
     description: 'Read a UTF-8 text file and return line-numbered content.',

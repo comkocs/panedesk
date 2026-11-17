@@ -111,17 +111,6 @@ const GOAL_VALUE_SCHEMA = {
   ],
 } as const
 
-/** Render policy guidance with its deployment-selected blocked threshold. */
-function guidance(blockedAfter: number): string {
-  return 'create_goal may infer goal intent from a direct human request in any language. '
-    + 'After session resume or fork, an active goal is disarmed: when '
-    + 'a human asks to continue or resume in any wording or language, use update_goal action '
-    + 'resume to rearm it. Mark complete only when the objective is actually achieved. Mark '
-    + `blocked only after the same blocking condition persists for at least ${blockedAfter} `
-    + 'consecutive goal rounds, and report that concrete condition in blocked_reason; difficulty, uncertainty, '
-    + 'or useful remaining work is not blocked.'
-}
-
 /** Validate config even when apply is called directly outside Loader normalization. */
 function resolveConfig(config: Config): ResolvedConfig {
   const blockedAfter = config.blockedAfterConsecutiveRounds ?? 3
@@ -183,15 +172,9 @@ function present(title: string, kind: 'read' | 'other', rawInput?: unknown): Gen
   return { card: 'generic', title, kind, ...rawInput === undefined ? {} : { rawInput } }
 }
 
-/** Register the three Codex-shaped goal tools and their shared policy section. */
+/** Register the three Codex-shaped goal tools. */
 export function apply(ctx: Context, config: Config): void {
   const resolved = resolveConfig(config)
-  ctx.systemPrompt.section({
-    name: 'tool:goal',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_GOAL'),
-    text: guidance(resolved.blockedAfterConsecutiveRounds),
-  })
-
   ctx.tools.register(defineTool({
     name: 'get_goal',
     description: GET_DESCRIPTION,

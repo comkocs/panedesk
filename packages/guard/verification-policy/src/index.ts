@@ -69,6 +69,7 @@ export default class VerificationPolicy extends TypertRemoteService {
       const assembly = await next()
       if (context.agent !== undefined) {
         const settings = this.forSession(context.agent.session)
+        if (!settings.enabled) return assembly
         const checklist = assembly.tools.some(tool => tool.name === 'verification_checklist')
           ? '\nBefore you start work, call verification_checklist with a one-sentence requirement title and the checks you plan to run. If there is nothing to verify, submit an empty items array.'
           : ''

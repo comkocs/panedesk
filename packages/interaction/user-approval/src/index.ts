@@ -72,11 +72,6 @@ export type ApprovalPolicy = 'ask' | 'never'
 /** Every {@link ApprovalPolicy}, for option advertisement and runtime validation of untrusted policy strings. */
 export const APPROVAL_POLICIES: readonly ApprovalPolicy[] = ['ask', 'never']
 
-/** Model-facing statement for the deterministic `'never'` policy. */
-const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).'
-/** Model-facing statement for an interactive policy that may still fail closed. */
-const ASK_SENTENCE = 'Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.'
-
 /**
  * Whether the log currently sits inside an open turn (a `turn/start` not yet
  * closed by a `turn/end`) — the {@link ApprovalService.request} precondition.
@@ -151,8 +146,8 @@ export interface Config {
 
 /**
  * Approval service that applies session policy before answerers and logs every
- * ask/outcome pair to the requesting session. It exposes deterministic policy
- * changes to the model through the runtime-context snapshot and switch notices.
+ * ask/outcome pair to the requesting session. Policy switches reach the model
+ * as switch notices.
  */
 export class ApprovalService extends Service {
   static Config: z<Config> = z.object({
@@ -162,24 +157,6 @@ export class ApprovalService extends Service {
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'approval')
-
-    const effective = (agent: Agent): ApprovalPolicy => this.effectivePolicy(agent.session)
-
-    // The complete current value travels after retained history, so switching
-    // policy does not rewrite the stable system-prompt cache prefix.
-    ctx.inject(['systemPrompt'], (scope: Context) => {
-      scope.systemPrompt.context({
-        name: 'approval:policy',
-        order: scope.systemPrompt.getContextOrder('APPROVAL_POLICY'),
-        text: (context) => {
-          const agent = context.agent
-          // A bare assemble() (tests, diagnostics) has no session to state.
-          if (agent === undefined) return ''
-          const policy = effective(agent)
-          return policy === 'never' ? NEVER_SENTENCE : ASK_SENTENCE
-        },
-      })
-    })
   }
 
   /**

@@ -42,10 +42,6 @@ import {
 export const name = 'tool-subagent'
 export const inject = ['tools', 'subagents', 'systemPrompt', 'sessionProjections']
 
-// Definition identity keeps shared guidance scoped to the actual visible tools,
-// including scoped overrides and independently loaded tool registries.
-const delegationTools = new Set<ToolDefinition>()
-
 /** Config: which registered provider this tool delegates to, plus child defaults. */
 export interface Config extends PresetSelectionConfig {
   /** The `ctx.subagents` provider name to start runs on (e.g. `spawn`, `acp`). */
@@ -417,11 +413,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
       definition.guardName = 'subagent'
       const disposeTool = runtimeCtx.effect(() => {
         const unregister = runtimeCtx.tools.register(definition)
-        delegationTools.add(definition)
-        return () => {
-          delegationTools.delete(definition)
-          unregister()
-        }
+        return () => { unregister() }
       })
       // oxlint-disable-next-line typescript/no-misused-promises -- Tool and guidance disposal are synchronous.
       mounted = { subagentProvider, definition, disposeTool, admissionEnabled }
@@ -452,20 +444,6 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
       // A backend fiber may activate later; a misspelled provider remains visible in this log.
       runtimeCtx.logger.info(`subagent provider "${config.provider}" not registered yet; the "${config.toolName ?? 'subagent'}" tool will register when it appears`)
     }
-    runtimeCtx.systemPrompt.section({
-      name: `tool:${toolName}`,
-      order: runtimeCtx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
-      text: (context) => {
-        if (mounted === undefined) return ''
-        const visible = [...delegationTools]
-          .filter(tool => runtimeCtx.tools.get(tool.name, context.scope) === tool)
-          .map(tool => tool.name)
-          .sort()
-        if (visible[0] !== toolName) return ''
-        const names = visible.map(name => `\`${name}\``).join(' or ')
-        return `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`
-      },
-    })
     runtimeCtx.systemPrompt.context({
       name: `tool:${toolName}:depth`,
       order: runtimeCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),

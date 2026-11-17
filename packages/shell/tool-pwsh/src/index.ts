@@ -262,13 +262,6 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   /* jscpd:ignore-end */
 
-  ctx.systemPrompt.section({
-    name: 'tool:pwsh',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_PWSH'),
-    text: 'Non-zero exits are reported as `[exit code: N]` markers; investigate failures before moving on. '
-      + 'On Windows a killed process settles as `[exit code: 1]` without a signal marker; treat a bare exit 1 after an interruption as a termination, not a command failure.',
-  })
-
   /**
    * One registration of the `pwsh` tool. With a registry, every call
    * registers its process as a job at its start; without one the tool is

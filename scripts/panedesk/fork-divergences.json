@@ -1,6 +1,26 @@
 {
   "divergences": [
     {
+      "id": "lean-system-prompt",
+      "description": "Drop non-essential system prompt and runtime-context text",
+      "origin": "Panedesk system prompt review",
+      "reason": "Keep the model context to identity, feature-required guidance and the working directory; tool-usage tips, untrusted-content warnings, harness-development context, full-access sandbox and approval statements, and a disabled verification policy no longer take prompt space.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/bundle/web-app/cordis.patch.yml", "packages/web/tool-web/**", "packages/sandbox/sandbox-policy/**", "packages/interaction/user-approval/**", "packages/guard/verification-policy/**", "packages/subagent/subagent/**", "packages/subagent/tool-subagent/**", "packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/fs/tool-fs-search/**", "packages/jobs/tool-jobs/**", "packages/goal/tool-goal/**", "packages/workflow/tool-workflow/**", "packages/client/ui-deliverables/**"]
+      }
+    },
+    {
+      "id": "trace-unassigned-row-height",
+      "description": "Keep unassigned activity rows from overlapping",
+      "origin": "Panedesk items panel feedback",
+      "reason": "Two-line activity rows keep their height when the capped list overflows.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/client/ui-trace/**"]
+      }
+    },
+    {
       "id": "responsive-settings-and-wrapped-criteria",
       "description": "Scale settings and refine settings and preset presentation",
       "origin": "Panedesk settings presentation feedback",

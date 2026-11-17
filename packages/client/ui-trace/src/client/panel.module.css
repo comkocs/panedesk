@@ -183,8 +183,10 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* Rows keep their two-line height when the capped list overflows instead of shrinking into each other. */
 .looseRow {
   position: relative;
+  flex-shrink: 0;
   min-height: 18px;
   padding: 4px 6px;
   border-radius: 6px;

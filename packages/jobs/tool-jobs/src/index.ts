@@ -247,13 +247,6 @@ export function apply(ctx: Context, config: Config): void {
   // Producers may start work only while a controller is attached.
   ctx.jobs.attachController('tool-jobs')
 
-  // Cross-call guidance follows the filesystem sections and precedes product sections.
-  ctx.systemPrompt.section({
-    name: 'tool:jobs',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_JOBS'),
-    text: 'Track every background job id you start. You are notified in-session when a job finishes — do not busy-poll or sleep on one; keep working on independent steps and do not duplicate a running job\'s work. Before giving a final answer, collect every still-relevant job with job_output (set wait: true only when you are genuinely blocked on it), and job_kill jobs that stopped mattering.',
-  })
-
   // Live jobs whose kill the model itself requested through `job_kill`: that
   // tool result is the model's delivery, so the settlement notice would only
   // repeat it. A wait needs no entry here — the registry reports a settlement

@@ -321,13 +321,6 @@ export function apply(ctx: Context, config: Config): void {
   const { toolName, maxResultChars, enableRunInBackground } = config as ResolvedConfig
   const recorder = createWorkflowRecorder(ctx)
   const mirror = createWorkflowRecordMirror(ctx)
-  // Usage policy ships with the tool (the master convention: tool guidance
-  // lives in tool plugins as prompt sections, not in the deployment persona).
-  ctx.systemPrompt.section({
-    name: `tool:${toolName}`,
-    order: ctx.systemPrompt.getSectionOrder('TOOL_WORKFLOW'),
-    text: `Use the ${toolName} tool ONLY when the user explicitly asks for a workflow or for large multi-agent orchestration: you write a JavaScript script (the tool description documents the exact format) that fans work out across many subagents with phases and structured results. For one or two delegations, prefer plain subagent calls.`,
-  })
   ctx.tools.register(defineTool({
     name: toolName,
     description: DESCRIPTION,

@@ -244,13 +244,6 @@ export function apply(ctx: Context, config: Config = {}): void {
     )
   }
 
-  // Cross-call guidance belongs in the prompt rather than one-call schema prose.
-  ctx.systemPrompt.section({
-    name: 'tool:bash',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_BASH'),
-    text: 'Check the [exit code: N] marker on every bash result; investigate failures before moving on.',
-  })
-
   /**
    * One registration of the `bash` tool. With a registry, every call
    * registers its process as a job at its start; without one the tool is
