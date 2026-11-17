@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.17
+
+### Changed
+
+- System prompt: only the persona, @-path references, configured subagent presets, the one-line file-link rule, item tracking, MCP resource servers and an enabled verification policy remain. Tool-usage tips, untrusted-content warnings, the harness development and Web GUI notes, and the verification policy while it is off are gone. The runtime context keeps the working directory and drops the full-access sandbox, approval, checkout and GUI URL lines.
+
+### Fixed
+
+- Items panel: two-line unassigned activity rows no longer overlap the next row when the list scrolls.
+
 ## 2.0.16
 
 ### Changed
