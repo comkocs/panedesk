@@ -470,8 +470,9 @@ export function ModelSelect(
       onKeyDown={onRootKeyDown}
       onBlur={onBlur}
       onMouseDown={(event) => {
-        // WebKit blurs a focused row before click unless the button's mousedown keeps focus.
-        if (event.target instanceof Element && event.target.closest('button') !== null) event.preventDefault()
+        // Keep focus where it is on any press inside the menus except the search box, so a press
+        // on a row or the gaps between rows never blurs the menu shut.
+        if (event.target instanceof Element && event.target.closest('input') === null) event.preventDefault()
       }}
     >
       <button
@@ -631,7 +632,7 @@ export function ModelSelect(
               )}
           </>
           {effortChoices.length > 0 && (
-            <div className={css.effortFooter} role="menu" aria-label={t('menu.effort')} onPointerEnter={busy ? undefined : () => { openEffort() }}>
+            <div className={css.effortFooter} role="menu" aria-label={t('menu.effort')} onPointerEnter={() => { openEffort() }}>
               <button
                 ref={effortRowRef}
                 type="button"
@@ -640,7 +641,6 @@ export function ModelSelect(
                 aria-haspopup="menu"
                 aria-expanded={effortOpen}
                 aria-controls={effortOpen ? `${id}-efforts` : undefined}
-                disabled={busy}
                 onClick={() => { openEffort() }}
               >
                 <span className={css.cellLabel}>{t('menu.effort')}</span>

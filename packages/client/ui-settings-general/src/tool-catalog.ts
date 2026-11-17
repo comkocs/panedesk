@@ -20,12 +20,19 @@ export default class ToolCatalog extends TypertRemoteService {
   @Remote
   async list(): Promise<ToolCatalogEntry[]> {
     const tools = new Map(this.ctx.tools.schemas().map(tool => [tool.name, tool]))
+    const presetOnly = new Map<string, string[]>()
     const presets = this.ctx.get('agentPresets')
     if (presets) {
-      for (const preset of await presets.list()) {
-        if (preset.broken) continue
+      // Ordinary sessions run the default preset, so only other presets' extra tools are marked.
+      const rows = (await presets.list()).filter(preset => !preset.broken)
+        .sort((a, b) => Number(b.id === presets.defaultId) - Number(a.id === presets.defaultId))
+      for (const preset of rows) {
         await using scope = await presets.acquireScope(preset.id)
-        for (const tool of this.ctx.tools.schemas(scope.key)) tools.set(tool.name, tool)
+        for (const tool of this.ctx.tools.schemas(scope.key)) {
+          if (tools.has(tool.name) && !presetOnly.has(tool.name)) continue
+          tools.set(tool.name, tool)
+          if (preset.id !== presets.defaultId) presetOnly.set(tool.name, [...presetOnly.get(tool.name) ?? [], preset.name ?? preset.id])
+        }
       }
     }
     return [...tools.values()].map(tool => {
@@ -35,6 +42,7 @@ export default class ToolCatalog extends TypertRemoteService {
         name: tool.name,
         description: tool.description.split(/\n|\.\s/u)[0]!,
         tokens: cjk + Math.ceil((Array.from(text).length - cjk) / 4),
+        ...presetOnly.has(tool.name) ? { presets: presetOnly.get(tool.name) } : {},
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
   }

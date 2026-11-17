@@ -74,6 +74,14 @@ export function formatEditOutput(displayPath: string, replaceAll: boolean): stri
  * @param sandbox - the shared sandbox-escalation API (advertisement, mode stamping, denial mapping).
  */
 export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void {
+  ctx.systemPrompt.section({
+    name: 'tool:edit',
+    order: ctx.systemPrompt.getSectionOrder('TOOL_EDIT'),
+    text: ({ scope }) => ctx.tools.get('edit', scope) === undefined
+      ? ''
+      : 'Read a file before editing it (the default fs-observation-policy requires it), unless you just created or edited it in this session.',
+  })
+
   ctx.tools.register(defineTool({
     name: 'edit',
     description: 'Edit an existing UTF-8 text file by replacing literal text.',

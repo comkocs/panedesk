@@ -14,17 +14,17 @@
       "id": "lean-tool-definitions",
       "description": "Drop unused tool parameters and default-off tools from model requests",
       "origin": "Panedesk built-in tool review",
-      "reason": "Shell and file tools no longer advertise sandbox escalation fields, scheduled-reminder and ask-user tools start in the default disabled list with a red-circle needs-you section in the persona, and trace and verification checklist tools are sent only while those features are on.",
+      "reason": "Shell and file tools no longer advertise sandbox escalation fields, scheduled-reminder and ask-user tools start in the default disabled list with a red-circle needs-you section in the persona, one prompt line names the tools turned off in settings, the Tools page marks tools that only some presets bring, the workflow-pack skill says it needs no workflow tool, and trace and verification checklist tools are sent only while those features are on.",
       "match": {
         "type": "behavior",
-        "paths": ["packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/settings/tool-panedesk-settings/**", "packages/bundle/web-app/cordis.patch.yml", "packages/trace/tool-trace/**", "packages/guard/verification-policy/**"]
+        "paths": ["packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/settings/tool-panedesk-settings/**", "packages/bundle/web-app/cordis.patch.yml", "packages/trace/tool-trace/**", "packages/guard/verification-policy/**", "packages/client/ui-settings-general/**", "packages/skill/skill-workflow-pack/**"]
       }
     },
     {
       "id": "lean-system-prompt",
       "description": "Drop non-essential system prompt and runtime-context text",
       "origin": "Panedesk system prompt review",
-      "reason": "Keep the model context to identity, feature-required guidance and the working directory; tool-usage tips, untrusted-content warnings, harness-development context, full-access sandbox and approval statements, and a disabled verification policy no longer take prompt space.",
+      "reason": "Keep the model context to identity, feature-required guidance and the working directory; tool-usage tips other than the read, edit and write file rules, untrusted-content warnings, harness-development context, full-access sandbox and approval statements, and a disabled verification policy no longer take prompt space.",
       "match": {
         "type": "behavior",
         "paths": ["packages/bundle/web-app/cordis.patch.yml", "packages/web/tool-web/**", "packages/sandbox/sandbox-policy/**", "packages/interaction/user-approval/**", "packages/guard/verification-policy/**", "packages/subagent/subagent/**", "packages/subagent/tool-subagent/**", "packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/fs/tool-fs-search/**", "packages/jobs/tool-jobs/**", "packages/goal/tool-goal/**", "packages/workflow/tool-workflow/**", "packages/client/ui-deliverables/**"]
@@ -32,9 +32,9 @@
     },
     {
       "id": "trace-unassigned-row-height",
-      "description": "Keep unassigned activity rows from overlapping",
+      "description": "Keep unassigned activity rows from overlapping and the selected item across tabs",
       "origin": "Panedesk items panel feedback",
-      "reason": "Two-line activity rows keep their height when the capped list overflows.",
+      "reason": "Two-line activity rows keep their height when the capped list overflows, and the selected item stays open after switching to Decisions and back.",
       "match": {
         "type": "behavior",
         "paths": ["packages/client/ui-trace/**"]
@@ -54,7 +54,7 @@
       "id": "model-picker-hover-and-discovery-controls",
       "description": "Open effort choices promptly and refine model discovery controls",
       "origin": "Panedesk model selection feedback",
-      "reason": "Make effort choices easier to find, clarify catalog selection, and align model settings typography.",
+      "reason": "Make effort choices easier to find and keep them openable while a selection is pending, keep presses inside the menu from closing it, clarify catalog selection, and align model settings typography.",
       "match": {
         "type": "behavior",
         "paths": ["packages/client/ui-model-selection/**", "packages/client/ui-settings-models/**"]
@@ -64,7 +64,7 @@
       "id": "sidebar-scrollbars-and-split-continuity",
       "description": "Thicken right-panel horizontal scrollbars and align split feedback and layout retention",
       "origin": "Desktop panel interaction feedback",
-      "reason": "Use 12px horizontal scrollbars only inside docked and floating right panels, match the centre hint to its split drop region, and preserve stacked layouts through restoration while empty panes merge without removing their siblings.",
+      "reason": "Use 12px horizontal scrollbars with a stronger resting thumb only inside docked and floating right panels, match the centre hint to its split drop region, and preserve stacked layouts through restoration while empty panes merge without removing their siblings.",
       "match": {
         "type": "behavior",
         "paths": ["packages/client/ui-sidebar-right/**", "packages/client/ui-dockkit/**"]

@@ -34,7 +34,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   for (const resource of ['requirements-review.md', 'workflow-checkup.md', 'entries.jsonl', 'tools/trim.py', 'profiles']) statSync(join(directory, resource))
   const candidate: SkillCandidate = {
     name: 'workflow-pack',
-    description: 'Start or check a project\'s workflow: review product requirements, set up a workflow from getting-started, or check an existing workflow; read the matching guide before writing project files.',
+    description: 'Start or check a project\'s workflow: review product requirements, set up a workflow from getting-started, or check an existing workflow; read the matching guide before writing project files. Plain guide files; the workflow tool is not needed.',
     invocation: { modelInvocable: true, userInvocable: true },
     provider: 'dsh-workflow-pack', source: 'bundled', rank: BUNDLED_SKILL_RANK,
     resourceBase: { kind: 'directory', path: directory.split(sep).join('/') }, locator,

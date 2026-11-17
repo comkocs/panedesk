@@ -36,6 +36,8 @@ export function TracePanel(props: Props) {
   const [page, setPage] = useState<'items' | 'decisions'>('items')
   const pageId = useId()
   const [notice, setNotice] = useState<string | null>(null)
+  // Kept here so switching to Decisions and back keeps the selected item open.
+  const [selected, setSelected] = useState<ItemId | null>(null)
   const resource = props.useResource<'trace'>(workspace === undefined ? '' : `dsh-resource://trace/${encodeURIComponent(workspace.workspaceId)}`)
   const status = resource.value?.status ?? null
   const failed = resource.status === 'failed'
@@ -58,17 +60,18 @@ export function TracePanel(props: Props) {
       ]} />
       <div role="tabpanel" id={`${pageId}-${page}-panel`} aria-labelledby={`${pageId}-${page}`}>
         {page === 'items'
-          ? <ItemsPage {...props} workspaceId={workspace.workspaceId} notice={notice} setNotice={setNotice} />
+          ? <ItemsPage {...props} workspaceId={workspace.workspaceId} notice={notice} setNotice={setNotice}
+            selected={selected} setSelected={setSelected} />
           : <DecisionsPage {...props} workspaceId={workspace.workspaceId} strict={status.strict} />}
       </div>
     </section>}
   </section>
 }
 
-function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, exportText, t, workspaceId, notice, setNotice }:
-  Props & { workspaceId: WorkspaceId; notice: string | null; setNotice: (notice: string | null) => void }) {
+function ItemsPage({ sessionId, useResource, createItem, closeItem, assign, reference, exportText, t, workspaceId, notice, setNotice, selected, setSelected }:
+  Props & { workspaceId: WorkspaceId; notice: string | null; setNotice: (notice: string | null) => void
+    selected: ItemId | null; setSelected: (selected: ItemId | null) => void }) {
   const [tick, setTick] = useState(0)
-  const [selected, setSelected] = useState<ItemId | null>(null)
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const [title, setTitle] = useState('')
   const [closedExpanded, setClosedExpanded] = useState(false)

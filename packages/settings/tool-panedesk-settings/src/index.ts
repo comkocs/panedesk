@@ -89,6 +89,14 @@ export function apply(ctx: Context, config: Config): void {
     }
     return !disabled.has(name)
   }))
+  ctx.systemPrompt.section({
+    name: 'panedesk:disabled-tools',
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX') + 1,
+    text: () => {
+      const off = config.disabledTools.get()
+      return off.length === 0 ? '' : `Turned off in Settings → Panedesk → Tools, so not in your tool list (the user can turn them on): ${off.join(', ')}.`
+    },
+  })
   ctx.effect(() => ctx.settings.configure({ auto: false }))
   const items = () => {
     const entries = ctx.configEditor.entries()

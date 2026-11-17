@@ -51,6 +51,10 @@
   height: 12px;
 }
 
+.panel :global(*)::-webkit-scrollbar-thumb:horizontal {
+  background-color: var(--dsh-scrollbar-thumb-hover);
+}
+
 /* Only docked Grid items slide. Their common ancestor remains untransformed
    and without a stacking context, so fixed floating children escape. */
 .panel :global([data-dockkit-host='dock']),

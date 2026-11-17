@@ -5,6 +5,8 @@ export interface ToolCatalogEntry {
   name: string
   description: string
   tokens: number
+  /** Agent presets that bring this tool; absent when ordinary sessions have it. */
+  presets?: string[]
 }
 
 /** Classified failure copy selected by the Web locale without exposing raw updater diagnostics. */

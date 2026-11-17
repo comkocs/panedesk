@@ -29,7 +29,7 @@ export const zh = {
   'general.nav': '通用',
   'group.panedesk': 'Panedesk',
   'group.dsh': 'DSH',
-  'group.dsh.description': '原 DeepSeek Harness 功能',
+  'group.dsh.description': '原 DSH 功能',
   'panedesk.features': 'Panedesk 特色设置',
   'claudeAgentTypes.title': '读取 Claude Code 子代理类型(.claude/agents)',
   'claudeAgentTypes.description': '缺省关闭。不读取用户与工作区的 .claude/agents，内置模式和模型 + 提供商委派照常可用。修改后重启 Panedesk 生效。',

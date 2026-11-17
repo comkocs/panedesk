@@ -52,6 +52,7 @@ export function ToolsSection({ useResource, usePreferences, save, saveFullTools,
             <div className={css.title}>{tool.name}</div>
             <div className={css.description}>{key ? t(key) : tool.description}</div>
             <div className={css.description}>{t('tokens', { count: tool.tokens })}</div>
+            {tool.presets && <div className={css.description}>{t('presetOnly', { presets: tool.presets.join(', ') })}</div>}
           </div>
           <Switch label={tool.name} checked={!disabled.includes(tool.name)} disabled={!writable}
             onChange={enabled => { persist(enabled ? disabled.filter(name => name !== tool.name) : [...disabled, tool.name]) }} />
