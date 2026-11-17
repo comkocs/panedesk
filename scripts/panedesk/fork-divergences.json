@@ -4,7 +4,7 @@
       "id": "dangerous-removal-check",
       "description": "Stop shell removals that could wipe a root, system, home or workspace directory",
       "origin": "Panedesk accidental deletion review",
-      "reason": "Full-access sessions run commands without a sandbox, so bash and PowerShell removals of roots, system, home or workspace directories, command-substitution targets and unguarded variables ask the user first and are refused with a reason when approval is off.",
+      "reason": "Full-access sessions run commands without a sandbox, so bash and PowerShell removals of roots, system, home or workspace directories, command-substitution targets and unguarded variables, including those inside command lines handed to another shell, ask the user first and are refused with a reason when approval is off.",
       "match": {
         "type": "behavior",
         "paths": ["packages/shell/shell/**", "packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**"]

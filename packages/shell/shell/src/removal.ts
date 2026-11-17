@@ -15,10 +15,20 @@ export interface RemovalHazard {
   readonly zh: string
 }
 
-const REMOVERS = {
+type Dialect = 'bash' | 'pwsh' | 'cmd'
+
+const REMOVERS: Record<Dialect, Set<string>> = {
   bash: new Set(['rm', 'rmdir']),
   pwsh: new Set(['rm', 'rmdir', 'del', 'erase', 'rd', 'ri', 'remove-item']),
+  cmd: new Set(['rd', 'rmdir', 'del', 'erase']),
 }
+/** Commands that run another command line, and the dialect that line is read in. */
+const LAUNCHERS: Record<string, Dialect> = {
+  bash: 'bash', sh: 'bash', zsh: 'bash', dash: 'bash', eval: 'bash',
+  powershell: 'pwsh', pwsh: 'pwsh', 'invoke-expression': 'pwsh', iex: 'pwsh', cmd: 'cmd',
+}
+const PWSH_VALUE_PARAMS = new Set(['executionpolicy', 'ex', 'ep', 'windowstyle', 'w', 'outputformat', 'of', 'inputformat', 'if',
+  'configurationname', 'version', 'v', 'psconsolefile', 'workingdirectory', 'wd'])
 const PREFIXES = new Set(['sudo', 'command', 'builtin', 'exec', 'nohup', 'time'])
 /** Variables that are never empty here, with the value the shell sees. */
 function knownValue(name: string, cwd: string): string | undefined {
@@ -81,13 +91,40 @@ function words(segment: string): string[] {
   return out
 }
 
-/** Removal targets of one segment, or none when it is not a removal. */
-function targets(segment: string, shell: 'bash' | 'pwsh'): string[] {
-  const list = words(segment.trim())
-  while (list.length > 0 && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(list[0]!) || PREFIXES.has(list[0]!))) list.shift()
-  const head = list.shift()?.replace(/^[({]+/, '')
-  if (head === undefined) return []
-  const name = head.replace(/^.*[\\/]/, '').replace(/\.exe$/i, '').toLowerCase()
+/** Strip one pair of matching outer quotes. */
+function unquote(word: string): string {
+  return word.length >= 2 && (word[0] === '"' || word[0] === '\'') && word.at(-1) === word[0] ? word.slice(1, -1) : word
+}
+
+/**
+ * The command line a launcher runs: `undefined` when it names none (a script file), `null` when it is
+ * encoded and cannot be read.
+ */
+function innerCommand(name: string, rest: string[]): string | null | undefined {
+  if (name === 'eval' || name === 'invoke-expression' || name === 'iex') {
+    return rest.filter(word => !/^-command$/i.test(word)).map(unquote).join(' ')
+  }
+  if (name === 'cmd') {
+    const at = rest.findIndex(word => /^\/\/?[ck]$/i.test(word))
+    return at < 0 ? undefined : rest.slice(at + 1).map(unquote).join(' ')
+  }
+  if (name === 'powershell' || name === 'pwsh') {
+    for (let i = 0; i < rest.length; i++) {
+      const option = rest[i]!.toLowerCase()
+      if (/^-(c|command)$/.test(option)) return rest.slice(i + 1).map(unquote).join(' ')
+      if (/^-(e|ec|enc|encodedcommand)$/.test(option)) return null
+      if (/^-(f|file)$/.test(option)) return undefined
+      if (option.startsWith('-')) { if (PWSH_VALUE_PARAMS.has(option.slice(1))) i++; continue }
+      return rest.slice(i).map(unquote).join(' ')
+    }
+    return undefined
+  }
+  const at = rest.findIndex(word => /^-[a-z]*c$/.test(word))
+  return at < 0 || rest[at + 1] === undefined ? undefined : unquote(rest[at + 1]!)
+}
+
+/** Removal targets of one command, or none when it is not a removal. */
+function targets(name: string, list: string[], shell: Dialect): string[] {
   if (!REMOVERS[shell].has(name)) return []
   const out: string[] = []
   let literal = false
@@ -95,6 +132,7 @@ function targets(segment: string, shell: 'bash' | 'pwsh'): string[] {
     const word = list[i]!.replace(/^([^(]*)[)}]+$/, '$1')
     // Redirections name output files, not removal targets.
     if (/^\d*[<>]/.test(word)) { if (/^\d*[<>]+&?$/.test(word)) i++; continue }
+    if (shell === 'cmd' && word.startsWith('/')) continue
     if (literal || !word.startsWith('-')) { out.push(word); continue }
     if (shell === 'bash' && word === '--') { literal = true; continue }
     if (shell === 'pwsh') {
@@ -103,7 +141,7 @@ function targets(segment: string, shell: 'bash' | 'pwsh'): string[] {
       if (['include', 'exclude', 'filter', 'credential', 'stream'].includes(param)) i++
     }
   }
-  return out.flatMap(word => shell === 'pwsh' ? word.split(',') : [word]).filter(word => word !== '')
+  return out.flatMap(word => shell === 'bash' ? [word] : word.split(',')).filter(word => word !== '')
 }
 
 /** Native comparable form: forward slashes, `/c/x` as `c:/x`, lowercase on Windows. */
@@ -138,7 +176,7 @@ function contains(ancestor: string, path: string): boolean {
 }
 
 /** The hazard of one raw target word, if any. */
-function hazard(word: string, shell: 'bash' | 'pwsh', cwd: string): RemovalHazard | undefined {
+function hazard(word: string, shell: Dialect, cwd: string): RemovalHazard | undefined {
   if (word.includes('$(') || (shell === 'bash' && word.includes('`'))) {
     return {
       en: `the target \`${word}\` comes from a command substitution, so it cannot be checked before the command runs`,
@@ -163,7 +201,8 @@ function hazard(word: string, shell: 'bash' | 'pwsh', cwd: string): RemovalHazar
     }
   } else {
     // Single-quoted PowerShell text never expands.
-    const variable = /\$(?:env:)?([A-Za-z_][A-Za-z0-9_]*)/i.exec(word.replace(/'[^']*'/g, ''))
+    const variable = (shell === 'cmd' ? /%([A-Za-z_][A-Za-z0-9_]*)%/ : /\$(?:env:)?([A-Za-z_][A-Za-z0-9_]*)/i)
+      .exec(shell === 'cmd' ? word : word.replace(/'[^']*'/g, ''))
     if (variable !== null) {
       const value = knownValue(variable[1]!, cwd)
       if (value === undefined) {
@@ -190,19 +229,43 @@ function hazard(word: string, shell: 'bash' | 'pwsh', cwd: string): RemovalHazar
   return undefined
 }
 
+/** Scan one command line, following launched command lines a few levels deep. */
+function scan(command: string, shell: Dialect, cwd: string, depth: number): RemovalHazard | undefined {
+  for (const segment of segments(command)) {
+    const list = words(segment.trim())
+    while (list.length > 0 && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(list[0]!) || PREFIXES.has(list[0]!))) list.shift()
+    const head = list.shift()?.replace(/^[({]+/, '')
+    if (head === undefined) continue
+    const name = unquote(head).replace(/^.*[\\/]/, '').replace(/\.exe$/i, '').toLowerCase()
+    const launched = LAUNCHERS[name]
+    if (launched !== undefined) {
+      const inner = innerCommand(name, list)
+      if (inner === null) {
+        return {
+          en: 'the command runs an encoded PowerShell command, so its removals cannot be checked before it runs',
+          zh: '命令里有编码过的 PowerShell 命令,运行前无法核对其中的删除',
+        }
+      }
+      const found = inner === undefined || depth >= 4 ? undefined : scan(inner, launched, cwd, depth + 1)
+      if (found !== undefined) return found
+      continue
+    }
+    for (const target of targets(name, list, shell)) {
+      const found = hazard(target, shell, cwd)
+      if (found !== undefined) return found
+    }
+  }
+  return undefined
+}
+
 /**
- * Find the first dangerous removal in one shell command.
+ * Find the first dangerous removal in one shell command, including command lines it hands to
+ * `bash -c`, `sh -c`, `eval`, `powershell -Command`, `pwsh -c`, `Invoke-Expression` or `cmd /c`.
  * @param command - the command text as the model wrote it.
  * @param shell - which shell's quoting and removal commands apply.
  * @param cwd - the absolute directory the command runs in.
  * @returns the reason the removal needs a person, or `undefined` when none is found.
  */
 export function dangerousRemoval(command: string, shell: 'bash' | 'pwsh', cwd: string): RemovalHazard | undefined {
-  for (const segment of segments(command)) {
-    for (const target of targets(segment, shell)) {
-      const found = hazard(target, shell, cwd)
-      if (found !== undefined) return found
-    }
-  }
-  return undefined
+  return scan(command, shell, cwd, 0)
 }
