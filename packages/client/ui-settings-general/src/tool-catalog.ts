@@ -38,11 +38,12 @@ export default class ToolCatalog extends TypertRemoteService {
     return [...tools.values()].map(tool => {
       const text = JSON.stringify({ description: tool.description, parameters: tool.parameters })
       const cjk = text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0
+      const presets = presetOnly.get(tool.name)
       return {
         name: tool.name,
         description: tool.description.split(/\n|\.\s/u)[0]!,
         tokens: cjk + Math.ceil((Array.from(text).length - cjk) / 4),
-        ...presetOnly.has(tool.name) ? { presets: presetOnly.get(tool.name) } : {},
+        ...presets === undefined ? {} : { presets },
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
   }
