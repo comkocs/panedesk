@@ -4,10 +4,10 @@
       "id": "lean-tool-definitions",
       "description": "Drop unused tool parameters and default-off tools from model requests",
       "origin": "Panedesk built-in tool review",
-      "reason": "Shell and file tools no longer advertise sandbox escalation fields, scheduled-reminder, ask-user and settings tools start in the default disabled list, and trace and verification checklist tools are sent only while those features are on.",
+      "reason": "Shell and file tools no longer advertise sandbox escalation fields, scheduled-reminder and ask-user tools start in the default disabled list with a red-circle needs-you section in the persona, and trace and verification checklist tools are sent only while those features are on.",
       "match": {
         "type": "behavior",
-        "paths": ["packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/settings/tool-panedesk-settings/**", "packages/trace/tool-trace/**", "packages/guard/verification-policy/**"]
+        "paths": ["packages/shell/tool-bash/**", "packages/shell/tool-pwsh/**", "packages/fs/tool-fs/**", "packages/settings/tool-panedesk-settings/**", "packages/bundle/web-app/cordis.patch.yml", "packages/trace/tool-trace/**", "packages/guard/verification-policy/**"]
       }
     },
     {
