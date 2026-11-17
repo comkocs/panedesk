@@ -28,6 +28,7 @@ export interface Config {
 export const Config = z.object({
   disabledTools: z.array(z.string()).default([
     'subagent_fork', 'workflow', 'create_goal', 'update_goal', 'get_goal', 'present',
+    'schedule_create', 'schedule_update', 'schedule_delete', 'schedule_list', 'ask_user_question', 'panedesk_settings',
   ]).volatile(),
   subagentsFullTools: z.boolean().default(false).volatile(),
 })

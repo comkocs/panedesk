@@ -37,6 +37,8 @@
             name: '@panedesk/dsh-tool-session-ops'
           - id: tool-jobs
             name: '@panedesk/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@panedesk/dsh-tool-schedule'
           - id: command-goal
             name: '@panedesk/dsh-command-goal'
           - id: tool-goal

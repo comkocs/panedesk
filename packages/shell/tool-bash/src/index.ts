@@ -88,7 +88,8 @@ function bashDescription(): string {
     + 'Each call runs in a fresh shell; pass `workdir` instead of using `cd`. '
     + `Managed \`$${DSH_ENV_PREFIX}*\` variables expose current harness environment facts. `
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
-    + 'Provide `description` before `command` in the arguments.'
+    + 'Provide `description` before `command` in the arguments. '
+    + 'Before deleting or moving, check the resolved absolute path and guard variables in it with `${VAR:?}`.'
 }
 
 /**

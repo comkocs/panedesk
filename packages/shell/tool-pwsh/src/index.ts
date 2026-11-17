@@ -127,6 +127,7 @@ function pwshDescription(windowsSandbox: boolean): string {
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + 'On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. '
     + 'Provide `description` before `command` in the arguments. '
+    + 'Before deleting or moving, check the resolved absolute path. '
     + 'Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable.'
   if (!windowsSandbox) return base
   // The language-mode and named-pipe contracts below are Windows-restricted-token
