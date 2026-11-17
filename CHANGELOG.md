@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.18
+
+### Fixed
+
+- Shell tools: the dangerous-removal check also reads command lines handed to `bash -c`, `sh -c`, `eval`, `powershell -Command`, `pwsh -c`, `Invoke-Expression` and `cmd /c`, and stops encoded PowerShell commands it cannot read.
+
 ## 2.0.17
 
 ### Changed
