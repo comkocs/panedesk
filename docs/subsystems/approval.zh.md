@@ -104,7 +104,7 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.approval` — `ApprovalService`
 
-Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. It exposes deterministic policy changes to the model through the runtime-context snapshot and switch notices.
+Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. Policy switches reach the model as switch notices.
 
 ```ts cordis-catalog
 /**

@@ -447,7 +447,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'approval',
     summary: 'Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session.',
-    description: 'Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. It exposes deterministic policy changes to the model through the runtime-context snapshot and switch notices.',
+    description: 'Approval service that applies session policy before answerers and logs every ask/outcome pair to the requesting session. Policy switches reach the model as switch notices.',
     methods: [
       {
         signature: 'setPolicy(agent: Agent, policy: ApprovalPolicy): void',
