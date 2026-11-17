@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.19
+
+### Fixed
+
+- Model picker: the effort card opens on hover or click again, also while a model change is still being applied, and a press inside the menu no longer closes it.
+- Items panel: switching to Decisions and back keeps the selected item open.
+
+### Changed
+
+- System prompt: the read, edit and write file rules are back, and one line names the tools turned off under Settings → Panedesk → Tools.
+- Tools settings: tools that only some agent presets bring are marked, and the note lists what is off by default.
+- Right panel: horizontal scrollbar thumbs are easier to see at rest.
+
 ## 2.0.18
 
 ### Fixed
